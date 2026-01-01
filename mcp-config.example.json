@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/servers/main/schema/mcp-config.schema.json",
+  "mcpServers": {
+    "vibeflow": {
+      "command": "node",
+      "args": ["dist/mcp/run.js"],
+      "cwd": "/path/to/vibeflow",
+      "env": {
+        "NODE_ENV": "development",
+        "DEV_MODE": "true",
+        "DEV_USER_EMAIL": "your-email@example.com",
+        "DATABASE_URL": "postgresql://user:password@localhost:5432/vibeflow"
+      }
+    }
+  }
+}

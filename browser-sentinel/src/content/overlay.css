@@ -1,0 +1,131 @@
+/* VibeFlow Browser Sentinel - Content Script Styles */
+
+/* Overlay container */
+#vibeflow-overlay-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 2147483647 !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+#vibeflow-overlay-container.visible {
+  display: flex !important;
+}
+
+/* Toast container */
+#vibeflow-toast-container {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 2147483646 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* Animations */
+@keyframes vibeflow-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vibeflow-toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes vibeflow-toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* Overlay card */
+.vibeflow-overlay-card {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+  border-radius: 16px !important;
+  padding: 32px !important;
+  max-width: 450px !important;
+  text-align: center !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  animation: vibeflow-slide-in 0.3s ease-out !important;
+}
+
+/* Buttons */
+.vibeflow-btn {
+  padding: 12px 24px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  margin: 0 8px !important;
+}
+
+.vibeflow-btn-primary {
+  background: #22c55e !important;
+  color: white !important;
+}
+
+.vibeflow-btn-primary:hover {
+  background: #16a34a !important;
+}
+
+.vibeflow-btn-danger {
+  background: #ef4444 !important;
+  color: white !important;
+}
+
+.vibeflow-btn-danger:hover {
+  background: #dc2626 !important;
+}
+
+/* Toast */
+.vibeflow-toast {
+  background: #6366f1 !important;
+  color: white !important;
+  padding: 12px 20px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+  animation: vibeflow-toast-slide-in 0.3s ease-out !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vibeflow-toast.warning {
+  background: #f59e0b !important;
+}
+
+.vibeflow-toast.hiding {
+  animation: vibeflow-toast-slide-out 0.3s ease-in forwards !important;
+}

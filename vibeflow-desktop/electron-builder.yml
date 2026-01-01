@@ -1,0 +1,52 @@
+# electron-builder configuration
+appId: com.vibeflow.desktop
+productName: VibeFlow
+copyright: Copyright © 2024 VibeFlow Team
+
+directories:
+  output: release
+  buildResources: build
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  icon: assets/icon.icns
+  darkModeSupport: true
+
+dmg:
+  background: assets/dmg-background.png
+  icon: assets/icon.icns
+  iconSize: 100
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+files:
+  - dist/**/*
+  - package.json
+
+extraResources:
+  - from: assets/
+    to: assets/
+    filter:
+      - "**/*"
+
+publish:
+  provider: generic
+  url: https://releases.vibeflow.app

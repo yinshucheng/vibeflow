@@ -1,0 +1,300 @@
+# Implementation Plan: VibeFlow Foundation
+
+## Overview
+
+本实现计划将 VibeFlow Phase 1 分解为可执行的编码任务，采用增量开发方式，确保每个步骤都能构建在前一步骤之上。技术栈：Next.js 14 + TypeScript + Prisma + XState + Socket.io + MCP SDK。
+
+## Tasks
+
+- [x] 1. 项目脚手架与基础设施
+  - [x] 1.1 初始化 Next.js 14 项目 (App Router + TypeScript)
+    - 创建项目结构，配置 TypeScript, ESLint, Prettier
+    - 安装核心依赖: prisma, @prisma/client, xstate, socket.io, zod
+    - _Requirements: 7.1_
+  - [x] 1.2 配置 Prisma 与数据库 Schema
+    - 创建 schema.prisma 文件，定义所有数据模型
+    - 配置 PostgreSQL 连接，运行初始迁移
+    - _Requirements: 7.1, 7.2_
+  - [x] 1.3 编写 Prisma Schema 属性测试
+    - **Property 1: Project Round-Trip Consistency**
+    - **Validates: Requirements 1.1, 1.2, 1.4**
+  - [x] 1.4 配置 NextAuth.js 认证
+    - 实现 email/password 认证 provider
+    - 配置 session 策略和 JWT
+    - _Requirements: 8.1, 8.2, 8.3, 8.4_
+
+- [x] 2. 核心领域服务层
+  - [x] 2.0 实现 UserService (开发模式)
+    - 创建 `src/services/user.service.ts`
+    - 实现 getOrCreateDevUser, getCurrentUser, getSettings, updateSettings 方法
+    - 创建开发模式中间件，从 header 提取用户
+    - 所有数据查询添加 userId 过滤
+    - _Requirements: 7.2, 8.1_
+  - [x] 2.1 实现 ProjectService
+    - 创建 `src/services/project.service.ts`
+    - 实现 create, update, archive, getByUser, getById 方法
+    - 添加 Zod 输入验证
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [x] 2.2 编写 ProjectService 属性测试
+    - **Property 1: Project Round-Trip Consistency**
+    - **Property 14: Project Archive Cascade**
+    - **Validates: Requirements 1.1, 1.2, 1.4, 1.5**
+  - [x] 2.3 实现 TaskService
+    - 创建 `src/services/task.service.ts`
+    - 实现 create, update, updateStatus, reorder, getByProject, getTodayTasks 方法
+    - 实现子任务层级逻辑
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
+  - [ ]* 2.4 编写 TaskService 属性测试
+    - **Property 2: Task-Project Binding Enforcement**
+    - **Property 3: Task Hierarchy Invariant**
+    - **Property 4: Task Reorder Preservation**
+    - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.6**
+  - [x] 2.5 实现 GoalService
+    - 创建 `src/services/goal.service.ts`
+    - 实现 create, update, archive, getByUser, getProgress 方法
+    - 实现 Goal-Project 关联逻辑
+    - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.9, 11.10_
+  - [ ]* 2.6 编写 GoalService 属性测试
+    - **Property 10: Goal-Project Relationship Integrity**
+    - **Validates: Requirements 11.4, 11.5, 11.9**
+  - [x] 2.7 实现 PomodoroService
+    - 创建 `src/services/pomodoro.service.ts`
+    - 实现 start, complete, abort, interrupt, getTodayCount 方法
+    - 实现计时器配置验证
+    - _Requirements: 4.1, 4.2, 4.6, 4.7, 4.8, 4.9, 14.1, 14.2, 14.3, 14.5_
+  - [ ]* 2.8 编写 PomodoroService 属性测试
+    - **Property 7: Pomodoro Lifecycle Consistency**
+    - **Property 11: Timer Configuration Bounds**
+    - **Validates: Requirements 4.1, 4.3, 4.6, 4.8, 4.9, 14.5**
+
+- [x] 3. Checkpoint - 服务层完成
+  - 确保所有服务层测试通过，如有问题请询问用户
+
+- [x] 4. XState 状态机实现
+  - [x] 4.1 创建 VibeFlow 状态机
+    - 创建 `src/machines/vibeflow.machine.ts`
+    - 定义 LOCKED, PLANNING, FOCUS, REST 状态
+    - 实现所有状态转换和 guards
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7_
+  - [ ]* 4.2 编写状态机属性测试
+    - **Property 5: State Machine Valid Transitions**
+    - **Property 6: State Machine Action Guards**
+    - **Validates: Requirements 3.2, 3.10, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6**
+  - [x] 4.3 实现 DailyStateService
+    - 创建 `src/services/daily-state.service.ts`
+    - 实现每日状态管理、Top 3 任务、封顶机制
+    - _Requirements: 3.1, 3.8, 3.9, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6_
+  - [ ]* 4.4 编写 Daily Cap 属性测试
+    - **Property 9: Daily Cap Enforcement**
+    - **Property 15: Morning Airlock Completion Invariant**
+    - **Validates: Requirements 12.1, 12.2, 12.3, 12.4, 3.8, 3.9**
+
+- [x] 5. API 路由层
+  - [x] 5.1 创建 tRPC 路由配置
+    - 配置 tRPC with Next.js App Router
+    - 创建 context 和 middleware (auth, state validation)
+    - _Requirements: 7.1, 8.5_
+  - [x] 5.2 实现 Project API 路由
+    - 创建 `src/server/routers/project.ts`
+    - 暴露 CRUD 端点
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [x] 5.3 实现 Task API 路由
+    - 创建 `src/server/routers/task.ts`
+    - 暴露 CRUD 和 reorder 端点
+    - _Requirements: 2.1, 2.3, 2.5, 2.6_
+  - [x] 5.4 实现 Goal API 路由
+    - 创建 `src/server/routers/goal.ts`
+    - 暴露 CRUD 和 progress 端点
+    - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.9_
+  - [x] 5.5 实现 Pomodoro API 路由
+    - 创建 `src/server/routers/pomodoro.ts`
+    - 暴露 start, complete, abort 端点
+    - _Requirements: 4.1, 4.6, 4.8_
+  - [x] 5.6 实现 Settings API 路由
+    - 创建 `src/server/routers/settings.ts`
+    - 暴露计时器配置和黑白名单管理端点
+    - _Requirements: 14.1, 14.2, 14.3, 13.1_
+
+- [x] 6. Checkpoint - API 层完成
+  - 确保所有 API 端点可用，如有问题请询问用户
+
+- [x] 7. 前端 UI 组件 (优先级提升)
+  - [x] 7.1 创建布局和导航组件
+    - 实现 MainLayout 组件
+    - 实现状态指示器 (System State 显示)
+    - 实现 MCP 连接指示器
+    - _Requirements: 5.7, 9.8_
+  - [x] 7.2 实现 Project 管理页面
+    - 创建 Project 列表页面 (按状态分组)
+    - 创建 Project 创建/编辑表单
+    - 实现 Goal 关联选择器
+    - _Requirements: 1.1, 1.3, 11.4, 11.5_
+  - [x] 7.3 实现 Task 管理组件
+    - 创建 Task 树形列表组件 (可折叠)
+    - 实现拖拽排序功能
+    - 创建 Task 创建/编辑表单
+    - _Requirements: 2.3, 2.4, 2.6_
+  - [x] 7.4 实现 Goal 管理页面
+    - 创建 Goal 列表页面 (长期/短期分组)
+    - 创建 Goal 创建/编辑表单
+    - 实现 Goal 进度仪表盘
+    - _Requirements: 11.1, 11.2, 11.3, 11.9_
+
+- [x] 8. WebSocket 实时通信
+  - [x] 8.1 配置 Socket.io 服务器
+    - 创建 `src/server/socket.ts`
+    - 实现连接认证和房间管理
+    - _Requirements: 6.7_
+  - [x] 8.2 实现策略同步协议
+    - 实现 SYNC_POLICY 消息类型
+    - 实现 STATE_CHANGE 广播
+    - _Requirements: 6.7_
+  - [x] 8.3 实现活动日志接收
+    - 实现 ACTIVITY_LOG 消息处理
+    - 存储到 ActivityLog 表
+    - _Requirements: 6.6, 7.3_
+
+- [x] 9. MCP Server 实现
+  - [x] 9.1 创建 MCP Server 基础结构
+    - 创建 `src/mcp/server.ts`
+    - 配置 @modelcontextprotocol/sdk
+    - 实现 API Token 认证
+    - _Requirements: 9.1, 9.2, 9.10_
+  - [x] 9.2 实现 MCP Resources
+    - 实现 `vibe://context/current` 资源
+    - 实现 `vibe://user/goals` 资源
+    - 实现 `vibe://user/principles` 资源
+    - 实现 `vibe://projects/active` 资源
+    - 实现 `vibe://tasks/today` 资源
+    - _Requirements: 9.3, 9.4, 10.1_
+  - [x] 9.3 编写 MCP Resources 属性测试
+    - **Property 12: MCP Resource Schema Consistency**
+    - **Validates: Requirements 9.3, 9.4, 10.1, 10.3**
+  - [x] 9.4 实现 MCP Tools
+    - 实现 `vibe.complete_task` 工具
+    - 实现 `vibe.add_subtask` 工具
+    - 实现 `vibe.report_blocker` 工具
+    - 实现 `vibe.start_pomodoro` 工具
+    - 实现 `vibe.get_task_context` 工具
+    - _Requirements: 9.5, 9.6, 9.7, 10.2_
+  - [x] 9.5 编写 MCP Tools 属性测试
+    - **Property 13: MCP Tool Execution Correctness**
+    - **Validates: Requirements 9.5, 9.6, 9.9, 10.2, 10.4**
+  - [x] 9.6 创建 Cursor/Claude 配置模板
+    - 创建 `mcp-config.example.json`
+    - 编写集成文档
+    - _Requirements: 10.5_
+
+- [x] 10. Checkpoint - 后端完成
+  - 确保所有后端功能正常，如有问题请询问用户
+
+- [x] 11. 晨间气闸 Wizard
+  - [x] 11.1 实现 Airlock Wizard 容器
+    - 创建 `src/app/airlock/page.tsx`
+    - 实现三步向导流程控制
+    - 实现 UI 锁定逻辑
+    - _Requirements: 3.2, 3.10_
+  - [x] 11.2 实现 Step 1: Review
+    - 显示昨日未完成任务
+    - 实现 Defer/Delete 操作
+    - _Requirements: 3.3, 3.4_
+  - [x] 11.3 实现 Step 2: Plan
+    - 显示 Project Backlog
+    - 实现拖拽任务到 Today 列表
+    - _Requirements: 3.5, 3.6_
+  - [x] 11.4 实现 Step 3: Commit
+    - 实现 Top 3 任务选择
+    - 实现 "Start Day" 按钮
+    - _Requirements: 3.7, 3.8, 3.9_
+
+- [x] 12. 番茄钟 UI
+  - [x] 12.1 实现番茄钟计时器组件
+    - 创建倒计时显示组件
+    - 实现开始/停止控制
+    - 实现任务选择器
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - [x] 12.2 实现完成确认模态框
+    - 创建全屏完成弹窗
+    - 实现手动确认逻辑
+    - _Requirements: 4.5, 4.6_
+  - [x] 12.3 实现休息模式 UI
+    - 创建休息倒计时显示
+    - 实现休息结束确认
+    - _Requirements: 4.7_
+  - [x] 12.4 实现封顶提示 UI
+    - 创建 "Day Complete" 庆祝弹窗
+    - 实现超限确认对话框
+    - _Requirements: 12.2, 12.4_
+
+- [x] 13. 设置页面
+  - [x] 13.1 实现计时器设置
+    - 创建番茄钟/休息时长配置表单
+    - 实现每日上限配置
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 12.1_
+  - [x] 13.2 实现黑白名单设置
+    - 创建 URL 模式列表管理
+    - 实现添加/删除/编辑功能
+    - _Requirements: 13.1, 6.3_
+  - [x] 13.3 实现编码原则设置
+    - 创建 coding standards 编辑器
+    - 创建 preferences 键值对管理
+    - _Requirements: 9.4_
+
+- [x] 14. Checkpoint - 前端完成
+  - 确保所有前端页面可用，如有问题请询问用户
+
+- [x] 15. Browser Sentinel Chrome Extension
+  - [x] 15.1 创建 Extension 项目结构
+    - 创建 Manifest V3 配置
+    - 配置 TypeScript 和构建工具
+    - _Requirements: 6.1_
+  - [x] 15.2 实现 Service Worker
+    - 创建 `background/service-worker.ts`
+    - 实现 WebSocket 连接管理
+    - 实现策略缓存逻辑
+    - _Requirements: 6.5, 6.7_
+  - [x] 15.3 实现 Activity Tracker
+    - 创建 `lib/activity-tracker.ts`
+    - 实现 URL 和停留时长采集
+    - 实现数据同步逻辑
+    - _Requirements: 6.1, 6.2, 6.6_
+  - [x] 15.4 实现 URL 拦截逻辑
+    - 创建 `lib/policy-manager.ts`
+    - 实现黑白名单匹配
+    - 实现 declarativeNetRequest 规则
+    - _Requirements: 6.3, 6.4, 13.2, 13.3, 13.4, 13.5_
+  - [ ] 15.5 编写 URL 策略匹配属性测试
+    - **Property 8: URL Policy Matching Correctness**
+    - **Validates: Requirements 6.4, 13.1, 13.2, 13.3, 13.4, 13.5**
+  - [x] 15.6 实现 Content Script 覆盖层
+    - 创建 `content/overlay.ts`
+    - 实现软干预询问弹窗
+    - 实现屏保重定向页面
+    - _Requirements: 13.3, 13.4, 13.5_
+  - [x] 15.7 实现 Extension Popup
+    - 创建登录/状态显示 UI
+    - 实现快速设置入口
+    - _Requirements: 8.5_
+
+- [x] 16. 集成测试
+  - [x] 16.1 编写晨间气闸流程集成测试
+    - 测试完整 LOCKED → PLANNING 流程
+    - _Requirements: 3.1-3.10_
+  - [x] 16.2 编写番茄钟流程集成测试
+    - 测试完整 PLANNING → FOCUS → REST → PLANNING 流程
+    - _Requirements: 4.1-4.9_
+  - [x] 16.3 编写 MCP 集成测试
+    - 测试外部 Agent 读取上下文
+    - 测试工具执行和状态同步
+    - _Requirements: 9.1-9.10, 10.1-10.5_
+
+- [x] 17. Final Checkpoint - 项目完成
+  - 确保所有测试通过，如有问题请询问用户
+
+## Notes
+
+- Tasks marked with `*` are optional and can be skipped for faster MVP
+- Each task references specific requirements for traceability
+- Checkpoints ensure incremental validation
+- Property tests validate universal correctness properties
+- Unit tests validate specific examples and edge cases

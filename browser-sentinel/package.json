@@ -1,0 +1,19 @@
+{
+  "name": "browser-sentinel",
+  "version": "1.0.0",
+  "description": "VibeFlow Browser Sentinel Chrome Extension",
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:ts && npm run build:assets",
+    "build:ts": "tsc",
+    "build:assets": "mkdir -p dist/content && cp src/content/overlay.css dist/content/overlay.css",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "dev": "npm run clean && npm run build",
+    "prebuild": "mkdir -p dist/background dist/content dist/popup dist/lib"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "typescript": "^5.7.0"
+  }
+}

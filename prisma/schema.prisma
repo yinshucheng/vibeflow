@@ -1,0 +1,509 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String // hashed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects                 Project[]
+  tasks                    Task[]
+  pomodoros                Pomodoro[]
+  goals                    Goal[]
+  activityLogs             ActivityLog[]
+  settings                 UserSettings?
+  dailyStates              DailyState[]
+  timelineEvents           TimelineEvent[]
+  dailyReviews             DailyReview[]
+  skipTokenUsages          SkipTokenUsage[]
+  settingsModificationLogs SettingsModificationLog[]
+  clientRegistries         ClientRegistry[]
+  policyVersions           PolicyVersion[]
+  activityAggregates       ActivityAggregate[]
+  apiTokens                ApiToken[]
+  dataAccessLogs           DataAccessLog[]
+  focusSessions            FocusSession[]
+  sleepExemptions          SleepExemption[]
+}
+
+model UserSettings {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Timer settings
+  pomodoroDuration  Int @default(25) // minutes
+  shortRestDuration Int @default(5)
+  longRestDuration  Int @default(15)
+  longRestInterval  Int @default(4) // after N pomodoros
+  dailyCap          Int @default(8) // max pomodoros per day
+
+  // Airlock settings
+  airlockMode String @default("optional") // required, optional, disabled
+
+  // Browser settings
+  blacklist String[] @default([])
+  whitelist String[] @default([])
+
+  // Principles
+  codingStandards String[] @default([])
+  preferences     Json     @default("{}")
+
+  // Work time settings (Requirements 5.1, 5.2)
+  workTimeSlots    Json     @default("[]") // WorkTimeSlot[] - array of {id, startTime, endTime, enabled}
+  maxIdleMinutes   Int      @default(15) // max idle time before alert
+  idleAlertActions String[] @default(["show_overlay"]) // actions on idle alert
+
+  // Notification settings (Requirements 4.3, 4.4)
+  notificationEnabled Boolean @default(true)
+  notificationSound   String  @default("bell") // bell, chime, gentle, none
+  flashTabEnabled     Boolean @default(true)
+
+  // Expected time settings (Requirements 10.1, 10.2)
+  expectedWorkMinutes   Int  @default(360) // 6 hours default
+  expectedPomodoroCount Int  @default(10)
+  weekdayExpectations   Json @default("{}") // {0-6: {workMinutes, pomodoroCount}}
+
+  // Desktop Focus Enforcement settings (Requirements 3.1, 4.1, 5.4)
+  enforcementMode     String @default("gentle") // "strict" | "gentle"
+  distractionApps     Json   @default("[]") // DistractionApp[] - array of {bundleId, name, action, isPreset}
+  skipTokenDailyLimit Int    @default(3) // daily skip token limit (strict: 1, gentle: 3-5)
+  skipTokenMaxDelay   Int    @default(15) // max delay in minutes (strict: 5, gentle: 15)
+
+  // Pomodoro auto-start settings (Requirements 7.1, 7.2)
+  autoStartBreak        Boolean @default(false) // auto-start break after pomodoro
+  autoStartNextPomodoro Boolean @default(false) // auto-start next pomodoro after break
+  autoStartCountdown    Int     @default(5) // countdown seconds before auto-start
+
+  // Browser redirect settings (Requirements 6.6)
+  browserRedirectReplace Boolean @default(true) // true = replace tab, false = new tab
+
+  // Sleep time settings (Requirements 9.1, 9.2, 9.3)
+  sleepTimeEnabled     Boolean  @default(false)
+  sleepTimeStart       String   @default("23:00") // "HH:mm" format
+  sleepTimeEnd         String   @default("07:00") // "HH:mm" format
+  sleepEnforcementApps Json     @default("[]") // SleepEnforcementApp[] - array of {bundleId, name, isPreset}
+  sleepSnoozeLimit     Int      @default(2) // max snoozes per night
+  sleepSnoozeDuration  Int      @default(30) // snooze duration in minutes
+
+  // Over rest settings (Requirements 16.2, 16.3)
+  overRestGracePeriod Int      @default(5) // grace period in minutes before triggering actions
+  overRestActions     String[] @default(["show_notification"]) // actions: show_notification, close_browser, close_apps
+  overRestApps        Json     @default("[]") // apps to close during over rest
+
+  // Early warning settings (Requirements 26.1.1, 26.1.2, 26.1.3, 26.1.4, 26.1.5)
+  earlyWarningEnabled    Boolean  @default(true)
+  earlyWarningInterval   Int      @default(60) // check interval in minutes (30, 60, 120)
+  earlyWarningThreshold  Int      @default(70) // warning threshold percentage (50, 60, 70, 80)
+  earlyWarningMethod     String[] @default(["browser_notification"]) // notification methods
+  earlyWarningQuietStart String?  // quiet hours start "HH:mm" format
+  earlyWarningQuietEnd   String?  // quiet hours end "HH:mm" format
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Goal {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  type        GoalType
+  targetDate  DateTime
+  status      GoalStatus @default(ACTIVE)
+
+  userId   String
+  user     User          @relation(fields: [userId], references: [id])
+  projects ProjectGoal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum GoalType {
+  LONG_TERM
+  SHORT_TERM
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  title       String
+  deliverable String
+  status      ProjectStatus @default(ACTIVE)
+
+  userId String
+  user   User          @relation(fields: [userId], references: [id])
+  tasks  Task[]
+  goals  ProjectGoal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProjectGoal {
+  id        String  @id @default(uuid())
+  projectId String
+  goalId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  goal      Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, goalId])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model Task {
+  id               String     @id @default(uuid())
+  title            String
+  status           TaskStatus @default(TODO)
+  priority         Priority   @default(P2)
+  planDate         DateTime?
+  sortOrder        Int        @default(0)
+  estimatedMinutes Int?       // estimated time in minutes (Requirements 20.1, 20.2)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   Task?   @relation("SubTasks", fields: [parentId], references: [id])
+  subTasks Task[]  @relation("SubTasks")
+
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  pomodoros Pomodoro[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum Priority {
+  P1
+  P2
+  P3
+}
+
+model Pomodoro {
+  id        String         @id @default(uuid())
+  duration  Int // planned duration in minutes
+  startTime DateTime       @default(now())
+  endTime   DateTime?
+  status    PomodoroStatus @default(IN_PROGRESS)
+  summary   String? // completion summary
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+enum PomodoroStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+  INTERRUPTED
+}
+
+model ActivityLog {
+  id       String  @id @default(uuid())
+  url      String
+  title    String?
+  duration Int // seconds
+  category String // productive, neutral, distracting
+  source   String // chrome_ext, desktop_ghost
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  timestamp DateTime @default(now())
+}
+
+model DailyState {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  date             DateTime @db.Date
+  systemState      String // LOCKED, PLANNING, FOCUS, REST
+  top3TaskIds      String[]
+  pomodoroCount    Int      @default(0)
+  capOverrideCount Int      @default(0)
+  airlockCompleted Boolean  @default(false)
+  adjustedGoal     Int?     // temporary goal adjustment for today only (Requirements 23.1, 23.2, 23.3)
+
+  @@unique([userId, date])
+}
+
+// Timeline Event model for activity tracking (Requirements 6.1, 8.1, 8.2)
+model TimelineEvent {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Event type: pomodoro, distraction, break, scheduled_task, activity_log, block, state_change, interruption, idle
+  type String
+
+  // Time information
+  startTime DateTime
+  endTime   DateTime?
+  duration  Int // seconds
+
+  // Event title/description
+  title String
+
+  // Metadata (varies by event type)
+  // activity_log: { url, category }
+  // block: { url, blockType, userAction, pomodoroId }
+  // state_change: { fromState, toState, trigger }
+  // interruption: { source, pomodoroId, details }
+  // idle: { withinWorkHours, alertTriggered }
+  metadata Json @default("{}")
+
+  // Source of the event
+  source String @default("browser_sentinel")
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, startTime])
+  @@index([userId, type])
+  @@index([userId, type, startTime])
+}
+
+// Daily Review model for tracking expected vs actual performance (Requirements 10.1, 10.2)
+model DailyReview {
+  id     String   @id @default(uuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id])
+  date   DateTime @db.Date
+
+  // Expected values (recorded at the time for historical comparison)
+  expectedWorkMinutes   Int
+  expectedPomodoroCount Int
+
+  // Actual values
+  actualWorkMinutes    Int @default(0)
+  completedPomodoros   Int @default(0)
+  interruptedPomodoros Int @default(0)
+  abortedPomodoros     Int @default(0)
+
+  // Website usage statistics
+  productiveMinutes  Int @default(0)
+  distractingMinutes Int @default(0)
+  neutralMinutes     Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+}
+
+// Skip Token Usage model for tracking daily skip/delay token consumption (Requirements 5.4, 5.7)
+model SkipTokenUsage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  usedCount Int      @default(0)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// Settings Modification Log for audit trail (Requirements 8.7)
+model SettingsModificationLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settingKey String
+  oldValue   Json?
+  newValue   Json?
+  success    Boolean
+  reason     String? // If failed, record the reason
+  timestamp  DateTime @default(now())
+
+  @@index([userId, timestamp])
+}
+
+// Client Registry for Octopus Architecture (Requirements 9.1, 9.2)
+// Tracks connected client instances (web, desktop, browser_ext, mobile)
+model ClientRegistry {
+  id            String    @id @default(uuid())
+  clientId      String    @unique
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientType    String    // 'web' | 'desktop' | 'browser_ext' | 'mobile'
+  clientVersion String
+  platform      String    // 'macos' | 'windows' | 'linux' | 'ios' | 'android' | 'chrome'
+  capabilities  String[]  // ['sensor:app', 'action:close_app', etc.]
+  deviceName    String?
+  status        String    @default("offline") // 'online' | 'offline'
+  lastSeenAt    DateTime  @default(now())
+  registeredAt  DateTime  @default(now())
+  revokedAt     DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, status])
+}
+
+// Policy Version for Octopus Architecture (Requirements 10.6)
+// Stores versioned policy snapshots for distribution to clients
+model PolicyVersion {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version   Int
+  policy    Json     // Policy object containing blacklist, whitelist, enforcementMode, etc.
+  createdAt DateTime @default(now())
+
+  @@unique([userId, version])
+  @@index([userId])
+}
+
+// Command Queue for Octopus Architecture (Requirements 2.6, 2.7)
+// Manages command queuing for offline clients with acknowledgment tracking
+model CommandQueue {
+  id             String    @id @default(uuid())
+  commandId      String    @unique
+  clientId       String
+  userId         String
+  commandType    String    // 'SYNC_STATE' | 'EXECUTE_ACTION' | 'UPDATE_POLICY' | 'SHOW_UI'
+  payload        Json
+  priority       String    @default("normal") // 'low' | 'normal' | 'high' | 'critical'
+  requiresAck    Boolean   @default(false)
+  status         String    @default("pending") // 'pending' | 'delivered' | 'acknowledged' | 'expired'
+  expiryTime     DateTime?
+  createdAt      DateTime  @default(now())
+  deliveredAt    DateTime?
+  acknowledgedAt DateTime?
+
+  @@index([clientId, status])
+  @@index([userId])
+  @@index([expiryTime])
+  @@index([status, expiryTime])
+}
+
+// Activity Aggregate for Octopus Architecture (Requirements 11.1, 11.4)
+// Stores aggregated activity data from all sources for analytics
+model ActivityAggregate {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  source         String   // 'browser' | 'desktop_app' | 'mobile_app'
+  category       String   // 'productive' | 'neutral' | 'distracting'
+  totalDuration  Int      // seconds
+  activityCount  Int      // number of activity events aggregated
+  topIdentifiers Json     // Array of top activities [{identifier, title, duration}]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, date, source, category])
+  @@index([userId, date])
+  @@index([userId, source])
+}
+
+
+// API Token for client authentication (Requirements 1.6, 13.2)
+// Allows clients (browser extension, desktop, mobile) to authenticate without session cookies
+model ApiToken {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String    @unique // hashed token
+  name        String    // user-friendly name for the token
+  clientType  String    // 'web' | 'desktop' | 'browser_ext' | 'mobile'
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// Data Access Log for audit trail (Requirements 13.3)
+// Tracks data access for security auditing and user data isolation verification
+model DataAccessLog {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String   // 'read' | 'write' | 'delete'
+  resource    String   // 'task' | 'project' | 'pomodoro' | 'settings' | etc.
+  resourceId  String?  // ID of the accessed resource
+  clientId    String?  // Client that performed the action
+  clientType  String?  // Type of client
+  ipAddress   String?  // IP address (if available)
+  success     Boolean  @default(true)
+  details     Json?    // Additional details about the access
+  timestamp   DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([resource, timestamp])
+  @@index([userId, resource])
+}
+
+
+// Focus Session model for Ad-hoc Focus Session feature (Requirements 1.1, 1.2, 8.1)
+// Tracks temporary focus sessions started outside regular work hours
+model FocusSession {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startTime        DateTime  @default(now())
+  plannedEndTime   DateTime
+  actualEndTime    DateTime?
+  duration         Int       // planned duration in minutes (15-240)
+  status           String    @default("active") // 'active' | 'completed' | 'cancelled'
+  overridesSleepTime Boolean @default(false)
+  createdAt        DateTime  @default(now())
+
+  sleepExemptions  SleepExemption[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([status, plannedEndTime])
+}
+
+// Sleep Exemption model for tracking sleep time overrides (Requirements 14.1, 14.2)
+// Records snooze events and focus session overrides during sleep time
+model SleepExemption {
+  id             String        @id @default(uuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String        // 'snooze' | 'focus_override'
+  timestamp      DateTime      @default(now())
+  duration       Int           // duration in minutes
+  focusSessionId String?
+  focusSession   FocusSession? @relation(fields: [focusSessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, timestamp])
+}

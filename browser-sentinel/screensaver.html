@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Mode - VibeFlow</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e4e4e7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .container { max-width: 500px; }
+    .icon { font-size: 64px; margin-bottom: 24px; }
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    p { font-size: 18px; color: #a1a1aa; margin-bottom: 32px; line-height: 1.6; }
+    .message {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .message h2 { font-size: 16px; color: #f59e0b; margin-bottom: 8px; }
+    .message p { font-size: 14px; margin-bottom: 0; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon breathing">🧘</div>
+    <h1>Focus Mode Active</h1>
+    <p>This site is blocked during your work hours.</p>
+    <div id="blocked-site-info" class="blocked-site hidden">
+      <h3>🚫 Blocked Site</h3>
+      <p class="url" id="blocked-url"></p>
+    </div>
+    <div class="status-info">
+      <span class="label">Mode: </span>
+      <span class="value" id="enforcement-mode">Loading...</span>
+    </div>
+    <div class="message">
+      <h2>⏱️ Start a Pomodoro</h2>
+      <p>Begin a focus session to access this site.</p>
+    </div>
+    <div class="actions">
+      <button class="btn btn-success" onclick="startPomodoro()">🍅 Start Pomodoro</button>
+      <button class="btn btn-primary" onclick="openDashboard()">Open VibeFlow</button>
+      <button class="btn btn-secondary" onclick="goBack()">Go Back</button>
+    </div>
+    <p class="quote">"The successful warrior is the average man, with laser-like focus." — Bruce Lee</p>
+  </div>
+</body>
+</html>
+
+<style>
+    .blocked-site {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+    .blocked-site h3 { font-size: 14px; color: #ef4444; margin-bottom: 8px; }
+    .blocked-site .url { font-size: 13px; color: #a1a1aa; word-break: break-all; font-family: monospace; }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-primary { background: #6366f1; color: white; }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #e4e4e7; margin-left: 12px; }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+    .btn-success { background: #22c55e; color: white; }
+    .btn-success:hover { background: #16a34a; }
+    .breathing { animation: breathe 4s ease-in-out infinite; }
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
+    .quote { margin-top: 48px; font-style: italic; color: #71717a; font-size: 14px; }
+    .hidden { display: none; }
+    .status-info {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .status-info .label { color: #a1a1aa; }
+    .status-info .value { color: #6366f1; font-weight: 500; }
+  </style>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const blockedUrl = urlParams.get('blocked');
+    if (blockedUrl) {
+      document.getElementById('blocked-site-info').classList.remove('hidden');
+      document.getElementById('blocked-url').textContent = blockedUrl;
+    }
+    async function loadStatus() {
+      try {
+        const policy = await chrome.runtime.sendMessage({ type: 'GET_POLICY' });
+        const modeEl = document.getElementById('enforcement-mode');
+        if (policy && policy.enforcementMode) {
+          modeEl.textContent = policy.enforcementMode === 'strict' ? 'Strict 🔒' : 'Gentle 🌿';
+        } else {
+          modeEl.textContent = 'Focus Mode';
+        }
+      } catch (error) {
+        console.error('Failed to load status:', error);
+      }
+    }
+    function goBack() {
+      if (history.length > 1) { history.back(); } else { window.close(); }
+    }
+    async function openDashboard() {
+      const result = await chrome.storage.local.get(['serverUrl']);
+      const url = result.serverUrl || 'http://localhost:3000';
+      const policy = await chrome.runtime.sendMessage({ type: 'GET_POLICY' });
+      const shouldReplace = policy?.browserRedirectReplace !== false;
+      if (shouldReplace) { window.location.href = url; } else { chrome.tabs.create({ url }); }
+    }
+    async function startPomodoro() {
+      const result = await chrome.storage.local.get(['serverUrl']);
+      const url = result.serverUrl || 'http://localhost:3000';
+      window.location.href = url + '/pomodoro';
+    }
+    loadStatus();
+  </script>

@@ -1,0 +1,591 @@
+/**
+ * Policy Distribution Service
+ * 
+ * Compiles and distributes policies to clients in the Octopus Architecture.
+ * Handles policy versioning, caching, and conflict resolution.
+ * 
+ * Requirements: 10.1, 10.2, 10.3, 10.6, 10.7
+ */
+
+import prisma from '@/lib/prisma';
+import type { Policy, TimeSlot, DistractionApp, AdhocFocusSession, SleepTimePolicy, SleepEnforcementAppPolicy } from '@/types/octopus';
+import { PolicySchema } from '@/types/octopus';
+import { focusSessionService } from '@/services/focus-session.service';
+import { sleepTimeService, type SleepEnforcementApp } from '@/services/sleep-time.service';
+
+// Service result type
+export interface ServiceResult<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+// PolicyVersion type (matches Prisma model)
+export interface PolicyVersionRecord {
+  id: string;
+  userId: string;
+  version: number;
+  policy: unknown;
+  createdAt: Date;
+}
+
+// Work time slot from user settings (different format than Policy TimeSlot)
+interface UserWorkTimeSlot {
+  id: string;
+  startTime: string; // "HH:mm" format
+  endTime: string;   // "HH:mm" format
+  enabled: boolean;
+}
+
+// Distraction app from user settings
+interface UserDistractionApp {
+  bundleId: string;
+  name: string;
+  action: 'force_quit' | 'hide_window';
+  isPreset: boolean;
+}
+
+// Type helper for accessing the policyVersion model
+// This is needed because the Prisma client types may not be regenerated yet
+interface PolicyVersionModel {
+  findFirst: (args: {
+    where: { userId: string };
+    orderBy: { version: 'desc' | 'asc' };
+    select?: { version: true };
+  }) => Promise<PolicyVersionRecord | { version: number } | null>;
+  findUnique: (args: {
+    where: { userId_version: { userId: string; version: number } };
+  }) => Promise<PolicyVersionRecord | null>;
+  findMany: (args: {
+    where: { userId: string };
+    orderBy: { version: 'desc' | 'asc' };
+    take: number;
+    select?: { id: true };
+  }) => Promise<PolicyVersionRecord[] | { id: string }[]>;
+  create: (args: {
+    data: { userId: string; version: number; policy: Record<string, unknown> };
+  }) => Promise<PolicyVersionRecord>;
+  deleteMany: (args: {
+    where: { userId: string; id: { notIn: string[] } };
+  }) => Promise<{ count: number }>;
+}
+
+const db = prisma as unknown as { policyVersion: PolicyVersionModel };
+
+/**
+ * Convert user settings work time slots to Policy TimeSlot format
+ * User settings store time as "HH:mm" strings, Policy uses dayOfWeek + hour/minute
+ */
+function convertWorkTimeSlots(userSlots: UserWorkTimeSlot[]): TimeSlot[] {
+  const policySlots: TimeSlot[] = [];
+  
+  for (const slot of userSlots) {
+    if (!slot.enabled) continue;
+    
+    const [startHour, startMinute] = slot.startTime.split(':').map(Number);
+    const [endHour, endMinute] = slot.endTime.split(':').map(Number);
+    
+    // Apply to all days of the week (0-6)
+    for (let dayOfWeek = 0; dayOfWeek <= 6; dayOfWeek++) {
+      policySlots.push({
+        dayOfWeek,
+        startHour,
+        startMinute,
+        endHour,
+        endMinute,
+      });
+    }
+  }
+  
+  return policySlots;
+}
+
+/**
+ * Convert user distraction apps to Policy DistractionApp format
+ */
+function convertDistractionApps(userApps: UserDistractionApp[]): DistractionApp[] {
+  return userApps.map(app => ({
+    bundleId: app.bundleId,
+    name: app.name,
+    action: app.action,
+  }));
+}
+
+/**
+ * Convert sleep enforcement apps to Policy SleepEnforcementAppPolicy format
+ */
+function convertSleepEnforcementApps(apps: SleepEnforcementApp[]): SleepEnforcementAppPolicy[] {
+  return apps.map(app => ({
+    bundleId: app.bundleId,
+    name: app.name,
+  }));
+}
+
+export const policyDistributionService = {
+  /**
+   * Compile user settings into a Policy object
+   * Requirements: 10.1, 2.1, 2.2, 2.3, 2.4
+   */
+  async compilePolicy(userId: string): Promise<ServiceResult<Policy>> {
+    try {
+      // Get user settings
+      const settings = await prisma.userSettings.findUnique({
+        where: { userId },
+      });
+
+      if (!settings) {
+        // Return default policy if no settings exist
+        const defaultPolicy: Policy = {
+          version: 1,
+          blacklist: [],
+          whitelist: [],
+          enforcementMode: 'gentle',
+          workTimeSlots: [],
+          skipTokens: {
+            remaining: 3,
+            maxPerDay: 3,
+            delayMinutes: 15,
+          },
+          distractionApps: [],
+          updatedAt: Date.now(),
+        };
+        return { success: true, data: defaultPolicy };
+      }
+
+      // Get current skip token usage for today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const skipTokenUsage = await prisma.skipTokenUsage.findUnique({
+        where: {
+          userId_date: {
+            userId,
+            date: today,
+          },
+        },
+      });
+
+      const usedTokens = skipTokenUsage?.usedCount ?? 0;
+      const maxTokens = settings.skipTokenDailyLimit;
+      const remainingTokens = Math.max(0, maxTokens - usedTokens);
+
+      // Convert work time slots
+      const userWorkTimeSlots = (settings.workTimeSlots as unknown as UserWorkTimeSlot[]) || [];
+      const workTimeSlots = convertWorkTimeSlots(userWorkTimeSlots);
+
+      // Convert distraction apps
+      const userDistractionApps = (settings.distractionApps as unknown as UserDistractionApp[]) || [];
+      const distractionApps = convertDistractionApps(userDistractionApps);
+
+      // Get the latest policy version number
+      const latestVersion = await db.policyVersion.findFirst({
+        where: { userId },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      }) as { version: number } | null;
+
+      const newVersion = (latestVersion?.version ?? 0) + 1;
+
+      // Check for active ad-hoc focus session (Requirements: 2.1, 2.2, 2.3, 2.4)
+      let adhocFocusSession: AdhocFocusSession | undefined;
+      const activeSessionResult = await focusSessionService.getActiveSession(userId);
+      if (activeSessionResult.success && activeSessionResult.data) {
+        const session = activeSessionResult.data;
+        adhocFocusSession = {
+          active: true,
+          endTime: session.plannedEndTime.getTime(),
+        };
+      }
+
+      // Compile sleep time configuration (Requirements: 9.4, 11.1, 11.2)
+      let sleepTime: SleepTimePolicy | undefined;
+      const sleepConfigResult = await sleepTimeService.getConfig(userId);
+      if (sleepConfigResult.success && sleepConfigResult.data) {
+        const sleepConfig = sleepConfigResult.data;
+        
+        // Check if currently in sleep time window
+        const isInSleepTimeResult = await sleepTimeService.isInSleepTime(userId);
+        const isCurrentlyActive = isInSleepTimeResult.success ? isInSleepTimeResult.data ?? false : false;
+        
+        // Check if currently in snooze period
+        const snoozeResult = await sleepTimeService.isInSnooze(userId);
+        const isSnoozed = snoozeResult.success && snoozeResult.data?.inSnooze ? true : false;
+        const snoozeEndTime = snoozeResult.success && snoozeResult.data?.snoozeEndTime 
+          ? snoozeResult.data.snoozeEndTime.getTime() 
+          : undefined;
+        
+        sleepTime = {
+          enabled: sleepConfig.enabled,
+          startTime: sleepConfig.startTime,
+          endTime: sleepConfig.endTime,
+          enforcementApps: convertSleepEnforcementApps(sleepConfig.enforcementApps),
+          isCurrentlyActive,
+          isSnoozed,
+          ...(snoozeEndTime && { snoozeEndTime }),
+        };
+      }
+
+      // Build the policy object
+      const policy: Policy = {
+        version: newVersion,
+        blacklist: settings.blacklist,
+        whitelist: settings.whitelist,
+        enforcementMode: settings.enforcementMode as 'strict' | 'gentle',
+        workTimeSlots,
+        skipTokens: {
+          remaining: remainingTokens,
+          maxPerDay: maxTokens,
+          delayMinutes: settings.skipTokenMaxDelay,
+        },
+        distractionApps,
+        updatedAt: Date.now(),
+        // Include ad-hoc focus session if active (Requirements: 2.3)
+        ...(adhocFocusSession && { adhocFocusSession }),
+        // Include sleep time configuration (Requirements: 9.4, 11.1, 11.2)
+        ...(sleepTime && { sleepTime }),
+      };
+
+      // Validate the policy
+      const validation = PolicySchema.safeParse(policy);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Compiled policy failed validation',
+            details: { issues: validation.error.issues },
+          },
+        };
+      }
+
+      return { success: true, data: policy };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to compile policy',
+        },
+      };
+    }
+  },
+
+  /**
+   * Distribute policy to all connected clients for a user
+   * Creates a new policy version and triggers broadcast
+   * Requirements: 10.2, 10.3
+   */
+  async distributePolicy(userId: string): Promise<ServiceResult<{ version: number; clientsNotified: number }>> {
+    try {
+      // Compile the current policy
+      const compileResult = await this.compilePolicy(userId);
+      if (!compileResult.success || !compileResult.data) {
+        return {
+          success: false,
+          error: compileResult.error || { code: 'INTERNAL_ERROR', message: 'Failed to compile policy' },
+        };
+      }
+
+      const policy = compileResult.data;
+
+      // Store the new policy version
+      await db.policyVersion.create({
+        data: {
+          userId,
+          version: policy.version,
+          policy: policy as unknown as Record<string, unknown>,
+        },
+      });
+
+      // Get count of online clients for this user
+      const onlineClients = await prisma.clientRegistry.count({
+        where: {
+          userId,
+          status: 'online',
+          revokedAt: null,
+        },
+      });
+
+      // Note: Actual WebSocket broadcast is handled by socket-broadcast.service
+      // This service just prepares and stores the policy
+      // The caller should use broadcastPolicyUpdate(userId) after this
+
+      return {
+        success: true,
+        data: {
+          version: policy.version,
+          clientsNotified: onlineClients,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to distribute policy',
+        },
+      };
+    }
+  },
+
+  /**
+   * Get the current policy for a user
+   * Returns the latest compiled policy
+   * Requirements: 10.1
+   */
+  async getCurrentPolicy(userId: string): Promise<ServiceResult<Policy>> {
+    try {
+      // First try to get the latest stored policy version
+      const latestVersion = await db.policyVersion.findFirst({
+        where: { userId },
+        orderBy: { version: 'desc' },
+      }) as PolicyVersionRecord | null;
+
+      if (latestVersion) {
+        const policy = latestVersion.policy as unknown as Policy;
+        
+        // Update skip token remaining count (it changes throughout the day)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const settings = await prisma.userSettings.findUnique({
+          where: { userId },
+          select: { skipTokenDailyLimit: true },
+        });
+        
+        const skipTokenUsage = await prisma.skipTokenUsage.findUnique({
+          where: {
+            userId_date: {
+              userId,
+              date: today,
+            },
+          },
+        });
+
+        const maxTokens = settings?.skipTokenDailyLimit ?? 3;
+        const usedTokens = skipTokenUsage?.usedCount ?? 0;
+        
+        // Return policy with updated skip token count
+        return {
+          success: true,
+          data: {
+            ...policy,
+            skipTokens: {
+              ...policy.skipTokens,
+              remaining: Math.max(0, maxTokens - usedTokens),
+            },
+          },
+        };
+      }
+
+      // No stored policy, compile a fresh one
+      return this.compilePolicy(userId);
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to get current policy',
+        },
+      };
+    }
+  },
+
+  /**
+   * Check if a client's policy version is outdated
+   * Requirements: 10.7
+   */
+  async isPolicyOutdated(userId: string, clientVersion: number): Promise<ServiceResult<boolean>> {
+    try {
+      const latestVersion = await db.policyVersion.findFirst({
+        where: { userId },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      }) as { version: number } | null;
+
+      if (!latestVersion) {
+        // No policy exists yet, client needs initial policy
+        return { success: true, data: true };
+      }
+
+      return { success: true, data: clientVersion < latestVersion.version };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to check policy version',
+        },
+      };
+    }
+  },
+
+  /**
+   * Resolve policy version conflict between client and server
+   * Server policy is always authoritative
+   * Requirements: 10.7
+   */
+  async resolveConflict(
+    userId: string,
+    clientId: string,
+    clientVersion: number
+  ): Promise<ServiceResult<{ policy: Policy; action: 'update' | 'none' }>> {
+    try {
+      // Check if client version is outdated
+      const outdatedResult = await this.isPolicyOutdated(userId, clientVersion);
+      if (!outdatedResult.success) {
+        return {
+          success: false,
+          error: outdatedResult.error,
+        };
+      }
+
+      if (!outdatedResult.data) {
+        // Client is up to date
+        const currentPolicy = await this.getCurrentPolicy(userId);
+        if (!currentPolicy.success || !currentPolicy.data) {
+          return {
+            success: false,
+            error: currentPolicy.error || { code: 'INTERNAL_ERROR', message: 'Failed to get policy' },
+          };
+        }
+        return {
+          success: true,
+          data: { policy: currentPolicy.data, action: 'none' },
+        };
+      }
+
+      // Client is outdated, get current policy
+      const currentPolicy = await this.getCurrentPolicy(userId);
+      if (!currentPolicy.success || !currentPolicy.data) {
+        return {
+          success: false,
+          error: currentPolicy.error || { code: 'INTERNAL_ERROR', message: 'Failed to get policy' },
+        };
+      }
+
+      // Log the conflict resolution
+      console.log(
+        `[PolicyDistribution] Resolved conflict for client ${clientId}: ` +
+        `client version ${clientVersion} -> server version ${currentPolicy.data.version}`
+      );
+
+      return {
+        success: true,
+        data: { policy: currentPolicy.data, action: 'update' },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to resolve policy conflict',
+        },
+      };
+    }
+  },
+
+  /**
+   * Get policy version history for a user
+   * Useful for debugging and auditing
+   */
+  async getPolicyHistory(
+    userId: string,
+    limit: number = 10
+  ): Promise<ServiceResult<PolicyVersionRecord[]>> {
+    try {
+      const versions = await db.policyVersion.findMany({
+        where: { userId },
+        orderBy: { version: 'desc' },
+        take: limit,
+      }) as PolicyVersionRecord[];
+
+      return { success: true, data: versions };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to get policy history',
+        },
+      };
+    }
+  },
+
+  /**
+   * Get a specific policy version
+   */
+  async getPolicyVersion(
+    userId: string,
+    version: number
+  ): Promise<ServiceResult<Policy | null>> {
+    try {
+      const policyVersion = await db.policyVersion.findUnique({
+        where: {
+          userId_version: {
+            userId,
+            version,
+          },
+        },
+      }) as PolicyVersionRecord | null;
+
+      if (!policyVersion) {
+        return { success: true, data: null };
+      }
+
+      return { success: true, data: policyVersion.policy as unknown as Policy };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to get policy version',
+        },
+      };
+    }
+  },
+
+  /**
+   * Clean up old policy versions, keeping only the most recent N versions
+   */
+  async cleanupOldVersions(
+    userId: string,
+    keepCount: number = 10
+  ): Promise<ServiceResult<{ deletedCount: number }>> {
+    try {
+      // Get versions to keep
+      const versionsToKeep = await db.policyVersion.findMany({
+        where: { userId },
+        orderBy: { version: 'desc' },
+        take: keepCount,
+        select: { id: true },
+      }) as { id: string }[];
+
+      const keepIds = versionsToKeep.map((v: { id: string }) => v.id);
+
+      // Delete older versions
+      const result = await db.policyVersion.deleteMany({
+        where: {
+          userId,
+          id: { notIn: keepIds },
+        },
+      }) as { count: number };
+
+      return { success: true, data: { deletedCount: result.count } };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to cleanup old versions',
+        },
+      };
+    }
+  },
+};
+
+export default policyDistributionService;
