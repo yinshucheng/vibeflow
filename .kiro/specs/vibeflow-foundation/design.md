@@ -301,7 +301,7 @@ const vibeFlowMachine = createMachine({
 #### 3.1 Extension Architecture
 
 ```
-browser-sentinel/
+vibeflow-extension/
 ├── manifest.json          # Manifest V3
 ├── background/
 │   └── service-worker.ts  # Background service worker

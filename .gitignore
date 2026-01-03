@@ -52,9 +52,9 @@ vibeflow-desktop/dist/
 vibeflow-desktop/build/
 vibeflow-desktop/release/
 
-# Browser Extension (browser-sentinel)
-browser-sentinel/dist/
-browser-sentinel/node_modules/
+# Browser Extension (vibeflow-extension)
+vibeflow-extension/dist/
+vibeflow-extension/node_modules/
 
 # Temporary files
 temp-next/

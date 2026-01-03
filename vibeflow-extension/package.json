@@ -1,7 +1,7 @@
 {
-  "name": "browser-sentinel",
+  "name": "vibeflow-extension",
   "version": "1.0.0",
-  "description": "VibeFlow Browser Sentinel Chrome Extension",
+  "description": "VibeFlow Browser Extension for Chrome",
   "type": "module",
   "scripts": {
     "build": "npm run build:ts && npm run build:assets",

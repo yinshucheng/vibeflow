@@ -246,7 +246,7 @@ const LOCKABLE_SETTINGS = [
 ### 5. Browser Sentinel Enhancement
 
 ```typescript
-// browser-sentinel/src/lib/focus-redirect.ts
+// vibeflow-extension/src/lib/focus-redirect.ts
 
 interface RedirectConfig {
   dashboardUrl: string;

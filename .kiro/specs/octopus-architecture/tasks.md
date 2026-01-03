@@ -131,11 +131,11 @@
 
 - [-] 11. 更新浏览器插件以使用新协议 
   - [x] 11.1 更新 Browser Sentinel 类型定义
-    - 在 `browser-sentinel/src/types/index.ts` 中添加新的 Octopus Event/Command 类型
+    - 在 `vibeflow-extension/src/types/index.ts` 中添加新的 Octopus Event/Command 类型
     - 添加 BrowserActivityEvent, BrowserSessionEvent, TabSwitchEvent, BrowserFocusEvent 类型
     - _Requirements: 2.3, 2.4, 5.18, 5.19_
   - [x] 11.2 更新 WebSocket 客户端
-    - 修改 `browser-sentinel/src/lib/websocket.ts` 以发送标准化事件
+    - 修改 `vibeflow-extension/src/lib/websocket.ts` 以发送标准化事件
     - 处理新的指令格式
     - _Requirements: 5.21, 5.23_
   - [x] 11.3 实现事件队列
@@ -149,30 +149,30 @@
 
 - [-] 12. 增强 Browser Sentinel 传感器能力 
   - [x] 12.1 实现增强活动追踪器
-    - 重构 `browser-sentinel/src/lib/activity-tracker.ts`
+    - 重构 `vibeflow-extension/src/lib/activity-tracker.ts`
     - 添加滚动深度追踪 (scrollDepth)
     - 添加用户交互计数 (interactionCount)
     - 添加空闲时间追踪 (idleTime vs activeDuration)
     - _Requirements: 5.6, 5.7, 5.8, 5.9_
   - [x] 12.2 实现内容脚本交互追踪
-    - 创建 `browser-sentinel/src/content/interaction-tracker.ts`
+    - 创建 `vibeflow-extension/src/content/interaction-tracker.ts`
     - 监听 click, scroll, input, keypress 事件
     - 监听 video/audio play/pause 事件
     - 向 service worker 报告交互数据
     - _Requirements: 5.7, 5.11_
   - [x] 12.3 实现会话管理器
-    - 创建 `browser-sentinel/src/lib/session-manager.ts`
+    - 创建 `vibeflow-extension/src/lib/session-manager.ts`
     - 管理浏览会话的开始和结束
     - 聚合域名级别的活动数据
     - 检测快速标签切换模式
     - _Requirements: 5.13, 5.14, 5.15, 5.17_
   - [x] 12.4 实现搜索查询提取器
-    - 创建 `browser-sentinel/src/lib/search-extractor.ts`
+    - 创建 `vibeflow-extension/src/lib/search-extractor.ts`
     - 支持 Google, Bing, DuckDuckGo 搜索引擎
     - 从 URL 参数中提取搜索关键词
     - _Requirements: 5.12_
   - [x] 12.5 实现事件批处理器
-    - 创建 `browser-sentinel/src/lib/event-batcher.ts`
+    - 创建 `vibeflow-extension/src/lib/event-batcher.ts`
     - 批量发送事件以减少网络开销
     - 限制每批最多 50 个事件
     - 支持定时刷新和强制刷新
