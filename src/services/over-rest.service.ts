@@ -285,25 +285,46 @@ export const overRestService = {
         },
       });
 
-      // If no completed pomodoro, not over rest (first session of the day)
-      if (!lastPomodoro?.endTime) {
-        return {
-          success: true,
-          data: {
-            isOverRest: false,
-            restDurationMinutes: 0,
-            overRestMinutes: 0,
-            gracePeriodMinutes: gracePeriod,
-            gracePeriodRemaining: gracePeriod,
-            shouldTriggerActions: false,
-            lastPomodoroEndTime: null,
-          },
-        };
-      }
-
       // Calculate rest duration
-      const restDurationMs = Date.now() - lastPomodoro.endTime.getTime();
-      const restDurationMinutes = Math.floor(restDurationMs / 1000 / 60);
+      let restDurationMinutes: number;
+      let lastPomodoroEndTime: Date | null = null;
+      
+      if (lastPomodoro?.endTime) {
+        // Has completed pomodoro - calculate rest since then
+        const restDurationMs = Date.now() - lastPomodoro.endTime.getTime();
+        restDurationMinutes = Math.floor(restDurationMs / 1000 / 60);
+        lastPomodoroEndTime = lastPomodoro.endTime;
+      } else {
+        // No completed pomodoro - calculate time since work started
+        const currentMinutes = getCurrentTimeMinutes();
+        let workStartMinutes: number | null = null;
+        
+        // Find the current active work slot
+        for (const slot of workTimeSlots) {
+          if (!slot.enabled) continue;
+          const startMinutes = parseTimeToMinutes(slot.startTime);
+          const endMinutes = parseTimeToMinutes(slot.endTime);
+          
+          if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+            workStartMinutes = startMinutes;
+            break;
+          }
+        }
+        
+        // For ad-hoc focus session, use session start time
+        if (inFocusSession && focusSessionResult.data) {
+          const sessionStartMs = focusSessionResult.data.startTime.getTime();
+          const sessionStartDate = new Date(sessionStartMs);
+          workStartMinutes = sessionStartDate.getHours() * 60 + sessionStartDate.getMinutes();
+        }
+        
+        if (workStartMinutes !== null) {
+          restDurationMinutes = currentMinutes - workStartMinutes;
+        } else {
+          // Shouldn't happen if we're in work hours, but default to 0
+          restDurationMinutes = 0;
+        }
+      }
 
       // Calculate over rest time
       const overRestMinutes = Math.max(0, restDurationMinutes - shortRestDuration);
@@ -326,7 +347,7 @@ export const overRestService = {
           gracePeriodMinutes: gracePeriod,
           gracePeriodRemaining,
           shouldTriggerActions,
-          lastPomodoroEndTime: lastPomodoro.endTime,
+          lastPomodoroEndTime,
         },
       };
     } catch (error) {

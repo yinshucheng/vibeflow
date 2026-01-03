@@ -16,6 +16,7 @@ import {
 import { dailyStateService } from '@/services/daily-state.service';
 import { statsService, GetStatsSchema } from '@/services/stats.service';
 import { socketServer } from '@/server/socket';
+import { broadcastPolicyUpdate } from '@/services/socket-broadcast.service';
 
 export const pomodoroRouter = router({
   /**
@@ -145,6 +146,9 @@ export const pomodoroRouter = router({
       // Update system state to FOCUS
       await dailyStateService.updateSystemState(ctx.user.userId, 'focus');
       
+      // Broadcast policy update to stop over rest enforcement on desktop
+      await broadcastPolicyUpdate(ctx.user.userId);
+      
       return result.data;
     }),
 
@@ -181,6 +185,9 @@ export const pomodoroRouter = router({
       // Increment pomodoro count and update system state to REST
       await dailyStateService.incrementPomodoroCount(ctx.user.userId);
       await dailyStateService.updateSystemState(ctx.user.userId, 'rest');
+      
+      // Broadcast policy update to update over rest status on desktop
+      await broadcastPolicyUpdate(ctx.user.userId);
       
       // Send WebSocket event to Browser Sentinel (Requirement 4.6)
       if (result.data) {
@@ -228,6 +235,9 @@ export const pomodoroRouter = router({
       // Update system state back to PLANNING
       await dailyStateService.updateSystemState(ctx.user.userId, 'planning');
       
+      // Broadcast policy update to update over rest status on desktop
+      await broadcastPolicyUpdate(ctx.user.userId);
+      
       return result.data;
     }),
 
@@ -262,6 +272,9 @@ export const pomodoroRouter = router({
 
       // Update system state back to PLANNING
       await dailyStateService.updateSystemState(ctx.user.userId, 'planning');
+      
+      // Broadcast policy update to update over rest status on desktop
+      await broadcastPolicyUpdate(ctx.user.userId);
       
       return result.data;
     }),

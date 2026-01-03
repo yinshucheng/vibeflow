@@ -281,6 +281,21 @@ export interface PolicyAdhocFocusSession {
 }
 
 /**
+ * Over rest configuration for policy
+ * Requirements: 15.2, 15.3, 16.1-16.5
+ */
+export interface PolicyOverRest {
+  /** Whether user is currently in over rest state */
+  isOverRest: boolean;
+  /** Minutes over the normal rest duration */
+  overRestMinutes: number;
+  /** Apps to close during over rest */
+  enforcementApps: PolicySleepEnforcementApp[];
+  /** Whether to bring app to front */
+  bringToFront: boolean;
+}
+
+/**
  * Policy for desktop client
  * Requirements: 10.5, 10.6
  */
@@ -295,6 +310,8 @@ export interface DesktopPolicy {
   sleepTime?: PolicySleepTime;
   /** Ad-hoc focus session (optional) */
   adhocFocusSession?: PolicyAdhocFocusSession;
+  /** Over rest configuration (optional) */
+  overRest?: PolicyOverRest;
 }
 
 /**

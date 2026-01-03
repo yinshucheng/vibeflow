@@ -154,6 +154,14 @@ export {
   type EnforcementCallback,
 } from './app-monitor';
 
+// Over Rest Enforcer Module (Requirements: 15.2, 15.3, 16.1-16.5)
+export {
+  getOverRestEnforcer,
+  handleOverRestPolicyUpdate,
+  type OverRestEnforcerConfig,
+  type OverRestEnforcerState,
+} from './over-rest-enforcer';
+
 
 // Configuration
 export {

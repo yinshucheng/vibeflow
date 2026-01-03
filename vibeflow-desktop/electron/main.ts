@@ -10,6 +10,7 @@ import { setupFocusEnforcerIpc, getFocusEnforcer } from './modules/focus-enforce
 import { getSensorReporter } from './modules/sensor-reporter';
 import { getSleepEnforcer, setupSleepEnforcerIpc } from './modules/sleep-enforcer';
 import { createFocusTimeMonitor, AppMonitor } from './modules/app-monitor';
+import { getOverRestEnforcer, handleOverRestPolicyUpdate } from './modules/over-rest-enforcer';
 import {
   getRunningApps,
   quitApp,
@@ -646,6 +647,28 @@ app.whenReady().then(async () => {
       
       // Update focus enforcer state
       focusEnforcer.setPomodoroActive(false);
+    }
+    
+    // Handle over rest enforcement (Requirements: 15.2, 15.3, 16.1-16.5)
+    const overRestEnforcer = getOverRestEnforcer();
+    if (mainWindow) {
+      overRestEnforcer.setMainWindow(mainWindow);
+    }
+    
+    if (policy.overRest?.isOverRest) {
+      console.log('[Main] Over rest detected, starting enforcement:', {
+        overRestMinutes: policy.overRest.overRestMinutes,
+        appsCount: policy.overRest.enforcementApps?.length ?? 0,
+        bringToFront: policy.overRest.bringToFront,
+      });
+      
+      handleOverRestPolicyUpdate(policy.overRest);
+    } else {
+      // Not in over rest - stop enforcement if active
+      if (overRestEnforcer.isActive()) {
+        console.log('[Main] Over rest ended, stopping enforcement');
+        handleOverRestPolicyUpdate(undefined);
+      }
     }
   });
 

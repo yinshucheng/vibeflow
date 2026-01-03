@@ -321,7 +321,43 @@ export const progressCalculationService = {
             expectedState = 'normal_rest';
           }
         } else {
-          expectedState = 'normal_rest';
+          // No completed pomodoro - check how long work time has been active
+          // If work time started more than grace period ago, user is over rest
+          const currentMinutes = getCurrentTimeMinutes();
+          let workStartMinutes: number | null = null;
+          
+          // Find the current active work slot
+          for (const slot of workTimeSlots) {
+            if (!slot.enabled) continue;
+            const startMinutes = parseIdleTimeToMinutes(slot.startTime);
+            const endMinutes = parseIdleTimeToMinutes(slot.endTime);
+            
+            if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+              workStartMinutes = startMinutes;
+              break;
+            }
+          }
+          
+          // For ad-hoc focus session, use session start time
+          if (timeContext === 'adhoc_focus' && activeFocusSession) {
+            const sessionStartMs = activeFocusSession.startTime.getTime();
+            const sessionStartDate = new Date(sessionStartMs);
+            workStartMinutes = sessionStartDate.getHours() * 60 + sessionStartDate.getMinutes();
+          }
+          
+          if (workStartMinutes !== null) {
+            const minutesSinceWorkStart = currentMinutes - workStartMinutes;
+            const totalRestAllowed = shortRestDuration + overRestGracePeriod;
+            
+            if (minutesSinceWorkStart > totalRestAllowed) {
+              expectedState = 'over_rest';
+              overRestMinutes = minutesSinceWorkStart - shortRestDuration;
+            } else {
+              expectedState = 'normal_rest';
+            }
+          } else {
+            expectedState = 'normal_rest';
+          }
         }
       } else {
         // Outside work time - default to normal rest

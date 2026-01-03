@@ -679,6 +679,21 @@ export interface SleepTimePolicy {
 }
 
 /**
+ * Over rest configuration for policy
+ * Requirements: 15.2, 15.3, 16.1-16.5
+ */
+export interface OverRestPolicy {
+  /** Whether user is currently in over rest state */
+  isOverRest: boolean;
+  /** Minutes over the normal rest duration */
+  overRestMinutes: number;
+  /** Apps to close during over rest */
+  enforcementApps: SleepEnforcementAppPolicy[];
+  /** Whether to bring app to front */
+  bringToFront: boolean;
+}
+
+/**
  * Policy object distributed to clients
  * Requirements: 10.5, 10.6
  */
@@ -696,6 +711,8 @@ export interface Policy {
   adhocFocusSession?: AdhocFocusSession;
   /** Sleep time configuration (optional) */
   sleepTime?: SleepTimePolicy;
+  /** Over rest configuration (optional) */
+  overRest?: OverRestPolicy;
 }
 
 // =============================================================================
@@ -1189,6 +1206,15 @@ export const SleepTimePolicySchema = z.object({
   snoozeEndTime: z.number().int().positive().optional(),
 });
 
+// Over rest policy schema
+// Requirements: 15.2, 15.3, 16.1-16.5
+export const OverRestPolicySchema = z.object({
+  isOverRest: z.boolean(),
+  overRestMinutes: z.number().int().nonnegative(),
+  enforcementApps: z.array(SleepEnforcementAppPolicySchema),
+  bringToFront: z.boolean(),
+});
+
 // Policy schema
 export const PolicySchema = z.object({
   version: z.number().int().positive(),
@@ -1201,6 +1227,7 @@ export const PolicySchema = z.object({
   updatedAt: z.number().int().positive(),
   adhocFocusSession: AdhocFocusSessionSchema.optional(),
   sleepTime: SleepTimePolicySchema.optional(),
+  overRest: OverRestPolicySchema.optional(),
 });
 
 // Update policy payload schema

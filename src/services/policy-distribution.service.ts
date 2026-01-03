@@ -8,10 +8,11 @@
  */
 
 import prisma from '@/lib/prisma';
-import type { Policy, TimeSlot, DistractionApp, AdhocFocusSession, SleepTimePolicy, SleepEnforcementAppPolicy } from '@/types/octopus';
+import type { Policy, TimeSlot, DistractionApp, AdhocFocusSession, SleepTimePolicy, SleepEnforcementAppPolicy, OverRestPolicy } from '@/types/octopus';
 import { PolicySchema } from '@/types/octopus';
 import { focusSessionService } from '@/services/focus-session.service';
 import { sleepTimeService, type SleepEnforcementApp } from '@/services/sleep-time.service';
+import { overRestService } from '@/services/over-rest.service';
 
 // Service result type
 export interface ServiceResult<T> {
@@ -229,6 +230,32 @@ export const policyDistributionService = {
         };
       }
 
+      // Compile over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
+      let overRest: OverRestPolicy | undefined;
+      const overRestStatusResult = await overRestService.checkOverRestStatus(userId);
+      if (overRestStatusResult.success && overRestStatusResult.data) {
+        const overRestStatus = overRestStatusResult.data;
+        
+        // Only include over rest policy if user is actually over rest
+        if (overRestStatus.isOverRest && overRestStatus.shouldTriggerActions) {
+          // Get over rest config for enforcement apps
+          const overRestConfigResult = await overRestService.getConfig(userId);
+          const overRestApps = overRestConfigResult.success && overRestConfigResult.data
+            ? overRestConfigResult.data.apps.map(app => ({
+                bundleId: app.bundleId,
+                name: app.name,
+              }))
+            : [];
+          
+          overRest = {
+            isOverRest: true,
+            overRestMinutes: overRestStatus.overRestMinutes,
+            enforcementApps: overRestApps,
+            bringToFront: true, // Always bring app to front during over rest
+          };
+        }
+      }
+
       // Build the policy object
       const policy: Policy = {
         version: newVersion,
@@ -247,6 +274,8 @@ export const policyDistributionService = {
         ...(adhocFocusSession && { adhocFocusSession }),
         // Include sleep time configuration (Requirements: 9.4, 11.1, 11.2)
         ...(sleepTime && { sleepTime }),
+        // Include over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
+        ...(overRest && { overRest }),
       };
 
       // Validate the policy

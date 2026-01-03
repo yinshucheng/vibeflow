@@ -43,6 +43,8 @@ export interface AppMonitorConfig {
   context: string;
   /** Emoji for notification title */
   emoji: string;
+  /** Optional callback to check if enforcement should be skipped (e.g., system idle) */
+  shouldSkipEnforcement?: () => boolean;
 }
 
 /**
@@ -94,6 +96,7 @@ export class AppMonitor {
       warningDelayMs: config.warningDelayMs ?? DEFAULT_CONFIG.warningDelayMs!,
       context: config.context ?? DEFAULT_CONFIG.context!,
       emoji: config.emoji ?? DEFAULT_CONFIG.emoji!,
+      shouldSkipEnforcement: config.shouldSkipEnforcement,
     };
   }
 
@@ -209,6 +212,12 @@ export class AppMonitor {
   private async checkAndEnforce(): Promise<void> {
     // Prevent concurrent enforcement
     if (this.isEnforcing) {
+      return;
+    }
+
+    // Check if enforcement should be skipped (e.g., system idle)
+    if (this.config.shouldSkipEnforcement?.()) {
+      console.log('[AppMonitor] Skipping enforcement (shouldSkipEnforcement returned true)');
       return;
     }
 
