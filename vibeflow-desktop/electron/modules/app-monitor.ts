@@ -215,6 +215,11 @@ export class AppMonitor {
       return;
     }
 
+    // Check if monitoring has been stopped
+    if (!this.isMonitoring) {
+      return;
+    }
+
     // Check if enforcement should be skipped (e.g., system idle)
     if (this.config.shouldSkipEnforcement?.()) {
       console.log('[AppMonitor] Skipping enforcement (shouldSkipEnforcement returned true)');
@@ -238,6 +243,18 @@ export class AppMonitor {
 
       // Wait for warning delay
       await this.delay(this.config.warningDelayMs);
+
+      // Check if monitoring was stopped during the warning delay
+      if (!this.isMonitoring) {
+        console.log('[AppMonitor] Monitoring stopped during warning delay, aborting enforcement');
+        return;
+      }
+
+      // Check again if enforcement should be skipped (state might have changed)
+      if (this.config.shouldSkipEnforcement?.()) {
+        console.log('[AppMonitor] Skipping enforcement after warning (shouldSkipEnforcement returned true)');
+        return;
+      }
 
       // Check again if apps are still running (user might have closed them)
       const stillRunningApps = await this.filterStillRunning(runningDistractionApps);

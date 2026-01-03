@@ -35,6 +35,8 @@ model User {
   dataAccessLogs           DataAccessLog[]
   focusSessions            FocusSession[]
   sleepExemptions          SleepExemption[]
+  dailyEntertainmentStates DailyEntertainmentState[]
+  workStartRecords         WorkStartRecord[]
 }
 
 model UserSettings {
@@ -109,6 +111,12 @@ model UserSettings {
   earlyWarningMethod     String[] @default(["browser_notification"]) // notification methods
   earlyWarningQuietStart String?  // quiet hours start "HH:mm" format
   earlyWarningQuietEnd   String?  // quiet hours end "HH:mm" format
+
+  // Entertainment settings (Requirements 9.1, 9.2, 9.3, 9.4)
+  entertainmentBlacklist       Json @default("[]") // EntertainmentBlacklistEntry[] - array of {domain, isPreset, enabled, addedAt}
+  entertainmentWhitelist       Json @default("[]") // EntertainmentWhitelistEntry[] - array of {pattern, description, isPreset, enabled, addedAt}
+  entertainmentQuotaMinutes    Int  @default(120)  // daily entertainment quota in minutes (30-480)
+  entertainmentCooldownMinutes Int  @default(30)   // cooldown between entertainment sessions in minutes (15-120)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -506,4 +514,52 @@ model SleepExemption {
 
   @@index([userId])
   @@index([userId, timestamp])
+}
+
+// Daily Entertainment State model for tracking entertainment quota usage (Requirements 8.1, 8.7)
+// Tracks daily entertainment mode usage, quota consumption, and cooldown status
+model DailyEntertainmentState {
+  id     String   @id @default(uuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+
+  // Quota usage
+  quotaUsedMinutes Int @default(0)
+
+  // Current session
+  activeSessionId  String?
+  sessionStartTime DateTime?
+
+  // Cooldown status
+  lastSessionEndTime DateTime?
+
+  // Statistics
+  sessionCount  Int      @default(0)
+  sitesVisited  String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// Work Start Record model for tracking work start times (Requirements 14.1, 14.2, 14.7, 14.8)
+// Records when user completes Airlock to track work avoidance patterns
+model WorkStartRecord {
+  id     String   @id @default(uuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+
+  configuredStartTime String   // HH:mm format - the configured work start time
+  actualStartTime     DateTime // actual timestamp when Airlock was completed
+  delayMinutes        Int      // 0 if on-time or early, positive if late
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([userId, date])
 }

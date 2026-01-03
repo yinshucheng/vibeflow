@@ -4,12 +4,13 @@
  * TimelineFilter Component
  * 
  * Provides filters to show/hide different event types in the timeline.
- * Requirements: 6.6
+ * Requirements: 6.6, 11.4, 11.5, 12.3, 14.3, 14.4
  */
 
 import { useCallback } from 'react';
 
 // Event type configuration
+// Requirements: 11.4, 11.5, 12.3, 14.3, 14.4 - Added entertainment_mode and work_start
 const EVENT_TYPES = [
   { value: 'pomodoro', label: '番茄', icon: '🍅', color: 'bg-green-100 text-green-700 border-green-300' },
   { value: 'distraction', label: '分心', icon: '⚠️', color: 'bg-red-100 text-red-700 border-red-300' },
@@ -20,6 +21,8 @@ const EVENT_TYPES = [
   { value: 'state_change', label: '状态变更', icon: '🎯', color: 'bg-blue-100 text-blue-700 border-blue-300' },
   { value: 'interruption', label: '打断', icon: '⏸️', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
   { value: 'idle', label: '空闲', icon: '💤', color: 'bg-gray-100 text-gray-400 border-gray-200' },
+  { value: 'entertainment_mode', label: '娱乐', icon: '🎮', color: 'bg-purple-100 text-purple-700 border-purple-400' },
+  { value: 'work_start', label: '开始工作', icon: '🚀', color: 'bg-green-100 text-green-700 border-green-400' },
 ] as const;
 
 export type TimelineEventType = typeof EVENT_TYPES[number]['value'];
@@ -34,6 +37,8 @@ export interface TimelineFilterState {
   state_change: boolean;
   interruption: boolean;
   idle: boolean;
+  entertainment_mode: boolean;
+  work_start: boolean;
 }
 
 // Default filter state - show all
@@ -47,6 +52,8 @@ export const DEFAULT_FILTER_STATE: TimelineFilterState = {
   state_change: true,
   interruption: true,
   idle: true,
+  entertainment_mode: true,
+  work_start: true,
 };
 
 interface TimelineFilterProps {
@@ -85,6 +92,8 @@ export function TimelineFilter({
       state_change: false,
       interruption: false,
       idle: false,
+      entertainment_mode: false,
+      work_start: false,
     });
   }, [onChange]);
 

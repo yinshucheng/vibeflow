@@ -686,7 +686,7 @@ export class ActivityTracker {
    */
   async recordBlockEvent(
     url: string,
-    blockType: 'hard_block' | 'soft_block',
+    blockType: 'hard_block' | 'soft_block' | 'entertainment_block',
     userAction?: 'proceeded' | 'returned'
   ): Promise<void> {
     const event: BlockEvent = {

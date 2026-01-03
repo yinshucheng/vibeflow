@@ -23,3 +23,4 @@ export { ConnectedDevices } from './connected-devices';
 export { SleepTimeSettings } from './sleep-time-settings';
 export { EarlyWarningSettings } from './early-warning-settings';
 export { OverRestSettings } from './over-rest-settings';
+export { EntertainmentSitesSettings } from './entertainment-sites-settings';

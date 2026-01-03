@@ -236,16 +236,29 @@ export const policyDistributionService = {
       if (overRestStatusResult.success && overRestStatusResult.data) {
         const overRestStatus = overRestStatusResult.data;
         
+        // Log over rest status for debugging
+        console.log(`[PolicyDistribution] Over rest check for user ${userId}: isOverRest=${overRestStatus.isOverRest}, shouldTriggerActions=${overRestStatus.shouldTriggerActions}, restDuration=${overRestStatus.restDurationMinutes}min`);
+        
         // Only include over rest policy if user is actually over rest
         if (overRestStatus.isOverRest && overRestStatus.shouldTriggerActions) {
           // Get over rest config for enforcement apps
           const overRestConfigResult = await overRestService.getConfig(userId);
-          const overRestApps = overRestConfigResult.success && overRestConfigResult.data
+          let overRestApps = overRestConfigResult.success && overRestConfigResult.data
             ? overRestConfigResult.data.apps.map(app => ({
                 bundleId: app.bundleId,
                 name: app.name,
               }))
             : [];
+          
+          // If no over rest apps configured, fall back to user's distraction apps
+          // This ensures over rest enforcement works even without explicit configuration
+          if (overRestApps.length === 0 && distractionApps.length > 0) {
+            overRestApps = distractionApps.map(app => ({
+              bundleId: app.bundleId,
+              name: app.name,
+            }));
+            console.log(`[PolicyDistribution] Using ${overRestApps.length} distraction apps for over rest enforcement`);
+          }
           
           overRest = {
             isOverRest: true,
@@ -253,6 +266,8 @@ export const policyDistributionService = {
             enforcementApps: overRestApps,
             bringToFront: true, // Always bring app to front during over rest
           };
+          
+          console.log(`[PolicyDistribution] Over rest enforcement ACTIVE for user ${userId}: ${overRestStatus.overRestMinutes}min over, ${overRestApps.length} apps to enforce`);
         }
       }
 
@@ -363,65 +378,15 @@ export const policyDistributionService = {
 
   /**
    * Get the current policy for a user
-   * Returns the latest compiled policy
+   * Always compiles a fresh policy to ensure real-time state accuracy
+   * (especially for over rest status which depends on active pomodoro state)
    * Requirements: 10.1
    */
   async getCurrentPolicy(userId: string): Promise<ServiceResult<Policy>> {
-    try {
-      // First try to get the latest stored policy version
-      const latestVersion = await db.policyVersion.findFirst({
-        where: { userId },
-        orderBy: { version: 'desc' },
-      }) as PolicyVersionRecord | null;
-
-      if (latestVersion) {
-        const policy = latestVersion.policy as unknown as Policy;
-        
-        // Update skip token remaining count (it changes throughout the day)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const settings = await prisma.userSettings.findUnique({
-          where: { userId },
-          select: { skipTokenDailyLimit: true },
-        });
-        
-        const skipTokenUsage = await prisma.skipTokenUsage.findUnique({
-          where: {
-            userId_date: {
-              userId,
-              date: today,
-            },
-          },
-        });
-
-        const maxTokens = settings?.skipTokenDailyLimit ?? 3;
-        const usedTokens = skipTokenUsage?.usedCount ?? 0;
-        
-        // Return policy with updated skip token count
-        return {
-          success: true,
-          data: {
-            ...policy,
-            skipTokens: {
-              ...policy.skipTokens,
-              remaining: Math.max(0, maxTokens - usedTokens),
-            },
-          },
-        };
-      }
-
-      // No stored policy, compile a fresh one
-      return this.compilePolicy(userId);
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get current policy',
-        },
-      };
-    }
+    // Always compile a fresh policy to ensure accurate real-time state
+    // This is critical for over rest detection which must check for active pomodoros
+    // Caching was causing stale over rest state to be sent during active pomodoros
+    return this.compilePolicy(userId);
   },
 
   /**

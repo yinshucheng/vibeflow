@@ -283,4 +283,84 @@ export const timelineRouter = router({
 
       return result.data;
     }),
+
+  /**
+   * Create a work start event (for recording Airlock completion)
+   * Requirements: 14.3, 14.4
+   */
+  createWorkStartEvent: protectedProcedure
+    .input(z.object({
+      timestamp: z.date(),
+      configuredStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
+      delayMinutes: z.number().int().min(0),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const title = input.delayMinutes === 0 
+        ? '准时开始工作' 
+        : `延迟 ${input.delayMinutes} 分钟开始工作`;
+
+      const result = await timelineService.createWithDedup(ctx.user.userId, {
+        type: 'work_start',
+        startTime: input.timestamp,
+        duration: 0, // Work start events are instantaneous
+        title,
+        metadata: {
+          configuredStartTime: input.configuredStartTime,
+          delayMinutes: input.delayMinutes,
+        },
+        source: 'vibeflow',
+      });
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to create work start event',
+        });
+      }
+
+      return result.data;
+    }),
+
+  /**
+   * Create an entertainment mode event
+   * Requirements: 12.1, 12.2, 12.3, 12.4
+   */
+  createEntertainmentEvent: protectedProcedure
+    .input(z.object({
+      startTime: z.date(),
+      endTime: z.date().optional(),
+      duration: z.number().int().min(0),
+      sitesVisited: z.array(z.string()).optional(),
+      quotaUsedBefore: z.number().int().min(0).optional(),
+      quotaUsedAfter: z.number().int().min(0).optional(),
+      reason: z.enum(['manual', 'quota_exhausted', 'work_time_start']).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const durationMinutes = Math.round(input.duration / 60);
+      const title = `娱乐时间 (${durationMinutes} 分钟)`;
+
+      const result = await timelineService.createWithDedup(ctx.user.userId, {
+        type: 'entertainment_mode',
+        startTime: input.startTime,
+        endTime: input.endTime,
+        duration: input.duration,
+        title,
+        metadata: {
+          sitesVisited: input.sitesVisited ?? [],
+          quotaUsedBefore: input.quotaUsedBefore,
+          quotaUsedAfter: input.quotaUsedAfter,
+          reason: input.reason,
+        },
+        source: 'browser_sentinel',
+      });
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to create entertainment event',
+        });
+      }
+
+      return result.data;
+    }),
 });

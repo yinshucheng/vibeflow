@@ -20,6 +20,8 @@ export const TimelineEventType = z.enum([
   'state_change',
   'interruption',
   'idle',
+  'entertainment_mode',
+  'work_start',
 ]);
 
 export type TimelineEventTypeValue = z.infer<typeof TimelineEventType>;

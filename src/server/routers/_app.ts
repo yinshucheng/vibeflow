@@ -21,6 +21,8 @@ import { focusSessionRouter } from './focus-session';
 import { sleepTimeRouter } from './sleep-time';
 import { overRestRouter } from './over-rest';
 import { efficiencyAnalysisRouter } from './efficiency-analysis';
+import { entertainmentRouter } from './entertainment';
+import { workStartRouter } from './work-start';
 
 /**
  * Main application router
@@ -42,6 +44,8 @@ export const appRouter = router({
   sleepTime: sleepTimeRouter,
   overRest: overRestRouter,
   efficiencyAnalysis: efficiencyAnalysisRouter,
+  entertainment: entertainmentRouter,
+  workStart: workStartRouter,
 });
 
 /**

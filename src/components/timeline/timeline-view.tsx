@@ -4,7 +4,7 @@
  * TimelineView Component
  * 
  * Displays a vertical timeline of events with color coding by type.
- * Requirements: 6.3, 6.7
+ * Requirements: 6.3, 6.7, 11.4, 11.5, 12.3, 12.4, 14.3, 14.4
  */
 
 import { useMemo } from 'react';
@@ -63,7 +63,6 @@ const EVENT_TYPE_CONFIG: Record<string, EventTypeConfig> = {
     borderColor: 'border-blue-300',
     icon: '📋',
   },
-  // Activity log with neutral category (default)
   activity_log: {
     label: '活动',
     color: 'text-gray-600',
@@ -71,7 +70,6 @@ const EVENT_TYPE_CONFIG: Record<string, EventTypeConfig> = {
     borderColor: 'border-gray-300',
     icon: '🌐',
   },
-  // Activity log variants based on category
   'activity_log:productive': {
     label: '生产性活动',
     color: 'text-green-600',
@@ -100,7 +98,6 @@ const EVENT_TYPE_CONFIG: Record<string, EventTypeConfig> = {
     borderColor: 'border-orange-300',
     icon: '🚫',
   },
-  // State change variants
   state_change: {
     label: '状态变更',
     color: 'text-blue-600',
@@ -134,13 +131,51 @@ const EVENT_TYPE_CONFIG: Record<string, EventTypeConfig> = {
     color: 'text-gray-400',
     bgColor: 'bg-gray-50',
     borderColor: 'border-gray-200',
-    borderStyle: 'border-dashed', // Dashed border for idle events as per design
+    borderStyle: 'border-dashed',
     icon: '💤',
+  },
+  // Entertainment mode - purple background (Requirements 11.4, 11.5, 12.3)
+  entertainment_mode: {
+    label: '娱乐时间',
+    color: 'text-purple-700',
+    bgColor: 'bg-purple-100',
+    borderColor: 'border-purple-400',
+    icon: '🎮',
+  },
+  // Work start event (Requirements 14.3, 14.4)
+  work_start: {
+    label: '开始工作',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-300',
+    icon: '🚀',
+  },
+  'work_start:on_time': {
+    label: '准时开始',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-400',
+    icon: '🏆',
+  },
+  'work_start:slightly_late': {
+    label: '稍有延迟',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-400',
+    icon: '⏰',
+  },
+  'work_start:late': {
+    label: '延迟开始',
+    color: 'text-red-600',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-400',
+    icon: '⚠️',
   },
 };
 
+
 // Get config for an event type
-// Handles category-based variants for activity_log and state_change events
+// Handles category-based variants for activity_log, state_change, and work_start events
 function getEventConfig(type: string, metadata?: Record<string, unknown> | null): EventTypeConfig {
   // Check for activity_log with category
   if (type === 'activity_log' && metadata?.category) {
@@ -155,6 +190,18 @@ function getEventConfig(type: string, metadata?: Record<string, unknown> | null)
     const stateKey = `state_change:${metadata.toState}`;
     if (EVENT_TYPE_CONFIG[stateKey]) {
       return EVENT_TYPE_CONFIG[stateKey];
+    }
+  }
+  
+  // Check for work_start with delay-based coloring (Requirements 14.3, 14.4)
+  if (type === 'work_start' && metadata?.delayMinutes !== undefined) {
+    const delay = metadata.delayMinutes as number;
+    if (delay === 0) {
+      return EVENT_TYPE_CONFIG['work_start:on_time'];
+    } else if (delay <= 30) {
+      return EVENT_TYPE_CONFIG['work_start:slightly_late'];
+    } else {
+      return EVENT_TYPE_CONFIG['work_start:late'];
     }
   }
   
@@ -328,9 +375,10 @@ export function TimelineView({
                     </p>
                   )}
 
-                  {/* Metadata (if any) */}
+                  {/* Metadata display */}
                   {metadata && Object.keys(metadata).length > 0 && (
                     <div className="mt-2 pt-2 border-t border-gray-200/50">
+                      {/* Status badge */}
                       {typeof metadata.status === 'string' && (
                         <span className={`
                           inline-block px-2 py-0.5 text-xs rounded-full
@@ -349,6 +397,7 @@ export function TimelineView({
                            metadata.status}
                         </span>
                       )}
+                      {/* Category badge */}
                       {typeof metadata.category === 'string' && (
                         <span className={`
                           inline-block px-2 py-0.5 text-xs rounded-full ml-1
@@ -364,10 +413,46 @@ export function TimelineView({
                            '中性'}
                         </span>
                       )}
+                      {/* URL display */}
                       {typeof metadata.url === 'string' && (
                         <p className="text-xs text-gray-400 mt-1 truncate">
                           {metadata.url}
                         </p>
+                      )}
+                      {/* Work start delay display (Requirements 14.3, 14.4) */}
+                      {event.type === 'work_start' && typeof metadata.delayMinutes === 'number' && (
+                        <div className="mt-1">
+                          {metadata.delayMinutes === 0 ? (
+                            <span className="text-xs text-green-600">✓ 准时开始工作</span>
+                          ) : (
+                            <span className={`text-xs ${metadata.delayMinutes <= 30 ? 'text-yellow-600' : 'text-red-600'}`}>
+                              延迟 {metadata.delayMinutes} 分钟
+                            </span>
+                          )}
+                          {typeof metadata.configuredStartTime === 'string' && (
+                            <span className="text-xs text-gray-400 ml-2">
+                              (计划 {metadata.configuredStartTime})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {/* Entertainment mode sites visited (Requirements 12.3, 12.4) */}
+                      {event.type === 'entertainment_mode' && Array.isArray(metadata.sitesVisited) && metadata.sitesVisited.length > 0 && (
+                        <div className="mt-1">
+                          <p className="text-xs text-purple-600 mb-1">访问的网站:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {(metadata.sitesVisited as string[]).slice(0, 5).map((site, idx) => (
+                              <span key={idx} className="px-1.5 py-0.5 bg-purple-50 text-purple-600 text-xs rounded">
+                                {site}
+                              </span>
+                            ))}
+                            {(metadata.sitesVisited as string[]).length > 5 && (
+                              <span className="text-xs text-purple-400">
+                                +{(metadata.sitesVisited as string[]).length - 5} 更多
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}

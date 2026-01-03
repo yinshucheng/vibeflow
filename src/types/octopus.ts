@@ -23,7 +23,9 @@ export type EventType =
   | 'BROWSER_ACTIVITY'
   | 'BROWSER_SESSION'
   | 'TAB_SWITCH'
-  | 'BROWSER_FOCUS';
+  | 'BROWSER_FOCUS'
+  | 'ENTERTAINMENT_MODE'
+  | 'WORK_START';
 
 /**
  * Client types for identifying the source/target of events and commands
@@ -373,6 +375,64 @@ export interface BrowserFocusEvent extends BaseEvent {
   payload: BrowserFocusPayload;
 }
 
+// =============================================================================
+// ENTERTAINMENT MODE EVENT (Requirements 8.6, 10.3, 12.1, 12.2)
+// =============================================================================
+
+/**
+ * Entertainment mode stop reason
+ */
+export type EntertainmentStopReason = 'manual' | 'quota_exhausted' | 'work_time_start';
+
+/**
+ * Entertainment mode event payload
+ * Requirements: 8.6, 10.3, 12.1, 12.2
+ */
+export interface EntertainmentModePayload {
+  action: 'start' | 'stop';
+  sessionId: string;
+  timestamp: number;
+  quotaUsedBefore: number;   // minutes
+  quotaUsedAfter?: number;   // minutes (only for stop)
+  duration?: number;         // seconds (only for stop)
+  sitesVisited?: string[];   // domains visited during session
+  reason?: EntertainmentStopReason;
+}
+
+/**
+ * Entertainment mode event
+ * Requirements: 8.6, 10.3, 12.1, 12.2
+ */
+export interface EntertainmentModeEvent extends BaseEvent {
+  eventType: 'ENTERTAINMENT_MODE';
+  payload: EntertainmentModePayload;
+}
+
+// =============================================================================
+// WORK START EVENT (Requirements 14.1, 14.2, 14.9, 14.10)
+// =============================================================================
+
+/**
+ * Work start event payload
+ * Requirements: 14.1, 14.2, 14.9, 14.10
+ */
+export interface WorkStartPayload {
+  date: string;                  // YYYY-MM-DD
+  configuredStartTime: string;   // HH:mm
+  actualStartTime: number;       // Unix timestamp
+  delayMinutes: number;          // 0 if on-time or early, positive if late
+  trigger: 'airlock_complete';   // What triggered the work start
+}
+
+/**
+ * Work start event
+ * Requirements: 14.1, 14.2, 14.9, 14.10
+ */
+export interface WorkStartEvent extends BaseEvent {
+  eventType: 'WORK_START';
+  payload: WorkStartPayload;
+}
+
 /**
  * Union type for all event types
  */
@@ -384,7 +444,9 @@ export type OctopusEvent =
   | BrowserActivityEvent
   | BrowserSessionEvent
   | TabSwitchEvent
-  | BrowserFocusEvent;
+  | BrowserFocusEvent
+  | EntertainmentModeEvent
+  | WorkStartEvent;
 
 
 // =============================================================================
@@ -830,6 +892,8 @@ export const EventTypeSchema = z.enum([
   'BROWSER_SESSION',
   'TAB_SWITCH',
   'BROWSER_FOCUS',
+  'ENTERTAINMENT_MODE',
+  'WORK_START',
 ]);
 
 // Client type enum schema
@@ -1039,6 +1103,46 @@ export const BrowserFocusEventSchema = BaseEventSchema.extend({
   payload: BrowserFocusPayloadSchema,
 });
 
+// Entertainment stop reason schema
+export const EntertainmentStopReasonSchema = z.enum(['manual', 'quota_exhausted', 'work_time_start']);
+
+// Entertainment mode payload schema
+// Requirements: 8.6, 10.3, 12.1, 12.2
+export const EntertainmentModePayloadSchema = z.object({
+  action: z.enum(['start', 'stop']),
+  sessionId: z.string().min(1),
+  timestamp: z.number().int().positive(),
+  quotaUsedBefore: z.number().nonnegative(),
+  quotaUsedAfter: z.number().nonnegative().optional(),
+  duration: z.number().nonnegative().optional(),
+  sitesVisited: z.array(z.string()).optional(),
+  reason: EntertainmentStopReasonSchema.optional(),
+});
+
+// Entertainment mode event schema
+// Requirements: 8.6, 10.3, 12.1, 12.2
+export const EntertainmentModeEventSchema = BaseEventSchema.extend({
+  eventType: z.literal('ENTERTAINMENT_MODE'),
+  payload: EntertainmentModePayloadSchema,
+});
+
+// Work start payload schema
+// Requirements: 14.1, 14.2, 14.9, 14.10
+export const WorkStartPayloadSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Use YYYY-MM-DD'),
+  configuredStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format. Use HH:mm'),
+  actualStartTime: z.number().int().positive(),
+  delayMinutes: z.number().int().nonnegative(),
+  trigger: z.literal('airlock_complete'),
+});
+
+// Work start event schema
+// Requirements: 14.1, 14.2, 14.9, 14.10
+export const WorkStartEventSchema = BaseEventSchema.extend({
+  eventType: z.literal('WORK_START'),
+  payload: WorkStartPayloadSchema,
+});
+
 // Union schema for all events
 export const OctopusEventSchema = z.discriminatedUnion('eventType', [
   ActivityLogEventSchema,
@@ -1049,6 +1153,8 @@ export const OctopusEventSchema = z.discriminatedUnion('eventType', [
   BrowserSessionEventSchema,
   TabSwitchEventSchema,
   BrowserFocusEventSchema,
+  EntertainmentModeEventSchema,
+  WorkStartEventSchema,
 ]);
 
 // =============================================================================

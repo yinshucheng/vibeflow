@@ -53,7 +53,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["screensaver.html", "dist/content/overlay.css"],
+      "resources": [
+        "screensaver.html", 
+        "locked-screensaver.html", 
+        "over-rest-screensaver.html",
+        "dist/content/overlay.css"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

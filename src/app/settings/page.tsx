@@ -21,10 +21,11 @@ import {
   ConnectedDevices,
   SleepTimeSettings,
   EarlyWarningSettings,
-  OverRestSettings
+  OverRestSettings,
+  EntertainmentSitesSettings
 } from '@/components/settings';
 
-type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'principles' | 'devices';
+type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices';
 
 interface TabConfig {
   id: SettingsTab;
@@ -87,6 +88,12 @@ const tabs: TabConfig[] = [
     label: 'Browser', 
     icon: '🌐',
     description: 'Blacklist and whitelist URL patterns'
+  },
+  { 
+    id: 'entertainment', 
+    label: 'Entertainment', 
+    icon: '🎮',
+    description: 'Entertainment site blocking and whitelist'
   },
   { 
     id: 'principles', 
@@ -153,6 +160,7 @@ export default function SettingsPage() {
         {activeTab === 'notifications' && <NotificationSettings />}
         {activeTab === 'earlywarning' && <EarlyWarningSettings />}
         {activeTab === 'browser' && <UrlListSettings />}
+        {activeTab === 'entertainment' && <EntertainmentSitesSettings />}
         {activeTab === 'principles' && <CodingPrinciplesSettings />}
         {activeTab === 'devices' && <ConnectedDevices />}
       </div>

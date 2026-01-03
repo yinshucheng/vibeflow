@@ -16,6 +16,29 @@
       </div>
     </header>
 
+    <!-- Connection Info Section (Requirements: 4.5, 4.6) -->
+    <section id="connection-info-section" class="section connection-info hidden">
+      <div class="connection-details">
+        <div class="connection-row">
+          <span class="connection-label">Server:</span>
+          <span id="connection-server" class="connection-value">localhost:3000</span>
+        </div>
+        <div class="connection-row">
+          <span class="connection-label">User:</span>
+          <span id="connection-user" class="connection-value">dev@vibeflow.local</span>
+        </div>
+        <div class="connection-row" id="reconnect-info-row" style="display: none;">
+          <span class="connection-label">Status:</span>
+          <span id="reconnect-info" class="connection-value reconnecting">Reconnecting...</span>
+        </div>
+      </div>
+      <div class="connection-actions">
+        <button id="reconnect-btn" class="btn btn-secondary btn-small" style="display: none;">
+          Reconnect
+        </button>
+      </div>
+    </section>
+
     <main id="main-content">
       <!-- Login Section -->
       <section id="login-section" class="section">
@@ -54,6 +77,52 @@
         <div class="current-task" id="current-task-section">
           <h3>Current Task</h3>
           <p id="current-task-title">No active task</p>
+        </div>
+
+        <!-- Entertainment Mode Section -->
+        <div class="entertainment-section" id="entertainment-section">
+          <h3>🎮 Entertainment Mode</h3>
+          
+          <!-- Entertainment Status Display -->
+          <div class="entertainment-status" id="entertainment-status">
+            <div class="entertainment-status-row">
+              <span class="entertainment-label">Status:</span>
+              <span id="entertainment-mode-status" class="entertainment-value">Inactive</span>
+            </div>
+            <div class="entertainment-status-row">
+              <span class="entertainment-label">Quota:</span>
+              <span id="entertainment-quota" class="entertainment-value">120 min</span>
+            </div>
+            <div class="entertainment-status-row" id="cooldown-row" style="display: none;">
+              <span class="entertainment-label">Cooldown:</span>
+              <span id="entertainment-cooldown" class="entertainment-value">--</span>
+            </div>
+            <div class="entertainment-status-row" id="last-session-row" style="display: none;">
+              <span class="entertainment-label">Last Session:</span>
+              <span id="entertainment-last-session" class="entertainment-value">--</span>
+            </div>
+          </div>
+
+          <!-- Entertainment Countdown (shown when active) -->
+          <div class="entertainment-countdown" id="entertainment-countdown" style="display: none;">
+            <div class="countdown-timer" id="countdown-timer">00:00</div>
+            <div class="countdown-label">Remaining</div>
+          </div>
+
+          <!-- Entertainment Control Buttons -->
+          <div class="entertainment-controls">
+            <button id="start-entertainment" class="btn btn-entertainment" disabled>
+              Start Entertainment Mode
+            </button>
+            <button id="stop-entertainment" class="btn btn-danger" style="display: none;">
+              Stop Entertainment Mode
+            </button>
+          </div>
+          
+          <!-- Entertainment Disabled Message -->
+          <div class="entertainment-disabled-msg" id="entertainment-disabled-msg" style="display: none;">
+            <span id="entertainment-disabled-reason"></span>
+          </div>
         </div>
 
         <div class="actions">

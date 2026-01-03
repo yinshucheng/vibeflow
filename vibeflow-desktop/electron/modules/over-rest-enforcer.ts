@@ -141,8 +141,17 @@ class OverRestEnforcer {
         this.bringWindowToFront();
       }
       
-      // Keep bringing to front every 30 seconds (only when user is active)
+      // Keep bringing to front every 30 seconds (only when user is active and still enforcing)
       this.bringToFrontInterval = setInterval(() => {
+        // Check if enforcement is still active
+        if (!this.isEnforcing) {
+          if (this.bringToFrontInterval) {
+            clearInterval(this.bringToFrontInterval);
+            this.bringToFrontInterval = null;
+          }
+          return;
+        }
+        
         if (!this.checkSystemIdle()) {
           this.bringWindowToFront();
         } else {

@@ -1,7 +1,9 @@
 import { VibeFlowWebSocket, type WebSocketEventHandler } from '../lib/websocket.js';
 import { policyCache } from '../lib/policy-cache.js';
 import { activityTracker } from '../lib/activity-tracker.js';
-import type { PolicyCache, SystemState, ActivityLog, ExecuteCommand, TimelineEvent, BlockEvent, InterruptionEvent, EnhancedUrlCheckResult } from '../types/index.js';
+import { getWorkStartTracker } from '../lib/work-start-tracker.js';
+import { entertainmentManager } from '../lib/entertainment-manager.js';
+import type { PolicyCache, SystemState, ActivityLog, ExecuteCommand, TimelineEvent, BlockEvent, InterruptionEvent, EnhancedUrlCheckResult, WorkStartPayload, EntertainmentModePayload } from '../types/index.js';
 
 // Global state
 let wsClient: VibeFlowWebSocket | null = null;
@@ -10,6 +12,16 @@ let currentTaskTitle: string | null = null;
 let currentPomodoroId: string | null = null;
 let pomodoroCount = 0;
 let dailyCap = 8;
+
+// Default connection settings (Requirements: 4.1, 4.2, 4.7, 4.8)
+const DEFAULT_SERVER_URL = 'http://localhost:3000';
+const DEFAULT_USER_EMAIL = 'dev@vibeflow.local';
+
+// Reconnection state (Requirements: 4.3, 4.4)
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const BASE_RECONNECT_DELAY = 2000; // 2 seconds
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Activity tracking state
 const activeTabTracking: Map<number, { url: string; title: string; startTime: number }> = new Map();
@@ -20,7 +32,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   console.log('[ServiceWorker] Extension installed');
   await policyCache.initialize();
   await activityTracker.initialize();
-  await loadStoredConnection();
+  // Auto-connect with default settings on install (Requirements: 4.1, 4.2, 4.7, 4.8)
+  await initializeDefaultConnection();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
@@ -30,14 +43,54 @@ chrome.runtime.onStartup.addListener(async () => {
   await loadStoredConnection();
 });
 
+/**
+ * Initialize default connection on first install
+ * Requirements: 4.1, 4.2, 4.7, 4.8
+ */
+async function initializeDefaultConnection(): Promise<void> {
+  try {
+    const result = await chrome.storage.local.get(['serverUrl', 'userEmail', 'hasInitialized']);
+    
+    // If already initialized, use stored settings
+    if (result.hasInitialized) {
+      await loadStoredConnection();
+      return;
+    }
+    
+    // First time install - set default values and connect
+    console.log('[ServiceWorker] First install - setting up default connection');
+    await chrome.storage.local.set({
+      serverUrl: DEFAULT_SERVER_URL,
+      userEmail: DEFAULT_USER_EMAIL,
+      isConnected: false,
+      hasInitialized: true,
+    });
+    
+    // Auto-connect with default settings
+    connect(DEFAULT_SERVER_URL, DEFAULT_USER_EMAIL);
+  } catch (error) {
+    console.error('[ServiceWorker] Failed to initialize default connection:', error);
+  }
+}
+
 // Load stored connection settings and reconnect
 async function loadStoredConnection(): Promise<void> {
   try {
-    const result = await chrome.storage.local.get(['serverUrl', 'userEmail', 'isConnected']);
-    if (result.isConnected && result.serverUrl && result.userEmail) {
-      console.log('[ServiceWorker] Reconnecting to stored server...');
-      connect(result.serverUrl, result.userEmail);
+    const result = await chrome.storage.local.get(['serverUrl', 'userEmail', 'isConnected', 'hasInitialized']);
+    
+    // If not initialized yet, initialize with defaults
+    if (!result.hasInitialized) {
+      await initializeDefaultConnection();
+      return;
     }
+    
+    // Use stored settings or defaults
+    const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
+    const userEmail = result.userEmail || DEFAULT_USER_EMAIL;
+    
+    // Always try to reconnect on browser startup (Requirements: 4.3)
+    console.log('[ServiceWorker] Reconnecting to server...');
+    connect(serverUrl, userEmail);
   } catch (error) {
     console.error('[ServiceWorker] Failed to load stored connection:', error);
   }
@@ -47,6 +100,10 @@ async function loadStoredConnection(): Promise<void> {
 const wsHandlers: WebSocketEventHandler = {
   onPolicySync: async (policy: PolicyCache) => {
     console.log('[ServiceWorker] Policy synced:', policy);
+    // Normalize globalState to uppercase
+    if (policy.globalState) {
+      policy.globalState = policy.globalState.toUpperCase() as SystemState;
+    }
     await policyCache.updatePolicy(policy);
     
     // Update blocking rules based on new policy
@@ -57,19 +114,32 @@ const wsHandlers: WebSocketEventHandler = {
   },
 
   onStateChange: async (state: SystemState) => {
-    console.log('[ServiceWorker] State changed:', state);
-    await policyCache.updateState(state);
+    // Normalize state to uppercase (server sends lowercase, extension uses uppercase)
+    const normalizedState = state.toUpperCase() as SystemState;
+    console.log('[ServiceWorker] State changed:', state, '-> normalized:', normalizedState);
+    await policyCache.updateState(normalizedState);
+    
+    // Track work start time (LOCKED → PLANNING transition)
+    // Requirements: 14.1, 14.2, 14.10
+    const workStartTracker = getWorkStartTracker();
+    await workStartTracker.handleStateChange(normalizedState);
     
     // Clear session whitelist when leaving FOCUS
-    if (state !== 'FOCUS') {
+    if (normalizedState !== 'FOCUS') {
       await policyCache.clearSessionWhitelist();
     }
     
     // Update blocking rules
     await updateBlockingRules();
     
+    // If entering a restricted state (LOCKED or OVER_REST), enforce restrictions on all tabs
+    // Requirements: 1.1, 1.2, 1.5, 1.6, 1.10
+    if (normalizedState === 'LOCKED' || normalizedState === 'OVER_REST') {
+      await enforceStateRestrictions();
+    }
+    
     // Broadcast to popup
-    broadcastToPopup({ type: 'STATE_CHANGED', payload: { state } });
+    broadcastToPopup({ type: 'STATE_CHANGED', payload: { state: normalizedState } });
   },
 
   onExecute: (command) => {
@@ -80,8 +150,12 @@ const wsHandlers: WebSocketEventHandler = {
   onConnect: () => {
     console.log('[ServiceWorker] Connected to server');
     isConnected = true;
+    reconnectAttempts = 0; // Reset reconnect attempts on successful connection
     chrome.storage.local.set({ isConnected: true });
     broadcastToPopup({ type: 'CONNECTION_STATUS', payload: { connected: true } });
+    
+    // Sync entertainment quota from server on connect (Requirements: 5.11, 8.7)
+    syncEntertainmentQuotaFromServer();
   },
 
   onDisconnect: () => {
@@ -89,16 +163,49 @@ const wsHandlers: WebSocketEventHandler = {
     isConnected = false;
     chrome.storage.local.set({ isConnected: false });
     broadcastToPopup({ type: 'CONNECTION_STATUS', payload: { connected: false } });
+    
+    // Schedule auto-reconnect with exponential backoff (Requirements: 4.3, 4.4)
+    scheduleReconnect();
   },
 
   onError: (error) => {
     console.error('[ServiceWorker] WebSocket error:', error);
     broadcastToPopup({ type: 'ERROR', payload: { message: error.message } });
   },
+
+  // Entertainment quota sync handler (Requirements: 5.11, 8.7)
+  onEntertainmentQuotaSync: async (payload: { quotaUsed: number; quotaTotal: number; quotaRemaining: number }) => {
+    console.log('[ServiceWorker] Entertainment quota sync received:', payload);
+    
+    // Initialize entertainment manager and update quota
+    await entertainmentManager.initialize();
+    await entertainmentManager.syncQuotaFromServer({
+      quotaUsed: payload.quotaUsed,
+      quotaTotal: payload.quotaTotal,
+      cooldownEndTime: null,
+      lastSessionEndTime: null,
+      isActive: false,
+      sessionId: null,
+      startTime: null,
+      endTime: null,
+    });
+    
+    // Broadcast updated status to popup
+    broadcastToPopup({ 
+      type: 'ENTERTAINMENT_STATUS_CHANGED', 
+      payload: entertainmentManager.getStatus() 
+    });
+  },
 };
 
 // Connect to VibeFlow server
 function connect(serverUrl: string, userEmail: string): void {
+  // Clear any pending reconnect timer
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  
   if (wsClient) {
     wsClient.disconnect();
   }
@@ -141,16 +248,217 @@ function connect(serverUrl: string, userEmail: string): void {
       throw new Error('WebSocket not connected');
     }
   });
+
+  // Set up work start tracker callback for sending WORK_START events
+  // Requirements: 14.1, 14.2, 14.9, 14.10
+  const workStartTracker = getWorkStartTracker();
+  workStartTracker.setSendCallback((payload: WorkStartPayload) => {
+    if (wsClient?.isConnected()) {
+      wsClient.sendWorkStart(payload);
+    } else {
+      console.warn('[ServiceWorker] Cannot send work start event, not connected');
+    }
+  });
+
+  // Initialize work start tracker with current state
+  workStartTracker.setPreviousState(policyCache.getState());
+
+  // Retry sending any pending work start events
+  workStartTracker.retrySendIfNeeded();
+
+  // Set up entertainment manager callback for sending ENTERTAINMENT_MODE events
+  // Requirements: 12.1, 12.2, 12.3, 12.4
+  entertainmentManager.setSendEventCallback((payload) => {
+    if (wsClient?.isConnected()) {
+      wsClient.sendEntertainmentMode(payload as EntertainmentModePayload);
+    } else {
+      console.warn('[ServiceWorker] Cannot send entertainment mode event, not connected');
+    }
+  });
+
+  // Set up entertainment manager auto-end callback for closing tabs
+  // Requirements: 5.5, 5.6, 5.10
+  entertainmentManager.setAutoEndCallback(async (reason) => {
+    console.log('[ServiceWorker] Entertainment mode auto-ended:', reason);
+    
+    // Close entertainment tabs (Requirements: 5.10)
+    await closeEntertainmentTabs();
+    
+    // Sync quota to server after entertainment mode ends (Requirements: 5.11, 8.7)
+    await syncEntertainmentQuotaToServer();
+    
+    // Broadcast status change to popup
+    broadcastToPopup({ 
+      type: 'ENTERTAINMENT_STATUS_CHANGED', 
+      payload: entertainmentManager.getStatus() 
+    });
+    
+    // Show notification to user
+    const message = reason === 'quota_exhausted' 
+      ? '今日娱乐配额已用完' 
+      : '工作时间已开始，娱乐模式已结束';
+    
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      title: '娱乐模式已结束',
+      message,
+    });
+  });
+}
+
+/**
+ * Schedule auto-reconnect with exponential backoff
+ * Requirements: 4.3, 4.4
+ */
+function scheduleReconnect(): void {
+  // Don't reconnect if we've exceeded max attempts
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.log('[ServiceWorker] Max reconnect attempts reached, stopping auto-reconnect');
+    broadcastToPopup({ 
+      type: 'ERROR', 
+      payload: { message: 'Unable to connect to server after multiple attempts. Please check if the server is running.' } 
+    });
+    return;
+  }
+  
+  // Clear any existing timer
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+  }
+  
+  // Calculate delay with exponential backoff
+  const delay = BASE_RECONNECT_DELAY * Math.pow(1.5, reconnectAttempts);
+  reconnectAttempts++;
+  
+  console.log(`[ServiceWorker] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+  
+  reconnectTimer = setTimeout(async () => {
+    const result = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+    const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
+    const userEmail = result.userEmail || DEFAULT_USER_EMAIL;
+    
+    console.log('[ServiceWorker] Attempting reconnect...');
+    connect(serverUrl, userEmail);
+  }, delay);
 }
 
 // Disconnect from server
 function disconnect(): void {
+  // Clear any pending reconnect timer
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  
+  // Reset reconnect attempts
+  reconnectAttempts = 0;
+  
   if (wsClient) {
     wsClient.disconnect();
     wsClient = null;
   }
   isConnected = false;
   chrome.storage.local.set({ isConnected: false });
+}
+
+/**
+ * Sync entertainment quota from server on connect
+ * Requirements: 5.11, 8.7
+ * 
+ * Fetches the current quota status from the server and updates local state.
+ */
+async function syncEntertainmentQuotaFromServer(): Promise<void> {
+  try {
+    // Get server URL and user email from storage
+    const result = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+    const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
+    const userEmail = result.userEmail || DEFAULT_USER_EMAIL;
+    
+    // Fetch entertainment status from server via HTTP API
+    const response = await fetch(`${serverUrl}/api/trpc/entertainment.getStatus`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dev-User-Email': userEmail,
+      },
+    });
+    
+    if (!response.ok) {
+      console.warn('[ServiceWorker] Failed to fetch entertainment status from server:', response.status);
+      return;
+    }
+    
+    const data = await response.json();
+    
+    if (data.result?.data) {
+      const serverStatus = data.result.data;
+      
+      // Initialize entertainment manager and sync from server
+      await entertainmentManager.initialize();
+      await entertainmentManager.syncQuotaFromServer({
+        quotaUsed: serverStatus.quotaUsed,
+        quotaTotal: serverStatus.quotaTotal,
+        cooldownEndTime: serverStatus.cooldownEndTime,
+        lastSessionEndTime: serverStatus.lastSessionEndTime,
+        isActive: serverStatus.isActive,
+        sessionId: serverStatus.sessionId,
+        startTime: serverStatus.startTime,
+        endTime: serverStatus.endTime,
+      });
+      
+      console.log('[ServiceWorker] Entertainment quota synced from server');
+      
+      // Broadcast updated status to popup
+      broadcastToPopup({ 
+        type: 'ENTERTAINMENT_STATUS_CHANGED', 
+        payload: entertainmentManager.getStatus() 
+      });
+    }
+  } catch (error) {
+    console.error('[ServiceWorker] Error syncing entertainment quota from server:', error);
+  }
+}
+
+/**
+ * Sync entertainment quota to server after entertainment mode ends
+ * Requirements: 5.11, 8.7
+ * 
+ * Pushes the current quota usage to the server.
+ */
+async function syncEntertainmentQuotaToServer(): Promise<void> {
+  try {
+    // Get server URL and user email from storage
+    const result = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+    const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
+    const userEmail = result.userEmail || DEFAULT_USER_EMAIL;
+    
+    const usedMinutes = entertainmentManager.getQuotaUsageForSync();
+    
+    // Update quota usage on server via HTTP API
+    const response = await fetch(`${serverUrl}/api/trpc/entertainment.updateQuotaUsage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dev-User-Email': userEmail,
+      },
+      body: JSON.stringify({
+        json: { usedMinutes },
+      }),
+    });
+    
+    if (!response.ok) {
+      console.warn('[ServiceWorker] Failed to sync entertainment quota to server:', response.status);
+      return;
+    }
+    
+    // Update last sync time
+    await entertainmentManager.updateLastSyncTime();
+    
+    console.log('[ServiceWorker] Entertainment quota synced to server:', usedMinutes, 'minutes');
+  } catch (error) {
+    console.error('[ServiceWorker] Error syncing entertainment quota to server:', error);
+  }
 }
 
 // Handle execute commands from server
@@ -316,8 +624,38 @@ function handleTabChange(tabId: number, url: string, title: string): void {
 }
 
 // Check URL against policy and take action
-// Requirements: 4.3, 6.1, 6.7
+// Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.10, 2.1, 2.10, 3.7, 3.8, 4.3, 6.1, 6.7
 async function checkUrlPolicy(tabId: number, url: string): Promise<void> {
+  // First, check for state restrictions (LOCKED or OVER_REST)
+  // Requirements: 1.1, 1.2, 1.6, 1.10
+  const stateRestriction = policyCache.shouldBlockForStateRestriction(url);
+  if (stateRestriction.blocked) {
+    console.log('[ServiceWorker] State restriction block:', stateRestriction.reason, url);
+    await handleStateRestrictionBlock(tabId, url, stateRestriction);
+    return;
+  }
+
+  // Check entertainment site blocking (Requirements: 2.1, 2.10, 3.7, 3.8)
+  // Entertainment sites should be blocked unless entertainment mode is active
+  await entertainmentManager.initialize();
+  entertainmentManager.setWorkTimeSlots(policyCache.getPolicy().workTimeSlots);
+  
+  const isEntertainmentSite = entertainmentManager.isEntertainmentSite(url);
+  const isWhitelisted = entertainmentManager.isWhitelisted(url);
+  const isEntertainmentModeActive = entertainmentManager.getStatus().isActive;
+  
+  if (isEntertainmentSite && !isWhitelisted && !isEntertainmentModeActive) {
+    console.log('[ServiceWorker] Entertainment site blocked:', url);
+    await activityTracker.recordBlockEvent(url, 'entertainment_block');
+    await handleEntertainmentBlock(tabId, url);
+    return;
+  }
+  
+  // If entertainment mode is active and visiting entertainment site, record it
+  if (isEntertainmentSite && isEntertainmentModeActive) {
+    await entertainmentManager.recordVisitedSite(url);
+  }
+
   // Use enhanced blocking check with work time and mode awareness
   const isPomodoroActive = currentPomodoroId !== null;
   const result = policyCache.shouldBlockEnhanced(url, isPomodoroActive);
@@ -334,6 +672,226 @@ async function checkUrlPolicy(tabId: number, url: string): Promise<void> {
     
     // Gentle mode: show warning overlay (Requirements 4.6, 6.7)
     await handleGentleBlock(tabId, url, result);
+  }
+}
+
+/**
+ * Handle entertainment site blocking
+ * Requirements: 2.1, 2.10, 3.7, 3.8
+ */
+async function handleEntertainmentBlock(tabId: number, blockedUrl: string): Promise<void> {
+  const dashboardUrl = policyCache.getDashboardUrl();
+  
+  // Store blocked URL info
+  await chrome.storage.local.set({
+    lastBlockedUrl: blockedUrl,
+    lastBlockedTime: Date.now(),
+    blockReason: 'entertainment_blocked',
+  });
+  
+  // Redirect to screensaver with entertainment block message
+  const screensaverUrl = chrome.runtime.getURL('screensaver.html') + 
+    `?reason=entertainment&url=${encodeURIComponent(blockedUrl)}`;
+  
+  chrome.tabs.update(tabId, { url: screensaverUrl });
+}
+
+/**
+ * Handle state restriction blocking (LOCKED or OVER_REST)
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.10
+ */
+async function handleStateRestrictionBlock(
+  tabId: number, 
+  blockedUrl: string, 
+  restriction: { blocked: boolean; redirectUrl?: string; reason?: 'locked' | 'over_rest' }
+): Promise<void> {
+  const dashboardUrl = policyCache.getDashboardUrl();
+  
+  // Store blocked URL info
+  await chrome.storage.local.set({
+    lastBlockedUrl: blockedUrl,
+    lastBlockedTime: Date.now(),
+    blockReason: restriction.reason === 'locked' ? 'locked_state' : 'over_rest_state',
+  });
+  
+  // Try to find and activate existing Dashboard tab (Requirements 1.3)
+  const existingDashboardTab = await findDashboardTab(dashboardUrl);
+  
+  if (existingDashboardTab) {
+    // Activate existing Dashboard tab and close current tab
+    await chrome.tabs.update(existingDashboardTab.id!, { active: true });
+    
+    // Focus the window containing the Dashboard tab
+    if (existingDashboardTab.windowId) {
+      await chrome.windows.update(existingDashboardTab.windowId, { focused: true });
+    }
+    
+    // Close the blocked tab if it's not the Dashboard tab
+    if (tabId !== existingDashboardTab.id) {
+      try {
+        await chrome.tabs.remove(tabId);
+      } catch {
+        // Tab might already be closed
+      }
+    }
+  } else {
+    // No existing Dashboard tab, redirect to state-specific screensaver
+    // Requirements: 1.6, 1.7
+    if (restriction.redirectUrl) {
+      chrome.tabs.update(tabId, { url: restriction.redirectUrl });
+    } else {
+      // Fallback to Dashboard
+      chrome.tabs.update(tabId, { url: dashboardUrl });
+    }
+  }
+}
+
+/**
+ * Find an existing Dashboard tab
+ * Requirements: 1.3
+ */
+async function findDashboardTab(dashboardUrl: string): Promise<chrome.tabs.Tab | null> {
+  try {
+    const dashboardHostname = new URL(dashboardUrl).hostname;
+    const tabs = await chrome.tabs.query({});
+    
+    for (const tab of tabs) {
+      if (tab.url) {
+        try {
+          const tabHostname = new URL(tab.url).hostname;
+          if (tabHostname === dashboardHostname) {
+            return tab;
+          }
+        } catch {
+          // Invalid URL, skip
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[ServiceWorker] Error finding Dashboard tab:', error);
+  }
+  
+  return null;
+}
+
+/**
+ * Close all entertainment site tabs when entertainment mode ends
+ * Requirements: 5.10
+ */
+async function closeEntertainmentTabs(): Promise<void> {
+  try {
+    const tabs = await chrome.tabs.query({});
+    const tabsToClose: number[] = [];
+    
+    for (const tab of tabs) {
+      if (!tab.id || !tab.url) continue;
+      
+      // Skip internal URLs
+      if (tab.url.startsWith('chrome://') || 
+          tab.url.startsWith('chrome-extension://') ||
+          tab.url.startsWith('about:') ||
+          tab.url.startsWith('edge://') ||
+          tab.url.startsWith('moz-extension://') ||
+          tab.url.startsWith('file://')) {
+        continue;
+      }
+      
+      // Check if this is an entertainment site
+      if (entertainmentManager.isEntertainmentSite(tab.url) && 
+          !entertainmentManager.isWhitelisted(tab.url)) {
+        tabsToClose.push(tab.id);
+      }
+    }
+    
+    // Close entertainment tabs
+    if (tabsToClose.length > 0) {
+      console.log('[ServiceWorker] Closing entertainment tabs:', tabsToClose.length);
+      await chrome.tabs.remove(tabsToClose);
+    }
+  } catch (error) {
+    console.error('[ServiceWorker] Error closing entertainment tabs:', error);
+  }
+}
+
+/**
+ * Enforce state restrictions on all open tabs when entering LOCKED or OVER_REST state
+ * Requirements: 1.1, 1.2, 1.5, 1.6, 1.10
+ */
+async function enforceStateRestrictions(): Promise<void> {
+  const dashboardUrl = policyCache.getDashboardUrl();
+  const state = policyCache.getState();
+  
+  console.log('[ServiceWorker] Enforcing state restrictions for:', state);
+  
+  try {
+    const tabs = await chrome.tabs.query({});
+    const dashboardHostname = new URL(dashboardUrl).hostname;
+    
+    // Find or create Dashboard tab
+    let dashboardTab = await findDashboardTab(dashboardUrl);
+    
+    // Collect tabs to close (non-Dashboard, non-internal tabs)
+    const tabsToClose: number[] = [];
+    
+    for (const tab of tabs) {
+      if (!tab.id || !tab.url) continue;
+      
+      // Skip internal URLs
+      if (tab.url.startsWith('chrome://') || 
+          tab.url.startsWith('chrome-extension://') ||
+          tab.url.startsWith('about:') ||
+          tab.url.startsWith('edge://') ||
+          tab.url.startsWith('moz-extension://') ||
+          tab.url.startsWith('file://')) {
+        continue;
+      }
+      
+      // Check if this is a Dashboard tab
+      try {
+        const tabHostname = new URL(tab.url).hostname;
+        if (tabHostname === dashboardHostname) {
+          // This is a Dashboard tab, keep it
+          if (!dashboardTab) {
+            dashboardTab = tab;
+          }
+          continue;
+        }
+      } catch {
+        // Invalid URL, skip
+        continue;
+      }
+      
+      // This is a non-Dashboard tab, mark for closing
+      tabsToClose.push(tab.id);
+    }
+    
+    // If no Dashboard tab exists, create one
+    if (!dashboardTab) {
+      dashboardTab = await chrome.tabs.create({ url: dashboardUrl, active: true });
+    } else {
+      // Activate existing Dashboard tab
+      await chrome.tabs.update(dashboardTab.id!, { active: true });
+      if (dashboardTab.windowId) {
+        await chrome.windows.update(dashboardTab.windowId, { focused: true });
+      }
+    }
+    
+    // Close non-Dashboard tabs (redirect to screensaver instead of closing for better UX)
+    const screensaverPath = state === 'LOCKED' ? 'locked-screensaver.html' : 'over-rest-screensaver.html';
+    const screensaverUrl = chrome.runtime.getURL(screensaverPath);
+    
+    for (const tabId of tabsToClose) {
+      try {
+        // Redirect to state-specific screensaver
+        await chrome.tabs.update(tabId, { url: screensaverUrl });
+      } catch {
+        // Tab might have been closed already
+      }
+    }
+    
+    console.log('[ServiceWorker] State restrictions enforced, redirected tabs:', tabsToClose.length);
+  } catch (error) {
+    console.error('[ServiceWorker] Error enforcing state restrictions:', error);
   }
 }
 
@@ -504,7 +1062,33 @@ async function handleMessage(
         dailyCap,
         currentTaskTitle,
         currentPomodoroId,
+        // Additional connection info (Requirements: 4.5, 4.6)
+        serverUrl: (await chrome.storage.local.get(['serverUrl'])).serverUrl || DEFAULT_SERVER_URL,
+        userEmail: (await chrome.storage.local.get(['userEmail'])).userEmail || DEFAULT_USER_EMAIL,
+        reconnectAttempts,
+        maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
       };
+
+    case 'GET_CONNECTION_INFO':
+      // Get detailed connection info (Requirements: 4.5)
+      const connInfo = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+      return {
+        connected: isConnected,
+        serverUrl: connInfo.serverUrl || DEFAULT_SERVER_URL,
+        userEmail: connInfo.userEmail || DEFAULT_USER_EMAIL,
+        reconnectAttempts,
+        maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
+        isReconnecting: reconnectTimer !== null,
+      };
+
+    case 'MANUAL_RECONNECT':
+      // Manual reconnect request (Requirements: 4.6)
+      reconnectAttempts = 0; // Reset attempts for manual reconnect
+      const reconnectInfo = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+      const reconnectServerUrl = reconnectInfo.serverUrl || DEFAULT_SERVER_URL;
+      const reconnectUserEmail = reconnectInfo.userEmail || DEFAULT_USER_EMAIL;
+      connect(reconnectServerUrl, reconnectUserEmail);
+      return { success: true };
 
     case 'GET_TAB_ID':
       // Return the tab ID to the content script
@@ -643,6 +1227,48 @@ async function handleMessage(
         requireLogin: count >= 3 
       };
 
+    // Entertainment Mode Messages (Requirements: 5.8, 6.1, 6.2, 6.3, 6.4, 6.10)
+    case 'GET_ENTERTAINMENT_STATUS':
+      // Get current entertainment status
+      await entertainmentManager.initialize();
+      // Update work time slots from policy cache
+      entertainmentManager.setWorkTimeSlots(policyCache.getPolicy().workTimeSlots);
+      return entertainmentManager.getStatus();
+
+    case 'START_ENTERTAINMENT':
+      // Start entertainment mode (Requirements: 6.1)
+      await entertainmentManager.initialize();
+      entertainmentManager.setWorkTimeSlots(policyCache.getPolicy().workTimeSlots);
+      const startResult = await entertainmentManager.startEntertainment();
+      
+      if (startResult.success) {
+        // Broadcast status change to popup
+        broadcastToPopup({ 
+          type: 'ENTERTAINMENT_STATUS_CHANGED', 
+          payload: entertainmentManager.getStatus() 
+        });
+      }
+      
+      return startResult;
+
+    case 'STOP_ENTERTAINMENT':
+      // Stop entertainment mode (Requirements: 6.4)
+      await entertainmentManager.stopEntertainment('manual');
+      
+      // Sync quota to server after entertainment mode ends (Requirements: 5.11, 8.7)
+      await syncEntertainmentQuotaToServer();
+      
+      // Broadcast status change to popup
+      broadcastToPopup({ 
+        type: 'ENTERTAINMENT_STATUS_CHANGED', 
+        payload: entertainmentManager.getStatus() 
+      });
+      
+      // Close entertainment tabs (Requirements: 5.10)
+      await closeEntertainmentTabs();
+      
+      return { success: true };
+
     default:
       console.warn('[ServiceWorker] Unknown message type:', message.type);
       return { error: 'Unknown message type' };
@@ -654,6 +1280,11 @@ policyCache.initialize().then(() => {
   console.log('[ServiceWorker] Policy cache initialized');
   activityTracker.initialize().then(() => {
     console.log('[ServiceWorker] Activity tracker initialized');
-    loadStoredConnection();
+    // Initialize work start tracker
+    const workStartTracker = getWorkStartTracker();
+    workStartTracker.initialize().then(() => {
+      console.log('[ServiceWorker] Work start tracker initialized');
+      loadStoredConnection();
+    });
   });
 });

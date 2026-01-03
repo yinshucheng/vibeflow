@@ -13,11 +13,13 @@ import type { SystemState, ExecuteCommand } from '@/server/socket';
 type StateChangeBroadcaster = (userId: string, state: SystemState) => void;
 type PolicyUpdateBroadcaster = (userId: string) => Promise<void>;
 type ExecuteCommandBroadcaster = (userId: string, command: ExecuteCommand) => void;
+type EntertainmentModeChangeBroadcaster = (userId: string, payload: { isActive: boolean; sessionId: string | null; endTime: number | null }) => void;
 
 // Registered broadcasters (set by socket-init when server starts)
 let stateChangeBroadcaster: StateChangeBroadcaster | null = null;
 let policyUpdateBroadcaster: PolicyUpdateBroadcaster | null = null;
 let executeCommandBroadcaster: ExecuteCommandBroadcaster | null = null;
+let entertainmentModeChangeBroadcaster: EntertainmentModeChangeBroadcaster | null = null;
 
 /**
  * Register the state change broadcaster
@@ -41,6 +43,15 @@ export function registerPolicyUpdateBroadcaster(broadcaster: PolicyUpdateBroadca
  */
 export function registerExecuteCommandBroadcaster(broadcaster: ExecuteCommandBroadcaster): void {
   executeCommandBroadcaster = broadcaster;
+}
+
+/**
+ * Register the entertainment mode change broadcaster
+ * Called by socket-init when the server starts
+ * Requirements: 8.6
+ */
+export function registerEntertainmentModeChangeBroadcaster(broadcaster: EntertainmentModeChangeBroadcaster): void {
+  entertainmentModeChangeBroadcaster = broadcaster;
 }
 
 /**
@@ -99,6 +110,21 @@ export function broadcastIdleAlert(
 }
 
 /**
+ * Broadcast entertainment mode state change to all connected clients
+ * Requirements: 8.6
+ */
+export function broadcastEntertainmentModeChange(
+  userId: string,
+  payload: { isActive: boolean; sessionId: string | null; endTime: number | null }
+): void {
+  if (entertainmentModeChangeBroadcaster) {
+    entertainmentModeChangeBroadcaster(userId, payload);
+  } else {
+    console.log(`[SocketBroadcast] Entertainment mode change queued (server not ready): ${userId} -> ${payload.isActive}`);
+  }
+}
+
+/**
  * Check if broadcasters are registered
  */
 export function isBroadcastReady(): boolean {
@@ -109,10 +135,12 @@ export const socketBroadcastService = {
   registerStateChangeBroadcaster,
   registerPolicyUpdateBroadcaster,
   registerExecuteCommandBroadcaster,
+  registerEntertainmentModeChangeBroadcaster,
   broadcastStateChange,
   broadcastPolicyUpdate,
   sendExecuteCommand,
   broadcastIdleAlert,
+  broadcastEntertainmentModeChange,
   isBroadcastReady,
 };
 

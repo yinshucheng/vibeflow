@@ -14,6 +14,8 @@ export { EfficiencyAnalysis } from './efficiency-analysis';
 export { ProductivityHeatmap } from './productivity-heatmap';
 export { ExemptionHistory } from './exemption-history';
 export { FocusSessionStats } from './focus-session-stats';
+export { EntertainmentStats } from './entertainment-stats';
+export { WorkStartStats } from './work-start-stats';
 
 // Re-export types from stats service for convenience
 export type { 

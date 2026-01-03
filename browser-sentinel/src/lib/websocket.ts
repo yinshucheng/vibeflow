@@ -12,6 +12,8 @@ import type {
   TabSwitchEvent,
   BrowserFocusEvent,
   HeartbeatEvent,
+  EntertainmentModeEvent,
+  WorkStartEvent,
   SyncStateCommand,
   ExecuteActionCommand,
   UpdatePolicyCommand,
@@ -32,6 +34,10 @@ export type WebSocketEventHandler = {
   onSyncState?: (payload: SyncStateCommand['payload']) => void;
   onExecuteAction?: (payload: ExecuteActionCommand['payload']) => void;
   onShowUI?: (payload: ShowUICommand['payload']) => void;
+  // Entertainment mode handler (Requirements 8.6, 10.3)
+  onEntertainmentModeChange?: (payload: { isActive: boolean; sessionId: string | null; endTime: number | null }) => void;
+  // Entertainment quota sync handler (Requirements 5.11, 8.7)
+  onEntertainmentQuotaSync?: (payload: { quotaUsed: number; quotaTotal: number; quotaRemaining: number }) => void;
 };
 
 /**
@@ -342,6 +348,18 @@ export class VibeFlowWebSocket {
             this.handlers.onShowUI((eventData as ShowUICommand).payload);
           }
           break;
+        // Entertainment mode state change (Requirements 8.6, 10.3)
+        case 'ENTERTAINMENT_MODE_CHANGE':
+          if (this.handlers.onEntertainmentModeChange) {
+            this.handlers.onEntertainmentModeChange(eventData as { isActive: boolean; sessionId: string | null; endTime: number | null });
+          }
+          break;
+        // Entertainment quota sync (Requirements 5.11, 8.7)
+        case 'ENTERTAINMENT_QUOTA_SYNC':
+          if (this.handlers.onEntertainmentQuotaSync) {
+            this.handlers.onEntertainmentQuotaSync(eventData as { quotaUsed: number; quotaTotal: number; quotaRemaining: number });
+          }
+          break;
         case 'error':
           console.error('[WebSocket] Server error:', eventData);
           break;
@@ -610,6 +628,32 @@ export class VibeFlowWebSocket {
     const event: HeartbeatEvent = {
       ...this.createBaseEventFields('HEARTBEAT'),
       eventType: 'HEARTBEAT',
+      payload,
+    };
+    this.sendOctopusEvent(event);
+  }
+
+  /**
+   * Send an entertainment mode event
+   * Requirements: 8.6, 10.3
+   */
+  sendEntertainmentMode(payload: EntertainmentModeEvent['payload']): void {
+    const event: EntertainmentModeEvent = {
+      ...this.createBaseEventFields('ENTERTAINMENT_MODE'),
+      eventType: 'ENTERTAINMENT_MODE',
+      payload,
+    };
+    this.sendOctopusEvent(event);
+  }
+
+  /**
+   * Send a work start event
+   * Requirements: 14.1, 14.2, 14.9, 14.10
+   */
+  sendWorkStart(payload: WorkStartEvent['payload']): void {
+    const event: WorkStartEvent = {
+      ...this.createBaseEventFields('WORK_START'),
+      eventType: 'WORK_START',
       payload,
     };
     this.sendOctopusEvent(event);

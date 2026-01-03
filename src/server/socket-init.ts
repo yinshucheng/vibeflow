@@ -4,7 +4,7 @@
  * This module provides utilities for initializing the Socket.io server
  * with a Next.js application. It can be used with a custom server setup.
  * 
- * Requirements: 6.7
+ * Requirements: 5.7, 6.7
  */
 
 import { Server as HttpServer } from 'http';
@@ -13,7 +13,9 @@ import {
   registerStateChangeBroadcaster, 
   registerPolicyUpdateBroadcaster,
   registerExecuteCommandBroadcaster,
+  registerEntertainmentModeChangeBroadcaster,
 } from '@/services/socket-broadcast.service';
+import { dailyResetSchedulerService } from '@/services/daily-reset-scheduler.service';
 
 let isInitialized = false;
 
@@ -41,6 +43,13 @@ export function initializeSocketServer(httpServer: HttpServer): void {
   registerExecuteCommandBroadcaster((userId, command) => {
     socketServer.sendExecuteCommand(userId, command);
   });
+  
+  registerEntertainmentModeChangeBroadcaster((userId, payload) => {
+    socketServer.broadcastEntertainmentModeChange(userId, payload);
+  });
+  
+  // Start the daily reset scheduler (Requirements: 5.7)
+  dailyResetSchedulerService.start();
   
   isInitialized = true;
   console.log('[Socket.io] Server initialization complete');

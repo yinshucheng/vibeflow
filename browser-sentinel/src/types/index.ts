@@ -1,5 +1,5 @@
 // System state types matching the main VibeFlow application
-export type SystemState = 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST';
+export type SystemState = 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
 
 // Enforcement mode types (Requirements 4.1)
 export type EnforcementMode = 'strict' | 'gentle';
@@ -22,7 +22,9 @@ export type OctopusEventType =
   | 'BROWSER_ACTIVITY'
   | 'BROWSER_SESSION'
   | 'TAB_SWITCH'
-  | 'BROWSER_FOCUS';
+  | 'BROWSER_FOCUS'
+  | 'ENTERTAINMENT_MODE'
+  | 'WORK_START';
 
 /**
  * Client types for identifying the source/target
@@ -300,6 +302,63 @@ export interface HeartbeatEvent extends OctopusBaseEvent {
 }
 
 // =============================================================================
+// ENTERTAINMENT MODE EVENT (Requirements 8.6, 10.3)
+// =============================================================================
+
+/**
+ * Entertainment mode stop reason
+ */
+export type EntertainmentStopReason = 'manual' | 'quota_exhausted' | 'work_time_start';
+
+/**
+ * Entertainment mode event payload
+ */
+export interface EntertainmentModePayload {
+  action: 'start' | 'stop';
+  sessionId: string;
+  timestamp: number;
+  quotaUsedBefore: number;   // minutes
+  quotaUsedAfter?: number;   // minutes (only for stop)
+  duration?: number;         // seconds (only for stop)
+  sitesVisited?: string[];   // domains visited during session
+  reason?: EntertainmentStopReason;
+}
+
+/**
+ * Entertainment mode event
+ * Requirements: 8.6, 10.3
+ */
+export interface EntertainmentModeEvent extends OctopusBaseEvent {
+  eventType: 'ENTERTAINMENT_MODE';
+  payload: EntertainmentModePayload;
+}
+
+// =============================================================================
+// WORK START EVENT (Requirements 14.1, 14.2, 14.9, 14.10)
+// =============================================================================
+
+/**
+ * Work start event payload
+ * Requirements: 14.1, 14.2, 14.9, 14.10
+ */
+export interface WorkStartPayload {
+  date: string;                  // YYYY-MM-DD
+  configuredStartTime: string;   // HH:mm
+  actualStartTime: number;       // Unix timestamp
+  delayMinutes: number;          // 0 if on-time or early, positive if late
+  trigger: 'airlock_complete';   // What triggered the work start
+}
+
+/**
+ * Work start event
+ * Requirements: 14.1, 14.2, 14.9, 14.10
+ */
+export interface WorkStartEvent extends OctopusBaseEvent {
+  eventType: 'WORK_START';
+  payload: WorkStartPayload;
+}
+
+// =============================================================================
 // UNION TYPE FOR ALL OCTOPUS EVENTS
 // =============================================================================
 
@@ -311,7 +370,9 @@ export type OctopusEvent =
   | BrowserSessionEvent
   | TabSwitchEvent
   | BrowserFocusEvent
-  | HeartbeatEvent;
+  | HeartbeatEvent
+  | EntertainmentModeEvent
+  | WorkStartEvent;
 
 // =============================================================================
 // COMMAND STREAM TYPES (Vibe Brain → Browser Sentinel)
@@ -474,6 +535,23 @@ export interface WorkTimeSlot {
   enabled: boolean;
 }
 
+// Entertainment blacklist entry
+export interface EntertainmentBlacklistEntry {
+  domain: string;
+  isPreset: boolean;
+  enabled: boolean;
+  addedAt: number;
+}
+
+// Entertainment whitelist entry
+export interface EntertainmentWhitelistEntry {
+  pattern: string;
+  description?: string;
+  isPreset: boolean;
+  enabled: boolean;
+  addedAt: number;
+}
+
 // Policy cache stored locally in the extension
 export interface PolicyCache {
   globalState: SystemState;
@@ -490,6 +568,12 @@ export interface PolicyCache {
   browserRedirectReplace: boolean;
   isAuthenticated: boolean;
   dashboardUrl: string;
+  // Entertainment fields (Requirements 2.1, 2.3, 2.5, 2.6, 2.7)
+  entertainmentBlacklist: EntertainmentBlacklistEntry[];
+  entertainmentWhitelist: EntertainmentWhitelistEntry[];
+  entertainmentQuotaMinutes: number;
+  entertainmentCooldownMinutes: number;
+  entertainmentModeActive: boolean;
 }
 
 // Activity log entry for tracking browser usage
@@ -527,7 +611,7 @@ export interface TimelineEvent {
 export interface BlockEvent {
   url: string;
   timestamp: number;
-  blockType: 'hard_block' | 'soft_block';
+  blockType: 'hard_block' | 'soft_block' | 'entertainment_block';
   userAction?: 'proceeded' | 'returned';
   pomodoroId?: string;
 }

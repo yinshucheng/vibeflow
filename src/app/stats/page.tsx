@@ -20,11 +20,13 @@ import { EfficiencyAnalysis } from '@/components/stats/efficiency-analysis';
 import { ProductivityHeatmap } from '@/components/stats/productivity-heatmap';
 import { ExemptionHistory } from '@/components/stats/exemption-history';
 import { FocusSessionStats } from '@/components/stats/focus-session-stats';
+import { EntertainmentStats } from '@/components/stats/entertainment-stats';
+import { WorkStartStats } from '@/components/stats/work-start-stats';
 import { trpc } from '@/lib/trpc';
 import type { PomodoroStats } from '@/services/stats.service';
 
 // Tab types
-type StatsTab = 'overview' | 'projects' | 'tasks' | 'daily' | 'review' | 'skipTokens' | 'efficiency' | 'focusSessions';
+type StatsTab = 'overview' | 'projects' | 'tasks' | 'daily' | 'review' | 'skipTokens' | 'efficiency' | 'focusSessions' | 'entertainment' | 'workStart';
 
 const TABS: { id: StatsTab; label: string; icon: string }[] = [
   { id: 'overview', label: '总览', icon: '📊' },
@@ -34,6 +36,8 @@ const TABS: { id: StatsTab; label: string; icon: string }[] = [
   { id: 'review', label: '复盘', icon: '🎯' },
   { id: 'efficiency', label: '效率', icon: '📈' },
   { id: 'focusSessions', label: '专注', icon: '🎯' },
+  { id: 'entertainment', label: '娱乐', icon: '🎮' },
+  { id: 'workStart', label: '启动', icon: '🚀' },
   { id: 'skipTokens', label: '跳过令牌', icon: '⏭️' },
 ];
 
@@ -192,8 +196,18 @@ export default function StatsPage() {
             <FocusSessionStats days={14} />
           )}
 
+          {/* Entertainment Tab (Requirements 12.5, 12.6) */}
+          {activeTab === 'entertainment' && (
+            <EntertainmentStats days={14} />
+          )}
+
+          {/* Work Start Tab (Requirements 14.5, 14.6) */}
+          {activeTab === 'workStart' && (
+            <WorkStartStats days={30} />
+          )}
+
           {/* Loading/Empty State */}
-          {!stats && activeTab !== 'review' && activeTab !== 'skipTokens' && activeTab !== 'efficiency' && activeTab !== 'focusSessions' && (
+          {!stats && activeTab !== 'review' && activeTab !== 'skipTokens' && activeTab !== 'efficiency' && activeTab !== 'focusSessions' && activeTab !== 'entertainment' && activeTab !== 'workStart' && (
             <div className="text-center py-12 text-gray-500">
               选择时间范围以查看统计数据
             </div>

@@ -311,3 +311,32 @@ export {
   OverRestAppSchema,
   PRESET_OVER_REST_APPS,
 } from './over-rest.service';
+
+// Entertainment Service exports (Requirements: 8.1-8.9)
+export { entertainmentService } from './entertainment.service';
+export type {
+  EntertainmentStatus,
+  EntertainmentStartResult,
+  EntertainmentStopReason,
+  UpdateEntertainmentSettingsInput,
+  ServiceResult as EntertainmentServiceResult,
+} from './entertainment.service';
+export {
+  UpdateEntertainmentSettingsSchema,
+} from './entertainment.service';
+
+// Work Start Service exports (Requirements: 14.1, 14.2, 14.7, 14.8)
+export { workStartService } from './work-start.service';
+export type {
+  WorkStartInfo,
+  WorkStartStats,
+  RecordWorkStartInput,
+  ServiceResult as WorkStartServiceResult,
+} from './work-start.service';
+export {
+  RecordWorkStartSchema,
+  calculateWorkStartDelay,
+} from './work-start.service';
+
+// Daily Reset Scheduler Service exports (Requirements: 5.7)
+export { dailyResetSchedulerService } from './daily-reset-scheduler.service';

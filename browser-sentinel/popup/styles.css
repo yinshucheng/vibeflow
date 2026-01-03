@@ -211,3 +211,196 @@ body {
   flex-direction: column;
   gap: 8px;
 }
+
+
+/* Entertainment Mode Section */
+.entertainment-section {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.entertainment-section h3 {
+  font-size: 13px;
+  color: #a78bfa;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.entertainment-status {
+  margin-bottom: 12px;
+}
+
+.entertainment-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.entertainment-label {
+  color: #a1a1aa;
+}
+
+.entertainment-value {
+  color: #e4e4e7;
+  font-weight: 500;
+}
+
+.entertainment-value.active {
+  color: #22c55e;
+}
+
+.entertainment-value.inactive {
+  color: #a1a1aa;
+}
+
+.entertainment-value.cooldown {
+  color: #f59e0b;
+}
+
+.entertainment-value.exhausted {
+  color: #ef4444;
+}
+
+/* Entertainment Countdown */
+.entertainment-countdown {
+  text-align: center;
+  padding: 16px;
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.countdown-timer {
+  font-size: 32px;
+  font-weight: 700;
+  color: #a78bfa;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  letter-spacing: 2px;
+}
+
+.countdown-label {
+  font-size: 11px;
+  color: #a1a1aa;
+  margin-top: 4px;
+}
+
+/* Entertainment Controls */
+.entertainment-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-entertainment {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  border: none;
+}
+
+.btn-entertainment:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+}
+
+.btn-entertainment:disabled {
+  background: rgba(139, 92, 246, 0.3);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+}
+
+/* Entertainment Disabled Message */
+.entertainment-disabled-msg {
+  text-align: center;
+  padding: 8px;
+  font-size: 11px;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+/* Warning notification styles */
+.entertainment-warning {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: center;
+  animation: slideDown 0.3s ease-out;
+  z-index: 1000;
+}
+
+.entertainment-warning.final {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* Connection Info Section (Requirements: 4.5, 4.6) */
+.connection-info {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.connection-details {
+  margin-bottom: 8px;
+}
+
+.connection-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 11px;
+}
+
+.connection-label {
+  color: #71717a;
+}
+
+.connection-value {
+  color: #a1a1aa;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-size: 10px;
+}
+
+.connection-value.reconnecting {
+  color: #f59e0b;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.connection-value.failed {
+  color: #ef4444;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.connection-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-small {
+  width: auto;
+  padding: 6px 12px;
+  font-size: 11px;
+}

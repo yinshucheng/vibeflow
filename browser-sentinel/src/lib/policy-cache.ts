@@ -1,6 +1,29 @@
-import type { PolicyCache, SystemState, EnforcementMode, EnhancedUrlCheckResult } from '../types/index.js';
+import type { PolicyCache, SystemState, EnforcementMode, EnhancedUrlCheckResult, EntertainmentBlacklistEntry, EntertainmentWhitelistEntry } from '../types/index.js';
 
 const STORAGE_KEY = 'policyCache';
+
+// Preset entertainment blacklist domains
+const PRESET_ENTERTAINMENT_BLACKLIST: string[] = [
+  'twitter.com',
+  'x.com',
+  'weibo.com',
+  'youtube.com',
+  'bilibili.com',
+  'tiktok.com',
+  'douyin.com',
+  'instagram.com',
+  'facebook.com',
+  'reddit.com',
+  'twitch.tv',
+];
+
+// Preset entertainment whitelist patterns
+const PRESET_ENTERTAINMENT_WHITELIST: string[] = [
+  'weibo.com/fav/*',
+  'twitter.com/i/bookmarks',
+  'bilibili.com/video/*',
+  'bilibili.com/search/*',
+];
 
 const DEFAULT_POLICY: PolicyCache = {
   globalState: 'PLANNING',
@@ -17,6 +40,22 @@ const DEFAULT_POLICY: PolicyCache = {
   browserRedirectReplace: true,
   isAuthenticated: false,
   dashboardUrl: 'http://localhost:3000',
+  // Entertainment defaults (Requirements 2.1, 2.3, 2.5, 2.6, 2.7)
+  entertainmentBlacklist: PRESET_ENTERTAINMENT_BLACKLIST.map(domain => ({
+    domain,
+    isPreset: true,
+    enabled: true,
+    addedAt: Date.now(),
+  })),
+  entertainmentWhitelist: PRESET_ENTERTAINMENT_WHITELIST.map(pattern => ({
+    pattern,
+    isPreset: true,
+    enabled: true,
+    addedAt: Date.now(),
+  })),
+  entertainmentQuotaMinutes: 120,
+  entertainmentCooldownMinutes: 30,
+  entertainmentModeActive: false,
 };
 
 export class PolicyCacheManager {
@@ -249,6 +288,94 @@ export class PolicyCacheManager {
     return this.cache.browserRedirectReplace;
   }
 
+  // ==========================================================================
+  // State Restriction Methods (Requirements 1.1, 1.2, 1.6, 1.10)
+  // ==========================================================================
+
+  /**
+   * Check if the system is in a restricted state (LOCKED or OVER_REST)
+   * In these states, only Dashboard access is allowed
+   * Requirements: 1.1, 1.2, 1.6, 1.10
+   */
+  isRestrictedState(): boolean {
+    const state = this.cache.globalState;
+    return state === 'LOCKED' || state === 'OVER_REST';
+  }
+
+  /**
+   * Check if a URL is the Dashboard URL
+   */
+  isDashboardUrl(url: string): boolean {
+    if (!url) return false;
+    
+    try {
+      const urlObj = new URL(url);
+      const dashboardUrl = new URL(this.getDashboardUrl());
+      
+      // Check if the hostname matches the dashboard hostname
+      return urlObj.hostname === dashboardUrl.hostname;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Get the restriction reason for the current state
+   * Requirements: 1.6, 1.7
+   */
+  getRestrictionReason(): { reason: 'locked' | 'over_rest' | null; message: string } {
+    const state = this.cache.globalState;
+    
+    if (state === 'LOCKED') {
+      return {
+        reason: 'locked',
+        message: '请完成今日计划',
+      };
+    }
+    
+    if (state === 'OVER_REST') {
+      return {
+        reason: 'over_rest',
+        message: '超时休息中，请开始工作',
+      };
+    }
+    
+    return { reason: null, message: '' };
+  }
+
+  /**
+   * Check if URL should be blocked due to state restriction
+   * Returns the screensaver URL to redirect to, or null if allowed
+   * Requirements: 1.1, 1.2, 1.6, 1.10
+   */
+  shouldBlockForStateRestriction(url: string): { blocked: boolean; redirectUrl?: string; reason?: 'locked' | 'over_rest' } {
+    // Skip internal URLs
+    if (this.isInternalUrl(url)) {
+      return { blocked: false };
+    }
+
+    // If not in restricted state, allow
+    if (!this.isRestrictedState()) {
+      return { blocked: false };
+    }
+
+    // Allow Dashboard URLs
+    if (this.isDashboardUrl(url)) {
+      return { blocked: false };
+    }
+
+    // Block and redirect to appropriate screensaver
+    const state = this.cache.globalState;
+    const reason = state === 'LOCKED' ? 'locked' : 'over_rest';
+    const screensaverPath = state === 'LOCKED' ? 'locked-screensaver.html' : 'over-rest-screensaver.html';
+    
+    return {
+      blocked: true,
+      redirectUrl: chrome.runtime.getURL(screensaverPath),
+      reason,
+    };
+  }
+
   /**
    * Enhanced URL blocking check with work time and mode awareness
    * Requirements: 4.3, 6.1
@@ -324,6 +451,138 @@ export class PolicyCacheManager {
   updateSkipTokens(remaining: number): void {
     this.cache.skipTokensRemaining = remaining;
     chrome.storage.local.set({ [STORAGE_KEY]: this.cache }).catch(console.error);
+  }
+
+  // ==========================================================================
+  // Entertainment Site Methods (Requirements 2.1, 2.10, 3.7, 3.8)
+  // ==========================================================================
+
+  /**
+   * Check if entertainment mode is currently active
+   */
+  isEntertainmentModeActive(): boolean {
+    return this.cache.entertainmentModeActive;
+  }
+
+  /**
+   * Set entertainment mode active state
+   */
+  async setEntertainmentModeActive(active: boolean): Promise<void> {
+    await this.updatePolicy({ entertainmentModeActive: active });
+  }
+
+  /**
+   * Get entertainment blacklist
+   */
+  getEntertainmentBlacklist(): EntertainmentBlacklistEntry[] {
+    return [...(this.cache.entertainmentBlacklist || [])];
+  }
+
+  /**
+   * Get entertainment whitelist
+   */
+  getEntertainmentWhitelist(): EntertainmentWhitelistEntry[] {
+    return [...(this.cache.entertainmentWhitelist || [])];
+  }
+
+  /**
+   * Check if a URL is an entertainment site
+   * Requirements: 2.1, 2.3
+   */
+  isEntertainmentSite(url: string): boolean {
+    const hostname = this.extractHostname(url);
+    if (!hostname) return false;
+
+    const enabledBlacklist = (this.cache.entertainmentBlacklist || [])
+      .filter(entry => entry.enabled)
+      .map(entry => entry.domain);
+
+    return this.matchesDomainPatternsForEntertainment(hostname, enabledBlacklist);
+  }
+
+  /**
+   * Check if a URL is in the entertainment whitelist
+   * Requirements: 2.5, 2.6, 2.7
+   */
+  isEntertainmentWhitelisted(url: string): boolean {
+    const enabledWhitelist = (this.cache.entertainmentWhitelist || [])
+      .filter(entry => entry.enabled)
+      .map(entry => entry.pattern);
+
+    return this.matchesUrlPatternsForEntertainment(url, enabledWhitelist);
+  }
+
+  /**
+   * Check if entertainment site should be blocked
+   * Requirements: 2.1, 2.10, 3.7, 3.8
+   */
+  shouldBlockEntertainment(url: string): boolean {
+    // If entertainment mode is active, allow all entertainment sites
+    if (this.cache.entertainmentModeActive) {
+      return false;
+    }
+
+    // If whitelisted, never block
+    if (this.isEntertainmentWhitelisted(url)) {
+      return false;
+    }
+
+    // Block if it's an entertainment site
+    return this.isEntertainmentSite(url);
+  }
+
+  /**
+   * Check if hostname matches any domain pattern (for entertainment sites)
+   */
+  private matchesDomainPatternsForEntertainment(hostname: string, patterns: string[]): boolean {
+    const lowerHostname = hostname.toLowerCase();
+
+    return patterns.some(pattern => {
+      const lowerPattern = pattern.toLowerCase();
+
+      // Exact match
+      if (lowerHostname === lowerPattern) {
+        return true;
+      }
+
+      // Subdomain match (e.g., www.twitter.com matches twitter.com)
+      if (lowerHostname.endsWith('.' + lowerPattern)) {
+        return true;
+      }
+
+      return false;
+    });
+  }
+
+  /**
+   * Check if URL matches any whitelist pattern
+   * Requirements: 2.5, 2.6
+   */
+  private matchesUrlPatternsForEntertainment(url: string, patterns: string[]): boolean {
+    try {
+      const urlObj = new URL(url);
+      const urlWithoutProtocol = urlObj.hostname + urlObj.pathname;
+      const lowerUrl = urlWithoutProtocol.toLowerCase();
+
+      return patterns.some(pattern => {
+        const lowerPattern = pattern.toLowerCase();
+        return this.matchGlobPattern(lowerUrl, lowerPattern);
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Match URL against glob pattern
+   */
+  private matchGlobPattern(url: string, pattern: string): boolean {
+    const regexPattern = pattern
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*');
+
+    const regex = new RegExp(`^${regexPattern}$`, 'i');
+    return regex.test(url);
   }
 }
 

@@ -29,3 +29,23 @@ export {
   type BatchSendResult,
   type EventBatcherConfig,
 } from './event-batcher.js';
+export {
+  EntertainmentManager,
+  entertainmentManager,
+  PRESET_ENTERTAINMENT_BLACKLIST,
+  PRESET_ENTERTAINMENT_WHITELIST,
+  type EntertainmentBlacklistEntry,
+  type EntertainmentWhitelistEntry,
+  type EntertainmentConfig,
+  type EntertainmentState,
+  type EntertainmentStatus,
+  type EntertainmentStartCheck,
+  type EntertainmentStartResult,
+  type EntertainmentCannotStartReason,
+} from './entertainment-manager.js';
+export {
+  WorkStartTracker,
+  getWorkStartTracker,
+  calculateWorkStartDelay,
+  type WorkStartInfo,
+} from './work-start-tracker.js';

@@ -20,6 +20,7 @@ import { timelineService, type TimelineEventTypeValue } from '@/services/timelin
 import { clientRegistryService } from '@/services/client-registry.service';
 import { policyDistributionService } from '@/services/policy-distribution.service';
 import { commandQueueService } from '@/services/command-queue.service';
+import { overRestService } from '@/services/over-rest.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -52,8 +53,9 @@ import {
 
 /**
  * System state type (matches vibeflow.machine.ts)
+ * Note: over_rest is a computed state when rest exceeds grace period
  */
-export type SystemState = 'locked' | 'planning' | 'focus' | 'rest';
+export type SystemState = 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
 
 /**
  * Policy cache sent to clients (legacy format for backward compatibility)
@@ -158,6 +160,9 @@ export interface ServerToClientEvents {
   // Octopus Command Stream events
   OCTOPUS_COMMAND: (command: OctopusCommand) => void;
   COMMAND_ACK_REQUEST: (payload: { commandId: string }) => void;
+  
+  // Entertainment mode events (Requirements: 8.6, 10.3)
+  ENTERTAINMENT_MODE_CHANGE: (payload: { isActive: boolean; sessionId: string | null; endTime: number | null }) => void;
 }
 
 // Client -> Server message types (Octopus Event Stream)
@@ -260,6 +265,7 @@ export class VibeFlowSocketServer {
   private userRooms: Map<string, Set<string>> = new Map(); // userId -> Set of socket IDs
   private staleClientCheckInterval: NodeJS.Timeout | null = null;
   private commandCleanupInterval: NodeJS.Timeout | null = null;
+  private overRestCheckInterval: NodeJS.Timeout | null = null;
 
   /**
    * Initialize the Socket.io server
@@ -326,6 +332,23 @@ export class VibeFlowSocketServer {
         console.error('[Socket.io] Error cleaning up commands:', error);
       }
     }, 60000);
+
+    // Check over rest status for all connected users every 30 seconds
+    // This ensures over rest enforcement is triggered even without user actions
+    this.overRestCheckInterval = setInterval(async () => {
+      try {
+        const connectedUserIds = this.getConnectedUserIds();
+        for (const userId of connectedUserIds) {
+          // Broadcast policy update which will include over rest status
+          await this.broadcastPolicyUpdate(userId);
+        }
+        if (connectedUserIds.length > 0) {
+          console.log(`[Socket.io] Broadcast policy updates to ${connectedUserIds.length} connected users`);
+        }
+      } catch (error) {
+        console.error('[Socket.io] Error checking over rest status:', error);
+      }
+    }, 30000);
   }
 
   /**
@@ -339,6 +362,10 @@ export class VibeFlowSocketServer {
     if (this.commandCleanupInterval) {
       clearInterval(this.commandCleanupInterval);
       this.commandCleanupInterval = null;
+    }
+    if (this.overRestCheckInterval) {
+      clearInterval(this.overRestCheckInterval);
+      this.overRestCheckInterval = null;
     }
   }
 
@@ -1070,7 +1097,16 @@ export class VibeFlowSocketServer {
         }),
       ]);
 
-      const systemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
+      let systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
+      
+      // Check for over_rest state if currently in rest OR planning (Requirements: 15.2, 16.1)
+      // Over rest can occur in both states when user is not actively working
+      if (systemState === 'rest' || systemState === 'planning') {
+        const overRestResult = await overRestService.checkOverRestStatus(userId);
+        if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
+          systemState = 'over_rest';
+        }
+      }
       
       // Get top 3 tasks from IDs if available
       let top3Tasks: { id: string; title: string; status: string; priority: string }[] = [];
@@ -1191,8 +1227,20 @@ export class VibeFlowSocketServer {
       },
     });
 
+    // Determine the effective state (including over_rest)
+    let effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
+    
+    // Check for over_rest state if currently in rest OR planning
+    // Over rest can occur in both states when user is not actively working
+    if (effectiveState === 'rest' || effectiveState === 'planning') {
+      const overRestResult = await overRestService.checkOverRestStatus(userId);
+      if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
+        effectiveState = 'over_rest';
+      }
+    }
+
     return {
-      globalState: dailyState ? parseSystemState(dailyState.systemState) : 'locked',
+      globalState: effectiveState,
       blacklist: settings?.blacklist || [],
       whitelist: settings?.whitelist || [],
       sessionWhitelist: [], // Session whitelist is managed client-side
@@ -1599,11 +1647,15 @@ export class VibeFlowSocketServer {
         
         this.io.to(userRoom).emit('OCTOPUS_COMMAND', updatePolicyCommand);
         
-        // Also send legacy format
+        // Also send policy:update event for desktop clients
+        // This is the format expected by the desktop connection manager
+        this.io.to(userRoom).emit('policy:update' as keyof ServerToClientEvents, policy as never);
+        
+        // Also send legacy format for browser extension
         const legacyPolicy = await this.getUserPolicy(userId);
         this.io.to(userRoom).emit('SYNC_POLICY', legacyPolicy);
         
-        console.log(`[Socket.io] Broadcast policy update to user ${userId} (version ${policy.version})`);
+        console.log(`[Socket.io] Broadcast policy update to user ${userId} (version ${policy.version}, overRest: ${policy.overRest?.isOverRest ?? false})`);
       }
     } catch (error) {
       console.error('[Socket.io] Error broadcasting policy update:', error);
@@ -1724,6 +1776,24 @@ export class VibeFlowSocketServer {
     
     this.io.to(userRoom).emit('OCTOPUS_COMMAND', showUICommand);
     console.log(`[Socket.io] Sent show UI command to user ${userId}: ${uiType}`);
+  }
+
+  /**
+   * Broadcast entertainment mode state change to all user's connected clients
+   * Requirements: 8.6, 10.3
+   */
+  broadcastEntertainmentModeChange(
+    userId: string,
+    payload: { isActive: boolean; sessionId: string | null; endTime: number | null }
+  ): void {
+    if (!this.io) return;
+
+    const userRoom = `user:${userId}`;
+    
+    // Send entertainment mode change event
+    this.io.to(userRoom).emit('ENTERTAINMENT_MODE_CHANGE', payload);
+    
+    console.log(`[Socket.io] Broadcast entertainment mode change to user ${userId}: ${payload.isActive ? 'active' : 'inactive'}`);
   }
 
   /**
