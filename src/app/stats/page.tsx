@@ -4,7 +4,7 @@
  * Statistics Page
  * 
  * Main page for viewing pomodoro statistics with multiple views.
- * Requirements: 3.1-3.11, 10.3-10.8, 24.1-24.5, 24.1.1-24.1.6, 14.3-14.5, 8.2-8.3
+ * Requirements: 3.1-3.11, 10.3-10.8, 24.1-24.5, 24.1.1-24.1.6, 14.3-14.5, 8.2-8.3, 3.6, 4.5, 6.8
  */
 
 import { useState, useCallback } from 'react';
@@ -22,11 +22,14 @@ import { ExemptionHistory } from '@/components/stats/exemption-history';
 import { FocusSessionStats } from '@/components/stats/focus-session-stats';
 import { EntertainmentStats } from '@/components/stats/entertainment-stats';
 import { WorkStartStats } from '@/components/stats/work-start-stats';
+import { ClientUptimeStats } from '@/components/stats/client-uptime-stats';
+import { BypassAttemptStats } from '@/components/stats/bypass-attempt-stats';
+import { DemoModeStats } from '@/components/stats/demo-mode-stats';
 import { trpc } from '@/lib/trpc';
 import type { PomodoroStats } from '@/services/stats.service';
 
 // Tab types
-type StatsTab = 'overview' | 'projects' | 'tasks' | 'daily' | 'review' | 'skipTokens' | 'efficiency' | 'focusSessions' | 'entertainment' | 'workStart';
+type StatsTab = 'overview' | 'projects' | 'tasks' | 'daily' | 'review' | 'skipTokens' | 'efficiency' | 'focusSessions' | 'entertainment' | 'workStart' | 'clientUptime' | 'bypassAttempts' | 'demoMode';
 
 const TABS: { id: StatsTab; label: string; icon: string }[] = [
   { id: 'overview', label: '总览', icon: '📊' },
@@ -39,6 +42,9 @@ const TABS: { id: StatsTab; label: string; icon: string }[] = [
   { id: 'entertainment', label: '娱乐', icon: '🎮' },
   { id: 'workStart', label: '启动', icon: '🚀' },
   { id: 'skipTokens', label: '跳过令牌', icon: '⏭️' },
+  { id: 'clientUptime', label: '客户端', icon: '📡' },
+  { id: 'bypassAttempts', label: '绕过检测', icon: '🛡️' },
+  { id: 'demoMode', label: '演示模式', icon: '🎭' },
 ];
 
 export default function StatsPage() {
@@ -206,8 +212,23 @@ export default function StatsPage() {
             <WorkStartStats days={30} />
           )}
 
+          {/* Client Uptime Tab (Requirements 3.6) */}
+          {activeTab === 'clientUptime' && (
+            <ClientUptimeStats days={30} />
+          )}
+
+          {/* Bypass Attempts Tab (Requirements 4.5) */}
+          {activeTab === 'bypassAttempts' && (
+            <BypassAttemptStats days={30} />
+          )}
+
+          {/* Demo Mode Tab (Requirements 6.8) */}
+          {activeTab === 'demoMode' && (
+            <DemoModeStats months={3} />
+          )}
+
           {/* Loading/Empty State */}
-          {!stats && activeTab !== 'review' && activeTab !== 'skipTokens' && activeTab !== 'efficiency' && activeTab !== 'focusSessions' && activeTab !== 'entertainment' && activeTab !== 'workStart' && (
+          {!stats && activeTab !== 'review' && activeTab !== 'skipTokens' && activeTab !== 'efficiency' && activeTab !== 'focusSessions' && activeTab !== 'entertainment' && activeTab !== 'workStart' && activeTab !== 'clientUptime' && activeTab !== 'bypassAttempts' && activeTab !== 'demoMode' && (
             <div className="text-center py-12 text-gray-500">
               选择时间范围以查看统计数据
             </div>

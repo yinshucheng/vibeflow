@@ -11,6 +11,16 @@ import { getSensorReporter } from './modules/sensor-reporter';
 import { getSleepEnforcer, setupSleepEnforcerIpc } from './modules/sleep-enforcer';
 import { createFocusTimeMonitor, AppMonitor } from './modules/app-monitor';
 import { getOverRestEnforcer, handleOverRestPolicyUpdate } from './modules/over-rest-enforcer';
+import { getHeartbeatManager } from './modules/heartbeat-manager';
+import {
+  getQuitPrevention,
+  setupQuitPreventionIpc,
+  isDevelopmentMode,
+} from './modules/quit-prevention';
+import {
+  getModeDetector,
+  detectAppMode,
+} from './modules/mode-detector';
 import {
   getRunningApps,
   quitApp,
@@ -30,6 +40,9 @@ import { TrayManager, type TrayMenuState } from './modules/tray-manager';
 import { getNotificationManager } from './modules/notification-manager';
 import { getAutoLaunchManager } from './modules/auto-launch-manager';
 import { getConnectionManager, initializeConnectionManager } from './modules/connection-manager';
+import { getGuardianClient } from '../guardian/guardian-client';
+import { getPolicyCache } from './modules/policy-cache';
+import { getOfflineEventQueue } from './modules/offline-event-queue';
 import {
   PRESET_DISTRACTION_APPS,
   APP_CATEGORIES,
@@ -144,7 +157,25 @@ function createWindow(): void {
   });
 
   // Handle window close - hide instead of quit on macOS
-  mainWindow.on('close', (event) => {
+  mainWindow.on('close', async (event) => {
+    // In production mode, check quit prevention
+    if (!isDevelopmentMode()) {
+      const quitPrevention = getQuitPrevention();
+      const canQuitResult = quitPrevention.canQuit();
+      
+      if (!canQuitResult.allowed) {
+        event.preventDefault();
+        
+        // Show confirmation dialog
+        const canProceed = await quitPrevention.handleQuitAttempt();
+        if (canProceed) {
+          // User confirmed, allow quit
+          quitPrevention.forceQuit();
+        }
+        return;
+      }
+    }
+    
     if (process.platform === 'darwin') {
       event.preventDefault();
       mainWindow?.hide();
@@ -211,8 +242,17 @@ function createTray(): void {
     onOpenSettings: () => {
       mainWindow?.webContents.send('tray:open-settings');
     },
-    onQuit: () => {
-      app.quit();
+    onQuit: async () => {
+      // Use quit prevention for tray quit
+      if (!isDevelopmentMode()) {
+        const quitPrevention = getQuitPrevention();
+        const canProceed = await quitPrevention.handleQuitAttempt();
+        if (canProceed) {
+          app.quit();
+        }
+      } else {
+        app.quit();
+      }
     },
   });
 
@@ -493,6 +533,214 @@ function setupIpcHandlers(): void {
     sensorReporter.recordActivity();
     return { success: true };
   });
+
+  // Heartbeat Manager handlers (Requirements: 3.1, 1.4)
+  const heartbeatManager = getHeartbeatManager();
+
+  ipcMain.handle('heartbeat:start', () => {
+    heartbeatManager.start();
+    return { success: true };
+  });
+
+  ipcMain.handle('heartbeat:stop', () => {
+    heartbeatManager.stop();
+    return { success: true };
+  });
+
+  ipcMain.handle('heartbeat:getState', () => {
+    return heartbeatManager.getState();
+  });
+
+  ipcMain.handle('heartbeat:getLastHeartbeat', () => {
+    return heartbeatManager.getLastHeartbeat();
+  });
+
+  ipcMain.handle('heartbeat:isConnected', () => {
+    return heartbeatManager.isConnected();
+  });
+
+  ipcMain.handle('heartbeat:setUserId', (_, userId: string) => {
+    heartbeatManager.setUserId(userId);
+    return { success: true };
+  });
+
+  ipcMain.handle('heartbeat:setDemoMode', (_, isInDemoMode: boolean) => {
+    heartbeatManager.setDemoMode(isInDemoMode);
+    return { success: true };
+  });
+
+  ipcMain.handle('heartbeat:setActivePomodoroId', (_, pomodoroId: string | null) => {
+    heartbeatManager.setActivePomodoroId(pomodoroId);
+    return { success: true };
+  });
+
+  ipcMain.handle('heartbeat:sendHeartbeat', async () => {
+    return await heartbeatManager.sendHeartbeat();
+  });
+
+  ipcMain.handle('heartbeat:getConfig', () => {
+    return heartbeatManager.getConfig();
+  });
+
+  // Guardian Client handlers (Requirements: 8.7, 8.8)
+  const guardianClient = getGuardianClient();
+
+  ipcMain.handle('guardian:connect', async () => {
+    const success = await guardianClient.connect();
+    return { success };
+  });
+
+  ipcMain.handle('guardian:disconnect', () => {
+    guardianClient.disconnect();
+    return { success: true };
+  });
+
+  ipcMain.handle('guardian:getState', () => {
+    return guardianClient.getState();
+  });
+
+  ipcMain.handle('guardian:isConnected', () => {
+    return guardianClient.isConnected();
+  });
+
+  ipcMain.handle('guardian:requestStatus', () => {
+    guardianClient.requestStatus();
+    return { success: true };
+  });
+
+  ipcMain.handle('guardian:sendHeartbeat', () => {
+    guardianClient.sendHeartbeat();
+    return { success: true };
+  });
+
+  ipcMain.handle('guardian:requestShutdown', () => {
+    guardianClient.requestShutdown();
+    return { success: true };
+  });
+
+  // Policy Cache handlers (Requirements: 9.1, 9.2)
+  const policyCache = getPolicyCache();
+
+  ipcMain.handle('policyCache:getPolicy', () => {
+    return policyCache.getPolicy();
+  });
+
+  ipcMain.handle('policyCache:getCachedPolicy', () => {
+    return policyCache.getCachedPolicy();
+  });
+
+  ipcMain.handle('policyCache:getState', () => {
+    return policyCache.getState();
+  });
+
+  ipcMain.handle('policyCache:isStale', () => {
+    return policyCache.isStale();
+  });
+
+  ipcMain.handle('policyCache:hasValidPolicy', () => {
+    return policyCache.hasValidPolicy();
+  });
+
+  ipcMain.handle('policyCache:isWithinWorkHours', () => {
+    return policyCache.isWithinWorkHours();
+  });
+
+  ipcMain.handle('policyCache:getEnforcementMode', () => {
+    return policyCache.getEnforcementMode();
+  });
+
+  ipcMain.handle('policyCache:getDistractionApps', () => {
+    return policyCache.getDistractionApps();
+  });
+
+  ipcMain.handle('policyCache:getSkipTokenConfig', () => {
+    return policyCache.getSkipTokenConfig();
+  });
+
+  // Offline Event Queue handlers (Requirements: 9.3, 9.6)
+  const offlineEventQueue = getOfflineEventQueue();
+
+  ipcMain.handle('offlineQueue:getState', () => {
+    return offlineEventQueue.getState();
+  });
+
+  ipcMain.handle('offlineQueue:getQueue', () => {
+    return offlineEventQueue.getQueue();
+  });
+
+  ipcMain.handle('offlineQueue:getPendingEvents', () => {
+    return offlineEventQueue.getPendingEvents();
+  });
+
+  ipcMain.handle('offlineQueue:getFailedEvents', () => {
+    return offlineEventQueue.getFailedEvents();
+  });
+
+  ipcMain.handle('offlineQueue:syncAll', async () => {
+    return await offlineEventQueue.syncAll();
+  });
+
+  ipcMain.handle('offlineQueue:retryFailed', async () => {
+    return await offlineEventQueue.retryFailed();
+  });
+
+  ipcMain.handle('offlineQueue:clearQueue', () => {
+    offlineEventQueue.clearQueue();
+    return { success: true };
+  });
+
+  ipcMain.handle('offlineQueue:clearFailed', () => {
+    offlineEventQueue.clearFailed();
+    return { success: true };
+  });
+
+  // Mode Detector handlers (Requirements: 2.3, 2.5, 6.5, 10.1-10.8)
+  const modeDetector = getModeDetector();
+
+  ipcMain.handle('mode:getMode', () => {
+    return modeDetector.getMode();
+  });
+
+  ipcMain.handle('mode:getCurrentMode', () => {
+    return modeDetector.getCurrentMode();
+  });
+
+  ipcMain.handle('mode:isDevelopment', () => {
+    return modeDetector.isDevelopment();
+  });
+
+  ipcMain.handle('mode:isProduction', () => {
+    return modeDetector.isProduction();
+  });
+
+  ipcMain.handle('mode:isStaging', () => {
+    return modeDetector.isStaging();
+  });
+
+  ipcMain.handle('mode:isInDemoMode', () => {
+    return modeDetector.isInDemoMode();
+  });
+
+  ipcMain.handle('mode:setDemoMode', (_, isActive: boolean) => {
+    modeDetector.setDemoMode(isActive);
+    // Also update heartbeat manager
+    heartbeatManager.setDemoMode(isActive);
+    // Update tray menu
+    trayManager?.updateState({ isInDemoMode: isActive });
+    return { success: true };
+  });
+
+  ipcMain.handle('mode:getDisplayInfo', () => {
+    return modeDetector.getDisplayInfo();
+  });
+
+  ipcMain.handle('mode:shouldEnforce', () => {
+    return modeDetector.shouldEnforce();
+  });
+
+  ipcMain.handle('mode:canQuitFreely', () => {
+    return modeDetector.canQuitFreely();
+  });
 }
 
 // App lifecycle
@@ -502,7 +750,18 @@ app.whenReady().then(async () => {
   setupIpcHandlers();
   setupFocusEnforcerIpc();
   setupSleepEnforcerIpc();
+  setupQuitPreventionIpc();
   await setupAutoLaunch();
+
+  // Initialize quit prevention with main window reference
+  const quitPrevention = getQuitPrevention();
+  if (mainWindow) {
+    quitPrevention.setMainWindow(mainWindow);
+  }
+  
+  // Log current app mode
+  const appMode = detectAppMode();
+  console.log('[Main] App mode:', appMode);
 
   // Set up focus enforcer with main window reference
   const focusEnforcer = getFocusEnforcer();
@@ -554,6 +813,11 @@ app.whenReady().then(async () => {
       adhocFocusSession: policy.adhocFocusSession ? 'present' : 'absent',
       distractionAppsCount: policy.distractionApps?.length ?? 0,
     });
+    
+    // Cache the policy for offline mode (Requirements: 9.1, 9.2)
+    const policyCache = getPolicyCache();
+    policyCache.updatePolicy(policy);
+    console.log('[Main] Policy cached for offline mode, version:', policy.version);
     
     // Update sleep enforcer config from policy
     if (policy.sleepTime) {
@@ -686,6 +950,19 @@ app.whenReady().then(async () => {
         handleOverRestPolicyUpdate(undefined);
       }
     }
+    
+    // Update quit prevention config with work time slots (Requirements: 1.6)
+    const quitPrevention = getQuitPrevention();
+    quitPrevention.updateConfig({
+      workTimeSlots: policy.workTimeSlots.map(slot => ({
+        id: `${slot.dayOfWeek}-${slot.startHour}-${slot.startMinute}`,
+        startTime: `${slot.startHour.toString().padStart(2, '0')}:${slot.startMinute.toString().padStart(2, '0')}`,
+        endTime: `${slot.endHour.toString().padStart(2, '0')}:${slot.endMinute.toString().padStart(2, '0')}`,
+        enabled: true,
+      })),
+      hasActivePomodoro: isFocusSessionActive,
+    });
+    console.log('[Main] Updated quit prevention config with work time slots');
   });
 
   // Set up snooze request callback to communicate with server
@@ -722,6 +999,134 @@ app.whenReady().then(async () => {
       sensorReporter.stop();
     }
   });
+
+  // Initialize heartbeat manager (Requirements: 3.1, 1.4)
+  const heartbeatManager = getHeartbeatManager();
+  // Note: userId will be set when user authenticates
+  // heartbeatManager.setUserId(userId);
+  
+  // Start heartbeat manager when connection is established
+  connectionManager.onConnectionChange((event) => {
+    if (event.status === 'connected') {
+      console.log('[Main] Connection established, starting heartbeat manager');
+      heartbeatManager.start();
+    } else if (event.status === 'disconnected' || event.status === 'error') {
+      console.log('[Main] Connection lost, stopping heartbeat manager');
+      heartbeatManager.stop();
+    }
+  });
+
+  // Sync offline event queue when connection is restored (Requirements: 9.3, 9.6)
+  const offlineQueue = getOfflineEventQueue();
+  
+  // Set up sync handler to send events to server
+  offlineQueue.setSyncHandler(async (event) => {
+    try {
+      // Send event to server via connection manager
+      // Use DESKTOP_APP_USAGE event type for offline activity sync
+      const success = connectionManager.sendEvent({
+        eventType: 'DESKTOP_APP_USAGE',
+        userId: event.userId,
+        payload: {
+          source: 'desktop_app',
+          identifier: event.type,
+          title: `Offline Event: ${event.type}`,
+          duration: 0,
+          category: 'neutral',
+          metadata: {
+            appBundleId: event.type,
+            windowTitle: `Offline: ${event.id}`,
+            isActive: false,
+          },
+        },
+      });
+      return success;
+    } catch (error) {
+      console.error('[Main] Failed to sync offline event:', error);
+      return false;
+    }
+  });
+
+  // Sync offline events when connection is restored
+  connectionManager.onConnectionChange(async (event) => {
+    if (event.status === 'connected') {
+      const queueState = offlineQueue.getState();
+      if (queueState.pendingCount > 0) {
+        console.log('[Main] Connection restored, syncing', queueState.pendingCount, 'offline events');
+        const result = await offlineQueue.syncAll();
+        console.log('[Main] Offline event sync result:', result);
+        
+        // Notify renderer about sync result
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('offlineQueue:syncComplete', result);
+        }
+      }
+    }
+  });
+
+  // Log heartbeat events for debugging
+  heartbeatManager.onHeartbeatEvent((event) => {
+    if (event.type === 'failure') {
+      console.warn('[Main] Heartbeat failed:', event.error);
+    } else if (event.type === 'reconnecting') {
+      console.log('[Main] Heartbeat manager triggering reconnection');
+    } else if (event.type === 'reconnected') {
+      console.log('[Main] Heartbeat manager reconnected');
+    }
+  });
+
+  // Notify renderer of heartbeat status changes
+  heartbeatManager.onHeartbeatEvent((event) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('heartbeat:event', event);
+    }
+  });
+
+  // Initialize guardian client (Requirements: 8.7, 8.8)
+  // Only connect to guardian in production mode
+  if (!isDevelopmentMode()) {
+    const guardianClient = getGuardianClient();
+    
+    // Attempt to connect to guardian
+    guardianClient.connect().then((connected) => {
+      if (connected) {
+        console.log('[Main] Connected to Process Guardian');
+      } else {
+        console.warn('[Main] Process Guardian not available - app may not auto-restart on crash');
+      }
+    });
+
+    // Listen for guardian events
+    guardianClient.onEvent((event) => {
+      switch (event.type) {
+        case 'connected':
+          console.log('[Main] Guardian connection established');
+          break;
+        case 'disconnected':
+          console.warn('[Main] Guardian connection lost');
+          break;
+        case 'guardian_missing':
+          console.warn('[Main] Process Guardian not running:', event.error);
+          // Notify renderer about missing guardian
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('guardian:missing', { error: event.error });
+          }
+          break;
+        case 'guardian_status':
+          console.log('[Main] Guardian status:', event.data);
+          // Notify renderer about guardian status
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('guardian:status', event.data);
+          }
+          break;
+        case 'error':
+          console.error('[Main] Guardian error:', event.error);
+          break;
+      }
+    });
+  } else {
+    console.log('[Main] Development mode - skipping guardian connection');
+  }
 
   // Connect focus enforcer activity recording to sensor reporter
   focusEnforcer.onIntervention(() => {
@@ -760,7 +1165,32 @@ app.on('window-all-closed', () => {
 });
 
 // Handle app quit
-app.on('before-quit', () => {
+app.on('before-quit', async (event) => {
+  // In production mode, check quit prevention
+  if (!isDevelopmentMode()) {
+    const quitPrevention = getQuitPrevention();
+    
+    // If already in the process of quitting (user confirmed), allow it
+    if (quitPrevention.isCurrentlyQuitting()) {
+      saveWindowState();
+      return;
+    }
+    
+    const canQuitResult = quitPrevention.canQuit();
+    
+    if (!canQuitResult.allowed) {
+      event.preventDefault();
+      
+      // Show confirmation dialog
+      const canProceed = await quitPrevention.handleQuitAttempt();
+      if (canProceed) {
+        // User confirmed, allow quit
+        quitPrevention.forceQuit();
+      }
+      return;
+    }
+  }
+  
   saveWindowState();
 });
 

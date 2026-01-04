@@ -22,6 +22,8 @@ export const TimelineEventType = z.enum([
   'idle',
   'entertainment_mode',
   'work_start',
+  'demo_mode',
+  'offline',
 ]);
 
 export type TimelineEventTypeValue = z.infer<typeof TimelineEventType>;
@@ -630,11 +632,31 @@ export const timelineService = {
         }
       }
 
-      // Filter out pomodoro type from timeline events (to avoid duplicates)
-      const otherEvents = (eventsResult.data ?? []).filter(e => e.type !== 'pomodoro');
+      // Get demo mode events if 'demo_mode' type is included or no filter
+      let demoModeEvents: TimelineEvent[] = [];
+      if (!types || types.includes('demo_mode')) {
+        const demoModeResult = await this.syncDemoModeEvents(userId, date);
+        if (demoModeResult.success && demoModeResult.data) {
+          demoModeEvents = demoModeResult.data;
+        }
+      }
+
+      // Get offline events if 'offline' type is included or no filter
+      let offlineEvents: TimelineEvent[] = [];
+      if (!types || types.includes('offline')) {
+        const offlineResult = await this.syncOfflineEvents(userId, date);
+        if (offlineResult.success && offlineResult.data) {
+          offlineEvents = offlineResult.data;
+        }
+      }
+
+      // Filter out synced types from timeline events (to avoid duplicates)
+      const otherEvents = (eventsResult.data ?? []).filter(
+        e => e.type !== 'pomodoro' && e.type !== 'demo_mode' && e.type !== 'offline'
+      );
 
       // Combine and sort by start time
-      const allEvents = [...pomodoroEvents, ...otherEvents].sort(
+      const allEvents = [...pomodoroEvents, ...demoModeEvents, ...offlineEvents, ...otherEvents].sort(
         (a, b) => a.startTime.getTime() - b.startTime.getTime()
       );
 
@@ -645,6 +667,172 @@ export const timelineService = {
         error: {
           code: 'INTERNAL_ERROR',
           message: error instanceof Error ? error.message : 'Failed to get combined timeline',
+        },
+      };
+    }
+  },
+
+  /**
+   * Get demo mode events from DemoModeEvent table and convert to timeline format
+   * Requirements: 6.11
+   */
+  async syncDemoModeEvents(
+    userId: string,
+    date: Date
+  ): Promise<ServiceResult<TimelineEvent[]>> {
+    try {
+      const { start, end } = getDayBounds(date);
+
+      // Get demo mode events for the day
+      const demoModeEvents = await prisma.demoModeEvent.findMany({
+        where: {
+          userId,
+          timestamp: {
+            gte: start,
+            lte: end,
+          },
+        },
+        include: {
+          token: true,
+        },
+        orderBy: { timestamp: 'asc' },
+      });
+
+      // Convert to timeline events
+      const events: TimelineEvent[] = demoModeEvents.map((e) => {
+        const durationMinutes = e.durationMinutes ?? 0;
+        const durationSeconds = durationMinutes * 60;
+        
+        // Calculate end time based on event type
+        let endTime: Date | null = null;
+        if (e.eventType === 'started' && e.token.endedAt) {
+          endTime = e.token.endedAt;
+        } else if (e.eventType !== 'started') {
+          endTime = e.timestamp;
+        }
+
+        // Get title based on event type
+        let title = '演示模式';
+        switch (e.eventType) {
+          case 'started':
+            title = '演示模式开始';
+            break;
+          case 'ended':
+            title = '演示模式结束';
+            break;
+          case 'expired':
+            title = '演示模式过期';
+            break;
+        }
+
+        return {
+          id: e.id,
+          userId: e.userId,
+          type: 'demo_mode',
+          startTime: e.timestamp,
+          endTime,
+          duration: durationSeconds,
+          title,
+          metadata: {
+            eventType: e.eventType,
+            tokenId: e.tokenId,
+            durationMinutes: e.durationMinutes,
+            reason: e.reason,
+          },
+          source: 'vibeflow',
+          createdAt: e.timestamp,
+        };
+      });
+
+      return { success: true, data: events };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to sync demo mode events',
+        },
+      };
+    }
+  },
+
+  /**
+   * Get offline events from ClientOfflineEvent table and convert to timeline format
+   * Requirements: 6.11
+   */
+  async syncOfflineEvents(
+    userId: string,
+    date: Date
+  ): Promise<ServiceResult<TimelineEvent[]>> {
+    try {
+      const { start, end } = getDayBounds(date);
+
+      // Get offline events for the day
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const offlineEvents = await (prisma as any).clientOfflineEvent.findMany({
+        where: {
+          userId,
+          startedAt: {
+            gte: start,
+            lte: end,
+          },
+        },
+        orderBy: { startedAt: 'asc' },
+      });
+
+      // Convert to timeline events
+      const events: TimelineEvent[] = offlineEvents.map((e: {
+        id: string;
+        userId: string;
+        clientId: string;
+        startedAt: Date;
+        endedAt: Date | null;
+        durationSeconds: number | null;
+        wasInWorkHours: boolean;
+        wasInPomodoro: boolean;
+        gracePeriodUsed: boolean;
+        isBypassAttempt: boolean;
+      }) => {
+        const durationSeconds = e.durationSeconds ?? 0;
+        
+        // Build title based on context
+        let title = '客户端离线';
+        if (e.wasInPomodoro) {
+          title = '番茄期间离线';
+        } else if (e.wasInWorkHours) {
+          title = '工作时间离线';
+        }
+        if (e.isBypassAttempt) {
+          title += ' (绕过尝试)';
+        }
+
+        return {
+          id: e.id,
+          userId: e.userId,
+          type: 'offline',
+          startTime: e.startedAt,
+          endTime: e.endedAt,
+          duration: durationSeconds,
+          title,
+          metadata: {
+            clientId: e.clientId,
+            wasInWorkHours: e.wasInWorkHours,
+            wasInPomodoro: e.wasInPomodoro,
+            gracePeriodUsed: e.gracePeriodUsed,
+            isBypassAttempt: e.isBypassAttempt,
+          },
+          source: 'vibeflow',
+          createdAt: e.startedAt,
+        };
+      });
+
+      return { success: true, data: events };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to sync offline events',
         },
       };
     }

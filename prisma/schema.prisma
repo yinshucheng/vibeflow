@@ -44,6 +44,13 @@ model User {
   taskDecompositionFeedbacks TaskDecompositionFeedback[]
   suggestionFeedbacks      SuggestionFeedback[]
   projectTemplates         ProjectTemplate[]
+  
+  // Desktop Production Resilience relations
+  clientConnections        ClientConnection[]
+  clientOfflineEvents      ClientOfflineEvent[]
+  bypassAttempts           BypassAttempt[]
+  demoTokens               DemoToken[]
+  demoModeEvents           DemoModeEvent[]
 }
 
 model UserSettings {
@@ -124,6 +131,21 @@ model UserSettings {
   entertainmentWhitelist       Json @default("[]") // EntertainmentWhitelistEntry[] - array of {pattern, description, isPreset, enabled, addedAt}
   entertainmentQuotaMinutes    Int  @default(120)  // daily entertainment quota in minutes (30-480)
   entertainmentCooldownMinutes Int  @default(30)   // cooldown between entertainment sessions in minutes (15-120)
+
+  // Grace period settings (Requirements 5.1, 5.5, 5.6)
+  gracePeriodMinutes         Int @default(5)  // default grace period in minutes (range: 1-15)
+  gracePeriodPomodoroMinutes Int @default(2)  // grace period during pomodoro (shorter)
+
+  // Demo mode settings (Requirements 6.3, 6.4, 6.13, 6.14)
+  demoTokensPerMonth     Int @default(3)   // monthly demo token allocation (range: 1-10)
+  demoMaxDurationMinutes Int @default(90)  // max demo mode duration in minutes (range: 30-180)
+
+  // Bypass detection settings (Requirements 4.4)
+  bypassWarningThreshold Int @default(50)  // bypass score threshold for warning (0-100)
+
+  // Process guardian settings (Requirements 8.5, 8.6)
+  enableProcessGuardian Boolean @default(true)  // enable process guardian in production
+  autoStartOnLogin      Boolean @default(true)  // auto-start on system login
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -697,4 +719,108 @@ model ProjectTemplate {
 
   @@index([userId])
   @@index([isSystem])
+}
+
+// ============================================================================
+// Desktop Production Resilience Models (Requirements 3.2, 3.4, 4.1, 6.2, 6.10)
+// ============================================================================
+
+// Client Connection model for heartbeat tracking (Requirements 3.2, 3.3, 3.4, 3.5)
+// Tracks connected client instances with heartbeat status
+model ClientConnection {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId      String    @unique
+  deviceName    String?
+  appVersion    String
+  mode          String    // 'development' | 'staging' | 'production'
+  lastHeartbeat DateTime
+  isOnline      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  offlineEvents ClientOfflineEvent[]
+
+  @@index([userId])
+  @@index([lastHeartbeat])
+  @@index([isOnline])
+}
+
+// Client Offline Event model for tracking disconnections (Requirements 3.4, 3.5, 5.3, 5.4)
+// Records client offline events with duration and context
+model ClientOfflineEvent {
+  id              String    @id @default(uuid())
+  clientId        String
+  client          ClientConnection @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int?
+  wasInWorkHours  Boolean
+  wasInPomodoro   Boolean
+  gracePeriodUsed Boolean   @default(false)
+  isBypassAttempt Boolean   @default(false)
+
+  @@index([userId])
+  @@index([startedAt])
+  @@index([clientId])
+}
+
+// Bypass Attempt model for tracking bypass events (Requirements 4.1, 4.2, 4.3, 4.4, 4.5)
+// Records bypass attempts with severity and context
+model BypassAttempt {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId        String
+  eventType       String   // 'force_quit' | 'offline_timeout' | 'guardian_killed'
+  timestamp       DateTime @default(now())
+  durationSeconds Int?     // offline duration in seconds
+  wasInWorkHours  Boolean
+  wasInPomodoro   Boolean
+  warningLevel    String   // 'none' | 'low' | 'medium' | 'high'
+
+  @@index([userId])
+  @@index([timestamp])
+  @@index([userId, timestamp])
+}
+
+// Demo Token model for demo mode activation (Requirements 6.2, 6.3, 6.4, 6.10)
+// Tracks demo token allocation and usage
+model DemoToken {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allocatedAt     DateTime  @default(now())
+  expiresAt       DateTime  // month end expiry
+  usedAt          DateTime?
+  endedAt         DateTime?
+  durationMinutes Int?      // actual usage duration
+  confirmPhrase   String?   // confirmation phrase used
+
+  demoModeEvents  DemoModeEvent[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, expiresAt])
+}
+
+// Demo Mode Event model for timeline display (Requirements 6.8, 6.11)
+// Records demo mode events for timeline and statistics
+model DemoModeEvent {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenId         String
+  token           DemoToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  eventType       String   // 'started' | 'ended' | 'expired'
+  timestamp       DateTime @default(now())
+  durationMinutes Int?     // only for 'ended' | 'expired' events
+  reason          String?  // 'manual_exit' | 'duration_expired' | 'token_exhausted'
+
+  @@index([userId])
+  @@index([timestamp])
+  @@index([userId, timestamp])
 }

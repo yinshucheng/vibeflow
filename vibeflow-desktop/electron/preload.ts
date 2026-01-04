@@ -155,6 +155,99 @@ export interface InterventionEvent {
   distractionApp?: string;
 }
 
+// Mode detection types (Requirements: 2.3, 2.5, 6.5, 10.1-10.8)
+export type AppMode = 'development' | 'staging' | 'production';
+export type ModeSource = 
+  | 'env_vibeflow_mode'
+  | 'env_node_env'
+  | 'cli_dev_flag'
+  | 'cli_staging_flag'
+  | 'app_packaged'
+  | 'default';
+
+export interface ModeDetectionResult {
+  mode: AppMode;
+  source: ModeSource;
+  isPackaged: boolean;
+  isInDemoMode: boolean;
+}
+
+export interface ModeDisplayInfo {
+  displayName: string;
+  shortLabel: string;
+  description: string;
+  showIndicator: boolean;
+  indicatorColor: string;
+}
+
+// Policy Cache types (Requirements: 9.1, 9.2)
+export interface PolicyTimeSlot {
+  dayOfWeek: number;
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+}
+
+export interface PolicySkipTokenConfig {
+  remaining: number;
+  maxPerDay: number;
+  delayMinutes: number;
+}
+
+export interface PolicyDistractionApp {
+  bundleId: string;
+  name: string;
+  action: 'force_quit' | 'hide_window';
+}
+
+export interface DesktopPolicy {
+  version: number;
+  enforcementMode: 'strict' | 'gentle';
+  workTimeSlots: PolicyTimeSlot[];
+  skipTokens: PolicySkipTokenConfig;
+  distractionApps: PolicyDistractionApp[];
+  updatedAt: number;
+}
+
+export interface CachedPolicy {
+  policy: DesktopPolicy;
+  cachedAt: number;
+  lastSyncedAt: number;
+  isStale: boolean;
+}
+
+export interface PolicyCacheState {
+  isInitialized: boolean;
+  hasValidPolicy: boolean;
+  isStale: boolean;
+  lastCachedAt: number | null;
+  lastSyncedAt: number | null;
+  policyVersion: number | null;
+}
+
+// Offline Event Queue types (Requirements: 9.3, 9.6)
+export type QueuedEventType = 
+  | 'skip_token_usage'
+  | 'bypass_event'
+  | 'offline_period'
+  | 'heartbeat_missed';
+
+export interface EventQueueState {
+  queueSize: number;
+  pendingCount: number;
+  failedCount: number;
+  isSyncing: boolean;
+  lastSyncAt: number | null;
+}
+
+export interface SyncResult {
+  success: boolean;
+  syncedCount: number;
+  failedCount: number;
+  errors: string[];
+}
+
 // IPC Channel definitions
 const IPC_CHANNELS = {
   // Window control
@@ -444,6 +537,18 @@ const vibeflowAPI = {
           handler
         );
     },
+    // Offline queue sync complete listener (Requirements: 9.3, 9.6)
+    offlineQueueSyncComplete: (
+      callback: (result: SyncResult) => void
+    ): (() => void) => {
+      const handler = (
+        _event: IpcRendererEvent,
+        data: SyncResult
+      ) => callback(data);
+      ipcRenderer.on('offlineQueue:syncComplete', handler);
+      return () =>
+        ipcRenderer.removeListener('offlineQueue:syncComplete', handler);
+    },
   },
 
   // Platform info
@@ -452,6 +557,72 @@ const vibeflowAPI = {
     isWindows: process.platform === 'win32',
     isLinux: process.platform === 'linux',
     isElectron: true,
+  },
+
+  // Mode Detector (Requirements: 2.3, 2.5, 6.5, 10.1-10.8)
+  mode: {
+    getMode: (): Promise<ModeDetectionResult> =>
+      ipcRenderer.invoke('mode:getMode'),
+    getCurrentMode: (): Promise<AppMode> =>
+      ipcRenderer.invoke('mode:getCurrentMode'),
+    isDevelopment: (): Promise<boolean> =>
+      ipcRenderer.invoke('mode:isDevelopment'),
+    isProduction: (): Promise<boolean> =>
+      ipcRenderer.invoke('mode:isProduction'),
+    isStaging: (): Promise<boolean> =>
+      ipcRenderer.invoke('mode:isStaging'),
+    isInDemoMode: (): Promise<boolean> =>
+      ipcRenderer.invoke('mode:isInDemoMode'),
+    setDemoMode: (isActive: boolean): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('mode:setDemoMode', isActive),
+    getDisplayInfo: (): Promise<ModeDisplayInfo> =>
+      ipcRenderer.invoke('mode:getDisplayInfo'),
+    shouldEnforce: (): Promise<boolean> =>
+      ipcRenderer.invoke('mode:shouldEnforce'),
+    canQuitFreely: (): Promise<boolean> =>
+      ipcRenderer.invoke('mode:canQuitFreely'),
+  },
+
+  // Policy Cache (Requirements: 9.1, 9.2)
+  policyCache: {
+    getPolicy: (): Promise<DesktopPolicy> =>
+      ipcRenderer.invoke('policyCache:getPolicy'),
+    getCachedPolicy: (): Promise<CachedPolicy | null> =>
+      ipcRenderer.invoke('policyCache:getCachedPolicy'),
+    getState: (): Promise<PolicyCacheState> =>
+      ipcRenderer.invoke('policyCache:getState'),
+    isStale: (): Promise<boolean> =>
+      ipcRenderer.invoke('policyCache:isStale'),
+    hasValidPolicy: (): Promise<boolean> =>
+      ipcRenderer.invoke('policyCache:hasValidPolicy'),
+    isWithinWorkHours: (): Promise<boolean> =>
+      ipcRenderer.invoke('policyCache:isWithinWorkHours'),
+    getEnforcementMode: (): Promise<'strict' | 'gentle'> =>
+      ipcRenderer.invoke('policyCache:getEnforcementMode'),
+    getDistractionApps: (): Promise<PolicyDistractionApp[]> =>
+      ipcRenderer.invoke('policyCache:getDistractionApps'),
+    getSkipTokenConfig: (): Promise<PolicySkipTokenConfig> =>
+      ipcRenderer.invoke('policyCache:getSkipTokenConfig'),
+  },
+
+  // Offline Event Queue (Requirements: 9.3, 9.6)
+  offlineQueue: {
+    getState: (): Promise<EventQueueState> =>
+      ipcRenderer.invoke('offlineQueue:getState'),
+    getQueue: (): Promise<unknown[]> =>
+      ipcRenderer.invoke('offlineQueue:getQueue'),
+    getPendingEvents: (): Promise<unknown[]> =>
+      ipcRenderer.invoke('offlineQueue:getPendingEvents'),
+    getFailedEvents: (): Promise<unknown[]> =>
+      ipcRenderer.invoke('offlineQueue:getFailedEvents'),
+    syncAll: (): Promise<SyncResult> =>
+      ipcRenderer.invoke('offlineQueue:syncAll'),
+    retryFailed: (): Promise<SyncResult> =>
+      ipcRenderer.invoke('offlineQueue:retryFailed'),
+    clearQueue: (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('offlineQueue:clearQueue'),
+    clearFailed: (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('offlineQueue:clearFailed'),
   },
 };
 

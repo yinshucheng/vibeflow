@@ -4,7 +4,7 @@
  * Manages the system tray icon and menu for VibeFlow desktop application.
  * Provides quick actions for starting pomodoro, viewing status, and accessing settings.
  * 
- * Requirements: 1.4
+ * Requirements: 1.4, 2.4, 6.5, 10.5
  */
 
 import {
@@ -15,6 +15,7 @@ import {
   MenuItemConstructorOptions,
 } from 'electron';
 import * as path from 'path';
+import { getModeDetector, type AppMode } from './mode-detector';
 
 // ============================================================================
 // Types and Interfaces
@@ -30,6 +31,10 @@ export interface TrayMenuState {
   isWithinWorkHours: boolean;
   skipTokensRemaining: number;
   enforcementMode: 'strict' | 'gentle';
+  /** Current app mode (development, staging, production) */
+  appMode?: AppMode;
+  /** Whether demo mode is active */
+  isInDemoMode?: boolean;
 }
 
 /**
@@ -55,27 +60,66 @@ export interface TrayManagerConfig {
  * - Building dynamic context menus based on app state
  * - Handling tray click events
  * - Updating tray tooltip with current status
+ * - Displaying mode indicators (DEV, STAGING, DEMO)
+ * 
+ * Requirements: 1.4, 2.4, 6.5, 10.5
  */
 export class TrayManager {
   private tray: Tray | null = null;
   private config: TrayManagerConfig;
   private menuState: TrayMenuState;
+  private mainWindow: BrowserWindow | null = null;
 
   constructor(config: TrayManagerConfig) {
     this.config = config;
+    
+    // Initialize with mode detector state
+    const modeDetector = getModeDetector();
+    const modeResult = modeDetector.getMode();
+    
     this.menuState = {
       pomodoroActive: false,
       isWithinWorkHours: false,
       skipTokensRemaining: 3,
       enforcementMode: 'gentle',
+      appMode: modeResult.mode,
+      isInDemoMode: modeResult.isInDemoMode,
     };
+    
+    // Listen for mode changes
+    modeDetector.onModeChange((result) => {
+      this.menuState.appMode = result.mode;
+      this.menuState.isInDemoMode = result.isInDemoMode;
+      this.updateMenu();
+      this.updateTooltip();
+      this.updateWindowTitle();
+    });
   }
 
   /**
    * Set the main window reference
+   * Requirements: 2.4
    */
-  setMainWindow(_window: BrowserWindow): void {
-    // Reserved for future use (e.g., window-specific tray behaviors)
+  setMainWindow(window: BrowserWindow): void {
+    this.mainWindow = window;
+    // Update window title with mode indicator
+    this.updateWindowTitle();
+  }
+  
+  /**
+   * Update the window title with mode indicator
+   * Requirements: 2.4
+   */
+  private updateWindowTitle(): void {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) {
+      return;
+    }
+    
+    const modeDetector = getModeDetector();
+    const suffix = modeDetector.getWindowTitleSuffix();
+    const baseTitle = 'VibeFlow';
+    
+    this.mainWindow.setTitle(baseTitle + suffix);
   }
 
   /**
@@ -184,6 +228,7 @@ export class TrayManager {
 
   /**
    * Build the menu template based on current state
+   * Requirements: 2.4, 6.5, 10.5
    */
   private buildMenuTemplate(): MenuItemConstructorOptions[] {
     const { 
@@ -193,13 +238,25 @@ export class TrayManager {
       isWithinWorkHours,
       skipTokensRemaining,
       enforcementMode,
+      appMode,
+      isInDemoMode,
     } = this.menuState;
 
     const template: MenuItemConstructorOptions[] = [];
 
-    // App name header
+    // App name header with mode indicator
+    // Requirements: 2.4, 6.5, 10.5
+    let headerLabel = 'VibeFlow';
+    if (isInDemoMode) {
+      headerLabel = '🟣 VibeFlow [DEMO MODE]';
+    } else if (appMode === 'development') {
+      headerLabel = '🟢 VibeFlow [DEV MODE]';
+    } else if (appMode === 'staging') {
+      headerLabel = '🟠 VibeFlow [STAGING]';
+    }
+    
     template.push({
-      label: 'VibeFlow',
+      label: headerLabel,
       enabled: false,
     });
 
@@ -276,6 +333,20 @@ export class TrayManager {
         enabled: false,
       });
     }
+    
+    // Show demo mode status if active
+    // Requirements: 6.5
+    if (isInDemoMode) {
+      template.push({ type: 'separator' });
+      template.push({
+        label: '🟣 Demo Mode Active',
+        enabled: false,
+      });
+      template.push({
+        label: '   Enforcement disabled',
+        enabled: false,
+      });
+    }
 
     template.push({ type: 'separator' });
 
@@ -302,19 +373,35 @@ export class TrayManager {
 
   /**
    * Update the tray tooltip
+   * Requirements: 10.5
    */
   private updateTooltip(): void {
     if (!this.tray) return;
 
-    const { pomodoroActive, pomodoroTimeRemaining, currentTask } = this.menuState;
+    const { pomodoroActive, pomodoroTimeRemaining, currentTask, isInDemoMode, appMode } = this.menuState;
 
     let tooltip = 'VibeFlow';
+    
+    // Add mode suffix to tooltip
+    // Requirements: 10.5
+    const modeDetector = getModeDetector();
+    tooltip += modeDetector.getTrayTooltipSuffix();
 
     if (pomodoroActive) {
       tooltip = `VibeFlow - ${pomodoroTimeRemaining || 'Pomodoro Active'}`;
       if (currentTask) {
         tooltip += `\n${this.truncateText(currentTask, 40)}`;
       }
+    }
+    
+    // Add demo mode indicator
+    // Requirements: 6.5
+    if (isInDemoMode) {
+      tooltip += '\n🟣 Demo Mode Active';
+    } else if (appMode === 'development') {
+      tooltip += '\n🟢 Development Mode';
+    } else if (appMode === 'staging') {
+      tooltip += '\n🟠 Staging Mode';
     }
 
     this.tray.setToolTip(tooltip);

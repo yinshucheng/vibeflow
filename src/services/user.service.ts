@@ -100,6 +100,9 @@ export const UpdateSettingsSchema = z.object({
   earlyWarningMethod: z.array(z.enum(['browser_notification', 'desktop_notification'])).optional(),
   earlyWarningQuietStart: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format').nullable().optional(),
   earlyWarningQuietEnd: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format').nullable().optional(),
+  // Demo mode settings (Requirements 6.13, 6.14)
+  demoTokensPerMonth: z.number().min(1).max(10).optional(),
+  demoMaxDurationMinutes: z.number().min(30).max(180).optional(),
 });
 
 export type UpdateSettingsInput = z.infer<typeof UpdateSettingsSchema>;

@@ -23,6 +23,9 @@ import { overRestRouter } from './over-rest';
 import { efficiencyAnalysisRouter } from './efficiency-analysis';
 import { entertainmentRouter } from './entertainment';
 import { workStartRouter } from './work-start';
+import { bypassDetectionRouter } from './bypass-detection';
+import { demoModeRouter } from './demo-mode';
+import { heartbeatRouter } from './heartbeat';
 
 /**
  * Main application router
@@ -46,6 +49,9 @@ export const appRouter = router({
   efficiencyAnalysis: efficiencyAnalysisRouter,
   entertainment: entertainmentRouter,
   workStart: workStartRouter,
+  bypassDetection: bypassDetectionRouter,
+  demoMode: demoModeRouter,
+  heartbeat: heartbeatRouter,
 });
 
 /**

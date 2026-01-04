@@ -21,7 +21,13 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "vibeflow": "./scripts/vibeflow.sh",
+    "vibeflow:start": "./scripts/vibeflow.sh start",
+    "vibeflow:stop": "./scripts/vibeflow.sh stop",
+    "vibeflow:restart": "./scripts/vibeflow.sh restart",
+    "vibeflow:status": "./scripts/vibeflow.sh status",
+    "vibeflow:logs": "./scripts/vibeflow.sh logs"
   },
   "keywords": [],
   "author": "",

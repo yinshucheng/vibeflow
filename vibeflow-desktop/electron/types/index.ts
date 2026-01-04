@@ -606,6 +606,31 @@ export const IPC_CHANNELS = {
   SENSOR_SET_USER_ID: 'sensor:setUserId',
   SENSOR_RECORD_ACTIVITY: 'sensor:recordActivity',
 
+  // Heartbeat Manager (Requirements: 3.1, 1.4)
+  HEARTBEAT_START: 'heartbeat:start',
+  HEARTBEAT_STOP: 'heartbeat:stop',
+  HEARTBEAT_GET_STATE: 'heartbeat:getState',
+  HEARTBEAT_GET_LAST: 'heartbeat:getLastHeartbeat',
+  HEARTBEAT_IS_CONNECTED: 'heartbeat:isConnected',
+  HEARTBEAT_SET_USER_ID: 'heartbeat:setUserId',
+  HEARTBEAT_SET_DEMO_MODE: 'heartbeat:setDemoMode',
+  HEARTBEAT_SET_ACTIVE_POMODORO: 'heartbeat:setActivePomodoroId',
+  HEARTBEAT_SEND: 'heartbeat:sendHeartbeat',
+  HEARTBEAT_GET_CONFIG: 'heartbeat:getConfig',
+  HEARTBEAT_EVENT: 'heartbeat:event',
+
+  // Mode Detector (Requirements: 2.3, 2.5, 6.5, 10.1-10.8)
+  MODE_GET_MODE: 'mode:getMode',
+  MODE_GET_CURRENT_MODE: 'mode:getCurrentMode',
+  MODE_IS_DEVELOPMENT: 'mode:isDevelopment',
+  MODE_IS_PRODUCTION: 'mode:isProduction',
+  MODE_IS_STAGING: 'mode:isStaging',
+  MODE_IS_IN_DEMO_MODE: 'mode:isInDemoMode',
+  MODE_SET_DEMO_MODE: 'mode:setDemoMode',
+  MODE_GET_DISPLAY_INFO: 'mode:getDisplayInfo',
+  MODE_SHOULD_ENFORCE: 'mode:shouldEnforce',
+  MODE_CAN_QUIT_FREELY: 'mode:canQuitFreely',
+
   // Sleep Enforcer (Requirements: 11.1-11.5)
   SLEEP_GET_STATE: 'sleep:getState',
   SLEEP_GET_CONFIG: 'sleep:getConfig',
@@ -618,6 +643,28 @@ export const IPC_CHANNELS = {
   SLEEP_ENFORCED: 'sleep:enforced',
   SLEEP_SNOOZED: 'sleep:snoozed',
   SLEEP_SNOOZE_CANCELLED: 'sleep:snoozeCancelled',
+
+  // Policy Cache (Requirements: 9.1, 9.2)
+  POLICY_CACHE_GET_POLICY: 'policyCache:getPolicy',
+  POLICY_CACHE_GET_CACHED_POLICY: 'policyCache:getCachedPolicy',
+  POLICY_CACHE_GET_STATE: 'policyCache:getState',
+  POLICY_CACHE_IS_STALE: 'policyCache:isStale',
+  POLICY_CACHE_HAS_VALID_POLICY: 'policyCache:hasValidPolicy',
+  POLICY_CACHE_IS_WITHIN_WORK_HOURS: 'policyCache:isWithinWorkHours',
+  POLICY_CACHE_GET_ENFORCEMENT_MODE: 'policyCache:getEnforcementMode',
+  POLICY_CACHE_GET_DISTRACTION_APPS: 'policyCache:getDistractionApps',
+  POLICY_CACHE_GET_SKIP_TOKEN_CONFIG: 'policyCache:getSkipTokenConfig',
+
+  // Offline Event Queue (Requirements: 9.3, 9.6)
+  OFFLINE_QUEUE_GET_STATE: 'offlineQueue:getState',
+  OFFLINE_QUEUE_GET_QUEUE: 'offlineQueue:getQueue',
+  OFFLINE_QUEUE_GET_PENDING: 'offlineQueue:getPendingEvents',
+  OFFLINE_QUEUE_GET_FAILED: 'offlineQueue:getFailedEvents',
+  OFFLINE_QUEUE_SYNC_ALL: 'offlineQueue:syncAll',
+  OFFLINE_QUEUE_RETRY_FAILED: 'offlineQueue:retryFailed',
+  OFFLINE_QUEUE_CLEAR: 'offlineQueue:clearQueue',
+  OFFLINE_QUEUE_CLEAR_FAILED: 'offlineQueue:clearFailed',
+  OFFLINE_QUEUE_SYNC_COMPLETE: 'offlineQueue:syncComplete',
 } as const;
 
 export type IpcChannelName = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

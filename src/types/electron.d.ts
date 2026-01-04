@@ -159,6 +159,22 @@ interface TrayMenuState {
   enforcementMode: 'strict' | 'gentle';
 }
 
+// Offline Event Queue types (Requirements: 9.3, 9.6)
+interface EventQueueState {
+  queueSize: number;
+  pendingCount: number;
+  failedCount: number;
+  isSyncing: boolean;
+  lastSyncAt: number | null;
+}
+
+interface SyncResult {
+  success: boolean;
+  syncedCount: number;
+  failedCount: number;
+  errors: string[];
+}
+
 // Auto-launch result
 interface AutoLaunchResult {
   success: boolean;
@@ -293,6 +309,18 @@ interface VibeflowAPI {
     }>;
   };
 
+  // Offline Event Queue (Requirements: 9.3, 9.6)
+  offlineQueue: {
+    getState: () => Promise<EventQueueState>;
+    getQueue: () => Promise<unknown[]>;
+    getPendingEvents: () => Promise<unknown[]>;
+    getFailedEvents: () => Promise<unknown[]>;
+    syncAll: () => Promise<SyncResult>;
+    retryFailed: () => Promise<SyncResult>;
+    clearQueue: () => Promise<{ success: boolean }>;
+    clearFailed: () => Promise<{ success: boolean }>;
+  };
+
   // Event listeners
   on: {
     startPomodoro: (callback: () => void) => () => void;
@@ -301,6 +329,7 @@ interface VibeflowAPI {
     interventionTriggered: (callback: (event: InterventionEvent) => void) => () => void;
     notificationInterventionClicked: (callback: () => void) => () => void;
     connectionStatusChange: (callback: (event: ConnectionEvent) => void) => () => void;
+    offlineQueueSyncComplete: (callback: (result: SyncResult) => void) => () => void;
   };
 
   // Platform info

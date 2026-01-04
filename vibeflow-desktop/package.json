@@ -10,7 +10,11 @@
     "build": "tsc && electron-builder",
     "build:mac": "tsc && electron-builder --mac",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "guardian": "tsc && node dist/guardian/main.js",
+    "guardian:dev": "NODE_ENV=development tsc && node dist/guardian/main.js --verbose",
+    "guardian:install": "node scripts/install-guardian.js",
+    "guardian:uninstall": "node scripts/uninstall-guardian.js"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

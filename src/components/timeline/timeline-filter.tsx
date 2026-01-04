@@ -10,7 +10,7 @@
 import { useCallback } from 'react';
 
 // Event type configuration
-// Requirements: 11.4, 11.5, 12.3, 14.3, 14.4 - Added entertainment_mode and work_start
+// Requirements: 11.4, 11.5, 12.3, 14.3, 14.4, 6.11 - Added entertainment_mode, work_start, demo_mode, offline
 const EVENT_TYPES = [
   { value: 'pomodoro', label: '番茄', icon: '🍅', color: 'bg-green-100 text-green-700 border-green-300' },
   { value: 'distraction', label: '分心', icon: '⚠️', color: 'bg-red-100 text-red-700 border-red-300' },
@@ -23,6 +23,8 @@ const EVENT_TYPES = [
   { value: 'idle', label: '空闲', icon: '💤', color: 'bg-gray-100 text-gray-400 border-gray-200' },
   { value: 'entertainment_mode', label: '娱乐', icon: '🎮', color: 'bg-purple-100 text-purple-700 border-purple-400' },
   { value: 'work_start', label: '开始工作', icon: '🚀', color: 'bg-green-100 text-green-700 border-green-400' },
+  { value: 'demo_mode', label: '演示模式', icon: '🎭', color: 'bg-pink-100 text-pink-700 border-pink-300' },
+  { value: 'offline', label: '离线', icon: '📡', color: 'bg-gray-100 text-gray-500 border-gray-300' },
 ] as const;
 
 export type TimelineEventType = typeof EVENT_TYPES[number]['value'];
@@ -39,6 +41,8 @@ export interface TimelineFilterState {
   idle: boolean;
   entertainment_mode: boolean;
   work_start: boolean;
+  demo_mode: boolean;
+  offline: boolean;
 }
 
 // Default filter state - show all
@@ -54,6 +58,8 @@ export const DEFAULT_FILTER_STATE: TimelineFilterState = {
   idle: true,
   entertainment_mode: true,
   work_start: true,
+  demo_mode: true,
+  offline: true,
 };
 
 interface TimelineFilterProps {
@@ -94,6 +100,8 @@ export function TimelineFilter({
       idle: false,
       entertainment_mode: false,
       work_start: false,
+      demo_mode: false,
+      offline: false,
     });
   }, [onChange]);
 

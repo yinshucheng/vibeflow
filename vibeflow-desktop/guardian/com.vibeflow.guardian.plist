@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Label: Unique identifier for the launch agent -->
+    <key>Label</key>
+    <string>com.vibeflow.guardian</string>
+    
+    <!-- Program: Path to the guardian executable -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/node</string>
+        <string>__GUARDIAN_PATH__/main.js</string>
+        <string>--app-path</string>
+        <string>/Applications/VibeFlow.app</string>
+    </array>
+    
+    <!-- Run at load (login) -->
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <!-- Keep alive: restart if it exits -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>__GUARDIAN_PATH__</string>
+    
+    <!-- Standard output log -->
+    <key>StandardOutPath</key>
+    <string>__HOME__/.vibeflow/guardian.stdout.log</string>
+    
+    <!-- Standard error log -->
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.vibeflow/guardian.stderr.log</string>
+    
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NODE_ENV</key>
+        <string>production</string>
+        <key>VIBEFLOW_MODE</key>
+        <string>production</string>
+    </dict>
+    
+    <!-- Throttle interval: minimum time between restarts (10 seconds) -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    
+    <!-- Nice: process priority (lower = higher priority) -->
+    <key>Nice</key>
+    <integer>-5</integer>
+</dict>
+</plist>

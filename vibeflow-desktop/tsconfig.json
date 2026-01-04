@@ -21,6 +21,6 @@
     "noUnusedParameters": true,
     "typeRoots": ["./node_modules/@types", "./types"]
   },
-  "include": ["electron/**/*", "types/**/*"],
+  "include": ["electron/**/*", "guardian/**/*", "types/**/*"],
   "exclude": ["node_modules", "dist", "release"]
 }

@@ -466,3 +466,83 @@ export {
   PublishEventInputSchema,
   GetEventHistoryInputSchema,
 } from './mcp-event.service';
+
+// Heartbeat Service exports (Requirements: 3.2, 3.3, 3.4, 3.5)
+export { heartbeatService } from './heartbeat.service';
+export type {
+  HeartbeatPayload,
+  ClientStatus,
+  OfflineEventInfo,
+  ClientConnectionRecord,
+  ClientOfflineEventRecord,
+  ServiceResult as HeartbeatServiceResult,
+} from './heartbeat.service';
+export {
+  HeartbeatPayloadSchema,
+  HEARTBEAT_INTERVAL_MS,
+  OFFLINE_THRESHOLD_MS,
+  OFFLINE_CHECK_INTERVAL_MS,
+} from './heartbeat.service';
+
+// Grace Period Service exports (Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6)
+export { gracePeriodService } from './grace-period.service';
+export type {
+  GracePeriodConfig,
+  GracePeriodState,
+  StartGracePeriodInput,
+  ServiceResult as GracePeriodServiceResult,
+} from './grace-period.service';
+export {
+  StartGracePeriodSchema,
+  GracePeriodConfigSchema,
+  DEFAULT_GRACE_PERIOD_MINUTES,
+  POMODORO_GRACE_PERIOD_MINUTES,
+  MIN_GRACE_PERIOD_MINUTES,
+  MAX_GRACE_PERIOD_MINUTES,
+  calculateGracePeriodDuration,
+} from './grace-period.service';
+
+// Bypass Detection Service exports (Requirements: 4.1, 4.2, 4.3, 4.4, 4.5)
+export { bypassDetectionService } from './bypass-detection.service';
+export type {
+  BypassEventType,
+  WarningLevel,
+  BypassEvent,
+  BypassScoreFactors,
+  BypassScore,
+  RecordBypassEventInput,
+  GetBypassHistoryInput,
+  ServiceResult as BypassDetectionServiceResult,
+} from './bypass-detection.service';
+export {
+  BypassEventTypeSchema,
+  RecordBypassEventSchema,
+  GetBypassHistorySchema,
+  DEFAULT_BYPASS_WARNING_THRESHOLD,
+  BYPASS_SCORE_WEIGHTS,
+  WARNING_LEVEL_THRESHOLDS,
+  MAX_FACTOR_SCORES,
+  calculateWarningLevel,
+} from './bypass-detection.service';
+
+// Demo Mode Service exports (Requirements: 6.1, 6.2, 6.3, 6.4, 6.7, 6.9, 6.10)
+export { demoModeService } from './demo-mode.service';
+export type {
+  DemoModeConfig,
+  DemoToken,
+  DemoModeState,
+  DemoModeHistory,
+  ActivateDemoModeInput,
+  ServiceResult as DemoModeServiceResult,
+} from './demo-mode.service';
+export {
+  ActivateDemoModeSchema,
+  DemoModeConfigSchema,
+  DEFAULT_DEMO_TOKENS_PER_MONTH,
+  MIN_DEMO_TOKENS_PER_MONTH,
+  MAX_DEMO_TOKENS_PER_MONTH,
+  DEFAULT_DEMO_MAX_DURATION_MINUTES,
+  MIN_DEMO_DURATION_MINUTES,
+  MAX_DEMO_DURATION_MINUTES,
+  DEFAULT_CONFIRMATION_PHRASE,
+} from './demo-mode.service';

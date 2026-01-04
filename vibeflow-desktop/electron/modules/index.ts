@@ -162,6 +162,115 @@ export {
   type OverRestEnforcerState,
 } from './over-rest-enforcer';
 
+// Heartbeat Manager Module (Requirements: 3.1, 1.4)
+export {
+  HeartbeatManager,
+  getHeartbeatManager,
+  initializeHeartbeatManager,
+  resetHeartbeatManager,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_TIMEOUT_MS,
+  MAX_HEARTBEAT_FAILURES,
+  RECONNECT_DELAY_MS,
+  type HeartbeatConfig,
+  type HeartbeatPayload,
+  type HeartbeatState,
+  type HeartbeatResult,
+  type HeartbeatEvent,
+  type HeartbeatEventListener,
+} from './heartbeat-manager';
+
+// Mode Detector Module (Requirements: 2.3, 2.5, 10.1-10.8)
+export {
+  ModeDetector,
+  getModeDetector,
+  resetModeDetector,
+  detectAppMode,
+  detectAppModeWithSource,
+  isValidAppMode,
+  isDevelopmentMode,
+  isProductionMode,
+  isStagingMode,
+  isAppPackaged,
+  modeDetectorService,
+  MODE_DISPLAY_INFO,
+  DEMO_MODE_DISPLAY_INFO,
+  type AppMode,
+  type ModeDetectionResult,
+  type ModeSource,
+  type ModeDetectorConfig,
+  type ModeDisplayInfo,
+} from './mode-detector';
+
+// Quit Prevention Module (Requirements: 1.6, 2.1, 4.6, 4.7)
+export {
+  QuitPrevention,
+  getQuitPrevention,
+  resetQuitPrevention,
+  setupQuitPreventionIpc,
+  quitPreventionService,
+  detectAppMode as detectAppModeQuit,
+  isValidAppMode as isValidAppModeQuit,
+  isDevelopmentMode as isDevelopmentModeQuit,
+  isProductionMode as isProductionModeQuit,
+  isStagingMode as isStagingModeQuit,
+  isWithinWorkHours as isWithinWorkHoursQuit,
+  parseTimeToMinutes as parseTimeToMinutesQuit,
+  getCurrentTimeMinutes as getCurrentTimeMinutesQuit,
+  DEFAULT_QUIT_PREVENTION_CONFIG,
+  type AppMode as AppModeQuit,
+  type QuitPreventionConfig,
+  type QuitAttempt,
+  type CanQuitResult,
+  type QuitConfirmationResult,
+  type SkipTokenConsumer,
+} from './quit-prevention';
+
+// Guardian Client Module (Requirements: 8.7, 8.8)
+export {
+  GuardianClient,
+  getGuardianClient,
+  resetGuardianClient,
+  guardianClientService,
+  DEFAULT_GUARDIAN_PORT,
+  CONNECTION_TIMEOUT_MS,
+  HEARTBEAT_INTERVAL_MS as GUARDIAN_HEARTBEAT_INTERVAL_MS,
+  RECONNECT_DELAY_MS as GUARDIAN_RECONNECT_DELAY_MS,
+  type GuardianClientConfig,
+  type GuardianClientState,
+  type GuardianClientEvent,
+  type GuardianClientEventListener,
+} from '../../guardian/guardian-client';
+
+// Policy Cache Module (Requirements: 9.1, 9.2)
+export {
+  PolicyCacheManager,
+  getPolicyCache,
+  initializePolicyCache,
+  resetPolicyCache,
+  type CachedPolicy,
+  type PolicyCacheConfig,
+  type PolicyCacheState,
+} from './policy-cache';
+
+// Offline Event Queue Module (Requirements: 9.3, 9.6)
+export {
+  OfflineEventQueueManager,
+  getOfflineEventQueue,
+  initializeOfflineEventQueue,
+  resetOfflineEventQueue,
+  type QueuedEventType,
+  type BaseQueuedEvent,
+  type SkipTokenUsageEvent,
+  type BypassEvent,
+  type OfflinePeriodEvent,
+  type HeartbeatMissedEvent,
+  type QueuedEvent,
+  type EventQueueConfig,
+  type EventQueueState,
+  type SyncResult,
+  type SyncHandler,
+} from './offline-event-queue';
 
 // Configuration
 export {

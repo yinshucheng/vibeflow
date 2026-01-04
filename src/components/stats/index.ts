@@ -16,6 +16,9 @@ export { ExemptionHistory } from './exemption-history';
 export { FocusSessionStats } from './focus-session-stats';
 export { EntertainmentStats } from './entertainment-stats';
 export { WorkStartStats } from './work-start-stats';
+export { ClientUptimeStats } from './client-uptime-stats';
+export { BypassAttemptStats } from './bypass-attempt-stats';
+export { DemoModeStats } from './demo-mode-stats';
 
 // Re-export types from stats service for convenience
 export type { 

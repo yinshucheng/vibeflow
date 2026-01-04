@@ -22,10 +22,11 @@ import {
   SleepTimeSettings,
   EarlyWarningSettings,
   OverRestSettings,
-  EntertainmentSitesSettings
+  EntertainmentSitesSettings,
+  DemoModeSettings
 } from '@/components/settings';
 
-type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices';
+type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices' | 'demomode';
 
 interface TabConfig {
   id: SettingsTab;
@@ -96,6 +97,12 @@ const tabs: TabConfig[] = [
     description: 'Entertainment site blocking and whitelist'
   },
   { 
+    id: 'demomode', 
+    label: 'Demo Mode', 
+    icon: '🎭',
+    description: 'Demo mode tokens and presentation settings'
+  },
+  { 
     id: 'principles', 
     label: 'Principles', 
     icon: '📝',
@@ -161,6 +168,7 @@ export default function SettingsPage() {
         {activeTab === 'earlywarning' && <EarlyWarningSettings />}
         {activeTab === 'browser' && <UrlListSettings />}
         {activeTab === 'entertainment' && <EntertainmentSitesSettings />}
+        {activeTab === 'demomode' && <DemoModeSettings />}
         {activeTab === 'principles' && <CodingPrinciplesSettings />}
         {activeTab === 'devices' && <ConnectedDevices />}
       </div>

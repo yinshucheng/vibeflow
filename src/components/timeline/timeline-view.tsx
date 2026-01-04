@@ -171,11 +171,72 @@ const EVENT_TYPE_CONFIG: Record<string, EventTypeConfig> = {
     borderColor: 'border-red-400',
     icon: '⚠️',
   },
+  // Demo mode events (Requirements 6.11)
+  demo_mode: {
+    label: '演示模式',
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-50',
+    borderColor: 'border-pink-300',
+    icon: '🎭',
+  },
+  'demo_mode:started': {
+    label: '演示模式开始',
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-50',
+    borderColor: 'border-pink-400',
+    icon: '🎭',
+  },
+  'demo_mode:ended': {
+    label: '演示模式结束',
+    color: 'text-pink-500',
+    bgColor: 'bg-pink-50',
+    borderColor: 'border-pink-300',
+    icon: '🎭',
+  },
+  'demo_mode:expired': {
+    label: '演示模式过期',
+    color: 'text-pink-400',
+    bgColor: 'bg-pink-50',
+    borderColor: 'border-pink-200',
+    icon: '⏰',
+  },
+  // Offline events (Requirements 6.11)
+  offline: {
+    label: '离线',
+    color: 'text-gray-500',
+    bgColor: 'bg-gray-100',
+    borderColor: 'border-gray-300',
+    borderStyle: 'border-dashed',
+    icon: '📡',
+  },
+  'offline:work_hours': {
+    label: '工作时间离线',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-300',
+    borderStyle: 'border-dashed',
+    icon: '⚠️',
+  },
+  'offline:pomodoro': {
+    label: '番茄期间离线',
+    color: 'text-red-600',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-300',
+    borderStyle: 'border-dashed',
+    icon: '🍅',
+  },
+  'offline:bypass': {
+    label: '绕过尝试',
+    color: 'text-red-700',
+    bgColor: 'bg-red-100',
+    borderColor: 'border-red-400',
+    icon: '🛡️',
+  },
 };
 
 
 // Get config for an event type
-// Handles category-based variants for activity_log, state_change, and work_start events
+// Handles category-based variants for activity_log, state_change, work_start, demo_mode, and offline events
 function getEventConfig(type: string, metadata?: Record<string, unknown> | null): EventTypeConfig {
   // Check for activity_log with category
   if (type === 'activity_log' && metadata?.category) {
@@ -202,6 +263,27 @@ function getEventConfig(type: string, metadata?: Record<string, unknown> | null)
       return EVENT_TYPE_CONFIG['work_start:slightly_late'];
     } else {
       return EVENT_TYPE_CONFIG['work_start:late'];
+    }
+  }
+  
+  // Check for demo_mode with eventType (Requirements 6.11)
+  if (type === 'demo_mode' && metadata?.eventType) {
+    const eventTypeKey = `demo_mode:${metadata.eventType}`;
+    if (EVENT_TYPE_CONFIG[eventTypeKey]) {
+      return EVENT_TYPE_CONFIG[eventTypeKey];
+    }
+  }
+  
+  // Check for offline with context-based coloring (Requirements 6.11)
+  if (type === 'offline') {
+    if (metadata?.isBypassAttempt) {
+      return EVENT_TYPE_CONFIG['offline:bypass'];
+    }
+    if (metadata?.wasInPomodoro) {
+      return EVENT_TYPE_CONFIG['offline:pomodoro'];
+    }
+    if (metadata?.wasInWorkHours) {
+      return EVENT_TYPE_CONFIG['offline:work_hours'];
     }
   }
   
@@ -452,6 +534,64 @@ export function TimelineView({
                               </span>
                             )}
                           </div>
+                        </div>
+                      )}
+                      {/* Demo mode event display (Requirements 6.11) */}
+                      {event.type === 'demo_mode' && (
+                        <div className="mt-1">
+                          {typeof metadata.eventType === 'string' && (
+                            <span className={`
+                              inline-block px-2 py-0.5 text-xs rounded-full
+                              ${metadata.eventType === 'started' 
+                                ? 'bg-pink-100 text-pink-700' 
+                                : metadata.eventType === 'ended'
+                                  ? 'bg-pink-50 text-pink-600'
+                                  : 'bg-gray-100 text-gray-600'
+                              }
+                            `}>
+                              {metadata.eventType === 'started' ? '开始' :
+                               metadata.eventType === 'ended' ? '结束' :
+                               metadata.eventType === 'expired' ? '过期' :
+                               metadata.eventType}
+                            </span>
+                          )}
+                          {typeof metadata.durationMinutes === 'number' && metadata.durationMinutes > 0 && (
+                            <span className="text-xs text-pink-500 ml-2">
+                              时长: {metadata.durationMinutes} 分钟
+                            </span>
+                          )}
+                          {typeof metadata.reason === 'string' && (
+                            <span className="text-xs text-gray-400 ml-2">
+                              ({metadata.reason === 'manual_exit' ? '手动退出' :
+                                metadata.reason === 'duration_expired' ? '时间到期' :
+                                metadata.reason})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {/* Offline event display (Requirements 6.11) */}
+                      {event.type === 'offline' && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {Boolean(metadata.wasInPomodoro) && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">
+                              🍅 番茄期间
+                            </span>
+                          )}
+                          {Boolean(metadata.wasInWorkHours) && !Boolean(metadata.wasInPomodoro) && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">
+                              ⏰ 工作时间
+                            </span>
+                          )}
+                          {Boolean(metadata.gracePeriodUsed) && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                              ⏳ 使用宽限期
+                            </span>
+                          )}
+                          {Boolean(metadata.isBypassAttempt) && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">
+                              🛡️ 绕过尝试
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
