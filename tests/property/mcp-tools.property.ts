@@ -693,4 +693,279 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
       { numRuns: 100 }
     );
   });
+
+  /**
+   * Property 5: MCP Tool Audit Completeness
+   * Feature: ai-native-enhancement
+   * Validates: Requirements 4.5
+   *
+   * For any MCP tool call, the audit service SHALL log:
+   * - agentId, toolName, input, output, success status, and duration
+   */
+  it('all MCP tool calls are logged to audit with complete information', async () => {
+    if (!dbAvailable) {
+      console.warn('Skipping test: Database not available');
+      return;
+    }
+
+    const context = createTestContext();
+
+    await fc.assert(
+      fc.asyncProperty(
+        // Generate valid task title
+        fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+        // Generate valid summary
+        fc.string({ minLength: 1, maxLength: 500 }).filter((s) => s.trim().length > 0),
+        async (taskTitle, summary) => {
+          // Clean up audit logs before test
+          await prisma.mCPAuditLog.deleteMany({ where: { userId: testUserId } });
+
+          // Create a project and task
+          const project = await prisma.project.create({
+            data: {
+              title: 'Test Project',
+              deliverable: 'Test Deliverable',
+              status: 'ACTIVE',
+              userId: testUserId,
+            },
+          });
+
+          const task = await prisma.task.create({
+            data: {
+              title: taskTitle,
+              priority: 'P2' as Priority,
+              status: 'TODO' as TaskStatus,
+              sortOrder: 0,
+              projectId: project.id,
+              userId: testUserId,
+            },
+          });
+
+          // Call the complete_task tool
+          await handleToolCall(
+            TOOLS.COMPLETE_TASK,
+            { task_id: task.id, summary },
+            context
+          );
+
+          // Verify audit log was created
+          const auditLogs = await prisma.mCPAuditLog.findMany({
+            where: { userId: testUserId },
+            orderBy: { timestamp: 'desc' },
+            take: 1,
+          });
+
+          expect(auditLogs.length).toBe(1);
+          const auditLog = auditLogs[0];
+
+          // Verify all required fields are present
+          expect(auditLog.agentId).toBeDefined();
+          expect(auditLog.toolName).toBe(TOOLS.COMPLETE_TASK);
+          expect(auditLog.input).toBeDefined();
+          expect(auditLog.output).toBeDefined();
+          expect(typeof auditLog.success).toBe('boolean');
+          expect(auditLog.duration).toBeGreaterThanOrEqual(0);
+          expect(auditLog.timestamp).toBeDefined();
+
+          // Verify input contains the correct data
+          const inputData = auditLog.input as { task_id: string; summary: string };
+          expect(inputData.task_id).toBe(task.id);
+          expect(inputData.summary).toBe(summary);
+
+          // Clean up
+          await prisma.mCPAuditLog.deleteMany({ where: { userId: testUserId } });
+          await prisma.activityLog.deleteMany({ where: { userId: testUserId } });
+          await prisma.task.delete({ where: { id: task.id } });
+          await prisma.project.delete({ where: { id: project.id } });
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 6: Batch Update Atomicity
+   * Feature: ai-native-enhancement
+   * Validates: Requirements 4.1
+   *
+   * For any batch update operation:
+   * - All valid updates in a batch are applied atomically
+   * - If all updates fail, no changes are made
+   * - Partial success returns updated count and failed list
+   */
+  it('batch update tasks applies all valid updates atomically', async () => {
+    if (!dbAvailable) {
+      console.warn('Skipping test: Database not available');
+      return;
+    }
+
+    const context = createTestContext();
+
+    await fc.assert(
+      fc.asyncProperty(
+        // Generate number of tasks to create (2-5)
+        fc.integer({ min: 2, max: 5 }),
+        // Generate new status
+        fc.constantFrom('TODO', 'IN_PROGRESS', 'DONE') as fc.Arbitrary<'TODO' | 'IN_PROGRESS' | 'DONE'>,
+        // Generate new priority
+        fc.constantFrom('P1', 'P2', 'P3') as fc.Arbitrary<'P1' | 'P2' | 'P3'>,
+        async (taskCount, newStatus, newPriority) => {
+          // Create a project
+          const project = await prisma.project.create({
+            data: {
+              title: 'Test Project',
+              deliverable: 'Test Deliverable',
+              status: 'ACTIVE',
+              userId: testUserId,
+            },
+          });
+
+          // Create multiple tasks
+          const tasks = await Promise.all(
+            Array.from({ length: taskCount }, (_, i) =>
+              prisma.task.create({
+                data: {
+                  title: `Task ${i + 1}`,
+                  priority: 'P2' as Priority,
+                  status: 'TODO' as TaskStatus,
+                  sortOrder: i,
+                  projectId: project.id,
+                  userId: testUserId,
+                },
+              })
+            )
+          );
+
+          // Build batch update request
+          const updates = tasks.map((task) => ({
+            task_id: task.id,
+            status: newStatus,
+            priority: newPriority,
+          }));
+
+          // Call batch update
+          const response = await handleToolCall(
+            TOOLS.BATCH_UPDATE_TASKS,
+            { updates },
+            context
+          );
+
+          // Parse the response
+          const result = parseToolResponse(response) as {
+            success: boolean;
+            updated?: number;
+            failed?: Array<{ taskId: string; error: string }>;
+            error?: { code: string; message: string };
+          };
+
+          // Verify success response
+          expect(result.success).toBe(true);
+          expect(result.updated).toBe(taskCount);
+
+          // Verify all tasks were updated in database
+          const updatedTasks = await prisma.task.findMany({
+            where: { projectId: project.id },
+          });
+
+          for (const task of updatedTasks) {
+            expect(task.status).toBe(newStatus);
+            expect(task.priority).toBe(newPriority);
+          }
+
+          // Clean up
+          await prisma.mCPAuditLog.deleteMany({ where: { userId: testUserId } });
+          await prisma.task.deleteMany({ where: { projectId: project.id } });
+          await prisma.project.delete({ where: { id: project.id } });
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 6b: Batch Update with Invalid Tasks
+   * Feature: ai-native-enhancement
+   * Validates: Requirements 4.1
+   *
+   * When batch update contains invalid task IDs:
+   * - Valid updates are still applied
+   * - Failed updates are reported in the response
+   */
+  it('batch update with invalid tasks reports failures while applying valid updates', async () => {
+    if (!dbAvailable) {
+      console.warn('Skipping test: Database not available');
+      return;
+    }
+
+    const context = createTestContext();
+
+    await fc.assert(
+      fc.asyncProperty(
+        // Generate new status
+        fc.constantFrom('TODO', 'IN_PROGRESS', 'DONE') as fc.Arbitrary<'TODO' | 'IN_PROGRESS' | 'DONE'>,
+        async (newStatus) => {
+          // Create a project and one valid task
+          const project = await prisma.project.create({
+            data: {
+              title: 'Test Project',
+              deliverable: 'Test Deliverable',
+              status: 'ACTIVE',
+              userId: testUserId,
+            },
+          });
+
+          const validTask = await prisma.task.create({
+            data: {
+              title: 'Valid Task',
+              priority: 'P2' as Priority,
+              status: 'TODO' as TaskStatus,
+              sortOrder: 0,
+              projectId: project.id,
+              userId: testUserId,
+            },
+          });
+
+          // Build batch update with one valid and one invalid task
+          const updates = [
+            { task_id: validTask.id, status: newStatus },
+            { task_id: '00000000-0000-0000-0000-000000000000', status: newStatus }, // Invalid UUID
+          ];
+
+          // Call batch update
+          const response = await handleToolCall(
+            TOOLS.BATCH_UPDATE_TASKS,
+            { updates },
+            context
+          );
+
+          // Parse the response
+          const result = parseToolResponse(response) as {
+            success: boolean;
+            updated?: number;
+            failed?: Array<{ taskId: string; error: string }>;
+            error?: { code: string; message: string };
+          };
+
+          // Verify partial success
+          expect(result.success).toBe(true);
+          expect(result.updated).toBe(1);
+          expect(result.failed).toBeDefined();
+          expect(result.failed?.length).toBe(1);
+          expect(result.failed?.[0].taskId).toBe('00000000-0000-0000-0000-000000000000');
+
+          // Verify valid task was updated
+          const updatedTask = await prisma.task.findUnique({
+            where: { id: validTask.id },
+          });
+          expect(updatedTask?.status).toBe(newStatus);
+
+          // Clean up
+          await prisma.mCPAuditLog.deleteMany({ where: { userId: testUserId } });
+          await prisma.task.delete({ where: { id: validTask.id } });
+          await prisma.project.delete({ where: { id: project.id } });
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
 });

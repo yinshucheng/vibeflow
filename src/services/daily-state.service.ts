@@ -15,6 +15,7 @@ import {
   serializeSystemState,
 } from '@/machines/vibeflow.machine';
 import { broadcastStateChange } from '@/services/socket-broadcast.service';
+import { mcpEventService } from './mcp-event.service';
 
 // Validation schemas
 export const CompleteAirlockSchema = z.object({
@@ -192,6 +193,16 @@ export const dailyStateService = {
     try {
       const today = getTodayDate();
 
+      // Get previous state for event payload
+      const previousState = await prisma.dailyState.findUnique({
+        where: {
+          userId_date: {
+            userId,
+            date: today,
+          },
+        },
+      });
+
       const dailyState = await prisma.dailyState.upsert({
         where: {
           userId_date: {
@@ -215,6 +226,23 @@ export const dailyStateService = {
 
       // Broadcast state change to connected clients
       broadcastStateChange(userId, state);
+
+      // Publish daily_state.changed event (Requirement 10.3)
+      const previousSystemState = previousState 
+        ? parseSystemState(previousState.systemState) 
+        : 'locked';
+      
+      await mcpEventService.publish({
+        type: 'daily_state.changed',
+        userId,
+        payload: {
+          previousState: previousSystemState,
+          newState: state,
+          date: today.toISOString(),
+          pomodoroCount: dailyState.pomodoroCount,
+          airlockCompleted: dailyState.airlockCompleted,
+        },
+      });
 
       return { success: true, data: dailyState };
     } catch (error) {

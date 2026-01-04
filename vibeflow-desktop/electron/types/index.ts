@@ -274,10 +274,13 @@ export interface PolicySleepTime {
 
 /**
  * Ad-hoc focus session for policy
+ * Requirements: 2.3, 13.1, 13.2
  */
 export interface PolicyAdhocFocusSession {
   active: boolean;
   endTime: number;
+  /** Whether this session overrides sleep time enforcement */
+  overridesSleepTime?: boolean;
 }
 
 /**

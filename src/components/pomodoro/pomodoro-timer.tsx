@@ -55,8 +55,12 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
   // Get user settings for default duration and notification config
   const { data: settings } = trpc.settings.get.useQuery();
   
-  // Get today's tasks for selection
+  // Get today's tasks for selection (including overdue tasks)
   const { data: todayTasks } = trpc.task.getTodayTasks.useQuery();
+  const { data: overdueTasks } = trpc.task.getOverdue.useQuery();
+  
+  // Combine today's tasks and overdue tasks for selection
+  const availableTasks = [...(todayTasks ?? []), ...(overdueTasks ?? [])];
   
   // Check if can start pomodoro
   const { data: canStart } = trpc.dailyState.canStartPomodoro.useQuery();
@@ -350,7 +354,7 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       {!isRunning && (
         <div className="w-full max-w-md">
           <TaskSelector
-            tasks={todayTasks ?? []}
+            tasks={availableTasks}
             selectedTaskId={selectedTaskId}
             onSelect={setSelectedTaskId}
             disabled={isRunning}

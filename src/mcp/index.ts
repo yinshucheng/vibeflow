@@ -14,5 +14,10 @@ export type {
   UserPrinciplesResource,
   ActiveProjectsResource,
   TodayTasksResource,
+  // Extended resources for AI-Native Enhancement (Requirements 1.1-1.4)
+  WorkspaceContextResource,
+  PomodoroHistoryResource,
+  ProductivityAnalyticsResource,
+  ActiveBlockersResource,
 } from './resources';
 export { registerTools, handleToolCall, TOOLS } from './tools';

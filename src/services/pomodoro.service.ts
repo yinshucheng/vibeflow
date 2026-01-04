@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import type { Pomodoro, PomodoroStatus } from '@prisma/client';
+import { mcpEventService } from './mcp-event.service';
 
 // Timer configuration constraints (Requirements: 14.5)
 const MIN_POMODORO_DURATION = 10; // minutes
@@ -123,6 +124,19 @@ export const pomodoroService = {
         },
       });
 
+      // Publish pomodoro.started event (Requirement 10.2)
+      await mcpEventService.publish({
+        type: 'pomodoro.started',
+        userId,
+        payload: {
+          pomodoroId: pomodoro.id,
+          taskId: pomodoro.taskId,
+          taskTitle: pomodoro.task.title,
+          duration: pomodoro.duration,
+          startTime: pomodoro.startTime.toISOString(),
+        },
+      });
+
       return { success: true, data: pomodoro };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -200,6 +214,21 @@ export const pomodoroService = {
         },
       });
 
+      // Publish pomodoro.completed event (Requirement 10.2)
+      await mcpEventService.publish({
+        type: 'pomodoro.completed',
+        userId,
+        payload: {
+          pomodoroId: pomodoro.id,
+          taskId: pomodoro.taskId,
+          taskTitle: pomodoro.task.title,
+          duration: pomodoro.duration,
+          startTime: pomodoro.startTime.toISOString(),
+          endTime: pomodoro.endTime?.toISOString() ?? null,
+          summary: pomodoro.summary,
+        },
+      });
+
       return { success: true, data: pomodoro };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -270,6 +299,20 @@ export const pomodoroService = {
         },
       });
 
+      // Publish pomodoro.aborted event (Requirement 10.2)
+      await mcpEventService.publish({
+        type: 'pomodoro.aborted',
+        userId,
+        payload: {
+          pomodoroId: pomodoro.id,
+          taskId: pomodoro.taskId,
+          taskTitle: pomodoro.task.title,
+          duration: pomodoro.duration,
+          startTime: pomodoro.startTime.toISOString(),
+          endTime: pomodoro.endTime?.toISOString() ?? null,
+        },
+      });
+
       return { success: true, data: pomodoro };
     } catch (error) {
       return {
@@ -330,6 +373,10 @@ export const pomodoroService = {
           },
         },
       });
+
+      // Note: pomodoro.paused event is not published here as INTERRUPTED is a terminal state
+      // The design mentions pomodoro.paused but the current implementation uses INTERRUPTED
+      // which is more like an abort with a reason
 
       return { success: true, data: pomodoro };
     } catch (error) {

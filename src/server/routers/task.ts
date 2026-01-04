@@ -16,6 +16,24 @@ import {
 
 export const taskRouter = router({
   /**
+   * Get a single task by ID
+   */
+  getById: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const result = await taskService.getById(input.id, ctx.user.userId);
+      
+      if (!result.success) {
+        throw new TRPCError({
+          code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to get task',
+        });
+      }
+      
+      return result.data;
+    }),
+
+  /**
    * Get tasks by project with hierarchy
    * Requirements: 2.4
    */
@@ -44,6 +62,22 @@ export const taskRouter = router({
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: result.error?.message ?? 'Failed to get today tasks',
+      });
+    }
+    
+    return result.data;
+  }),
+
+  /**
+   * Get overdue tasks (past plan date, not completed)
+   */
+  getOverdue: protectedProcedure.query(async ({ ctx }) => {
+    const result = await taskService.getOverdue(ctx.user.userId);
+    
+    if (!result.success) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: result.error?.message ?? 'Failed to get overdue tasks',
       });
     }
     

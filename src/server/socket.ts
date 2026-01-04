@@ -163,6 +163,18 @@ export interface ServerToClientEvents {
   
   // Entertainment mode events (Requirements: 8.6, 10.3)
   ENTERTAINMENT_MODE_CHANGE: (payload: { isActive: boolean; sessionId: string | null; endTime: number | null }) => void;
+  
+  // MCP Event Stream events (Requirements: 10.1, 10.2, 10.3, 10.4)
+  MCP_EVENT: (payload: MCPEventPayload) => void;
+}
+
+// MCP Event payload type for Socket.io
+export interface MCPEventPayload {
+  id: string;
+  type: string;
+  userId: string;
+  timestamp: Date;
+  payload: Record<string, unknown>;
 }
 
 // Client -> Server message types (Octopus Event Stream)
@@ -1794,6 +1806,24 @@ export class VibeFlowSocketServer {
     this.io.to(userRoom).emit('ENTERTAINMENT_MODE_CHANGE', payload);
     
     console.log(`[Socket.io] Broadcast entertainment mode change to user ${userId}: ${payload.isActive ? 'active' : 'inactive'}`);
+  }
+
+  /**
+   * Broadcast MCP event to all user's connected clients
+   * Requirements: 10.1, 10.2, 10.3, 10.4
+   */
+  broadcastMCPEvent(
+    userId: string,
+    event: MCPEventPayload
+  ): void {
+    if (!this.io) return;
+
+    const userRoom = `user:${userId}`;
+    
+    // Send MCP event to all connected clients for this user
+    this.io.to(userRoom).emit('MCP_EVENT', event);
+    
+    console.log(`[Socket.io] Broadcast MCP event to user ${userId}: ${event.type}`);
   }
 
   /**

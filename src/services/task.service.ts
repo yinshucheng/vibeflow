@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import type { Task, TaskStatus, Priority } from '@prisma/client';
+import { mcpEventService } from './mcp-event.service';
 
 // Validation schemas
 export const CreateTaskSchema = z.object({
@@ -128,6 +129,20 @@ export const taskService = {
         },
       });
 
+      // Publish task.created event (Requirement 10.1)
+      await mcpEventService.publish({
+        type: 'task.created',
+        userId,
+        payload: {
+          taskId: task.id,
+          title: task.title,
+          projectId: task.projectId,
+          priority: task.priority,
+          status: task.status,
+          planDate: task.planDate?.toISOString() ?? null,
+        },
+      });
+
       return { success: true, data: task };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -184,6 +199,21 @@ export const taskService = {
         },
         include: {
           subTasks: true,
+        },
+      });
+
+      // Publish task.updated event (Requirement 10.1)
+      await mcpEventService.publish({
+        type: 'task.updated',
+        userId,
+        payload: {
+          taskId: task.id,
+          title: task.title,
+          projectId: task.projectId,
+          priority: task.priority,
+          status: task.status,
+          planDate: task.planDate?.toISOString() ?? null,
+          changes: Object.keys(validated).filter(k => validated[k as keyof typeof validated] !== undefined),
         },
       });
 
@@ -252,6 +282,20 @@ export const taskService = {
         data: { status },
         include: {
           subTasks: true,
+        },
+      });
+
+      // Publish task.status_changed event (Requirement 10.1)
+      await mcpEventService.publish({
+        type: 'task.status_changed',
+        userId,
+        payload: {
+          taskId: task.id,
+          title: task.title,
+          projectId: task.projectId,
+          previousStatus: existing.status,
+          newStatus: status,
+          cascadedToSubtasks: cascadeToSubtasks && existing.subTasks.length > 0,
         },
       });
 
@@ -339,6 +383,42 @@ export const taskService = {
         error: {
           code: 'INTERNAL_ERROR',
           message: error instanceof Error ? error.message : 'Failed to reorder task',
+        },
+      };
+    }
+  },
+
+  /**
+   * Get a single task by ID
+   */
+  async getById(id: string, userId: string): Promise<ServiceResult<Task>> {
+    try {
+      const task = await prisma.task.findFirst({
+        where: { id, userId },
+        include: {
+          project: true,
+          subTasks: true,
+          parent: true,
+        },
+      });
+
+      if (!task) {
+        return {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Task not found',
+          },
+        };
+      }
+
+      return { success: true, data: task };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to get task',
         },
       };
     }
@@ -437,6 +517,42 @@ export const taskService = {
   },
 
   /**
+   * Get overdue tasks (past plan date, not completed)
+   */
+  async getOverdue(userId: string): Promise<ServiceResult<Task[]>> {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const tasks = await prisma.task.findMany({
+        where: {
+          userId,
+          status: { not: 'DONE' },
+          planDate: {
+            lt: today,
+            not: null,
+          },
+        },
+        include: {
+          project: true,
+          subTasks: true,
+        },
+        orderBy: [{ planDate: 'desc' }, { priority: 'asc' }, { sortOrder: 'asc' }],
+      });
+
+      return { success: true, data: tasks };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to get overdue tasks',
+        },
+      };
+    }
+  },
+
+  /**
    * Get backlog tasks (no plan date or future date)
    */
   async getBacklog(userId: string): Promise<ServiceResult<Task[]>> {
@@ -490,6 +606,17 @@ export const taskService = {
       // Cascade delete is handled by Prisma schema
       await prisma.task.delete({
         where: { id },
+      });
+
+      // Publish task.deleted event (Requirement 10.1)
+      await mcpEventService.publish({
+        type: 'task.deleted',
+        userId,
+        payload: {
+          taskId: id,
+          title: existing.title,
+          projectId: existing.projectId,
+        },
       });
 
       return { success: true };

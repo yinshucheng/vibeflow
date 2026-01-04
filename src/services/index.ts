@@ -340,3 +340,129 @@ export {
 
 // Daily Reset Scheduler Service exports (Requirements: 5.7)
 export { dailyResetSchedulerService } from './daily-reset-scheduler.service';
+
+// Blocker Resolver Service exports (Requirements: 5.1, 5.2, 5.3, 5.4, 5.5)
+export { blockerResolverService } from './blocker-resolver.service';
+export type {
+  BlockerCategory,
+  DependencyType,
+  BlockerWithTask,
+  PotentialBlockerResult,
+  DependencyInfo,
+  ReportBlockerInput,
+  TrackDependencyInput,
+  ResolveBlockerInput,
+  GetBlockerHistoryInput,
+  ServiceResult as BlockerResolverServiceResult,
+} from './blocker-resolver.service';
+export {
+  ReportBlockerSchema,
+  TrackDependencySchema,
+  ResolveBlockerSchema,
+  GetBlockerHistorySchema,
+} from './blocker-resolver.service';
+
+// Task Decomposer Service exports (Requirements: 2.1, 2.2, 2.3, 2.4, 2.5)
+export { taskDecomposerService } from './task-decomposer.service';
+export type {
+  SubtaskSuggestion,
+  DecompositionResult,
+  AcceptSuggestionsInput,
+  RecordFeedbackInput,
+  ServiceResult as TaskDecomposerServiceResult,
+} from './task-decomposer.service';
+export {
+  SubtaskSuggestionSchema,
+  AcceptSuggestionsSchema,
+  RecordFeedbackSchema,
+} from './task-decomposer.service';
+
+// Smart Suggestion Service exports (Requirements: 3.1, 3.2, 3.3, 3.5, 9.1, 9.2, 9.3, 9.4, 9.5)
+export { smartSuggestionService } from './smart-suggestion.service';
+export type {
+  TaskSuggestion as SmartTaskSuggestion,
+  SuggestionContext,
+  AirlockSuggestionsResult,
+  RecordSuggestionFeedbackInput,
+  ServiceResult as SmartSuggestionServiceResult,
+} from './smart-suggestion.service';
+export {
+  RecordSuggestionFeedbackSchema,
+} from './smart-suggestion.service';
+
+// MCP Audit Service exports (Requirement 4.5)
+export { mcpAuditService } from './mcp-audit.service';
+export type {
+  LogToolCallInput,
+  GetAuditLogsInput,
+  AuditLogSummary,
+  ServiceResult as MCPAuditServiceResult,
+} from './mcp-audit.service';
+export {
+  LogToolCallSchema,
+  GetAuditLogsSchema,
+} from './mcp-audit.service';
+
+// Context Provider Service exports (Requirements: 6.1, 6.2, 6.3, 6.4, 6.5)
+export { contextProviderService } from './context-provider.service';
+export type {
+  AIContext,
+  CurrentTaskContext,
+  CurrentProjectContext,
+  RecentActivityEntry,
+  PomodoroStatusContext,
+  TodayProgressContext,
+  GetRecentActivityInput,
+  ServiceResult as ContextProviderServiceResult,
+} from './context-provider.service';
+export {
+  GetRecentActivitySchema,
+} from './context-provider.service';
+
+// Progress Analyzer Service exports (Requirements: 7.1, 7.2, 7.3, 7.4, 7.5)
+export { progressAnalyzerService } from './progress-analyzer.service';
+export type {
+  ProductivityTrend,
+  ProductivityScore,
+  PeakHoursAnalysis,
+  GoalPrediction,
+  ProductivityInsight,
+  TrendDetectionResult,
+  ServiceResult as ProgressAnalyzerServiceResult,
+} from './progress-analyzer.service';
+export {
+  calculateProductivityScore,
+  detectTrend,
+} from './progress-analyzer.service';
+
+
+// Natural Language Parser Service exports (Requirements: 8.1, 8.2, 8.3, 8.4, 8.5)
+export { nlParserService } from './nl-parser.service';
+export type {
+  ParsedTask,
+  ProjectCandidate,
+  ConfirmAndCreateInput,
+  ServiceResult as NLParserServiceResult,
+} from './nl-parser.service';
+export {
+  ConfirmAndCreateSchema,
+} from './nl-parser.service';
+
+
+// MCP Event Service exports (Requirements: 10.1, 10.2, 10.3, 10.4, 10.5)
+export { mcpEventService, registerMCPEventBroadcaster } from './mcp-event.service';
+export type {
+  MCPEventType,
+  MCPEvent,
+  EventSubscription,
+  SubscribeInput,
+  PublishEventInput,
+  GetEventHistoryInput,
+  ServiceResult as MCPEventServiceResult,
+} from './mcp-event.service';
+export {
+  MCPEventTypeSchema,
+  SubscribeInputSchema,
+  PublishEventInputSchema,
+  GetEventHistoryInputSchema,
+} from './mcp-event.service';

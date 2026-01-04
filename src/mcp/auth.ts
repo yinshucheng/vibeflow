@@ -15,6 +15,7 @@ export interface MCPContext {
   userId: string;
   email: string;
   isAuthenticated: boolean;
+  agentId?: string; // Optional agent identifier for audit logging
 }
 
 /**

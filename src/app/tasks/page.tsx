@@ -18,7 +18,7 @@ import { trpc } from '@/lib/trpc';
 import { calculateRemainingSeconds } from '@/lib/pomodoro-cache';
 import type { Task, Project } from '@prisma/client';
 
-type TaskFilter = 'today' | 'backlog' | 'all';
+type TaskFilter = 'today' | 'overdue' | 'backlog';
 
 type TaskWithProject = Task & {
   project: Project;
@@ -29,13 +29,16 @@ export default function TasksPage() {
   const [filter, setFilter] = useState<TaskFilter>('today');
   
   const { data: todayTasks, isLoading: todayLoading } = trpc.task.getTodayTasks.useQuery();
+  const { data: overdueTasks, isLoading: overdueLoading } = trpc.task.getOverdue.useQuery();
   const { data: backlogTasks, isLoading: backlogLoading } = trpc.task.getBacklog.useQuery();
   const { data: projects } = trpc.project.list.useQuery();
   const { data: currentPomodoro } = trpc.pomodoro.getCurrent.useQuery();
 
-  const isLoading = filter === 'today' ? todayLoading : backlogLoading;
+  const isLoading = filter === 'today' ? todayLoading : filter === 'overdue' ? overdueLoading : backlogLoading;
   const tasks = filter === 'today' 
     ? (todayTasks as TaskWithProject[] | undefined) 
+    : filter === 'overdue'
+    ? (overdueTasks as TaskWithProject[] | undefined)
     : (backlogTasks as TaskWithProject[] | undefined);
 
   return (
@@ -67,6 +70,18 @@ export default function TasksPage() {
         >
           📅 Today ({todayTasks?.length ?? 0})
         </button>
+        {(overdueTasks?.length ?? 0) > 0 && (
+          <button
+            onClick={() => setFilter('overdue')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              filter === 'overdue' 
+                ? 'bg-red-100 text-red-700' 
+                : 'bg-red-50 text-red-600 hover:bg-red-100'
+            }`}
+          >
+            ⚠️ Overdue ({overdueTasks?.length ?? 0})
+          </button>
+        )}
         <button
           onClick={() => setFilter('backlog')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -82,9 +97,11 @@ export default function TasksPage() {
       {/* Tasks List */}
       <Card>
         <CardHeader 
-          title={filter === 'today' ? "Today's Tasks" : 'Backlog'}
+          title={filter === 'today' ? "Today's Tasks" : filter === 'overdue' ? 'Overdue Tasks' : 'Backlog'}
           description={filter === 'today' 
             ? 'Tasks planned for today' 
+            : filter === 'overdue'
+            ? 'Tasks from past dates that need attention'
             : 'Tasks without a plan date'
           }
         />
@@ -99,10 +116,12 @@ export default function TasksPage() {
             <TaskTree tasks={tasks} showProject />
           ) : (
             <EmptyState
-              icon={filter === 'today' ? '📅' : '📋'}
-              title={filter === 'today' ? 'No Tasks Today' : 'Backlog Empty'}
+              icon={filter === 'today' ? '📅' : filter === 'overdue' ? '✅' : '📋'}
+              title={filter === 'today' ? 'No Tasks Today' : filter === 'overdue' ? 'No Overdue Tasks' : 'Backlog Empty'}
               description={filter === 'today' 
                 ? 'Plan your day in the Morning Airlock or add tasks manually'
+                : filter === 'overdue'
+                ? 'Great job! All past tasks are completed'
                 : 'All tasks have been scheduled'
               }
               action={

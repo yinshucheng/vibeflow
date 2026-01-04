@@ -30,17 +30,15 @@ export default function TaskDetailPage() {
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // We need to fetch the task - let's use getTodayTasks and getBacklog to find it
-  const { data: todayTasks } = trpc.task.getTodayTasks.useQuery();
-  const { data: backlogTasks } = trpc.task.getBacklog.useQuery();
+  // Fetch the task directly by ID
+  const { data: task, isLoading: taskLoading } = trpc.task.getById.useQuery(
+    { id: taskId },
+    { enabled: !!taskId }
+  ) as { data: TaskWithRelations | undefined; isLoading: boolean };
   
   // Get user settings for pomodoro duration (Requirements: 20.3)
   const { data: settings } = trpc.settings.get.useQuery();
   const pomodoroDuration = settings?.pomodoroDuration ?? 25;
-
-  // Find the task from either list
-  const allTasks = [...(todayTasks ?? []), ...(backlogTasks ?? [])] as TaskWithRelations[];
-  const task = allTasks.find(t => t.id === taskId);
   
   // Get task estimation details (Requirements: 20.4, 20.5)
   const { data: taskEstimation } = trpc.task.getTaskWithEstimation.useQuery(
@@ -58,6 +56,7 @@ export default function TaskDetailPage() {
   
   const updateStatusMutation = trpc.task.updateStatus.useMutation({
     onSuccess: () => {
+      utils.task.getById.invalidate({ id: taskId });
       utils.task.getTodayTasks.invalidate();
       utils.task.getBacklog.invalidate();
       if (task?.projectId) {
@@ -74,7 +73,7 @@ export default function TaskDetailPage() {
     },
   });
 
-  const isLoading = !todayTasks && !backlogTasks;
+  const isLoading = taskLoading;
 
   if (isLoading) {
     return (

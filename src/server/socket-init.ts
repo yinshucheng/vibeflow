@@ -8,16 +8,19 @@
  */
 
 import { Server as HttpServer } from 'http';
-import { socketServer, type SystemState, type ExecuteCommand } from './socket';
+import { socketServer, type SystemState, type MCPEventPayload } from './socket';
 import { 
   registerStateChangeBroadcaster, 
   registerPolicyUpdateBroadcaster,
   registerExecuteCommandBroadcaster,
   registerEntertainmentModeChangeBroadcaster,
+  registerMCPEventBroadcaster,
 } from '@/services/socket-broadcast.service';
+import { registerMCPEventBroadcaster as registerMCPServiceBroadcaster, mcpEventService } from '@/services/mcp-event.service';
 import { dailyResetSchedulerService } from '@/services/daily-reset-scheduler.service';
 
 let isInitialized = false;
+let mcpEventCleanupInterval: NodeJS.Timeout | null = null;
 
 /**
  * Initialize Socket.io server with an HTTP server
@@ -48,8 +51,28 @@ export function initializeSocketServer(httpServer: HttpServer): void {
     socketServer.broadcastEntertainmentModeChange(userId, payload);
   });
   
+  // Register MCP event broadcaster (Requirements: 10.1, 10.2, 10.3, 10.4)
+  const mcpEventBroadcaster = (userId: string, event: MCPEventPayload) => {
+    socketServer.broadcastMCPEvent(userId, event);
+  };
+  registerMCPEventBroadcaster(mcpEventBroadcaster);
+  registerMCPServiceBroadcaster(mcpEventBroadcaster);
+  
   // Start the daily reset scheduler (Requirements: 5.7)
   dailyResetSchedulerService.start();
+  
+  // Start MCP event cleanup interval (Requirement 10.5)
+  // Cleanup old events every hour
+  mcpEventCleanupInterval = setInterval(async () => {
+    try {
+      const result = await mcpEventService.cleanupOldEvents();
+      if (result.success && result.data.count > 0) {
+        console.log(`[Socket.io] Cleaned up ${result.data.count} old MCP events`);
+      }
+    } catch (error) {
+      console.error('[Socket.io] Error cleaning up MCP events:', error);
+    }
+  }, 60 * 60 * 1000); // Every hour
   
   isInitialized = true;
   console.log('[Socket.io] Server initialization complete');

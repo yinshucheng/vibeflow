@@ -191,7 +191,7 @@ export const policyDistributionService = {
 
       const newVersion = (latestVersion?.version ?? 0) + 1;
 
-      // Check for active ad-hoc focus session (Requirements: 2.1, 2.2, 2.3, 2.4)
+      // Check for active ad-hoc focus session (Requirements: 2.1, 2.2, 2.3, 2.4, 13.1, 13.2)
       let adhocFocusSession: AdhocFocusSession | undefined;
       const activeSessionResult = await focusSessionService.getActiveSession(userId);
       if (activeSessionResult.success && activeSessionResult.data) {
@@ -199,6 +199,7 @@ export const policyDistributionService = {
         adhocFocusSession = {
           active: true,
           endTime: session.plannedEndTime.getTime(),
+          overridesSleepTime: session.overridesSleepTime,
         };
       }
 

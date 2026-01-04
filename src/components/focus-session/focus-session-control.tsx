@@ -99,14 +99,17 @@ export function FocusSessionControl({
       return;
     }
 
+    let hasExpired = false;
+
     const calculateRemaining = () => {
       const endTime = new Date(activeSession.plannedEndTime).getTime();
       const now = Date.now();
       const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
       setTimeRemaining(remaining);
 
-      // Auto-refresh when session expires
-      if (remaining === 0) {
+      // Auto-refresh when session expires (only once to prevent infinite loop)
+      if (remaining === 0 && !hasExpired) {
+        hasExpired = true;
         utils.focusSession.getActiveSession.invalidate();
       }
     };

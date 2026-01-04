@@ -583,7 +583,23 @@ app.whenReady().then(async () => {
     
     // Handle focus session enforcement (pomodoro time)
     const isFocusSessionActive = policy.adhocFocusSession?.active ?? false;
+    const focusSessionOverridesSleepTime = policy.adhocFocusSession?.overridesSleepTime ?? false;
     const hasDistractionApps = (policy.distractionApps?.length ?? 0) > 0;
+    
+    // If focus session overrides sleep time, pause sleep enforcer (Requirements: 13.2, 13.4)
+    if (isFocusSessionActive && focusSessionOverridesSleepTime) {
+      console.log('[Main] Focus session overrides sleep time, pausing sleep enforcer');
+      sleepEnforcer.updateConfig({ isSnoozed: true });
+    } else if (!isFocusSessionActive && sleepEnforcer.getConfig().isSnoozed) {
+      // If focus session ended and sleep enforcer was paused due to override, resume it
+      // Note: Only resume if the snooze was due to focus session override, not user snooze
+      // We check if there's no snoozeEndTime (user snooze has an end time)
+      const sleepConfig = sleepEnforcer.getConfig();
+      if (!sleepConfig.snoozeEndTime) {
+        console.log('[Main] Focus session ended, resuming sleep enforcer');
+        sleepEnforcer.updateConfig({ isSnoozed: false });
+      }
+    }
     
     if (isFocusSessionActive && hasDistractionApps) {
       // Focus session is active - start monitoring distraction apps

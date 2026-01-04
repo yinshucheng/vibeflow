@@ -701,13 +701,15 @@ export type EnforcementMode = 'strict' | 'gentle';
 
 /**
  * Ad-hoc focus session configuration for policy
- * Requirements: 2.3
+ * Requirements: 2.3, 13.1, 13.2
  */
 export interface AdhocFocusSession {
   /** Whether an ad-hoc focus session is currently active */
   active: boolean;
   /** Unix timestamp when the session ends */
   endTime: number;
+  /** Whether this session overrides sleep time enforcement */
+  overridesSleepTime?: boolean;
 }
 
 /**
@@ -1289,9 +1291,11 @@ export const DistractionAppSchema = z.object({
 });
 
 // Ad-hoc focus session schema
+// Requirements: 2.3, 13.1, 13.2
 export const AdhocFocusSessionSchema = z.object({
   active: z.boolean(),
   endTime: z.number().int().positive(),
+  overridesSleepTime: z.boolean().optional(),
 });
 
 // Sleep enforcement app schema for policy
