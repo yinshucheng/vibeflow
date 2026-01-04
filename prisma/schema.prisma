@@ -37,6 +37,13 @@ model User {
   sleepExemptions          SleepExemption[]
   dailyEntertainmentStates DailyEntertainmentState[]
   workStartRecords         WorkStartRecord[]
+  blockers                 Blocker[]
+  mcpAuditLogs             MCPAuditLog[]
+  mcpEvents                MCPEvent[]
+  mcpSubscriptions         MCPSubscription[]
+  taskDecompositionFeedbacks TaskDecompositionFeedback[]
+  suggestionFeedbacks      SuggestionFeedback[]
+  projectTemplates         ProjectTemplate[]
 }
 
 model UserSettings {
@@ -199,6 +206,8 @@ model Task {
   userId    String
   user      User       @relation(fields: [userId], references: [id])
   pomodoros Pomodoro[]
+  blockers  Blocker[]
+  taskDecompositionFeedbacks TaskDecompositionFeedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -562,4 +571,130 @@ model WorkStartRecord {
   @@unique([userId, date])
   @@index([userId])
   @@index([userId, date])
+}
+
+// Blocker model for AI-Native Enhancement (Requirements 5.1, 5.2, 5.4, 5.5)
+// Tracks blockers reported by users or detected by the system
+model Blocker {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  category    String   // 'technical' | 'dependency' | 'unclear_requirements' | 'other'
+  description String
+  status      String   @default("active") // 'active' | 'resolved'
+  resolution  String?
+
+  // External dependency tracking (Requirement 5.4)
+  dependencyType       String?   // 'person' | 'system' | 'external'
+  dependencyIdentifier String?
+  expectedResolution   DateTime?
+
+  reportedAt DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([userId, status])
+  @@index([taskId])
+  @@index([userId])
+}
+
+
+// MCP Audit Log model for AI-Native Enhancement (Requirement 4.5)
+// Tracks all MCP tool calls for audit and learning purposes
+model MCPAuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId   String
+  toolName  String
+  input     Json
+  output    Json
+  success   Boolean
+  duration  Int      // milliseconds
+  timestamp DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([toolName])
+  @@index([agentId])
+}
+
+// MCP Event model for AI-Native Enhancement (Requirement 10.5)
+// Stores event history for the last 24 hours for late-joining agents
+model MCPEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // 'task.status_changed' | 'pomodoro.started' | 'daily_state.changed' | etc.
+  payload   Json
+  timestamp DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([type])
+  @@index([userId, type, timestamp])
+}
+
+// MCP Subscription model for AI-Native Enhancement (Requirements 10.1, 10.2, 10.3)
+// Tracks event subscriptions for AI agents
+model MCPSubscription {
+  id         String   @id @default(uuid())
+  agentId    String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventTypes String[] // Array of event type strings
+  createdAt  DateTime @default(now())
+
+  @@unique([agentId, userId])
+  @@index([userId])
+  @@index([agentId])
+}
+
+
+// Task Decomposition Feedback model for AI-Native Enhancement (Requirement 2.5)
+// Records user acceptance/rejection patterns for task decomposition suggestions
+model TaskDecompositionFeedback {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  suggestions Json     // Original suggestions array
+  accepted    String[] // Accepted suggestion titles
+  rejected    String[] // Rejected suggestion titles
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([taskId])
+}
+
+// Suggestion Feedback model for AI-Native Enhancement (Requirements 3.5, 9.5)
+// Records user feedback on task suggestions for learning
+model SuggestionFeedback {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestionId String
+  taskId       String?
+  action       String   // 'accepted' | 'dismissed' | 'modified'
+  context      Json?    // Trigger context (pomodoro_complete, idle_detected, airlock_entry, manual)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([suggestionId])
+}
+
+// Project Template model for AI-Native Enhancement (Requirement 4.2)
+// Stores project templates for scaffolding new projects
+model ProjectTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  structure   Json     // Template structure definition with tasks
+  isSystem    Boolean  @default(false) // System preset vs user-defined
+  userId      String?  // null for system templates
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([isSystem])
 }
