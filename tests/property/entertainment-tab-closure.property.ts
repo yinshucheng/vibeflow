@@ -386,10 +386,10 @@ describe('Property 15: Entertainment Tab Closure on Mode End', () => {
           }
           
           // Property: All non-entertainment and internal tabs should remain
-          const nonEntertainmentIds = new Set([
+          const nonEntertainmentIds = [
             ...nonEntertainmentTabs.map((_, i) => entertainmentTabs.length + i + 1),
             ...internalTabs.map((_, i) => entertainmentTabs.length + nonEntertainmentTabs.length + i + 1),
-          ]);
+          ];
           
           for (const id of nonEntertainmentIds) {
             const tab = allTabs.find(t => t.id === id);

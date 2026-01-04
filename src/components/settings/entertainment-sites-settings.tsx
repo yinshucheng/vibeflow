@@ -460,7 +460,7 @@ export function EntertainmentSitesSettings() {
   useEffect(() => {
     if (settings) {
       // Type assertion needed as Prisma types may not be fully synced
-      const settingsData = settings as {
+      const settingsData = settings as unknown as {
         entertainmentBlacklist?: EntertainmentBlacklistEntry[];
         entertainmentWhitelist?: EntertainmentWhitelistEntry[];
       };
@@ -544,7 +544,7 @@ export function EntertainmentSitesSettings() {
   const handleReset = () => {
     if (settings) {
       // Type assertion needed as Prisma types may not be fully synced
-      const settingsData = settings as {
+      const settingsData = settings as unknown as {
         entertainmentBlacklist?: EntertainmentBlacklistEntry[];
         entertainmentWhitelist?: EntertainmentWhitelistEntry[];
       };
