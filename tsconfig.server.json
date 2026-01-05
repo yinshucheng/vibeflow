@@ -5,8 +5,12 @@
     "moduleResolution": "Node",
     "outDir": "./dist",
     "noEmit": false,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["server.ts", "src/server/**/*.ts", "src/lib/**/*.ts", "src/services/**/*.ts"],
+  "include": ["server.ts", "src/server/**/*.ts", "src/lib/**/*.ts", "src/services/**/*.ts", "src/mcp/**/*.ts"],
   "exclude": ["node_modules"]
 }

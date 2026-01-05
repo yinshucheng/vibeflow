@@ -1,4 +1,27 @@
 {
   "mcpServers": {
+    "vibeflow": {
+      "command": "npx",
+      "args": [
+        "ts-node",
+        "-r",
+        "tsconfig-paths/register",
+        "--project",
+        "tsconfig.server.json",
+        "--transpile-only",
+        "src/mcp/run.ts"
+      ],
+      "env": {
+        "DEV_MODE": "true"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "vibe.get_task_context",
+        "vibe.generate_daily_summary",
+        "vibe.create_task_from_nl",
+        "vibe.analyze_task_dependencies",
+        "vibe.start_pomodoro"
+      ]
+    }
   }
 }
