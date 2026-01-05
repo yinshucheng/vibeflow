@@ -128,8 +128,8 @@
       <p>回顾昨日完成情况，选择今日 Top 3 任务，开启高效的一天。完成 Airlock 后即可正常使用浏览器。</p>
     </div>
     <div class="actions">
-      <button class="btn btn-primary" onclick="openDashboard()">🚀 开始今日计划</button>
-      <button class="btn btn-secondary" onclick="goBack()">返回上一页</button>
+      <button class="btn btn-primary" id="btn-start">🚀 开始今日计划</button>
+      <button class="btn btn-secondary" id="btn-back">返回上一页</button>
     </div>
     <p class="quote">"良好的开始是成功的一半。" — 亚里士多德</p>
   </div>
@@ -148,6 +148,10 @@
         openDashboard();
       }
     }
+
+    // 使用 addEventListener 绑定事件，避免 CSP 内联脚本限制
+    document.getElementById('btn-start').addEventListener('click', openDashboard);
+    document.getElementById('btn-back').addEventListener('click', goBack);
   </script>
 </body>
 </html>

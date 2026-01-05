@@ -78,10 +78,10 @@
   "mcpServers": {
     "vibeflow": {
       "command": "node",
-      "args": ["--loader", "ts-node/esm", "<path-to-vibeflow>/src/mcp/run.ts"],
+      "args": ["--loader", "ts-node/esm", "/Users/yinshucheng/code/creo/vibeflow/src/mcp/run.ts"],
       "env": {
-        "DATABASE_URL": "postgresql://user:pass@localhost:5432/vibeflow",
-        "MCP_USER_EMAIL": "your@email.com"
+        "DATABASE_URL": "postgresql://yinshucheng@localhost:5432/vibeflow",
+        "MCP_USER_EMAIL": "dev@vibeflow.local"
       }
     }
   }
