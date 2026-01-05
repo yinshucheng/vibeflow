@@ -165,7 +165,21 @@ export const entertainmentService = {
       
       const quotaTotal = settings?.entertainmentQuotaMinutes ?? DEFAULT_QUOTA_MINUTES;
       const cooldownMinutes = settings?.entertainmentCooldownMinutes ?? DEFAULT_COOLDOWN_MINUTES;
-      const workTimeSlots = (settings?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
+      
+      // Safely parse work time slots with validation
+      let workTimeSlots: WorkTimeSlot[] = [];
+      try {
+        const rawSlots = settings?.workTimeSlots;
+        if (Array.isArray(rawSlots)) {
+          workTimeSlots = rawSlots as WorkTimeSlot[];
+        } else if (rawSlots && typeof rawSlots === 'object') {
+          // Handle case where it's stored as JSON
+          workTimeSlots = JSON.parse(JSON.stringify(rawSlots)) as WorkTimeSlot[];
+        }
+      } catch (error) {
+        console.warn('[EntertainmentService] Failed to parse workTimeSlots:', error);
+        workTimeSlots = [];
+      }
       
       // Get or create today's entertainment state
       let dailyState = await prisma.dailyEntertainmentState.findUnique({
@@ -192,7 +206,16 @@ export const entertainmentService = {
       const isActive = dailyState.activeSessionId !== null;
       const quotaUsed = dailyState.quotaUsedMinutes;
       const quotaRemaining = Math.max(0, quotaTotal - quotaUsed);
-      const withinWorkTime = isWithinWorkHours(workTimeSlots);
+      
+      // Safely check work hours with error handling
+      let withinWorkTime = false;
+      try {
+        withinWorkTime = isWithinWorkHours(workTimeSlots);
+      } catch (error) {
+        console.warn('[EntertainmentService] Failed to check work hours:', error);
+        withinWorkTime = false; // Default to false for safety
+      }
+      
       const cooldownEndTime = getCooldownEndTime(dailyState.lastSessionEndTime, cooldownMinutes);
       const cooldownComplete = isCooldownComplete(dailyState.lastSessionEndTime, cooldownMinutes);
       
@@ -780,8 +803,28 @@ export const entertainmentService = {
         where: { userId },
       });
       
-      const workTimeSlots = (settings?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
-      const withinWorkTime = isWithinWorkHours(workTimeSlots);
+      // Safely parse work time slots with validation
+      let workTimeSlots: WorkTimeSlot[] = [];
+      try {
+        const rawSlots = settings?.workTimeSlots;
+        if (Array.isArray(rawSlots)) {
+          workTimeSlots = rawSlots as WorkTimeSlot[];
+        } else if (rawSlots && typeof rawSlots === 'object') {
+          workTimeSlots = JSON.parse(JSON.stringify(rawSlots)) as WorkTimeSlot[];
+        }
+      } catch (error) {
+        console.warn('[EntertainmentService] Failed to parse workTimeSlots in updateSettings:', error);
+        workTimeSlots = [];
+      }
+      
+      // Safely check work hours with error handling
+      let withinWorkTime = false;
+      try {
+        withinWorkTime = isWithinWorkHours(workTimeSlots);
+      } catch (error) {
+        console.warn('[EntertainmentService] Failed to check work hours in updateSettings:', error);
+        withinWorkTime = false; // Default to false for safety
+      }
       
       if (withinWorkTime) {
         return {

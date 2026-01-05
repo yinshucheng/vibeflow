@@ -523,8 +523,8 @@ export function TimelineView({
                         <div className="mt-1">
                           <p className="text-xs text-purple-600 mb-1">访问的网站:</p>
                           <div className="flex flex-wrap gap-1">
-                            {(metadata.sitesVisited as string[]).slice(0, 5).map((site, idx) => (
-                              <span key={idx} className="px-1.5 py-0.5 bg-purple-50 text-purple-600 text-xs rounded">
+                            {(metadata.sitesVisited as string[]).slice(0, 5).map((site) => (
+                              <span key={site} className="px-1.5 py-0.5 bg-purple-50 text-purple-600 text-xs rounded">
                                 {site}
                               </span>
                             ))}

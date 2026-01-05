@@ -161,9 +161,9 @@ export function WorkStartStats({ days = 30 }: WorkStartStatsProps) {
             <div className="p-4 bg-gray-50 rounded-lg">
               {/* Simple bar chart */}
               <div className="flex items-end justify-between gap-1 h-24">
-                {trendData.slice(-14).map((item, idx) => (
+                {trendData.slice(-14).map((item) => (
                   <div 
-                    key={idx}
+                    key={item.date}
                     className="flex-1 flex flex-col items-center"
                     title={`${item.date}: ${item.delay === 0 ? '准时' : `延迟${item.delay}分钟`}`}
                   >
@@ -207,9 +207,9 @@ export function WorkStartStats({ days = 30 }: WorkStartStatsProps) {
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2">最近记录</h4>
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {trend.slice(-7).reverse().map((record, idx) => (
+              {trend.slice(-7).reverse().map((record) => (
                 <div 
-                  key={idx}
+                  key={record.date}
                   className={`flex items-center justify-between p-2 rounded ${getDelayBgColor(record.delayMinutes)}`}
                 >
                   <span className="text-sm text-gray-600">{record.date}</span>
