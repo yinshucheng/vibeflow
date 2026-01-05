@@ -1,0 +1,291 @@
+/**
+ * Settings Screen (Read-Only)
+ *
+ * Displays user info, blocked apps, and app status.
+ * All content is read-only - no editable settings.
+ *
+ * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
+ */
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  SafeAreaView,
+} from 'react-native';
+import {
+  useConnectionStatus,
+  useUserInfo,
+  useBlockingState,
+} from '@/store/app.store';
+import { blockingService } from '@/services/blocking.service';
+import { useTheme } from '@/theme';
+import type { AuthorizationStatus } from '@/types';
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+const APP_VERSION = '1.0.0';
+
+// =============================================================================
+// SECTION COMPONENT
+// =============================================================================
+
+interface SectionProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+function Section({ title, children }: SectionProps): React.JSX.Element {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.section}>
+      <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>
+        {title}
+      </Text>
+      <View style={[styles.sectionContent, { backgroundColor: theme.colors.card }]}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
+// =============================================================================
+// ROW COMPONENT
+// =============================================================================
+
+interface RowProps {
+  label: string;
+  value: string;
+  isLast?: boolean;
+}
+
+function Row({ label, value, isLast = false }: RowProps): React.JSX.Element {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.row,
+        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
+      ]}
+    >
+      <Text style={[styles.rowLabel, { color: theme.colors.text }]}>{label}</Text>
+      <Text style={[styles.rowValue, { color: theme.colors.textSecondary }]}>{value}</Text>
+    </View>
+  );
+}
+
+// =============================================================================
+// BLOCKED APP ROW
+// =============================================================================
+
+interface BlockedAppRowProps {
+  name: string;
+  bundleId: string;
+  isLast?: boolean;
+}
+
+function BlockedAppRow({ name, bundleId, isLast = false }: BlockedAppRowProps): React.JSX.Element {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.row,
+        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
+      ]}
+    >
+      <View>
+        <Text style={[styles.rowLabel, { color: theme.colors.text }]}>{name}</Text>
+        <Text style={[styles.bundleId, { color: theme.colors.textMuted }]}>{bundleId}</Text>
+      </View>
+    </View>
+  );
+}
+
+// =============================================================================
+// AUTHORIZATION STATUS BADGE
+// =============================================================================
+
+interface AuthStatusBadgeProps {
+  status: AuthorizationStatus;
+}
+
+function AuthStatusBadge({ status }: AuthStatusBadgeProps): React.JSX.Element {
+  const theme = useTheme();
+
+  const statusConfig: Record<AuthorizationStatus, { label: string; color: string }> = {
+    authorized: { label: '已授权', color: theme.colors.success },
+    denied: { label: '已拒绝', color: theme.colors.error },
+    notDetermined: { label: '未请求', color: theme.colors.warning },
+    restricted: { label: '受限', color: theme.colors.textMuted },
+  };
+
+  const config = statusConfig[status];
+
+  return (
+    <View style={[styles.badge, { backgroundColor: config.color + '20' }]}>
+      <Text style={[styles.badgeText, { color: config.color }]}>{config.label}</Text>
+    </View>
+  );
+}
+
+// =============================================================================
+// SETTINGS SCREEN
+// =============================================================================
+
+export function SettingsScreen(): React.JSX.Element {
+  const theme = useTheme();
+  const connectionStatus = useConnectionStatus();
+  const { userEmail } = useUserInfo();
+  const { blockedApps, isBlockingActive } = useBlockingState();
+  const [authStatus, setAuthStatus] = useState<AuthorizationStatus>('notDetermined');
+
+  // Load authorization status on mount
+  useEffect(() => {
+    const loadAuthStatus = async (): Promise<void> => {
+      const status = await blockingService.getAuthorizationStatus();
+      setAuthStatus(status);
+    };
+    loadAuthStatus();
+  }, []);
+
+  const connectionStatusText = {
+    connected: '已连接',
+    connecting: '连接中...',
+    disconnected: '离线',
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView style={styles.scrollView}>
+        {/* User Info Section */}
+        <Section title="用户信息">
+          <Row label="邮箱" value={userEmail ?? 'test@example.com'} isLast />
+        </Section>
+
+        {/* Screen Time Section */}
+        <Section title="屏幕使用时间">
+          <View style={styles.row}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>授权状态</Text>
+            <AuthStatusBadge status={authStatus} />
+          </View>
+          <Row
+            label="屏蔽状态"
+            value={isBlockingActive ? '已启用' : '未启用'}
+            isLast
+          />
+        </Section>
+
+        {/* Blocked Apps Section */}
+        <Section title="屏蔽应用列表">
+          {blockedApps.length > 0 ? (
+            blockedApps.map((app, index) => (
+              <BlockedAppRow
+                key={app.bundleId}
+                name={app.name}
+                bundleId={app.bundleId}
+                isLast={index === blockedApps.length - 1}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
+                暂无屏蔽应用
+              </Text>
+            </View>
+          )}
+        </Section>
+
+        {/* App Info Section */}
+        <Section title="应用信息">
+          <Row label="版本" value={APP_VERSION} />
+          <Row label="连接状态" value={connectionStatusText[connectionStatus]} isLast />
+        </Section>
+
+        {/* Read-Only Notice */}
+        <View style={styles.notice}>
+          <Text style={[styles.noticeText, { color: theme.colors.textMuted }]}>
+            所有设置均为只读，请在 Web 端修改设置
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// =============================================================================
+// STYLES
+// =============================================================================
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  sectionContent: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  rowLabel: {
+    fontSize: 16,
+  },
+  rowValue: {
+    fontSize: 16,
+  },
+  bundleId: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  emptyState: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+  },
+  notice: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  noticeText: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+});
+
+export default SettingsScreen;
