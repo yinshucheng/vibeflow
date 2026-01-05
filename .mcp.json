@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "vibeflow": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "tsx",
+        "src/mcp/run.ts"
+      ],
+      "env": {
+        "DATABASE_URL": "postgresql://yinshucheng@localhost:5432/vibeflow?schema=public",
+        "MCP_USER_EMAIL": "dev@vibeflow.local"
+      }
+    }
+  }
+}
