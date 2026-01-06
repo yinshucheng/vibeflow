@@ -33,7 +33,7 @@ export function PomodoroCompletionModal({
   const [showAutoStartCountdown, setShowAutoStartCountdown] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isWaitingForConfirmation, setIsWaitingForConfirmation] = useState(false);
-  const confirmationSoundIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const confirmationSoundIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasPlayedInitialSound = useRef(false);
 
   // Get user settings for auto-start config

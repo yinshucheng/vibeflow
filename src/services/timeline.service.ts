@@ -768,7 +768,6 @@ export const timelineService = {
       const { start, end } = getDayBounds(date);
 
       // Get offline events for the day
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const offlineEvents = await (prisma as any).clientOfflineEvent.findMany({
         where: {
           userId,

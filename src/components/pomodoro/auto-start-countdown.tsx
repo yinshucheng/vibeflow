@@ -38,7 +38,7 @@ export function AutoStartCountdown({
   const [timeRemaining, setTimeRemaining] = useState(countdownSeconds);
   const [isPaused, setIsPaused] = useState(false);
   const hasPlayedSound = useRef(false);
-  const soundIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const soundIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Play sound periodically during countdown (Requirements 7.6)
   useEffect(() => {

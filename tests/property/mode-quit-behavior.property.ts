@@ -323,14 +323,14 @@ describe('Property 1: Mode-Based Quit Behavior', () => {
           // Try to find a time before the first slot
           const firstStart = parseTimeToMinutes(sortedSlots[0].startTime);
           let currentTime: number;
-          
+
           if (firstStart > 0) {
             currentTime = 0; // Before first slot
           } else {
             // Try after the last slot
             const lastEnd = parseTimeToMinutes(sortedSlots[sortedSlots.length - 1].endTime);
             if (lastEnd < 1439) {
-              currentTime = lastEnd; // After last slot
+              currentTime = lastEnd + 1; // After last slot (add 1 to ensure outside)
             } else {
               // Skip this test case if no time outside slots
               return true;

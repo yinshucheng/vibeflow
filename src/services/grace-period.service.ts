@@ -287,7 +287,6 @@ export const gracePeriodService = {
       
       // If client reconnected within grace period, mark the offline event
       if (!wasExpired && gracePeriod.offlineEventId) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (prisma as any).clientOfflineEvent.update({
           where: { id: gracePeriod.offlineEventId },
           data: { gracePeriodUsed: true },
@@ -389,7 +388,6 @@ export const gracePeriodService = {
         
         if (wasInWorkHours) {
           // Record bypass attempt
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (prisma as any).bypassAttempt.create({
             data: {
               userId: gracePeriod.userId,
@@ -408,7 +406,6 @@ export const gracePeriodService = {
           
           // Update the offline event if it exists
           if (gracePeriod.offlineEventId) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (prisma as any).clientOfflineEvent.update({
               where: { id: gracePeriod.offlineEventId },
               data: { isBypassAttempt: true },
@@ -530,7 +527,6 @@ export const gracePeriodService = {
       // If no grace period exists, check based on duration
       if (!gracePeriod) {
         // Get the client to find the user
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const client = await (prisma as any).clientConnection.findUnique({
           where: { clientId },
         });

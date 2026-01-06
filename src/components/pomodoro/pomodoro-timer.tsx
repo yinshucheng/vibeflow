@@ -91,10 +91,27 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
   }, []);
 
   // Stop tab flash when component unmounts or tab becomes visible
+  // Also sync timer state when tab becomes visible again
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (!document.hidden) {
         stopTabFlash();
+        
+        // When tab becomes visible, sync with server state
+        if (currentPomodoro && isRunning) {
+          const serverRemaining = calculateRemainingSeconds(
+            currentPomodoro.startTime,
+            currentPomodoro.duration
+          );
+          
+          if (serverRemaining <= 0) {
+            // Pomodoro should be completed - refetch to get updated state
+            await refetchCurrent();
+          } else {
+            // Update local timer to match server
+            setTimeRemaining(serverRemaining);
+          }
+        }
       }
     };
     
@@ -103,7 +120,7 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       stopTabFlash();
     };
-  }, []);
+  }, [currentPomodoro, isRunning, refetchCurrent]);
 
   // Mutations
   const startMutation = trpc.pomodoro.start.useMutation({
@@ -154,6 +171,7 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       setIsRecovering(true);
       
       // First, check server for current session (Requirement 1.2, 1.3)
+      // The server will automatically complete any expired sessions
       if (currentPomodoro) {
         const remaining = calculateRemainingSeconds(
           currentPomodoro.startTime,
@@ -175,14 +193,12 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
               task: currentPomodoro.task,
             });
           }
-        } else if (!hasHandledExpiredSession.current) {
-          // Session has expired during page refresh (Requirement 1.4)
-          hasHandledExpiredSession.current = true;
-          try {
-            await completeMutation.mutateAsync({ id: currentPomodoro.id });
-          } catch (error) {
-            console.error('Failed to complete expired session:', error);
-          }
+        } else {
+          // Session should have been completed by server already
+          // Clear any stale cache and reset state
+          clearPomodoroCache();
+          setIsRunning(false);
+          setTimeRemaining(0);
         }
       } else {
         // No server session - check local cache for recovery hints
@@ -204,7 +220,7 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
     if (!pomodoroLoading) {
       recoverState();
     }
-  }, [currentPomodoro, pomodoroLoading]);
+  }, [currentPomodoro, pomodoroLoading, refetchCurrent]);
 
   // Calculate remaining time from current pomodoro (Requirement 1.2)
   useEffect(() => {
@@ -233,7 +249,7 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
     }
   }, [currentPomodoro, isRecovering]);
 
-  // Countdown timer with auto-completion
+  // Countdown timer with auto-completion and periodic server sync
   useEffect(() => {
     if (!isRunning || timeRemaining <= 0) return;
 
@@ -251,8 +267,38 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       });
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [isRunning, timeRemaining, currentPomodoro]);
+    // Periodic server sync to handle cases where tab was inactive
+    // Check every 10 seconds to ensure we're still in sync and handle auto-completion
+    const syncInterval = setInterval(async () => {
+      if (currentPomodoro) {
+        const serverRemaining = calculateRemainingSeconds(
+          currentPomodoro.startTime,
+          currentPomodoro.duration
+        );
+        
+        // If server says the pomodoro should be completed, complete it immediately
+        if (serverRemaining <= 0) {
+          setIsRunning(false);
+          setTimeRemaining(0);
+          // Auto-complete if not already completed
+          if (currentPomodoro.status === 'IN_PROGRESS') {
+            completeMutation.mutate({ id: currentPomodoro.id });
+          } else {
+            // Already completed on server, just refetch to sync state
+            await refetchCurrent();
+          }
+        } else {
+          // Sync local timer with server calculation
+          setTimeRemaining(serverRemaining);
+        }
+      }
+    }, 10000); // Check every 10 seconds for more responsive auto-completion
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(syncInterval);
+    };
+  }, [isRunning, timeRemaining, currentPomodoro, refetchCurrent, completeMutation]);
 
   // Format time as MM:SS
   const formatTime = useCallback((seconds: number) => {

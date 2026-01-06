@@ -30,7 +30,7 @@ const DEFAULT_CONFIG: NotificationConfig = {
 const audioCache: Map<NotificationSoundType, HTMLAudioElement> = new Map();
 
 // Tab title flashing state
-let flashInterval: NodeJS.Timeout | null = null;
+let flashInterval: ReturnType<typeof setInterval> | null = null;
 let originalTitle: string = '';
 
 /**

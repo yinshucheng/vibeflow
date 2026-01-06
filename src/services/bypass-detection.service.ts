@@ -247,7 +247,6 @@ export const bypassDetectionService = {
       }
       
       // Create the bypass attempt record
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const bypassAttempt = await (prisma as any).bypassAttempt.create({
         data: {
           userId,
@@ -311,7 +310,6 @@ export const bypassDetectionService = {
       startDate.setHours(0, 0, 0, 0);
       
       // Get bypass attempts in the time period
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const bypassAttempts = await (prisma as any).bypassAttempt.findMany({
         where: {
           userId,
@@ -386,7 +384,6 @@ export const bypassDetectionService = {
       startDate.setDate(startDate.getDate() - days);
       startDate.setHours(0, 0, 0, 0);
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const bypassAttempts = await (prisma as any).bypassAttempt.findMany({
         where: {
           userId,
@@ -555,7 +552,6 @@ export const bypassDetectionService = {
    */
   async getLastBypassEvent(userId: string): Promise<ServiceResult<BypassEvent | null>> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const bypassAttempt = await (prisma as any).bypassAttempt.findFirst({
         where: { userId },
         orderBy: { timestamp: 'desc' },
@@ -595,7 +591,6 @@ export const bypassDetectionService = {
    */
   async clearBypassHistory(userId: string): Promise<ServiceResult<{ deleted: number }>> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (prisma as any).bypassAttempt.deleteMany({
         where: { userId },
       });

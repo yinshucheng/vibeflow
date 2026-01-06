@@ -20,7 +20,7 @@ import { registerMCPEventBroadcaster as registerMCPServiceBroadcaster, mcpEventS
 import { dailyResetSchedulerService } from '@/services/daily-reset-scheduler.service';
 
 let isInitialized = false;
-let mcpEventCleanupInterval: NodeJS.Timeout | null = null;
+let mcpEventCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Initialize Socket.io server with an HTTP server

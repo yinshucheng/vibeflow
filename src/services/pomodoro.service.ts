@@ -196,11 +196,33 @@ export const pomodoroService = {
         };
       }
 
+      // Calculate the correct endTime based on startTime + duration
+      // This ensures consistent timing regardless of when completion is triggered
+      const expectedEndTime = new Date(existing.startTime.getTime() + existing.duration * 60 * 1000);
+      const actualEndTime = new Date();
+      
+      // Use the expected end time if the pomodoro ran its full duration,
+      // or actual time if it was completed early (manual completion)
+      // But never use a time that's earlier than the start time
+      let endTime: Date;
+      if (actualEndTime >= expectedEndTime) {
+        // Pomodoro ran its full duration - use expected end time for consistency
+        endTime = expectedEndTime;
+      } else if (actualEndTime > existing.startTime) {
+        // Manual completion before full duration - use actual time
+        endTime = actualEndTime;
+      } else {
+        // Edge case: actual time is somehow before start time (clock issues)
+        // Use expected end time to maintain data integrity
+        console.warn(`Clock inconsistency detected for pomodoro ${id}: actualTime < startTime`);
+        endTime = expectedEndTime;
+      }
+
       const pomodoro = await prisma.pomodoro.update({
         where: { id },
         data: {
           status: 'COMPLETED',
-          endTime: new Date(),
+          endTime: endTime,
           summary: validated.summary,
         },
         include: {
@@ -462,10 +484,88 @@ export const pomodoroService = {
   },
 
   /**
+   * Check for and complete any expired pomodoros
+   * This should be called when getting current pomodoro to ensure data consistency
+   */
+  async completeExpiredPomodoros(userId: string): Promise<ServiceResult<number>> {
+    try {
+      // Find all in-progress pomodoros that have exceeded their duration
+      const expiredPomodoros = await prisma.pomodoro.findMany({
+        where: {
+          userId,
+          status: 'IN_PROGRESS',
+        },
+        include: {
+          task: {
+            select: {
+              id: true,
+              title: true,
+              projectId: true,
+            },
+          },
+        },
+      });
+
+      let completedCount = 0;
+
+      for (const pomodoro of expiredPomodoros) {
+        const expectedEndTime = new Date(pomodoro.startTime.getTime() + pomodoro.duration * 60 * 1000);
+        const now = new Date();
+
+        if (now >= expectedEndTime) {
+          // This pomodoro has expired - complete it automatically with expected end time
+          try {
+            await prisma.pomodoro.update({
+              where: { id: pomodoro.id },
+              data: {
+                status: 'COMPLETED',
+                endTime: expectedEndTime, // Use expected end time for consistency
+                summary: 'Auto-completed (expired)',
+              },
+            });
+
+            // Publish pomodoro.completed event
+            await mcpEventService.publish({
+              type: 'pomodoro.completed',
+              userId,
+              payload: {
+                pomodoroId: pomodoro.id,
+                taskId: pomodoro.taskId,
+                taskTitle: pomodoro.task.title,
+                duration: pomodoro.duration,
+                startTime: pomodoro.startTime.toISOString(),
+                endTime: expectedEndTime.toISOString(),
+                summary: 'Auto-completed (expired)',
+              },
+            });
+
+            completedCount++;
+          } catch (error) {
+            console.error(`Failed to auto-complete expired pomodoro ${pomodoro.id}:`, error);
+          }
+        }
+      }
+
+      return { success: true, data: completedCount };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to complete expired pomodoros',
+        },
+      };
+    }
+  },
+
+  /**
    * Get current in-progress pomodoro
    */
   async getCurrent(userId: string): Promise<ServiceResult<PomodoroWithTask | null>> {
     try {
+      // First, complete any expired pomodoros
+      await this.completeExpiredPomodoros(userId);
+
       const pomodoro = await prisma.pomodoro.findFirst({
         where: {
           userId,

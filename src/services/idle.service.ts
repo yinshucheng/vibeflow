@@ -207,7 +207,7 @@ export function shouldTriggerIdleAlert(
 export class IdleService {
   private config: IdleConfig;
   private state: IdleState;
-  private checkInterval: NodeJS.Timeout | null = null;
+  private checkInterval: ReturnType<typeof setInterval> | null = null;
   private alertCallbacks: Set<IdleAlertCallback> = new Set();
   private readonly CHECK_INTERVAL_MS = 30000; // Check every 30 seconds
   

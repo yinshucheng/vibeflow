@@ -275,9 +275,9 @@ const InterruptionEventSchema = z.object({
 export class VibeFlowSocketServer {
   private io: Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData> | null = null;
   private userRooms: Map<string, Set<string>> = new Map(); // userId -> Set of socket IDs
-  private staleClientCheckInterval: NodeJS.Timeout | null = null;
-  private commandCleanupInterval: NodeJS.Timeout | null = null;
-  private overRestCheckInterval: NodeJS.Timeout | null = null;
+  private staleClientCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private commandCleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private overRestCheckInterval: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Initialize the Socket.io server

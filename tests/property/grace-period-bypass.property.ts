@@ -312,7 +312,7 @@ describe('Property 4: Grace Period Bypass Prevention', () => {
         fc.array(clientIdArb, { minLength: 1, maxLength: 5 }),
         async (clientIds) => {
           // Ensure unique client IDs
-          const uniqueClientIds = [...new Set(clientIds)];
+          const uniqueClientIds = Array.from(new Set(clientIds));
           
           // Start grace periods for all clients
           for (const clientId of uniqueClientIds) {

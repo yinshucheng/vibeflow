@@ -41,7 +41,7 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
   const [quote] = useState(() => 
     motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]
   );
-  const confirmationSoundIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const confirmationSoundIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasPlayedInitialSound = useRef(false);
 
   const utils = trpc.useUtils();
@@ -220,10 +220,20 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
   // Handle auto-start pomodoro (Requirements 7.2, 7.5)
   const handleAutoStartPomodoro = useCallback(async () => {
     if (!nextTaskId) {
-      handleEndRest();
+      // End rest inline
+      if (confirmationSoundIntervalRef.current) {
+        clearInterval(confirmationSoundIntervalRef.current);
+        confirmationSoundIntervalRef.current = null;
+      }
+      setIsWaitingForConfirmation(false);
+      try {
+        await updateStateMutation.mutateAsync('planning');
+      } catch {
+        onRestComplete();
+      }
       return;
     }
-    
+
     try {
       await startPomodoroMutation.mutateAsync({
         taskId: nextTaskId,
@@ -232,9 +242,18 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
     } catch (error) {
       console.error('Failed to auto-start pomodoro:', error);
       // Fallback: just end rest
-      handleEndRest();
+      if (confirmationSoundIntervalRef.current) {
+        clearInterval(confirmationSoundIntervalRef.current);
+        confirmationSoundIntervalRef.current = null;
+      }
+      setIsWaitingForConfirmation(false);
+      try {
+        await updateStateMutation.mutateAsync('planning');
+      } catch {
+        onRestComplete();
+      }
     }
-  }, [nextTaskId, autoStartSettings.pomodoroDuration, startPomodoroMutation]);
+  }, [nextTaskId, autoStartSettings.pomodoroDuration, startPomodoroMutation, updateStateMutation, onRestComplete]);
 
   // Handle cancel auto-start
   const handleCancelAutoStart = useCallback(() => {

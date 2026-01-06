@@ -118,7 +118,7 @@ export const HeartbeatPayloadSchema = z.object({
 // In-memory state for offline detection scheduler
 // ============================================================================
 
-let offlineDetectionInterval: NodeJS.Timeout | null = null;
+let offlineDetectionInterval: ReturnType<typeof setInterval> | null = null;
 
 // ============================================================================
 // Helper Functions
@@ -172,7 +172,6 @@ export const heartbeatService = {
       const now = new Date();
 
       // Upsert the client connection record
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const client = await (prisma as any).clientConnection.upsert({
         where: { clientId: validated.clientId },
         update: {
@@ -194,7 +193,6 @@ export const heartbeatService = {
       }) as ClientConnectionRecord;
 
       // If client was previously offline, close any open offline events
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const openOfflineEvent = await (prisma as any).clientOfflineEvent.findFirst({
         where: {
           clientId: validated.clientId,
@@ -207,7 +205,6 @@ export const heartbeatService = {
           (now.getTime() - openOfflineEvent.startedAt.getTime()) / 1000
         );
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (prisma as any).clientOfflineEvent.update({
           where: { id: openOfflineEvent.id },
           data: {
@@ -245,7 +242,6 @@ export const heartbeatService = {
    */
   async getClientStatus(clientId: string): Promise<ServiceResult<ClientStatus | null>> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const client = await (prisma as any).clientConnection.findUnique({
         where: { clientId },
       }) as ClientConnectionRecord | null;
@@ -281,7 +277,6 @@ export const heartbeatService = {
    */
   async getClientsByUser(userId: string): Promise<ServiceResult<ClientStatus[]>> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const clients = await (prisma as any).clientConnection.findMany({
         where: { userId },
         orderBy: { lastHeartbeat: 'desc' },
@@ -320,7 +315,6 @@ export const heartbeatService = {
     options?: { wasInWorkHours?: boolean; wasInPomodoro?: boolean }
   ): Promise<ServiceResult<ClientOfflineEventRecord>> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const client = await (prisma as any).clientConnection.findUnique({
         where: { clientId },
       }) as ClientConnectionRecord | null;
@@ -337,7 +331,6 @@ export const heartbeatService = {
 
       // Skip if already offline
       if (!client.isOnline) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const existingEvent = await (prisma as any).clientOfflineEvent.findFirst({
           where: {
             clientId,
@@ -357,14 +350,12 @@ export const heartbeatService = {
       const wasInPomodoro = options?.wasInPomodoro ?? await checkHasActivePomodoro(client.userId);
 
       // Update client status
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (prisma as any).clientConnection.update({
         where: { clientId },
         data: { isOnline: false },
       });
 
       // Create offline event record
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const offlineEvent = await (prisma as any).clientOfflineEvent.create({
         data: {
           clientId,
@@ -403,7 +394,6 @@ export const heartbeatService = {
       const cutoffTime = new Date(Date.now() - thresholdMs);
 
       // Find all online clients with stale heartbeats
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const staleClients = await (prisma as any).clientConnection.findMany({
         where: {
           isOnline: true,
@@ -447,7 +437,6 @@ export const heartbeatService = {
       startDate.setDate(startDate.getDate() - days);
       startDate.setHours(0, 0, 0, 0);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const events = await (prisma as any).clientOfflineEvent.findMany({
         where: {
           userId,

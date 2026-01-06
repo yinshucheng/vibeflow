@@ -104,7 +104,7 @@ export function DemoModeStats({ months = 3 }: DemoModeStatsProps) {
       usedCount: tokens.filter(t => t.usedAt !== null).length,
       totalDuration: tokens.reduce((sum, t) => sum + (t.durationMinutes ?? 0), 0),
     }));
-  }, [demoHistory?.tokens]);
+  }, [demoHistory]);
 
   if (isLoading) {
     return (

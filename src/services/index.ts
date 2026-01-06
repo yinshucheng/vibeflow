@@ -38,6 +38,7 @@ export type {
 } from './goal.service';
 
 export { pomodoroService } from './pomodoro.service';
+export { pomodoroSchedulerService } from './pomodoro-scheduler.service';
 export type {
   StartPomodoroInput,
   CompletePomodoroInput,
