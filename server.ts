@@ -14,6 +14,7 @@ import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { initializeSocketServer } from './src/server/socket-init';
+import { pomodoroSchedulerService } from './src/services/pomodoro-scheduler.service';
 
 // ============================================
 // Configuration
@@ -117,6 +118,9 @@ app.prepare().then(() => {
   // Initialize Socket.io server
   initializeSocketServer(httpServer);
 
+  // Start pomodoro scheduler for auto-completion
+  pomodoroSchedulerService.start();
+
   httpServer.listen(port, () => {
     console.log('\n');
     log('INFO', '═══════════════════════════════════════════════════════════');
@@ -134,6 +138,7 @@ app.prepare().then(() => {
   // Graceful shutdown
   process.on('SIGTERM', () => {
     log('WARN', '📴 SIGTERM received, shutting down gracefully...');
+    pomodoroSchedulerService.stop();
     httpServer.close(() => {
       log('INFO', '👋 Server closed');
       process.exit(0);
@@ -142,6 +147,7 @@ app.prepare().then(() => {
 
   process.on('SIGINT', () => {
     log('WARN', '📴 SIGINT received, shutting down gracefully...');
+    pomodoroSchedulerService.stop();
     httpServer.close(() => {
       log('INFO', '👋 Server closed');
       process.exit(0);

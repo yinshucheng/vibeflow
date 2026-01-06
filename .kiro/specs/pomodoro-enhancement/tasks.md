@@ -296,7 +296,7 @@
     - 在主导航中添加 Timeline 链接
     - _Requirements: 6.1_
 
-- [-] 21. Final Checkpoint - 完整功能验证
+- [x] 21. Final Checkpoint - 完整功能验证
   - 确保所有测试通过
   - 验证端到端功能流程
   - 如有问题请询问用户
