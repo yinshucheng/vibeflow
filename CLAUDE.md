@@ -74,6 +74,31 @@ Tools (executable): `vibe.complete_task`, `vibe.start_pomodoro`, `vibe.create_ta
 - Type-safe throughout (TypeScript strict mode)
 - Multi-client support with offline resilience
 
+## Code Quality Gates (必须遵守)
+
+每次代码改动后，必须按顺序通过以下检查：
+
+1. **TypeScript 编译**: `npm run build` 或 `npx tsc --noEmit`
+2. **测试通过**: `npm test`
+3. **Lint 检查**: `npm run lint`
+
+### 改动原则
+
+- 修改任何 `.ts/.tsx` 文件后，立即运行 `npm test` 验证
+- 修复一个问题时，不要引入新问题（测试回归）
+- 类型修改要考虑跨环境兼容（浏览器 vs Node.js），如 `setTimeout` 返回类型用 `ReturnType<typeof setTimeout>`
+- 测试文件修改后，确保测试仍能独立运行（检查变量作用域、异步初始化）
+
+## Steering Documents (必读)
+
+每次新需求启动前，必须先阅读 `.kiro/steering/` 目录下的文档：
+
+- `product.md` - 产品上下文、领域层级、Daily State Machine
+- `structure.md` - 目录结构、Service Layer 模式、tRPC Router 模式
+- `tech.md` - 技术栈、命令、测试工具、关键约束
+
+如果实现过程中发现文档与代码不一致，或有新的架构决策，需要同步更新 steering 文档。
+
 ## Feature Specs (Required)
 
 新功能开发必须先在 `.kiro/specs/<feature-name>/` 下创建设计文档：

@@ -110,6 +110,20 @@ cmd_start() {
     # Stop dev server if running
     stop_dev_if_running
 
+    # Stop and rebuild if production already running
+    if pm2 describe "$PM2_NAME" > /dev/null 2>&1; then
+        print_warning "检测到生产服务已运行，正在停止并重新构建..."
+        pm2 stop "$PM2_NAME" 2>/dev/null || true
+        pm2 delete "$PM2_NAME" 2>/dev/null || true
+    fi
+
+    # Build backend
+    print_info "Building backend..."
+    cd "$PROJECT_DIR"
+    rm -rf .next
+    npm run build
+    print_success "Backend built successfully"
+
     # Check for port conflicts
     if check_port $BACKEND_PORT; then
         local process_info=$(get_port_process $BACKEND_PORT)
@@ -117,18 +131,17 @@ cmd_start() {
         print_warning "Please stop the conflicting process or use a different port (VIBEFLOW_PORT=xxxx)"
         exit 1
     fi
-    
+
     # Start backend with PM2
     print_info "Starting backend server on port $BACKEND_PORT..."
-    cd "$PROJECT_DIR"
-    
+
     # Check if ecosystem.config.js exists
     if [ -f "ecosystem.config.js" ]; then
         pm2 start ecosystem.config.js --env production
     else
         pm2 start npm --name "$PM2_NAME" -- run start
     fi
-    
+
     # Wait for backend to be healthy
     print_info "Waiting for backend to be ready..."
     if check_backend_health; then
@@ -136,18 +149,23 @@ cmd_start() {
     else
         print_warning "Backend started but health check failed. Check logs with: vibeflow logs"
     fi
-    
-    # Start desktop app
-    print_info "Starting desktop application..."
-    if [ -d "/Applications/$DESKTOP_APP_NAME.app" ]; then
-        open -a "$DESKTOP_APP_NAME"
+
+    # Stop desktop app if running
+    if is_desktop_running; then
+        print_warning "检测到桌面应用已运行，正在停止并重新构建..."
+        osascript -e "quit app \"$DESKTOP_APP_NAME\"" 2>/dev/null || pkill -f "vibeflow-desktop" 2>/dev/null || true
         sleep 2
-        if is_desktop_running; then
-            print_success "Desktop application started successfully"
-        else
-            print_warning "Desktop application may not have started. Check manually."
-        fi
-    elif [ -d "$PROJECT_DIR/vibeflow-desktop/release/mac-arm64/$DESKTOP_APP_NAME.app" ]; then
+    fi
+
+    # Build and start desktop app
+    print_info "Building desktop application..."
+    cd "$PROJECT_DIR/vibeflow-desktop"
+    rm -rf release
+    npm run build:mac
+    print_success "Desktop built successfully"
+
+    print_info "Starting desktop application..."
+    if [ -d "$PROJECT_DIR/vibeflow-desktop/release/mac-arm64/$DESKTOP_APP_NAME.app" ]; then
         open "$PROJECT_DIR/vibeflow-desktop/release/mac-arm64/$DESKTOP_APP_NAME.app"
         sleep 2
         if is_desktop_running; then
@@ -155,10 +173,18 @@ cmd_start() {
         else
             print_warning "Desktop application may not have started. Check manually."
         fi
+    elif [ -d "/Applications/$DESKTOP_APP_NAME.app" ]; then
+        open -a "$DESKTOP_APP_NAME"
+        sleep 2
+        if is_desktop_running; then
+            print_success "Desktop application started successfully"
+        else
+            print_warning "Desktop application may not have started. Check manually."
+        fi
     else
-        print_warning "Desktop application not found. Build it first with: cd vibeflow-desktop && npm run build"
+        print_error "Desktop build failed"
     fi
-    
+
     echo ""
     print_success "VibeFlow services started"
 }

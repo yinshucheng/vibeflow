@@ -7,7 +7,7 @@ async function seed() {
     update: {},
     create: {
       email: 'dev@vibeflow.local',
-      name: 'Dev User',
+      password: 'dev-password-hash',
     },
   });
   console.log('User:', user.id, user.email);
@@ -15,7 +15,9 @@ async function seed() {
   const goal = await prisma.goal.create({
     data: {
       title: 'Learn TypeScript',
-      type: 'MONTHLY',
+      description: 'Master TypeScript fundamentals',
+      type: 'SHORT_TERM',
+      targetDate: new Date('2026-12-31'),
       userId: user.id,
     },
   });

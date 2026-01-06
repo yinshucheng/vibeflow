@@ -22,5 +22,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "vibeflow-extension", "vibeflow-app", "vibeflow-desktop"]
+  "exclude": ["node_modules", "vibeflow-extension", "vibeflow-app", "vibeflow-desktop", "vibeflow-ios"]
 }
