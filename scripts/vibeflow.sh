@@ -86,13 +86,30 @@ is_desktop_running() {
     pgrep -x "$DESKTOP_APP_NAME" > /dev/null 2>&1 || pgrep -f "vibeflow-desktop" > /dev/null 2>&1
 }
 
+# Stop dev server if running
+stop_dev_if_running() {
+    if check_port $BACKEND_PORT; then
+        local process_info=$(get_port_process $BACKEND_PORT)
+        if echo "$process_info" | grep -q "node"; then
+            print_warning "检测到开发服务正在运行，正在停止..."
+            # Kill node processes on the port
+            lsof -ti :$BACKEND_PORT | xargs kill -9 2>/dev/null || true
+            sleep 2
+            print_success "开发服务已停止"
+        fi
+    fi
+}
+
 # Start command
 cmd_start() {
     print_info "Starting VibeFlow services..."
     echo ""
-    
+
     check_pm2
-    
+
+    # Stop dev server if running
+    stop_dev_if_running
+
     # Check for port conflicts
     if check_port $BACKEND_PORT; then
         local process_info=$(get_port_process $BACKEND_PORT)
