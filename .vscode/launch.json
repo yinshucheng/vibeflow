@@ -1,0 +1,139 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🚀 VibeFlow Server (推荐)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "./scripts/pre-dev.sh && npm run dev",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "pattern": "URL:.+(http://[^\\s]+)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome"
+      }
+    },
+    {
+      "name": "📦 Next.js Only (无 Socket.io)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev:next",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "pattern": "- Local:.+(https?://.+)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome"
+      }
+    },
+    {
+      "name": "🔌 MCP Server",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev:mcp",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "🖥️ Desktop: Electron",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/vibeflow-desktop",
+      "env": {
+        "NODE_ENV": "development",
+        "VIBEFLOW_MODE": "development"
+      }
+    },
+    {
+      "name": "🖥️ Desktop: Electron (Staging)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/vibeflow-desktop",
+      "env": {
+        "NODE_ENV": "development",
+        "VIBEFLOW_MODE": "staging"
+      }
+    },
+    {
+      "name": "🧪 Vitest: Run Tests",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run test",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "🧪 Vitest: Watch Mode",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run test:watch",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "🎭 Playwright E2E Tests",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run e2e",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "🎭 Playwright E2E (UI Mode)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run e2e:ui",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "🗄️ Prisma Studio",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run db:studio",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "🔧 Debug: Server (Attach)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "🔧 Debug: Desktop (Attach)",
+      "type": "node",
+      "request": "attach",
+      "port": 9230,
+      "restart": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "🔧 Debug: Server (Full-stack)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "server.ts"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "serverReadyAction": {
+        "pattern": "URL:.+(http://[^\\s]+)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🌐 Full Stack (Server + MCP)",
+      "configurations": ["🚀 VibeFlow Server (推荐)", "🔌 MCP Server"],
+      "stopAll": true
+    },
+    {
+      "name": "🌐 Full Stack (Backend + Desktop)",
+      "configurations": ["🚀 VibeFlow Server (推荐)", "🖥️ Desktop: Electron"],
+      "stopAll": true
+    }
+  ]
+}
