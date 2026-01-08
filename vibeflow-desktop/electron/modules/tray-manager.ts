@@ -716,8 +716,8 @@ export class TrayManager {
     let title = '';
 
     if (pomodoroActive && pomodoroTimeRemaining) {
-      // Show countdown + task name in menu bar during pomodoro
-      const taskDisplay = currentTask ? ` ${this.truncateText(currentTask, 30)}` : '';
+      // Show countdown + task name in menu bar during pomodoro (no truncation)
+      const taskDisplay = currentTask ? ` ${currentTask}` : '';
       title = `🎯 ${pomodoroTimeRemaining}${taskDisplay}`;
     } else {
       // Show state indicator when not in pomodoro
@@ -736,17 +736,15 @@ export class TrayManager {
           }
           break;
         case 'OVER_REST':
-          // Elon Musk quotes about action + show overtime duration
+          // Elon Musk quotes about action (original English)
           if (overRestDuration) {
             const messages = [
-              '你是在休息还是在逃避？',
-              '如果足够重要，就去做',
-              '为什么不能更快完成？',
-              '疯狂工作吧',
-              '行动是唯一的答案',
-              '别做投机者，把事办成',
+              'When something is important enough, you do it even if the odds are not in your favor.',
+              'Work like hell.',
+              'I don\'t create companies for the sake of creating companies, but to get things done.',
+              'If you want to do it in 4 months, ask yourself: why not 4 weeks?',
             ];
-            const msgIndex = Math.floor(Date.now() / 15000) % messages.length;
+            const msgIndex = Math.floor(Date.now() / 20000) % messages.length;
             title = `⚠️ +${overRestDuration} ${messages[msgIndex]}`;
           } else {
             title = '⚠️ 休息超时了';
