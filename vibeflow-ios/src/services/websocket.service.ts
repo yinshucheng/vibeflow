@@ -100,6 +100,8 @@ class WebSocketService {
     this.isManualDisconnect = false;
     this.setStatus('connecting');
 
+    console.log('[WebSocket] Connecting to:', this.config.url);
+
     this.socket = io(this.config.url, {
       transports: ['websocket'],
       auth: getSocketAuthPayload(),
@@ -224,6 +226,7 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
+      console.log('[WebSocket] Connected successfully!');
       this.reconnectAttempt = 0;
       this.setStatus('connected');
 
@@ -234,6 +237,7 @@ class WebSocketService {
     });
 
     this.socket.on('disconnect', (reason) => {
+      console.log('[WebSocket] Disconnected, reason:', reason);
       this.setStatus('disconnected');
       this.disconnectHandlers.forEach((handler) => handler());
 
@@ -244,7 +248,7 @@ class WebSocketService {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.warn('WebSocket connection error:', error.message);
+      console.log('[WebSocket] Connection error:', error.message);
       this.setStatus('disconnected');
 
       if (!this.isManualDisconnect) {
@@ -253,16 +257,19 @@ class WebSocketService {
     });
 
     // Listen for Octopus commands
-    this.socket.on('octopus:command', (command: SyncStateCommand | UpdatePolicyCommand) => {
+    this.socket.on('OCTOPUS_COMMAND', (command: SyncStateCommand | UpdatePolicyCommand) => {
+      console.log('[WebSocket] Received OCTOPUS_COMMAND:', command.commandType);
       this.handleCommand(command);
     });
 
-    // Also listen for specific command types
+    // Also listen for specific command types (legacy)
     this.socket.on('sync:state', (command: SyncStateCommand) => {
+      console.log('[WebSocket] Received sync:state');
       this.syncStateHandlers.forEach((handler) => handler(command));
     });
 
     this.socket.on('update:policy', (command: UpdatePolicyCommand) => {
+      console.log('[WebSocket] Received update:policy');
       this.policyUpdateHandlers.forEach((handler) => handler(command));
     });
   }

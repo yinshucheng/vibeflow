@@ -13,9 +13,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { PomodoroStatus } from '@/components/PomodoroStatus';
 import { TaskList } from '@/components/TaskList';
 import {
@@ -36,14 +36,14 @@ interface DailyStateIndicatorProps {
 function DailyStateIndicator({ state }: DailyStateIndicatorProps): React.JSX.Element {
   const theme = useTheme();
 
-  const stateConfig = {
+  const stateConfig: Record<string, { label: string; color: string }> = {
     LOCKED: { label: '已锁定', color: theme.colors.textMuted },
     PLANNING: { label: '计划中', color: theme.colors.primary },
     FOCUS: { label: '专注中', color: theme.colors.success },
     REST: { label: '休息中', color: theme.colors.warning },
   };
 
-  const config = state ? stateConfig[state] : { label: '未知', color: theme.colors.textMuted };
+  const config = state ? stateConfig[state] ?? { label: '未知', color: theme.colors.textMuted } : { label: '未知', color: theme.colors.textMuted };
 
   return (
     <View style={[styles.stateIndicator, { backgroundColor: config.color + '20' }]}>

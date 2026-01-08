@@ -8,6 +8,7 @@
  */
 
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type {
   ConnectionStatus,
   DailyStateData,
@@ -127,7 +128,7 @@ function mapFullStateToAppState(
     ? {
         id: activePomodoro.id,
         taskId: activePomodoro.taskId,
-        taskTitle: findTaskTitle(top3Tasks, activePomodoro.taskId),
+        taskTitle: (activePomodoro as { taskTitle?: string }).taskTitle ?? findTaskTitle(top3Tasks, activePomodoro.taskId),
         startTime: activePomodoro.startTime,
         duration: activePomodoro.duration,
         status: activePomodoro.status === 'active' || activePomodoro.status === 'paused'
@@ -421,10 +422,10 @@ export const useTodayTasks = () =>
  * Select blocking state
  */
 export const useBlockingState = () =>
-  useAppStore((state) => ({
+  useAppStore(useShallow((state) => ({
     isBlockingActive: state.isBlockingActive,
     blockedApps: state.blockedApps,
-  }));
+  })));
 
 /**
  * Select policy
@@ -436,11 +437,11 @@ export const usePolicy = () =>
  * Select user info
  */
 export const useUserInfo = () =>
-  useAppStore((state) => ({
+  useAppStore(useShallow((state) => ({
     userId: state.userId,
     userEmail: state.userEmail,
     isAuthenticated: state.isAuthenticated,
-  }));
+  })));
 
 /**
  * Select last sync time

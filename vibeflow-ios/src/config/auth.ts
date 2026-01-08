@@ -6,7 +6,7 @@
  */
 
 /** Default user email for MVP development */
-export const DEV_USER_EMAIL = 'test@example.com';
+export const DEV_USER_EMAIL = 'dev@vibeflow.local';
 
 /** App version for heartbeat events */
 export const APP_VERSION = '1.0.0';

@@ -1,15 +1,20 @@
 export * from './auth';
 
+// Get server host from environment or use default
+// Set VIBEFLOW_SERVER_HOST env var to your Mac's IP when it changes
+const SERVER_HOST = process.env.EXPO_PUBLIC_SERVER_HOST || '192.168.1.4';
+
 /**
  * Server Configuration
  */
-export const SERVER_URL = __DEV__ 
-  ? 'http://localhost:3000' 
+export const SERVER_URL = __DEV__
+  ? `http://${SERVER_HOST}:3000`
   : 'https://vibeflow.app';
 
+// Socket.io uses HTTP URL (auto-upgrades to WebSocket)
 export const WEBSOCKET_URL = __DEV__
-  ? 'ws://localhost:3000'
-  : 'wss://vibeflow.app';
+  ? `http://${SERVER_HOST}:3000`
+  : 'https://vibeflow.app';
 
 /**
  * Timing Configuration
