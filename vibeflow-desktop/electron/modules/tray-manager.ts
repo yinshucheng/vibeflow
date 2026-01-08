@@ -251,6 +251,7 @@ export class TrayManager {
     this.menuState = { ...this.menuState, ...state };
     this.updateMenu();
     this.updateTooltip();
+    this.updateTrayTitle();
   }
 
   /**
@@ -691,6 +692,50 @@ export class TrayManager {
     }
 
     this.tray.setToolTip(tooltip);
+  }
+
+  /**
+   * Update the tray title (displayed next to icon in menu bar)
+   * On macOS, this shows text directly in the menu bar
+   */
+  private updateTrayTitle(): void {
+    if (!this.tray) return;
+
+    const {
+      pomodoroActive,
+      pomodoroTimeRemaining,
+      systemState,
+      restTimeRemaining,
+      overRestDuration,
+    } = this.menuState;
+
+    let title = '';
+
+    if (pomodoroActive && pomodoroTimeRemaining) {
+      // Show countdown in menu bar during pomodoro
+      title = pomodoroTimeRemaining;
+    } else {
+      // Show state indicator when not in pomodoro
+      switch (systemState) {
+        case 'FOCUS':
+          title = '🎯';
+          break;
+        case 'REST':
+          title = restTimeRemaining ? `☕ ${restTimeRemaining}` : '☕';
+          break;
+        case 'OVER_REST':
+          title = overRestDuration ? `⚠️ ${overRestDuration}` : '⚠️';
+          break;
+        case 'PLANNING':
+          title = '📋';
+          break;
+        case 'LOCKED':
+          title = '🔒';
+          break;
+      }
+    }
+
+    this.tray.setTitle(title);
   }
 
   /**
