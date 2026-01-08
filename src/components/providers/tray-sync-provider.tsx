@@ -35,8 +35,11 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentPomodoro]);
 
-  // Sync system state and progress to tray
+  // Sync system state and progress to tray (only when no active pomodoro)
   useEffect(() => {
+    // Skip if there's an active pomodoro - pomodoro state takes priority
+    if (currentPomodoro) return;
+
     if (dailyState?.systemState) {
       const state = dailyState.systemState.toLowerCase() as 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
       const progress = dailyProgress
@@ -44,7 +47,7 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
         : undefined;
       trayIntegrationService.updateSystemState(state, undefined, progress);
     }
-  }, [dailyState?.systemState, dailyProgress]);
+  }, [dailyState?.systemState, dailyProgress, currentPomodoro]);
 
   return <>{children}</>;
 }
