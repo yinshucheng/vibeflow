@@ -337,71 +337,14 @@ export class TrayManager {
   }
 
   /**
-   * Create a placeholder icon when no icon file exists
-   * Uses brand colors with proper contrast for menu bar visibility
-   * Requirements: 3.3, 3.4
+   * Create a minimal transparent placeholder icon
+   * The tray title text is the main visual element
    */
   private createPlaceholderIcon(): Electron.NativeImage {
-    const size = 16;
-    
-    // Create a simple 16x16 PNG buffer with brand colors
-    // Using a minimal approach since we're in the main process
-    
-    // Create a simple circular icon with "V" using raw buffer data
-    // This creates a 16x16 RGBA image
-    const width = size;
-    const height = size;
-    const channels = 4; // RGBA
-    const buffer = Buffer.alloc(width * height * channels);
-    
-    // Brand colors
-    const brandColor = { r: 139, g: 92, b: 246, a: 255 }; // #8B5CF6 (Purple-500)
-    const textColor = { r: 255, g: 255, b: 255, a: 255 }; // White
-    const transparent = { r: 0, g: 0, b: 0, a: 0 };
-    
-    // Fill the buffer with a circular shape
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const index = (y * width + x) * channels;
-        
-        // Calculate distance from center
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-        
-        // Create circular shape
-        if (distance <= (size / 2) - 1) {
-          // Inside circle - use brand color
-          buffer[index] = brandColor.r;     // R
-          buffer[index + 1] = brandColor.g; // G
-          buffer[index + 2] = brandColor.b; // B
-          buffer[index + 3] = brandColor.a; // A
-          
-          // Add simple "V" pattern in the center area
-          const isInVPattern = (
-            (Math.abs(x - centerX) < 2 && y > centerY - 2 && y < centerY + 2) ||
-            (Math.abs(x - centerX) < 3 && y > centerY + 1 && y < centerY + 3)
-          );
-          
-          if (isInVPattern) {
-            buffer[index] = textColor.r;     // R
-            buffer[index + 1] = textColor.g; // G
-            buffer[index + 2] = textColor.b; // B
-            buffer[index + 3] = textColor.a; // A
-          }
-        } else {
-          // Outside circle - transparent
-          buffer[index] = transparent.r;     // R
-          buffer[index + 1] = transparent.g; // G
-          buffer[index + 2] = transparent.b; // B
-          buffer[index + 3] = transparent.a; // A
-        }
-      }
-    }
-    
-    const icon = nativeImage.createFromBuffer(buffer, { width, height });
-    console.log('[TrayManager] Created placeholder icon with brand colors (16x16 circular)');
-    
+    // Create minimal 1x1 transparent icon - title is the main display
+    const buffer = Buffer.alloc(4); // 1x1 RGBA, all zeros = transparent
+    const icon = nativeImage.createFromBuffer(buffer, { width: 1, height: 1 });
+    console.log('[TrayManager] Created minimal transparent icon');
     return icon;
   }
 
@@ -726,13 +669,21 @@ export class TrayManager {
           title = '🎯 Focus';
           break;
         case 'REST':
-          // Show rest time + progress
+          // Show rest time + progress + fun tips
+          const restTips = [
+            '站起来活动一下',
+            '喝杯水吧',
+            '看看窗外',
+            '深呼吸放松',
+            '伸展一下身体',
+          ];
+          const restTipIndex = Math.floor(Date.now() / 30000) % restTips.length;
           if (restTimeRemaining && dailyProgress) {
-            title = `☕ ${restTimeRemaining} 已完成 ${dailyProgress}`;
+            title = `☕ ${restTimeRemaining} 已完成${dailyProgress} ${restTips[restTipIndex]}`;
           } else if (restTimeRemaining) {
-            title = `☕ ${restTimeRemaining} 休息中`;
+            title = `☕ ${restTimeRemaining} ${restTips[restTipIndex]}`;
           } else {
-            title = '☕ 休息一下';
+            title = `☕ ${restTips[restTipIndex]}`;
           }
           break;
         case 'OVER_REST':
@@ -751,10 +702,25 @@ export class TrayManager {
           }
           break;
         case 'PLANNING':
-          title = dailyProgress ? `📋 规划中 ${dailyProgress}` : '📋 规划中';
+          const planningTips = [
+            '选择最重要的任务',
+            '一次只做一件事',
+            '先完成最难的',
+            '设定清晰的目标',
+          ];
+          const planTipIndex = Math.floor(Date.now() / 30000) % planningTips.length;
+          title = dailyProgress
+            ? `📋 ${dailyProgress} ${planningTips[planTipIndex]}`
+            : `📋 ${planningTips[planTipIndex]}`;
           break;
         case 'LOCKED':
-          title = '🔒 已锁定';
+          const lockedTips = [
+            '新的一天，新的开始',
+            '准备好迎接挑战了吗？',
+            '今天要完成什么？',
+          ];
+          const lockedTipIndex = Math.floor(Date.now() / 30000) % lockedTips.length;
+          title = `🔒 ${lockedTips[lockedTipIndex]}`;
           break;
       }
     }
