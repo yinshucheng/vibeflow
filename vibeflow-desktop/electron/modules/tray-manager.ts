@@ -658,15 +658,17 @@ export class TrayManager {
 
     let title = '';
 
-    if (pomodoroActive && pomodoroTimeRemaining) {
-      // Show countdown + task name in menu bar during pomodoro (no truncation)
+    if (pomodoroActive) {
+      // Show countdown + task name in menu bar during pomodoro
+      const timeDisplay = pomodoroTimeRemaining || '';
       const taskDisplay = currentTask ? ` ${currentTask}` : '';
-      title = `🎯 ${pomodoroTimeRemaining}${taskDisplay}`;
+      title = `🎯 ${timeDisplay}${taskDisplay}`.trim();
     } else {
       // Show state indicator when not in pomodoro
       switch (systemState) {
         case 'FOCUS':
-          title = '🎯 Focus';
+          // Focus without active pomodoro (shouldn't happen often)
+          title = currentTask ? `🎯 ${currentTask}` : '🎯 专注中';
           break;
         case 'REST':
           // Show rest time + progress + fun tips
