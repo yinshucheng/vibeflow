@@ -48,9 +48,10 @@ interface RestData {
 
 export class TrayIntegrationService {
   private isElectronApp(): boolean {
-    return typeof window !== 'undefined' &&
+    const isElectron = typeof window !== 'undefined' &&
            'vibeflow' in window &&
            window.vibeflow?.platform?.isElectron === true;
+    return isElectron;
   }
 
   /**
@@ -78,13 +79,17 @@ export class TrayIntegrationService {
       // Format time using TimeFormatter
       const formattedTime = TimeFormatter.formatTime(remainingSeconds);
 
+      // Get task title - handle both task object and direct title
+      const taskTitle = pomodoro.task?.title || pomodoro.taskId || undefined;
+
       const trayState: Partial<TrayMenuState> = {
         pomodoroActive: true,
         pomodoroTimeRemaining: formattedTime,
-        currentTask: pomodoro.task?.title,
+        currentTask: taskTitle,
         systemState: 'FOCUS',
       };
 
+      console.log('[TrayIntegration] Sending pomodoro state:', { formattedTime, taskTitle });
       this.sendTrayUpdate(trayState);
     } else {
       // No active pomodoro
