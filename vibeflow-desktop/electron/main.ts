@@ -406,6 +406,7 @@ function setupIpcHandlers(): void {
 
   // Tray menu update - now accepts full state object
   ipcMain.on('tray:updateMenu', (_, state: Partial<TrayMenuState>) => {
+    console.log('[Main] Received tray:updateMenu:', JSON.stringify(state));
     updateTrayMenu(state);
   });
 
