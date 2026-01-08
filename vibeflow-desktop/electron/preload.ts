@@ -87,6 +87,8 @@ export interface TrayMenuState {
   restTimeRemaining?: string;
   /** Over-rest duration display (e.g., "15 min") (pre-formatted) */
   overRestDuration?: string;
+  /** Daily pomodoro progress (e.g., "3/6") */
+  dailyProgress?: string;
 }
 
 // Work time slot configuration

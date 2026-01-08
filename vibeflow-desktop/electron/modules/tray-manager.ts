@@ -708,6 +708,7 @@ export class TrayManager {
       systemState,
       restTimeRemaining,
       overRestDuration,
+      dailyProgress,
     } = this.menuState;
 
     let title = '';
@@ -723,16 +724,30 @@ export class TrayManager {
           title = '🎯 Focus';
           break;
         case 'REST':
-          title = restTimeRemaining ? `☕ ${restTimeRemaining}` : '☕ Rest';
+          // Show rest time + progress
+          if (restTimeRemaining && dailyProgress) {
+            title = `☕ ${restTimeRemaining} 已完成 ${dailyProgress}`;
+          } else if (restTimeRemaining) {
+            title = `☕ ${restTimeRemaining} 休息中`;
+          } else {
+            title = '☕ 休息一下';
+          }
           break;
         case 'OVER_REST':
-          title = overRestDuration ? `⚠️ +${overRestDuration}` : '⚠️ Over Rest';
+          // Fun messages for over-rest
+          if (overRestDuration) {
+            const messages = ['该干活啦', '摸鱼结束', '老板来了', '回来工作'];
+            const msgIndex = Math.floor(Date.now() / 10000) % messages.length;
+            title = `⚠️ +${overRestDuration} ${messages[msgIndex]}`;
+          } else {
+            title = '⚠️ 休息超时了';
+          }
           break;
         case 'PLANNING':
-          title = '📋 Planning';
+          title = dailyProgress ? `📋 规划中 ${dailyProgress}` : '📋 规划中';
           break;
         case 'LOCKED':
-          title = '🔒 Locked';
+          title = '🔒 已锁定';
           break;
       }
     }

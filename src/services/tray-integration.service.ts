@@ -102,11 +102,12 @@ export class TrayIntegrationService {
    * Update tray with system state
    * Handles non-pomodoro states like PLANNING, LOCKED, etc.
    */
-  updateSystemState(state: SystemState, restData?: RestData): void {
+  updateSystemState(state: SystemState, restData?: RestData, dailyProgress?: string): void {
     if (!this.isElectronApp()) return;
 
     const trayState: Partial<TrayMenuState> = {
       systemState: this.mapSystemStateToTrayState(state),
+      dailyProgress,
     };
 
     // Handle rest-specific data

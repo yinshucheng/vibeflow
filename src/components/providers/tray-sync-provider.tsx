@@ -17,6 +17,9 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
   // Get daily state for system state
   const { data: dailyState } = trpc.dailyState.getToday.useQuery();
 
+  // Get daily progress for tray display
+  const { data: dailyProgress } = trpc.dailyState.getDailyProgress.useQuery();
+
   // Sync pomodoro state to tray
   useEffect(() => {
     if (currentPomodoro) {
@@ -32,13 +35,16 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentPomodoro]);
 
-  // Sync system state to tray
+  // Sync system state and progress to tray
   useEffect(() => {
     if (dailyState?.systemState) {
       const state = dailyState.systemState.toLowerCase() as 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
-      trayIntegrationService.updateSystemState(state);
+      const progress = dailyProgress
+        ? `${dailyProgress.completedPomodoros}/${dailyProgress.dailyGoal}`
+        : undefined;
+      trayIntegrationService.updateSystemState(state, undefined, progress);
     }
-  }, [dailyState?.systemState]);
+  }, [dailyState?.systemState, dailyProgress]);
 
   return <>{children}</>;
 }
