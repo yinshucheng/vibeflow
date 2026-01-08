@@ -5,6 +5,17 @@ import {
   ipcMain,
 } from 'electron';
 import * as path from 'path';
+
+// Handle EPIPE errors from console.log when pipe is closed
+process.stdout.on('error', (err) => {
+  if (err.code === 'EPIPE') return;
+  throw err;
+});
+process.stderr.on('error', (err) => {
+  if (err.code === 'EPIPE') return;
+  throw err;
+});
+
 import Store from 'electron-store';
 import { setupFocusEnforcerIpc, getFocusEnforcer } from './modules/focus-enforcer';
 import { getSensorReporter } from './modules/sensor-reporter';
