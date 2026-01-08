@@ -20,8 +20,23 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
   // Get daily progress for tray display
   const { data: dailyProgress } = trpc.dailyState.getDailyProgress.useQuery();
 
+  // Debug: log electron API availability
+  useEffect(() => {
+    console.log('[TraySyncProvider] Electron API check:', {
+      hasVibeflow: typeof window !== 'undefined' && 'vibeflow' in window,
+      isElectron: (window as any).vibeflow?.platform?.isElectron,
+      hasTrayAPI: !!(window as any).vibeflow?.tray?.updateMenu,
+    });
+  }, []);
+
   // Sync pomodoro state to tray
   useEffect(() => {
+    console.log('[TraySyncProvider] currentPomodoro:', currentPomodoro ? {
+      id: currentPomodoro.id,
+      taskTitle: currentPomodoro.task?.title,
+      duration: currentPomodoro.duration,
+    } : null);
+
     if (currentPomodoro) {
       trayIntegrationService.updatePomodoroState({
         id: currentPomodoro.id,
