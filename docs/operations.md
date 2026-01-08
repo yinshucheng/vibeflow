@@ -83,6 +83,23 @@ npm run dev
 npm run build:mac
 ```
 
+### 5. iOS 应用
+
+```bash
+cd vibeflow-ios
+
+# 安装依赖
+npm install
+
+# 启动 Expo 开发服务器 (自动获取 Mac IP)
+EXPO_PUBLIC_SERVER_HOST=$(ipconfig getifaddr en0) npm start
+```
+
+**网络配置注意事项**:
+- Mac 和 iOS 设备必须在同一局域网
+- 后端服务必须监听 `0.0.0.0:3000`（不是 `localhost`）
+- 如果显示错误 IP（如 `198.18.0.1`），可能是 VPN/代理导致，需关闭后重试
+
 ---
 
 ## 架构概览
