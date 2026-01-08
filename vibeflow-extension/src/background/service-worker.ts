@@ -22,6 +22,7 @@ let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY = 2000; // 2 seconds
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let isManualDisconnect = false; // Flag to prevent reconnect on intentional disconnect
 
 // Activity tracking state
 const activeTabTracking: Map<number, { url: string; title: string; startTime: number }> = new Map();
@@ -163,9 +164,12 @@ const wsHandlers: WebSocketEventHandler = {
     isConnected = false;
     chrome.storage.local.set({ isConnected: false });
     broadcastToPopup({ type: 'CONNECTION_STATUS', payload: { connected: false } });
-    
-    // Schedule auto-reconnect with exponential backoff (Requirements: 4.3, 4.4)
-    scheduleReconnect();
+
+    // Only schedule auto-reconnect if not a manual disconnect (Requirements: 4.3, 4.4)
+    if (!isManualDisconnect) {
+      scheduleReconnect();
+    }
+    isManualDisconnect = false; // Reset flag
   },
 
   onError: (error) => {
@@ -205,8 +209,9 @@ function connect(serverUrl: string, userEmail: string): void {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
-  
+
   if (wsClient) {
+    isManualDisconnect = true; // Prevent reconnect when disconnecting old client
     wsClient.disconnect();
   }
 

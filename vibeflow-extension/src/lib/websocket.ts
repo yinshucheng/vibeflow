@@ -171,11 +171,7 @@ export class VibeFlowWebSocket {
       this.cleanup();
       this.isAuthenticated = false;
       this.handlers.onDisconnect();
-      
-      // Only reconnect if not a clean close
-      if (event.code !== 1000) {
-        this.scheduleReconnect();
-      }
+      // Reconnect is handled by service-worker, not here
     };
 
     this.ws.onerror = () => {
@@ -449,17 +445,10 @@ export class VibeFlowWebSocket {
   }
 
   private startPing(): void {
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-    }
-    
-    // Send ping slightly before server's timeout
-    const interval = Math.max(this.pingTimeout - 5000, 10000);
-    this.pingInterval = setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.sendRaw('2'); // Engine.IO PING
-      }
-    }, interval);
+    // Note: In Socket.io/Engine.IO protocol, the SERVER sends pings and CLIENT responds with pongs.
+    // We handle server pings in handleMessage() case '2' by responding with '3' (pong).
+    // We don't need to send our own pings - just respond to server's pings.
+    // Removing client-initiated pings to avoid protocol confusion.
   }
 
   private cleanup(): void {
