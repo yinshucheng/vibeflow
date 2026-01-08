@@ -58,7 +58,7 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     if (dailyState?.systemState) {
       const state = dailyState.systemState.toLowerCase() as 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
       const progress = dailyProgress
-        ? `${dailyProgress.completedPomodoros}/${dailyProgress.dailyGoal}`
+        ? `${dailyProgress.completedPomodoros}/${dailyProgress.targetPomodoros}`
         : undefined;
       trayIntegrationService.updateSystemState(state, undefined, progress);
     }
