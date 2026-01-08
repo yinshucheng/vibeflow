@@ -47,6 +47,8 @@ export interface TrayMenuState {
   overRestDuration?: string;
   /** Daily pomodoro progress (e.g., "3/6") */
   dailyProgress?: string;
+  /** Whether it's sleep time */
+  isInSleepTime?: boolean;
 }
 
 /**
@@ -654,11 +656,22 @@ export class TrayManager {
       restTimeRemaining,
       overRestDuration,
       dailyProgress,
+      isInSleepTime,
     } = this.menuState;
 
     let title = '';
 
-    if (pomodoroActive) {
+    // Sleep time takes priority
+    if (isInSleepTime) {
+      const sleepTips = [
+        '该睡觉了，明天继续',
+        '好好休息，明天更高效',
+        '睡眠是最好的投资',
+        '晚安，明天见',
+      ];
+      const sleepTipIndex = Math.floor(Date.now() / 30000) % sleepTips.length;
+      title = `🌙 ${sleepTips[sleepTipIndex]}`;
+    } else if (pomodoroActive) {
       // Show countdown + task name in menu bar during pomodoro
       const timeDisplay = pomodoroTimeRemaining || '';
       const taskDisplay = currentTask ? ` ${currentTask}` : '';

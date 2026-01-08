@@ -15,6 +15,9 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
 
   const { data: dailyState } = trpc.dailyState.getToday.useQuery();
   const { data: dailyProgress } = trpc.dailyState.getDailyProgress.useQuery();
+  const { data: isInSleepTime } = trpc.sleepTime.isInSleepTime.useQuery(undefined, {
+    refetchInterval: 60000, // Check every minute
+  });
 
   // Sync pomodoro state to tray
   useEffect(() => {
@@ -35,6 +38,12 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (currentPomodoro) return;
 
+    // Check sleep time first
+    if (isInSleepTime) {
+      trayIntegrationService.updateSystemState('locked', undefined, undefined, true);
+      return;
+    }
+
     if (dailyState?.systemState) {
       const state = dailyState.systemState.toLowerCase() as 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
       const progress = dailyProgress
@@ -42,7 +51,7 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
         : undefined;
       trayIntegrationService.updateSystemState(state, undefined, progress);
     }
-  }, [dailyState?.systemState, dailyProgress, currentPomodoro]);
+  }, [dailyState?.systemState, dailyProgress, currentPomodoro, isInSleepTime]);
 
   return <>{children}</>;
 }

@@ -89,6 +89,8 @@ export interface TrayMenuState {
   overRestDuration?: string;
   /** Daily pomodoro progress (e.g., "3/6") */
   dailyProgress?: string;
+  /** Whether it's sleep time */
+  isInSleepTime?: boolean;
 }
 
 // Work time slot configuration
