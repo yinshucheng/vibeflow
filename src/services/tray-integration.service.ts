@@ -48,9 +48,16 @@ interface RestData {
 
 export class TrayIntegrationService {
   private isElectronApp(): boolean {
-    return typeof window !== 'undefined' && 
-           'vibeflow' in window && 
+    return typeof window !== 'undefined' &&
+           'vibeflow' in window &&
            window.vibeflow?.platform?.isElectron === true;
+  }
+
+  /**
+   * Convert date value to Date object (handles string from API)
+   */
+  private toDate(value: Date | string): Date {
+    return value instanceof Date ? value : new Date(value);
   }
 
   /**
@@ -62,7 +69,8 @@ export class TrayIntegrationService {
 
     if (pomodoro) {
       // Calculate remaining time
-      const elapsedMs = Date.now() - pomodoro.startTime.getTime();
+      const startTime = this.toDate(pomodoro.startTime);
+      const elapsedMs = Date.now() - startTime.getTime();
       const totalMs = pomodoro.duration * 60 * 1000;
       const remainingMs = Math.max(0, totalMs - elapsedMs);
       const remainingSeconds = Math.ceil(remainingMs / 1000);
@@ -103,15 +111,16 @@ export class TrayIntegrationService {
 
     // Handle rest-specific data
     if (restData) {
+      const restStartTime = this.toDate(restData.startTime);
       if (restData.isOverRest) {
         // Calculate over-rest duration
-        const overRestMs = Date.now() - restData.startTime.getTime();
+        const overRestMs = Date.now() - restStartTime.getTime();
         const overRestSeconds = Math.floor(overRestMs / 1000);
         trayState.overRestDuration = TimeFormatter.formatOverRestDuration(overRestSeconds);
         trayState.restTimeRemaining = undefined;
       } else {
         // Calculate remaining rest time
-        const elapsedMs = Date.now() - restData.startTime.getTime();
+        const elapsedMs = Date.now() - restStartTime.getTime();
         const totalMs = restData.duration * 60 * 1000;
         const remainingMs = Math.max(0, totalMs - elapsedMs);
         const remainingSeconds = Math.ceil(remainingMs / 1000);
@@ -168,15 +177,16 @@ export class TrayIntegrationService {
 
     // Handle rest or over-rest state
     if (data.restData) {
+      const restStartTime = this.toDate(data.restData.startTime);
       if (data.restData.isOverRest || data.newState === 'over_rest') {
         // Calculate over-rest duration
-        const overRestMs = Date.now() - data.restData.startTime.getTime();
+        const overRestMs = Date.now() - restStartTime.getTime();
         const overRestSeconds = Math.floor(overRestMs / 1000);
         trayState.overRestDuration = TimeFormatter.formatOverRestDuration(overRestSeconds);
         trayState.restTimeRemaining = undefined;
       } else {
         // Calculate remaining rest time
-        const elapsedMs = Date.now() - data.restData.startTime.getTime();
+        const elapsedMs = Date.now() - restStartTime.getTime();
         const totalMs = data.restData.duration * 60 * 1000;
         const remainingMs = Math.max(0, totalMs - elapsedMs);
         const remainingSeconds = Math.ceil(remainingMs / 1000);
@@ -218,7 +228,8 @@ export class TrayIntegrationService {
 
     // Handle pomodoro data
     if (data.pomodoro) {
-      const elapsedMs = Date.now() - data.pomodoro.startTime.getTime();
+      const pomodoroStartTime = this.toDate(data.pomodoro.startTime);
+      const elapsedMs = Date.now() - pomodoroStartTime.getTime();
       const totalMs = data.pomodoro.duration * 60 * 1000;
       const remainingMs = Math.max(0, totalMs - elapsedMs);
       const remainingSeconds = Math.ceil(remainingMs / 1000);
@@ -234,13 +245,14 @@ export class TrayIntegrationService {
 
     // Handle rest data
     if (data.restData) {
+      const restStartTime = this.toDate(data.restData.startTime);
       if (data.restData.isOverRest) {
-        const overRestMs = Date.now() - data.restData.startTime.getTime();
+        const overRestMs = Date.now() - restStartTime.getTime();
         const overRestSeconds = Math.floor(overRestMs / 1000);
         trayState.overRestDuration = TimeFormatter.formatOverRestDuration(overRestSeconds);
         trayState.restTimeRemaining = undefined;
       } else {
-        const elapsedMs = Date.now() - data.restData.startTime.getTime();
+        const elapsedMs = Date.now() - restStartTime.getTime();
         const totalMs = data.restData.duration * 60 * 1000;
         const remainingMs = Math.max(0, totalMs - elapsedMs);
         const remainingSeconds = Math.ceil(remainingMs / 1000);
