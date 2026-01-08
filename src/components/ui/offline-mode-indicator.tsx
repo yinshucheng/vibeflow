@@ -264,8 +264,9 @@ export function OfflineModeIndicatorWithStatus({
     const getInitialStatus = async () => {
       try {
         const connectionStatus = await window.vibeflow!.connection.getStatus();
+        console.log('[OfflineModeIndicator] Initial status:', connectionStatus);
         setStatus(connectionStatus);
-        
+
         if (connectionStatus !== 'connected') {
           const info = await window.vibeflow!.connection.getInfo();
           if (info.lastConnectedAt) {
@@ -287,8 +288,9 @@ export function OfflineModeIndicatorWithStatus({
 
     // Listen for connection status changes
     const unsubscribe = window.vibeflow!.on.connectionStatusChange((event) => {
+      console.log('[OfflineModeIndicator] Status change event:', event.status);
       setStatus(event.status);
-      
+
       if (event.status !== 'connected' && !offlineSince) {
         setOfflineSince(event.timestamp);
       } else if (event.status === 'connected') {
