@@ -714,8 +714,8 @@ export class TrayManager {
 
     if (pomodoroActive && pomodoroTimeRemaining) {
       // Show countdown + task name in menu bar during pomodoro
-      const taskDisplay = currentTask ? ` ${this.truncateText(currentTask, 15)}` : '';
-      title = `${pomodoroTimeRemaining}${taskDisplay}`;
+      const taskDisplay = currentTask ? ` ${this.truncateText(currentTask, 30)}` : '';
+      title = `🎯 ${pomodoroTimeRemaining}${taskDisplay}`;
     } else {
       // Show state indicator when not in pomodoro
       switch (systemState) {
