@@ -704,6 +704,7 @@ export class TrayManager {
     const {
       pomodoroActive,
       pomodoroTimeRemaining,
+      currentTask,
       systemState,
       restTimeRemaining,
       overRestDuration,
@@ -712,25 +713,26 @@ export class TrayManager {
     let title = '';
 
     if (pomodoroActive && pomodoroTimeRemaining) {
-      // Show countdown in menu bar during pomodoro
-      title = pomodoroTimeRemaining;
+      // Show countdown + task name in menu bar during pomodoro
+      const taskDisplay = currentTask ? ` ${this.truncateText(currentTask, 15)}` : '';
+      title = `${pomodoroTimeRemaining}${taskDisplay}`;
     } else {
       // Show state indicator when not in pomodoro
       switch (systemState) {
         case 'FOCUS':
-          title = '🎯';
+          title = '🎯 Focus';
           break;
         case 'REST':
-          title = restTimeRemaining ? `☕ ${restTimeRemaining}` : '☕';
+          title = restTimeRemaining ? `☕ ${restTimeRemaining}` : '☕ Rest';
           break;
         case 'OVER_REST':
-          title = overRestDuration ? `⚠️ ${overRestDuration}` : '⚠️';
+          title = overRestDuration ? `⚠️ +${overRestDuration}` : '⚠️ Over Rest';
           break;
         case 'PLANNING':
-          title = '📋';
+          title = '📋 Planning';
           break;
         case 'LOCKED':
-          title = '🔒';
+          title = '🔒 Locked';
           break;
       }
     }
