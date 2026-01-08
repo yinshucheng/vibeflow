@@ -520,14 +520,28 @@ export interface NotificationOptions {
 
 /**
  * Tray menu state for dynamic updates
+ * Enhanced to support system state display and rest time tracking
  */
 export interface TrayMenuState {
+  // Existing fields
   pomodoroActive: boolean;
-  pomodoroTimeRemaining?: string;
+  pomodoroTimeRemaining?: string; // MM:SS format (e.g., "15:30")
   currentTask?: string;
-  isWithinWorkHours: boolean;
+  isWithinWorkHours: boolean; // Reserved for future use
   skipTokensRemaining: number;
   enforcementMode: 'strict' | 'gentle';
+  /** Current app mode (development, staging, production) */
+  appMode?: 'development' | 'staging' | 'production';
+  /** Whether demo mode is active */
+  isInDemoMode?: boolean;
+  
+  // New fields for enhanced functionality
+  /** Current system state for non-pomodoro display */
+  systemState: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
+  /** Rest countdown time in MM:SS format (pre-formatted) */
+  restTimeRemaining?: string;
+  /** Over-rest duration display (e.g., "15 min") (pre-formatted) */
+  overRestDuration?: string;
 }
 
 // IPC Channel names

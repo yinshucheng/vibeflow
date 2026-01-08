@@ -16,6 +16,7 @@ import {
 } from '@/machines/vibeflow.machine';
 import { broadcastStateChange } from '@/services/socket-broadcast.service';
 import { mcpEventService } from './mcp-event.service';
+import { overRestService } from './over-rest.service';
 
 // Validation schemas
 export const CompleteAirlockSchema = z.object({
@@ -679,6 +680,47 @@ export const dailyStateService = {
    */
   getDailyResetHour(): number {
     return DAILY_RESET_HOUR;
+  },
+
+  /**
+   * Check if user is currently in over-rest state
+   * Requirements: 7.1, 7.2
+   */
+  async isInOverRest(userId: string): Promise<ServiceResult<boolean>> {
+    try {
+      // Check current system state
+      const currentStateResult = await this.getCurrentState(userId);
+      if (!currentStateResult.success) {
+        return {
+          success: false,
+          error: currentStateResult.error,
+        };
+      }
+
+      // If already in over_rest state, return true
+      if (currentStateResult.data === 'over_rest') {
+        return { success: true, data: true };
+      }
+
+      // Check if user should be in over-rest based on over-rest service
+      const overRestResult = await overRestService.checkOverRestStatus(userId);
+      if (!overRestResult.success) {
+        return {
+          success: false,
+          error: overRestResult.error,
+        };
+      }
+
+      return { success: true, data: overRestResult.data?.isOverRest ?? false };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to check over-rest status',
+        },
+      };
+    }
   },
 
   /**

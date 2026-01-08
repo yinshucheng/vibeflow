@@ -15,6 +15,8 @@ export type {
 } from './auth.service';
 export { CreateTokenSchema } from './auth.service';
 
+export { trayIntegrationService } from './tray-integration.service';
+
 export { projectService } from './project.service';
 export type {
   CreateProjectInput,

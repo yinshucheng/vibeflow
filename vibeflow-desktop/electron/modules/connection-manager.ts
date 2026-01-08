@@ -511,20 +511,26 @@ class ConnectionManager {
   private async establishSocketConnection(): Promise<void> {
     try {
       const serverUrl = this.getSecureUrl(this.config.serverUrl);
-      
-      // Create Socket.io connection
+
+      // Create Socket.io connection with autoConnect: false to avoid race condition
       this.socket = io(serverUrl, {
         transports: ['websocket', 'polling'],
         reconnection: false, // We handle reconnection ourselves
         timeout: 10000,
+        autoConnect: false, // Don't connect until handlers are set up
         auth: {
           clientType: 'desktop',
           userId: this.state.userId,
+          // For dev mode authentication - server uses email to identify user
+          email: 'dev@vibeflow.local',
         },
       });
 
-      // Set up socket event handlers
+      // Set up socket event handlers BEFORE connecting
       this.setupSocketHandlers();
+
+      // Now connect
+      this.socket.connect();
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -566,11 +572,13 @@ class ConnectionManager {
 
     // Client registration response
     this.socket.on('client:registered', (response: ClientRegistrationResponse) => {
+      console.log('[ConnectionManager] client:registered received:', JSON.stringify(response));
       if (response.success && response.clientId) {
         this.state.clientId = response.clientId;
         console.log('[ConnectionManager] Client registered with ID:', response.clientId);
         this.handleConnected();
       } else {
+        console.log('[ConnectionManager] Registration failed:', response.error);
         this.handleConnectionError(response.error || 'Client registration failed');
       }
     });
@@ -928,12 +936,14 @@ class ConnectionManager {
   private updateStatus(status: ConnectionStatus, error?: string): void {
     const previousStatus = this.state.status;
     this.state.status = status;
+    console.log('[ConnectionManager] Status changed:', previousStatus, '->', status, error ? `(error: ${error})` : '');
 
     if (error) {
       this.state.lastError = error;
     }
 
     // Notify renderer process via IPC
+    console.log('[ConnectionManager] Sending status to renderer, mainWindow exists:', !!this.mainWindow);
     this.sendToRenderer('connection:statusChange', {
       status,
       previousStatus,
@@ -966,6 +976,7 @@ class ConnectionManager {
    * Send message to renderer process
    */
   private sendToRenderer(channel: string, data: unknown): void {
+    console.log('[ConnectionManager] sendToRenderer:', channel, 'mainWindow:', !!this.mainWindow);
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send(channel, data);
     }

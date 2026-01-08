@@ -17,6 +17,9 @@ import { dailyStateService } from '@/services/daily-state.service';
 import { statsService, GetStatsSchema } from '@/services/stats.service';
 import { socketServer } from '@/server/socket';
 import { broadcastPolicyUpdate } from '@/services/socket-broadcast.service';
+import { trayIntegrationService } from '@/services/tray-integration.service';
+import { overRestService } from '@/services/over-rest.service';
+import prisma from '@/lib/prisma';
 
 export const pomodoroRouter = router({
   /**
@@ -146,6 +149,24 @@ export const pomodoroRouter = router({
       // Update system state to FOCUS
       await dailyStateService.updateSystemState(ctx.user.userId, 'focus');
       
+      // Update tray with pomodoro start
+      if (result.data) {
+        const pomodoroData = result.data as { 
+          id: string; 
+          taskId: string; 
+          duration: number;
+          startTime: Date;
+          task?: { title: string };
+        };
+        trayIntegrationService.updatePomodoroState({
+          id: pomodoroData.id,
+          taskId: pomodoroData.taskId,
+          duration: pomodoroData.duration,
+          startTime: pomodoroData.startTime,
+          task: pomodoroData.task,
+        });
+      }
+      
       // Broadcast policy update to stop over rest enforcement on desktop
       await broadcastPolicyUpdate(ctx.user.userId);
       
@@ -154,7 +175,7 @@ export const pomodoroRouter = router({
 
   /**
    * Complete a pomodoro session
-   * Requirements: 4.6
+   * Requirements: 4.6, 7.1-7.9
    */
   complete: protectedProcedure
     .input(
@@ -182,9 +203,54 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Increment pomodoro count and update system state to REST
+      // Check if user is currently in over-rest state (Requirements: 7.1, 7.2)
+      const overRestResult = await dailyStateService.isInOverRest(ctx.user.userId);
+      const isInOverRest = overRestResult.success && overRestResult.data === true;
+
+      // Increment pomodoro count
       await dailyStateService.incrementPomodoroCount(ctx.user.userId);
-      await dailyStateService.updateSystemState(ctx.user.userId, 'rest');
+
+      // Get user settings for rest duration
+      const settings = await prisma.userSettings.findUnique({
+        where: { userId: ctx.user.userId },
+      });
+      const restDuration = settings?.shortRestDuration ?? 5;
+
+      // Handle state transition based on over-rest status (Requirements: 7.1, 7.2)
+      let newState: 'rest' | 'over_rest';
+      let restData: { startTime: Date; duration: number; isOverRest: boolean } | undefined;
+
+      if (isInOverRest) {
+        // If already in over-rest, stay in over-rest (Requirement 7.1)
+        await dailyStateService.updateSystemState(ctx.user.userId, 'over_rest');
+        newState = 'over_rest';
+        
+        // Get over-rest status for duration calculation
+        const overRestStatus = await overRestService.checkOverRestStatus(ctx.user.userId);
+        if (overRestStatus.success && overRestStatus.data && overRestStatus.data.lastPomodoroEndTime) {
+          restData = {
+            startTime: overRestStatus.data.lastPomodoroEndTime,
+            duration: 0,
+            isOverRest: true,
+          };
+        }
+      } else {
+        // Normal completion - transition to rest state
+        await dailyStateService.updateSystemState(ctx.user.userId, 'rest');
+        newState = 'rest';
+        restData = {
+          startTime: new Date(),
+          duration: restDuration,
+          isOverRest: false,
+        };
+      }
+      
+      // Update tray with completion state (Requirements: 7.2, 7.8)
+      trayIntegrationService.handlePomodoroCompletion({
+        wasInOverRest: isInOverRest,
+        newState,
+        restData,
+      });
       
       // Broadcast policy update to update over rest status on desktop
       await broadcastPolicyUpdate(ctx.user.userId);
@@ -204,6 +270,7 @@ export const pomodoroRouter = router({
             taskId: pomodoroData.taskId,
             taskTitle: pomodoroData.task?.title ?? 'Unknown Task',
             duration: pomodoroData.duration,
+            wasInOverRest: isInOverRest,
           },
         });
       }

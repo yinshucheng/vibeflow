@@ -232,14 +232,20 @@ function toggleWindow(): void {
 // Create system tray using TrayManager
 function createTray(): void {
   trayManager = new TrayManager({
-    onShowWindow: showWindow,
+    onShowWindow: toggleWindow, // Use toggle for tray click (Requirements: 6.1)
     onStartPomodoro: () => {
+      // Always show window and navigate to pomodoro page (Requirements: 6.4)
+      bringToFront();
       mainWindow?.webContents.send('tray:start-pomodoro');
     },
     onViewStatus: () => {
+      // Always show window and navigate to dashboard (Requirements: 6.5)
+      bringToFront();
       mainWindow?.webContents.send('tray:view-status');
     },
     onOpenSettings: () => {
+      // Always show window and navigate to settings (Requirements: 6.6)
+      bringToFront();
       mainWindow?.webContents.send('tray:open-settings');
     },
     onQuit: async () => {
@@ -258,14 +264,23 @@ function createTray(): void {
 
   if (mainWindow) {
     trayManager.setMainWindow(mainWindow);
+    console.log('[Main] TrayManager initialized with main window reference');
+  } else {
+    console.warn('[Main] TrayManager created without main window reference');
   }
 
   trayManager.create();
+  console.log('[Main] System tray created and ready for state updates');
 }
 
 // Update tray menu state
 function updateTrayMenu(state: Partial<TrayMenuState>): void {
   trayManager?.updateState(state);
+}
+
+// Helper function to get current tray state
+function getTrayState(): TrayMenuState | null {
+  return trayManager?.getState() ?? null;
 }
 
 // Setup auto-launch using AutoLaunchManager
@@ -296,19 +311,20 @@ function setupIpcHandlers(): void {
   });
 
   // Connection management (Requirements: 1.7)
-  const connectionManager = getConnectionManager();
+  // Note: Don't cache connectionManager here - use getConnectionManager() each time
+  // because initializeConnectionManager() is called later and creates a new instance
 
   ipcMain.handle('connection:getStatus', () => {
-    return connectionManager.getStatus();
+    return getConnectionManager().getStatus();
   });
 
   ipcMain.handle('connection:getInfo', () => {
-    return connectionManager.getConnectionInfo();
+    return getConnectionManager().getConnectionInfo();
   });
 
   ipcMain.handle('connection:connect', async () => {
     try {
-      await connectionManager.connect();
+      await getConnectionManager().connect();
       return { success: true };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -316,13 +332,13 @@ function setupIpcHandlers(): void {
   });
 
   ipcMain.handle('connection:disconnect', () => {
-    connectionManager.disconnect();
+    getConnectionManager().disconnect();
     return { success: true };
   });
 
   ipcMain.handle('connection:reconnect', async () => {
     try {
-      await connectionManager.reconnect();
+      await getConnectionManager().reconnect();
       return { success: true };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -331,15 +347,15 @@ function setupIpcHandlers(): void {
 
   // Security handlers (Requirements: 9.4, 9.5, 9.6)
   ipcMain.handle('connection:getSecurityConfig', () => {
-    return connectionManager.getSecurityConfig();
+    return getConnectionManager().getSecurityConfig();
   });
 
   ipcMain.handle('connection:isSecure', () => {
-    return connectionManager.isSecureConnection();
+    return getConnectionManager().isSecureConnection();
   });
 
   ipcMain.handle('connection:verifyCertificate', async () => {
-    return await connectionManager.verifyCertificate();
+    return await getConnectionManager().verifyCertificate();
   });
 
   // Auto-launch (Requirements: 1.6)
@@ -380,6 +396,48 @@ function setupIpcHandlers(): void {
   // Tray menu update - now accepts full state object
   ipcMain.on('tray:updateMenu', (_, state: Partial<TrayMenuState>) => {
     updateTrayMenu(state);
+  });
+
+  // Enhanced IPC handlers for new state types (Requirements: 5.1-5.5)
+  
+  // Handle system state changes
+  ipcMain.on('system:stateChange', (_, payload: {
+    state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
+    restTimeRemaining?: string; // Pre-formatted MM:SS
+    overRestDuration?: string; // Pre-formatted duration (e.g., "15 min")
+  }) => {
+    console.log('[Main] System state change received:', payload);
+    updateTrayMenu({
+      systemState: payload.state,
+      restTimeRemaining: payload.restTimeRemaining,
+      overRestDuration: payload.overRestDuration,
+    });
+  });
+
+  // Handle enhanced pomodoro state changes
+  ipcMain.on('pomodoro:stateChange', (_, payload: {
+    active: boolean;
+    timeRemaining?: string; // Pre-formatted MM:SS
+    taskName?: string;
+    taskId?: string;
+  }) => {
+    console.log('[Main] Pomodoro state change received:', payload);
+    updateTrayMenu({
+      pomodoroActive: payload.active,
+      pomodoroTimeRemaining: payload.timeRemaining,
+      currentTask: payload.taskName,
+    });
+  });
+
+  // Handle general tray state updates (enhanced version)
+  ipcMain.on('tray:updateState', (_, payload: Partial<TrayMenuState>) => {
+    console.log('[Main] Tray state update received:', payload);
+    updateTrayMenu(payload);
+  });
+
+  // Get current tray state (for testing and debugging)
+  ipcMain.handle('tray:getState', () => {
+    return getTrayState();
   });
 
   // Legacy support for simple pomodoro active boolean

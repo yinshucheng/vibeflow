@@ -10,7 +10,7 @@
 import { createMachine, assign, setup } from 'xstate';
 
 // System states
-export type SystemState = 'locked' | 'planning' | 'focus' | 'rest';
+export type SystemState = 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
 
 // Airlock wizard steps
 export type AirlockStep = 'REVIEW' | 'PLAN' | 'COMMIT';
@@ -27,6 +27,7 @@ export interface VibeFlowContext {
   restDuration: number; // in minutes
   pomodoroStartTime: Date | null;
   restStartTime: Date | null;
+  overRestStartTime: Date | null;
 }
 
 // Machine events
@@ -36,6 +37,7 @@ export type VibeFlowEvent =
   | { type: 'COMPLETE_POMODORO' }
   | { type: 'ABORT_POMODORO' }
   | { type: 'COMPLETE_REST' }
+  | { type: 'ENTER_OVER_REST' }
   | { type: 'DAILY_RESET' }
   | { type: 'OVERRIDE_CAP' }
   | { type: 'SET_AIRLOCK_STEP'; step: AirlockStep }
@@ -66,6 +68,7 @@ const defaultContext: VibeFlowContext = {
   restDuration: 5,
   pomodoroStartTime: null,
   restStartTime: null,
+  overRestStartTime: null,
 };
 
 
@@ -119,6 +122,13 @@ export const vibeFlowMachine = setup({
     hasActivePomodoro: ({ context }) => {
       return context.currentPomodoroId !== null;
     },
+
+    /**
+     * Check if system is currently in over-rest state
+     */
+    isInOverRest: ({ context }) => {
+      return context.overRestStartTime !== null;
+    },
   },
   actions: {
     /**
@@ -151,6 +161,7 @@ export const vibeFlowMachine = setup({
         return null;
       },
       pomodoroStartTime: () => new Date(),
+      overRestStartTime: () => null, // Exit over-rest when starting pomodoro
     }),
 
     /**
@@ -161,6 +172,17 @@ export const vibeFlowMachine = setup({
       currentPomodoroId: () => null,
       pomodoroStartTime: () => null,
       restStartTime: () => new Date(),
+    }),
+
+    /**
+     * Complete a pomodoro when already in over-rest
+     * Stay in over-rest state, don't start new rest period
+     */
+    completePomodoroInOverRest: assign({
+      todayPomodoroCount: ({ context }) => context.todayPomodoroCount + 1,
+      currentPomodoroId: () => null,
+      pomodoroStartTime: () => null,
+      // Keep existing overRestStartTime, don't start new rest
     }),
 
     /**
@@ -181,6 +203,21 @@ export const vibeFlowMachine = setup({
     }),
 
     /**
+     * Enter over-rest state
+     */
+    enterOverRest: assign({
+      overRestStartTime: () => new Date(),
+      restStartTime: () => null,
+    }),
+
+    /**
+     * Exit over-rest state (when starting new pomodoro)
+     */
+    exitOverRest: assign({
+      overRestStartTime: () => null,
+    }),
+
+    /**
      * Reset daily state for new day
      */
     resetDaily: assign({
@@ -191,6 +228,7 @@ export const vibeFlowMachine = setup({
       currentPomodoroId: () => null,
       pomodoroStartTime: () => null,
       restStartTime: () => null,
+      overRestStartTime: () => null,
     }),
 
     /**
@@ -272,6 +310,10 @@ export const vibeFlowMachine = setup({
           guard: 'canStartPomodoro',
           actions: 'startPomodoro',
         },
+        ENTER_OVER_REST: {
+          target: 'over_rest',
+          actions: 'enterOverRest',
+        },
         DAILY_RESET: {
           target: 'locked',
           actions: 'resetDaily',
@@ -291,10 +333,17 @@ export const vibeFlowMachine = setup({
      */
     focus: {
       on: {
-        COMPLETE_POMODORO: {
-          target: 'rest',
-          actions: 'completePomodoro',
-        },
+        COMPLETE_POMODORO: [
+          {
+            target: 'over_rest',
+            guard: 'isInOverRest',
+            actions: 'completePomodoroInOverRest',
+          },
+          {
+            target: 'rest',
+            actions: 'completePomodoro',
+          },
+        ],
         ABORT_POMODORO: {
           target: 'planning',
           actions: 'abortPomodoro',
@@ -326,9 +375,34 @@ export const vibeFlowMachine = setup({
             actions: 'completeRest',
           },
         ],
+        ENTER_OVER_REST: {
+          target: 'over_rest',
+          actions: 'enterOverRest',
+        },
         OVERRIDE_CAP: {
           target: 'planning',
           actions: 'completeRest',
+        },
+        DAILY_RESET: {
+          target: 'locked',
+          actions: 'resetDaily',
+        },
+        SYNC_STATE: {
+          actions: 'syncState',
+        },
+      },
+    },
+
+    /**
+     * OVER_REST State
+     * Requirements: 7.1-7.9 - Handle over-rest state transitions
+     */
+    over_rest: {
+      on: {
+        START_POMODORO: {
+          target: 'focus',
+          guard: 'canStartPomodoro',
+          actions: 'startPomodoro',
         },
         DAILY_RESET: {
           target: 'locked',
@@ -359,11 +433,13 @@ export function getAllowedEvents(state: SystemState): string[] {
     case 'locked':
       return ['COMPLETE_AIRLOCK', 'SET_AIRLOCK_STEP'];
     case 'planning':
-      return ['START_POMODORO', 'DAILY_RESET', 'SET_DAILY_CAP'];
+      return ['START_POMODORO', 'ENTER_OVER_REST', 'DAILY_RESET', 'SET_DAILY_CAP'];
     case 'focus':
       return ['COMPLETE_POMODORO', 'ABORT_POMODORO', 'DAILY_RESET'];
     case 'rest':
-      return ['COMPLETE_REST', 'OVERRIDE_CAP', 'DAILY_RESET'];
+      return ['COMPLETE_REST', 'ENTER_OVER_REST', 'OVERRIDE_CAP', 'DAILY_RESET'];
+    case 'over_rest':
+      return ['START_POMODORO', 'DAILY_RESET'];
     default:
       return [];
   }
@@ -422,6 +498,14 @@ export function getStateDisplayInfo(state: SystemState): StateDisplayInfo {
         icon: '☕',
         description: 'Take a break, you earned it',
       };
+    case 'over_rest':
+      return {
+        state: 'over_rest',
+        label: 'Over Rest',
+        color: 'orange',
+        icon: '⚠️',
+        description: 'Break time exceeded - consider starting a new focus session',
+      };
     default:
       return {
         state: 'locked',
@@ -452,6 +536,10 @@ export function validateTransition(
  */
 export function parseSystemState(stateString: string): SystemState {
   const normalized = stateString.toLowerCase();
+  // Handle both underscore and non-underscore formats for compatibility
+  if (normalized === 'over_rest' || normalized === 'overrest') {
+    return 'over_rest';
+  }
   if (['locked', 'planning', 'focus', 'rest'].includes(normalized)) {
     return normalized as SystemState;
   }
@@ -462,5 +550,9 @@ export function parseSystemState(stateString: string): SystemState {
  * Map SystemState to database string
  */
 export function serializeSystemState(state: SystemState): string {
+  // Convert over_rest to OVER_REST for database storage
+  if (state === 'over_rest') {
+    return 'OVER_REST';
+  }
   return state.toUpperCase();
 }

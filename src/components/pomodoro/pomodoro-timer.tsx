@@ -28,6 +28,7 @@ import {
   type NotificationConfig,
 } from '@/services/notification.service';
 import { useSocket } from '@/hooks/use-socket';
+import { trayIntegrationService } from '@/services/tray-integration.service';
 
 interface PomodoroTimerProps {
   taskId?: string;           // Pre-selected task ID (when starting from tasks page)
@@ -142,6 +143,9 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       setIsRunning(false);
       setTimeRemaining(0);
       
+      // Update tray to show no active pomodoro
+      trayIntegrationService.updatePomodoroState(null);
+      
       // Trigger notifications on completion (Requirements 4.1, 4.2, 4.5)
       // Use type assertion as the mutation returns PomodoroWithTask
       const pomodoroData = data as { task?: { title: string } } | undefined;
@@ -161,6 +165,10 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       clearPomodoroCache();
       setIsRunning(false);
       setTimeRemaining(0);
+      
+      // Update tray to show no active pomodoro
+      trayIntegrationService.updatePomodoroState(null);
+      
       onAbort?.();
     },
   });
@@ -234,6 +242,17 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       setIsRunning(remaining > 0);
       setSelectedTaskId(currentPomodoro.taskId);
       
+      // Update tray with current pomodoro state
+      if (remaining > 0) {
+        trayIntegrationService.updatePomodoroState({
+          id: currentPomodoro.id,
+          taskId: currentPomodoro.taskId,
+          duration: currentPomodoro.duration,
+          startTime: currentPomodoro.startTime,
+          task: currentPomodoro.task,
+        });
+      }
+      
       // Keep cache in sync (only if task data is available)
       if (remaining > 0 && currentPomodoro.task) {
         cachePomodoroState({
@@ -246,6 +265,8 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       }
     } else if (!currentPomodoro && !isRecovering) {
       setIsRunning(false);
+      // Update tray to show no active pomodoro
+      trayIntegrationService.updatePomodoroState(null);
     }
   }, [currentPomodoro, isRecovering]);
 
@@ -263,6 +284,18 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
           }
           return 0;
         }
+        
+        // Update tray with new countdown time every second
+        if (currentPomodoro && prev > 1) {
+          trayIntegrationService.updatePomodoroState({
+            id: currentPomodoro.id,
+            taskId: currentPomodoro.taskId,
+            duration: currentPomodoro.duration,
+            startTime: currentPomodoro.startTime,
+            task: currentPomodoro.task,
+          });
+        }
+        
         return prev - 1;
       });
     }, 1000);
@@ -290,6 +323,14 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
         } else {
           // Sync local timer with server calculation
           setTimeRemaining(serverRemaining);
+          // Update tray with synced time
+          trayIntegrationService.updatePomodoroState({
+            id: currentPomodoro.id,
+            taskId: currentPomodoro.taskId,
+            duration: currentPomodoro.duration,
+            startTime: currentPomodoro.startTime,
+            task: currentPomodoro.task,
+          });
         }
       }
     }, 10000); // Check every 10 seconds for more responsive auto-completion
