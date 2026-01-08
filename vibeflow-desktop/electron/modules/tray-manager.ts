@@ -37,7 +37,7 @@ export interface TrayMenuState {
   appMode?: AppMode;
   /** Whether demo mode is active */
   isInDemoMode?: boolean;
-  
+
   // New fields for enhanced functionality
   /** Current system state for non-pomodoro display */
   systemState: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
@@ -45,6 +45,8 @@ export interface TrayMenuState {
   restTimeRemaining?: string;
   /** Over-rest duration display (e.g., "15 min") (pre-formatted) */
   overRestDuration?: string;
+  /** Daily pomodoro progress (e.g., "3/6") */
+  dailyProgress?: string;
 }
 
 /**
@@ -734,10 +736,17 @@ export class TrayManager {
           }
           break;
         case 'OVER_REST':
-          // Fun messages for over-rest
+          // Elon Musk quotes about action + show overtime duration
           if (overRestDuration) {
-            const messages = ['该干活啦', '摸鱼结束', '老板来了', '回来工作'];
-            const msgIndex = Math.floor(Date.now() / 10000) % messages.length;
+            const messages = [
+              '你是在休息还是在逃避？',
+              '如果足够重要，就去做',
+              '为什么不能更快完成？',
+              '疯狂工作吧',
+              '行动是唯一的答案',
+              '别做投机者，把事办成',
+            ];
+            const msgIndex = Math.floor(Date.now() / 15000) % messages.length;
             title = `⚠️ +${overRestDuration} ${messages[msgIndex]}`;
           } else {
             title = '⚠️ 休息超时了';
