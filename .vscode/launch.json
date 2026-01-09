@@ -13,6 +13,17 @@
         "action": "debugWithChrome"
       }
     },
+        {
+      "name": "🖥️ Desktop: Electron",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/vibeflow-desktop",
+      "env": {
+        "NODE_ENV": "development",
+        "VIBEFLOW_MODE": "development"
+      }
+    },
     {
       "name": "📦 Next.js Only (无 Socket.io)",
       "type": "node-terminal",
@@ -32,17 +43,7 @@
       "command": "npm run dev:mcp",
       "cwd": "${workspaceFolder}"
     },
-    {
-      "name": "🖥️ Desktop: Electron",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "npm run dev",
-      "cwd": "${workspaceFolder}/vibeflow-desktop",
-      "env": {
-        "NODE_ENV": "development",
-        "VIBEFLOW_MODE": "development"
-      }
-    },
+
     {
       "name": "🖥️ Desktop: Electron (Staging)",
       "type": "node-terminal",
