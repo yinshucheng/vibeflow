@@ -17,6 +17,10 @@ PM2_NAME="vibeflow-backend"
 DESKTOP_APP_NAME="VibeFlow"
 BACKEND_PORT="${VIBEFLOW_PORT:-3000}"
 HEALTH_CHECK_URL="http://localhost:${BACKEND_PORT}/api/health"
+VIBEFLOW_DIR="$HOME/.vibeflow"
+PAUSE_FILE="$VIBEFLOW_DIR/guardian.pause"
+GUARDIAN_PLIST="com.vibeflow.guardian"
+LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$GUARDIAN_PLIST.plist"
 
 # Colors for output
 RED='\033[0;31m'
@@ -313,6 +317,70 @@ cmd_logs() {
     fi
 }
 
+# Pause command - 暂停 Guardian 自动恢复
+cmd_pause() {
+    mkdir -p "$VIBEFLOW_DIR"
+    local minutes="${2:-60}"
+
+    # 最多 60 分钟
+    if [ "$minutes" -gt 60 ]; then
+        print_warning "最多暂停 60 分钟，已自动调整"
+        minutes=60
+    fi
+
+    local expire_time=$(($(date +%s) + minutes * 60))
+    echo "$expire_time" > "$PAUSE_FILE"
+
+    print_success "Guardian 已暂停 $minutes 分钟"
+    print_info "到期时间: $(date -r $expire_time '+%H:%M:%S')"
+    print_info "使用 'vibeflow resume' 可提前恢复"
+}
+
+# Resume command - 恢复 Guardian
+cmd_resume() {
+    if [ -f "$PAUSE_FILE" ]; then
+        rm -f "$PAUSE_FILE"
+        print_success "Guardian 已恢复"
+    else
+        print_warning "Guardian 未处于暂停状态"
+    fi
+}
+
+# Guardian install command
+cmd_guardian_install() {
+    print_info "安装 Guardian 守护进程..."
+
+    mkdir -p "$HOME/Library/LaunchAgents"
+    mkdir -p "$VIBEFLOW_DIR"
+
+    # 生成 plist 文件
+    local guardian_path="$SCRIPT_DIR/guardian.sh"
+    sed -e "s|GUARDIAN_PATH|$guardian_path|g" \
+        -e "s|LOG_PATH|$VIBEFLOW_DIR|g" \
+        "$SCRIPT_DIR/com.vibeflow.guardian.plist" > "$LAUNCHD_PLIST"
+
+    # 加载到 launchd
+    launchctl unload "$LAUNCHD_PLIST" 2>/dev/null || true
+    launchctl load "$LAUNCHD_PLIST"
+
+    print_success "Guardian 已安装并启动"
+    print_info "服务将在系统重启后自动运行"
+    print_info "每 30 秒检测一次服务状态"
+}
+
+# Guardian uninstall command
+cmd_guardian_uninstall() {
+    print_info "卸载 Guardian 守护进程..."
+
+    if [ -f "$LAUNCHD_PLIST" ]; then
+        launchctl unload "$LAUNCHD_PLIST" 2>/dev/null || true
+        rm -f "$LAUNCHD_PLIST"
+        print_success "Guardian 已卸载"
+    else
+        print_warning "Guardian 未安装"
+    fi
+}
+
 # Help command
 cmd_help() {
     echo ""
@@ -326,6 +394,10 @@ cmd_help() {
     echo "  restart   Restart all VibeFlow services"
     echo "  status    Show status of all services"
     echo "  logs      Show backend server logs (default: last 100 lines)"
+    echo "  pause [m] Pause Guardian for m minutes (default/max: 60)"
+    echo "  resume    Resume Guardian immediately"
+    echo "  guardian-install    Install Guardian auto-recovery daemon"
+    echo "  guardian-uninstall  Uninstall Guardian daemon"
     echo "  help      Show this help message"
     echo ""
     echo "Environment Variables:"
@@ -335,6 +407,7 @@ cmd_help() {
     echo "  vibeflow start              # Start all services"
     echo "  vibeflow status             # Check service status"
     echo "  vibeflow logs 50            # Show last 50 log lines"
+    echo "  vibeflow pause 30           # Pause Guardian for 30 minutes"
     echo "  VIBEFLOW_PORT=3001 vibeflow start  # Start on custom port"
     echo ""
 }
@@ -355,6 +428,18 @@ case "${1:-help}" in
         ;;
     logs)
         cmd_logs "$@"
+        ;;
+    pause)
+        cmd_pause "$@"
+        ;;
+    resume)
+        cmd_resume
+        ;;
+    guardian-install)
+        cmd_guardian_install
+        ;;
+    guardian-uninstall)
+        cmd_guardian_uninstall
         ;;
     help|--help|-h)
         cmd_help
