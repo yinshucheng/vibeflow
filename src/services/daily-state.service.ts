@@ -151,6 +151,16 @@ export const dailyStateService = {
 
       const dailyState = stateResult.data;
 
+      // Check for over_rest state if currently in rest or planning
+      let effectiveSystemState = dailyState.systemState;
+      const currentState = parseSystemState(dailyState.systemState);
+      if (currentState === 'rest' || currentState === 'planning') {
+        const overRestResult = await overRestService.checkOverRestStatus(userId);
+        if (overRestResult.success && overRestResult.data?.isOverRest) {
+          effectiveSystemState = 'OVER_REST';
+        }
+      }
+
       // Get user's daily cap setting
       const settings = await prisma.userSettings.findUnique({
         where: { userId },
@@ -169,6 +179,7 @@ export const dailyStateService = {
         success: true,
         data: {
           ...dailyState,
+          systemState: effectiveSystemState,
           progress,
         },
       };

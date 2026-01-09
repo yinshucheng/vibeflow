@@ -21,11 +21,13 @@ interface TrayMenuState {
   enforcementMode: 'strict' | 'gentle';
   appMode?: 'FOCUS' | 'REST' | 'LOCKED' | 'PLANNING';
   isInDemoMode?: boolean;
-  
+
   // New fields for enhanced functionality
   systemState: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
   restTimeRemaining?: string; // MM:SS format for rest countdown (pre-formatted)
   overRestDuration?: string; // Formatted duration for over-rest display (e.g., "15 min")
+  dailyProgress?: string; // e.g., "3/8"
+  isInSleepTime?: boolean;
 }
 
 // Pomodoro data for tray updates

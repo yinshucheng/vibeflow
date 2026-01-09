@@ -2,6 +2,8 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import type { Pomodoro, PomodoroStatus } from '@prisma/client';
 import { mcpEventService } from './mcp-event.service';
+import { dailyStateService } from './daily-state.service';
+import { overRestService } from './over-rest.service';
 
 // Timer configuration constraints (Requirements: 14.5)
 const MIN_POMODORO_DURATION = 10; // minutes
@@ -538,6 +540,18 @@ export const pomodoroService = {
                 summary: 'Auto-completed (expired)',
               },
             });
+
+            // Update system state to REST (fixes tray showing PLANNING after auto-complete)
+            // Check if already in over-rest state
+            const overRestResult = await overRestService.checkOverRestStatus(userId);
+            const isOverRest = overRestResult.success && overRestResult.data?.isOverRest;
+
+            if (isOverRest) {
+              await dailyStateService.updateSystemState(userId, 'over_rest');
+            } else {
+              await dailyStateService.updateSystemState(userId, 'rest');
+            }
+            await dailyStateService.incrementPomodoroCount(userId);
 
             completedCount++;
           } catch (error) {
