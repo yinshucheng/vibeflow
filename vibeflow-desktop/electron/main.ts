@@ -938,9 +938,16 @@ app.whenReady().then(async () => {
     if (isFocusSessionActive && hasDistractionApps) {
       // Focus session is active - start monitoring distraction apps
       console.log('[Main] Focus session active, starting distraction app monitoring');
-      
+
       // Update focus enforcer state
       focusEnforcer.setPomodoroActive(true);
+
+      // Stop over-rest enforcement when pomodoro starts (fixes window switching during focus)
+      const overRestEnforcer = getOverRestEnforcer();
+      if (overRestEnforcer.isActive()) {
+        console.log('[Main] Stopping over-rest enforcement due to pomodoro start');
+        overRestEnforcer.stop();
+      }
       
       // Map policy distraction apps to the format expected by createFocusTimeMonitor
       const distractionAppsForMonitor = policy.distractionApps.map(app => ({

@@ -226,15 +226,21 @@ export class SleepEnforcer {
    */
   start(): void {
     if (this.state.isMonitoring) {
+      console.log('[SleepEnforcer] Already monitoring, skipping start');
       return;
     }
-    
+
     if (!this.config.enabled) {
       console.log('[SleepEnforcer] Not starting - sleep time is disabled');
       return;
     }
-    
-    console.log('[SleepEnforcer] Starting sleep time monitoring');
+
+    console.log('[SleepEnforcer] Starting sleep time monitoring, config:', {
+      startTime: this.config.startTime,
+      endTime: this.config.endTime,
+      isCurrentlyActive: this.config.isCurrentlyActive,
+      appsCount: this.config.enforcementApps.length,
+    });
     this.state.isMonitoring = true;
     
     // Initial check
@@ -256,10 +262,11 @@ export class SleepEnforcer {
    */
   private startAppMonitoring(): void {
     if (this.appMonitor?.isActive()) {
+      console.log('[SleepEnforcer] App monitoring already active, skipping');
       return; // Already monitoring
     }
-    
-    console.log('[SleepEnforcer] Starting app monitoring');
+
+    console.log('[SleepEnforcer] Starting app monitoring, apps:', this.config.enforcementApps.map(a => a.name).join(', '));
     
     // Create or update the app monitor
     this.appMonitor = createSleepTimeMonitor(this.config.enforcementApps, {

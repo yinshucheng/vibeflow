@@ -487,7 +487,9 @@ class ConnectionManager {
    * Requirements: 4.11, 4.12
    */
   async connect(): Promise<void> {
+    console.log('[ConnectionManager] connect() called, current status:', this.state.status);
     if (this.state.status === 'connected' || this.state.status === 'connecting') {
+      console.log('[ConnectionManager] Already connected or connecting, skipping');
       return;
     }
 
@@ -495,11 +497,14 @@ class ConnectionManager {
     this.updateStatus('connecting');
 
     // Check server health first (includes certificate verification for HTTPS)
+    console.log('[ConnectionManager] Checking server health...');
     const isHealthy = await this.checkServerHealth();
-    
+    console.log('[ConnectionManager] Server health check result:', isHealthy);
+
     if (isHealthy) {
       await this.establishSocketConnection();
     } else {
+      console.error('[ConnectionManager] Server not healthy, error:', this.state.lastError);
       this.handleConnectionError(this.state.lastError || 'Server is not reachable');
     }
   }

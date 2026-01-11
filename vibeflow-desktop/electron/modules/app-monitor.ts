@@ -222,7 +222,7 @@ export class AppMonitor {
 
     // Check if enforcement should be skipped (e.g., system idle)
     if (this.config.shouldSkipEnforcement?.()) {
-      console.log('[AppMonitor] Skipping enforcement (shouldSkipEnforcement returned true)');
+      console.log(`[AppMonitor:${this.config.context}] Skipping enforcement (shouldSkipEnforcement returned true)`);
       return;
     }
 
@@ -236,7 +236,7 @@ export class AppMonitor {
         return; // No distraction apps running
       }
 
-      console.log(`[AppMonitor] Found ${runningDistractionApps.length} distraction app(s) running`);
+      console.log(`[AppMonitor:${this.config.context}] Found ${runningDistractionApps.length} distraction app(s):`, runningDistractionApps.map(a => a.name).join(', '));
 
       // Show warning notification
       await this.showWarningNotification(runningDistractionApps);
