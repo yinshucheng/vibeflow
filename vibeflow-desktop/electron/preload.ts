@@ -567,6 +567,41 @@ const vibeflowAPI = {
       return () =>
         ipcRenderer.removeListener('offlineQueue:syncComplete', handler);
     },
+    // Octopus protocol events (forwarded from main process WebSocket)
+    // These allow the renderer to receive server events via IPC instead of creating its own socket
+    policyUpdated: (
+      callback: (policy: DesktopPolicy) => void
+    ): (() => void) => {
+      const handler = (
+        _event: IpcRendererEvent,
+        data: DesktopPolicy
+      ) => callback(data);
+      ipcRenderer.on('octopus:policyUpdated', handler);
+      return () =>
+        ipcRenderer.removeListener('octopus:policyUpdated', handler);
+    },
+    stateSync: (
+      callback: (state: unknown) => void
+    ): (() => void) => {
+      const handler = (
+        _event: IpcRendererEvent,
+        data: unknown
+      ) => callback(data);
+      ipcRenderer.on('octopus:stateSync', handler);
+      return () =>
+        ipcRenderer.removeListener('octopus:stateSync', handler);
+    },
+    commandReceived: (
+      callback: (command: unknown) => void
+    ): (() => void) => {
+      const handler = (
+        _event: IpcRendererEvent,
+        data: unknown
+      ) => callback(data);
+      ipcRenderer.on('octopus:commandReceived', handler);
+      return () =>
+        ipcRenderer.removeListener('octopus:commandReceived', handler);
+    },
   },
 
   // Platform info
