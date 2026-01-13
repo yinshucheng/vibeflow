@@ -8,10 +8,11 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
-import { 
-  pomodoroService, 
-  StartPomodoroSchema, 
-  CompletePomodoroSchema 
+import {
+  pomodoroService,
+  StartPomodoroSchema,
+  CompletePomodoroSchema,
+  RecordPomodoroSchema,
 } from '@/services/pomodoro.service';
 import { dailyStateService } from '@/services/daily-state.service';
 import { statsService, GetStatsSchema } from '@/services/stats.service';
@@ -436,4 +437,25 @@ export const pomodoroRouter = router({
 
     return result.data;
   }),
+
+  /**
+   * Record a pomodoro retroactively (for forgotten sessions)
+   */
+  record: protectedProcedure
+    .input(RecordPomodoroSchema)
+    .mutation(async ({ ctx, input }) => {
+      const result = await pomodoroService.record(ctx.user.userId, input);
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to record pomodoro',
+        });
+      }
+
+      // Increment pomodoro count for the day of completion
+      await dailyStateService.incrementPomodoroCount(ctx.user.userId);
+
+      return result.data;
+    }),
 });

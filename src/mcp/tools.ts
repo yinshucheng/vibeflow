@@ -52,6 +52,8 @@ export const TOOLS = {
   // MCP Capability Enhancement - Daily State
   GET_TOP3: 'flow_get_top3',
   SET_TOP3: 'flow_set_top3',
+  // Record pomodoro retroactively
+  RECORD_POMODORO: 'flow_record_pomodoro',
 } as const;
 
 /**
@@ -198,6 +200,14 @@ interface GetProjectInput {
 // MCP Capability Enhancement - Daily State
 interface SetTop3Input {
   task_ids: string[];
+}
+
+// Record pomodoro retroactively
+interface RecordPomodoroMCPInput {
+  task_id?: string;
+  duration: number;
+  completed_at: string;
+  summary?: string;
 }
 
 /**
@@ -620,6 +630,20 @@ export function registerTools() {
           required: ['task_ids'],
         },
       },
+      {
+        name: TOOLS.RECORD_POMODORO,
+        description: 'Record a pomodoro retroactively (for forgotten sessions)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Optional task ID to associate with the pomodoro' },
+            duration: { type: 'number', description: 'Duration in minutes (10-120)' },
+            completed_at: { type: 'string', description: 'Completion time in ISO 8601 format' },
+            summary: { type: 'string', description: 'Optional summary of what was done' },
+          },
+          required: ['duration', 'completed_at'],
+        },
+      },
     ],
   };
 }
@@ -722,6 +746,9 @@ export async function handleToolCall(
         break;
       case TOOLS.SET_TOP3:
         result = await setTop3(args as unknown as SetTop3Input, context);
+        break;
+      case TOOLS.RECORD_POMODORO:
+        result = await recordPomodoro(args as unknown as RecordPomodoroMCPInput, context);
         break;
       default:
         success = false;
@@ -2512,5 +2539,40 @@ async function setTop3(
       projectTitle: t!.project.title,
       order: t!.order,
     })),
+  };
+}
+
+/**
+ * Record a pomodoro retroactively
+ */
+async function recordPomodoro(
+  input: RecordPomodoroMCPInput,
+  context: MCPContext
+): Promise<{ success: boolean; pomodoro?: unknown; error?: unknown }> {
+  if (!input.duration || !input.completed_at) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'duration and completed_at are required' } };
+  }
+
+  const result = await pomodoroService.record(context.userId, {
+    taskId: input.task_id ?? null,
+    duration: input.duration,
+    completedAt: new Date(input.completed_at),
+    summary: input.summary,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return {
+    success: true,
+    pomodoro: {
+      id: result.data?.id,
+      taskId: result.data?.taskId,
+      duration: result.data?.duration,
+      startTime: result.data?.startTime?.toISOString(),
+      endTime: result.data?.endTime?.toISOString(),
+      summary: result.data?.summary,
+    },
   };
 }

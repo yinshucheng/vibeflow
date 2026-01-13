@@ -26,8 +26,17 @@ export const CompletePomodoroSchema = z.object({
   summary: z.string().max(1000).optional(),
 });
 
+// Schema for recording a pomodoro retroactively
+export const RecordPomodoroSchema = z.object({
+  taskId: z.string().uuid().nullable().optional(),
+  duration: z.number().min(10).max(120),
+  completedAt: z.coerce.date(),
+  summary: z.string().max(1000).optional(),
+});
+
 export type StartPomodoroInput = z.infer<typeof StartPomodoroSchema>;
 export type CompletePomodoroInput = z.infer<typeof CompletePomodoroSchema>;
+export type RecordPomodoroInput = z.infer<typeof RecordPomodoroSchema>;
 
 // Service result type
 export interface ServiceResult<T> {
@@ -788,6 +797,87 @@ export const pomodoroService = {
       return {
         success: false,
         error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get last task' },
+      };
+    }
+  },
+
+  /**
+   * Record a pomodoro retroactively (for forgotten sessions)
+   */
+  async record(userId: string, data: RecordPomodoroInput): Promise<ServiceResult<PomodoroWithTask>> {
+    try {
+      const validated = RecordPomodoroSchema.parse(data);
+
+      // Validate completedAt is not in the future
+      if (validated.completedAt > new Date()) {
+        return {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'completedAt cannot be in the future' },
+        };
+      }
+
+      // Verify task ownership if provided
+      if (validated.taskId) {
+        const task = await prisma.task.findFirst({
+          where: { id: validated.taskId, userId },
+        });
+        if (!task) {
+          return {
+            success: false,
+            error: { code: 'VALIDATION_ERROR', message: 'Task not found or does not belong to user' },
+          };
+        }
+      }
+
+      // Calculate start time from completedAt - duration
+      const startTime = new Date(validated.completedAt.getTime() - validated.duration * 60 * 1000);
+
+      const pomodoro = await prisma.pomodoro.create({
+        data: {
+          userId,
+          taskId: validated.taskId ?? null,
+          duration: validated.duration,
+          status: 'COMPLETED',
+          startTime,
+          endTime: validated.completedAt,
+          summary: validated.summary ?? 'Recorded retroactively',
+          isTaskless: !validated.taskId,
+        },
+        include: {
+          task: { select: { id: true, title: true, projectId: true } },
+        },
+      });
+
+      // Publish event
+      await mcpEventService.publish({
+        type: 'pomodoro.completed',
+        userId,
+        payload: {
+          pomodoroId: pomodoro.id,
+          taskId: pomodoro.taskId,
+          taskTitle: pomodoro.task?.title ?? 'Recorded retroactively',
+          duration: pomodoro.duration,
+          startTime: startTime.toISOString(),
+          endTime: validated.completedAt.toISOString(),
+          summary: pomodoro.summary,
+        },
+      });
+
+      return { success: true, data: pomodoro };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid pomodoro data',
+            details: error.flatten().fieldErrors as Record<string, string[]>,
+          },
+        };
+      }
+      return {
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to record pomodoro' },
       };
     }
   },
