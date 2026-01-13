@@ -45,7 +45,7 @@
 
 ## 新增 Tools 设计
 
-### Phase 1: 核心任务管理
+### 1. 任务管理 Tools
 
 #### 1.1 flow_get_task
 
@@ -118,7 +118,27 @@ interface GetOverdueTasksInput {
 }
 ```
 
-#### 1.6 flow_set_plan_date
+#### 1.6 flow_move_task
+
+```typescript
+interface MoveTaskInput {
+  task_id: string;
+  target_project_id: string;
+}
+
+interface MoveTaskOutput {
+  success: boolean;
+  task?: {
+    id: string;
+    title: string;
+    projectId: string;
+    projectTitle: string;
+  };
+  error?: { code: string; message: string };
+}
+```
+
+#### 1.7 flow_set_plan_date
 
 ```typescript
 interface SetPlanDateInput {
@@ -127,7 +147,7 @@ interface SetPlanDateInput {
 }
 ```
 
-### Phase 2: 项目管理
+### 2. 项目管理 Tools
 
 #### 2.1 flow_create_project
 
@@ -148,17 +168,20 @@ interface UpdateProjectInput {
   deliverable?: string;
   status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
 }
-```
 
-#### 2.3 flow_archive_project
-
-```typescript
-interface ArchiveProjectInput {
-  project_id: string;
+interface UpdateProjectOutput {
+  success: boolean;
+  project?: {
+    id: string;
+    title: string;
+    deliverable: string;
+    status: string;
+  };
+  error?: { code: string; message: string };
 }
 ```
 
-#### 2.4 flow_get_project
+#### 2.3 flow_get_project
 
 ```typescript
 interface GetProjectInput {
@@ -167,7 +190,7 @@ interface GetProjectInput {
 }
 ```
 
-### Phase 3: 每日状态管理
+### 3. 每日状态 Tools
 
 #### 3.1 flow_set_top3
 
@@ -183,28 +206,9 @@ interface SetTop3Input {
 // No input required, returns current Top 3
 ```
 
-#### 3.3 flow_complete_airlock
-
-```typescript
-// No input required, transitions PLANNING → FOCUS
-```
-
-### Phase 4: 番茄钟控制
-
-#### 4.1 flow_abort_pomodoro
-
-```typescript
-interface AbortPomodoroInput {
-  pomodoro_id?: string;  // optional, defaults to current
-  reason?: string;
-}
-```
-
 ---
 
 ## 新增 Resources 设计
-
-### Phase 1
 
 #### vibe://state/current
 
@@ -221,8 +225,6 @@ interface StateCurrentResource {
 }
 ```
 
-### Phase 2
-
 #### vibe://projects/all
 
 ```typescript
@@ -235,36 +237,6 @@ interface ProjectsAllResource {
     completedTaskCount: number;
     createdAt: string;
   }>;
-}
-```
-
-#### vibe://planning/suggestions
-
-```typescript
-interface PlanningSuggestionsResource {
-  suggestedTop3: Array<{
-    taskId: string;
-    taskTitle: string;
-    projectTitle: string;
-    priority: string;
-    reason: string;  // 推荐理由
-  }>;
-  totalBacklogCount: number;
-  overdueCount: number;
-}
-```
-
-### Phase 3
-
-#### vibe://pomodoro/today
-
-```typescript
-interface PomodoroTodayResource {
-  completed: number;
-  expected: number;
-  remaining: number;
-  totalFocusMinutes: number;
-  currentStreak: number;
 }
 ```
 
@@ -283,21 +255,6 @@ interface TimelineTodayResource {
     startTime: string;
     endTime: string;
     durationMinutes: number;
-  }>;
-}
-```
-
-#### vibe://tasks/recent
-
-```typescript
-interface TasksRecentResource {
-  tasks: Array<{
-    id: string;
-    title: string;
-    status: string;
-    projectTitle: string;
-    updatedAt: string;
-    changeType: 'created' | 'updated' | 'completed';
   }>;
 }
 ```
@@ -326,11 +283,9 @@ interface TasksRecentResource {
 
 | 新增能力 | 复用 Service |
 |---------|-------------|
-| 任务查询/更新 | taskService |
+| 任务查询/更新/移动 | taskService |
 | 项目管理 | projectService |
 | 每日状态 | dailyStateService |
-| 番茄钟控制 | pomodoroService |
-| 统计数据 | statsService |
 | 时间线 | timelineService |
 
 ### 错误处理
@@ -362,9 +317,9 @@ interface ErrorResponse {
 ### 集成测试
 
 通过 MCP 客户端测试完整流程:
-1. 创建项目 → 创建任务 → 设置 Top 3 → 开始番茄钟
+1. 创建项目 → 创建任务 → 设置 Top 3
 2. 查询积压任务 → 批量设置计划日期
-3. 获取每日总结 → 验证统计数据
+3. 移动任务到其他项目 → 验证项目关联
 
 ---
 
