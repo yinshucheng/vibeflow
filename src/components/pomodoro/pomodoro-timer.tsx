@@ -30,18 +30,52 @@ import {
 import { useSocket } from '@/hooks/use-socket';
 import { trayIntegrationService } from '@/services/tray-integration.service';
 
+// Quick Add to Inbox component
+function QuickAddInput({ onAdd }: { onAdd: () => void }) {
+  const [title, setTitle] = useState('');
+  const mutation = trpc.task.quickCreateInbox.useMutation({
+    onSuccess: () => {
+      setTitle('');
+      onAdd();
+    },
+  });
+
+  return (
+    <div className="flex gap-2 mt-4">
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Quick add task..."
+        className="flex-1 px-3 py-2 border rounded-md text-sm"
+        onKeyDown={(e) => e.key === 'Enter' && title.trim() && mutation.mutate({ title: title.trim() })}
+      />
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => title.trim() && mutation.mutate({ title: title.trim() })}
+        disabled={!title.trim() || mutation.isPending}
+      >
+        + Add
+      </Button>
+    </div>
+  );
+}
+
 interface PomodoroTimerProps {
   taskId?: string;           // Pre-selected task ID (when starting from tasks page)
   onComplete?: () => void;
   onAbort?: () => void;
+  onTaskSwitch?: (taskId: string | null) => void;  // Multi-task: callback when task is switched
   compact?: boolean;         // Compact mode (for embedding in tasks page)
 }
 
-export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, compact }: PomodoroTimerProps) {
+export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, onTaskSwitch, compact }: PomodoroTimerProps) {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(preSelectedTaskId ?? null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isRunning, setIsRunning] = useState(false);
   const [isRecovering, setIsRecovering] = useState(true);
+  const [showTaskSwitcher, setShowTaskSwitcher] = useState(false);
   const hasHandledExpiredSession = useRef(false);
   const hasRequestedPermission = useRef(false);
 
@@ -52,6 +86,12 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
   
   // Get current pomodoro if any
   const { data: currentPomodoro, isLoading: pomodoroLoading, refetch: refetchCurrent } = trpc.pomodoro.getCurrent.useQuery();
+
+  // Get time slices for current pomodoro (Multi-task Req 4)
+  const { data: timeSlices } = trpc.timeSlice.getByPomodoro.useQuery(
+    { pomodoroId: currentPomodoro?.id ?? '' },
+    { enabled: !!currentPomodoro?.id }
+  );
   
   // Get user settings for default duration and notification config
   const { data: settings } = trpc.settings.get.useQuery();
@@ -65,6 +105,9 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
   
   // Check if can start pomodoro
   const { data: canStart } = trpc.dailyState.canStartPomodoro.useQuery();
+
+  // Get last task for "Continue Last" feature
+  const { data: lastTask } = trpc.pomodoro.getLastTask.useQuery();
 
   // Build notification config from settings (Requirements 4.3, 4.4)
   // Note: Using type assertion as Prisma types may not be fully synced
@@ -128,9 +171,14 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
     onSuccess: (data) => {
       utils.pomodoro.getCurrent.invalidate();
       utils.dailyState.getToday.invalidate();
-      // Cache the new pomodoro state (Requirement 1.1)
-      // Note: We'll cache from getCurrent query after invalidation
-      // since start mutation may not include full task data
+    },
+  });
+
+  // Multi-task: Start taskless pomodoro (Req 3)
+  const startTasklessMutation = trpc.pomodoro.startTaskless.useMutation({
+    onSuccess: () => {
+      utils.pomodoro.getCurrent.invalidate();
+      utils.dailyState.getToday.invalidate();
     },
   });
 
@@ -165,11 +213,31 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       clearPomodoroCache();
       setIsRunning(false);
       setTimeRemaining(0);
-      
+
       // Update tray to show no active pomodoro
       trayIntegrationService.updatePomodoroState(null);
-      
+
       onAbort?.();
+    },
+  });
+
+  // Multi-task: Switch task mutation
+  const switchTaskMutation = trpc.timeSlice.switch.useMutation({
+    onSuccess: (data) => {
+      if (data) {
+        setSelectedTaskId(data.taskId);
+        onTaskSwitch?.(data.taskId);
+      }
+      setShowTaskSwitcher(false);
+    },
+  });
+
+  // Multi-task: Complete current task mutation (Req 2)
+  const completeTaskMutation = trpc.pomodoro.completeTask.useMutation({
+    onSuccess: () => {
+      utils.pomodoro.getCurrent.invalidate();
+      utils.task.getTodayTasks.invalidate();
+      setShowTaskSwitcher(true); // Show switcher to pick next task
     },
   });
 
@@ -358,7 +426,7 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
   // Handle start pomodoro
   const handleStart = async () => {
     if (!selectedTaskId) return;
-    
+
     try {
       await startMutation.mutateAsync({
         taskId: selectedTaskId,
@@ -369,14 +437,61 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
     }
   };
 
+  // Handle start taskless pomodoro (Multi-task Req 3)
+  const handleStartTaskless = async () => {
+    try {
+      await startTasklessMutation.mutateAsync({});
+    } catch (error) {
+      console.error('Failed to start taskless pomodoro:', error);
+    }
+  };
+
+  // Handle continue last task
+  const handleContinueLast = async () => {
+    if (!lastTask) return;
+    try {
+      await startMutation.mutateAsync({ taskId: lastTask.id });
+    } catch (error) {
+      console.error('Failed to continue last task:', error);
+    }
+  };
+
   // Handle abort pomodoro
   const handleAbort = async () => {
     if (!currentPomodoro) return;
-    
+
     try {
       await abortMutation.mutateAsync({ id: currentPomodoro.id });
     } catch (error) {
       console.error('Failed to abort pomodoro:', error);
+    }
+  };
+
+  // Handle switch task (Multi-task Req 1)
+  const handleSwitchTask = async (newTaskId: string | null) => {
+    if (!currentPomodoro) return;
+
+    try {
+      await switchTaskMutation.mutateAsync({
+        pomodoroId: currentPomodoro.id,
+        currentSliceId: null, // Service will find current slice
+        newTaskId,
+      });
+    } catch (error) {
+      console.error('Failed to switch task:', error);
+    }
+  };
+
+  // Handle complete current task (Multi-task Req 2)
+  const handleCompleteTask = async () => {
+    if (!currentPomodoro || !currentPomodoro.taskId) return;
+
+    try {
+      await completeTaskMutation.mutateAsync({
+        pomodoroId: currentPomodoro.id,
+      });
+    } catch (error) {
+      console.error('Failed to complete task:', error);
     }
   };
 
@@ -449,30 +564,132 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
         </div>
       )}
 
+      {/* Task Stack Display (Multi-task Req 4) */}
+      {isRunning && timeSlices && timeSlices.length > 0 && (
+        <div className="w-full max-w-md bg-gray-50 rounded-lg p-3">
+          <h4 className="text-xs font-medium text-gray-500 mb-2">Task Stack</h4>
+          <div className="space-y-1">
+            {timeSlices.map((slice, idx) => {
+              const task = availableTasks.find(t => t.id === slice.taskId);
+              const isActive = idx === timeSlices.length - 1 && !slice.endTime;
+              return (
+                <div
+                  key={slice.id}
+                  className={`flex justify-between items-center text-sm px-2 py-1 rounded ${
+                    isActive ? 'bg-green-100 text-green-800' : 'text-gray-600'
+                  }`}
+                >
+                  <span className="truncate flex-1">
+                    {task?.title ?? (slice.taskId ? 'Unknown' : 'Taskless')}
+                  </span>
+                  <span className="text-xs ml-2">
+                    {Math.floor((slice.durationSeconds ?? 0) / 60)}m
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Controls */}
       <div className="flex gap-4">
         {!isRunning ? (
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleStart}
-            disabled={!selectedTaskId || !canStart || startMutation.isPending}
-            isLoading={startMutation.isPending}
-          >
-            🎯 Start Focus
-          </Button>
+          <>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleStart}
+              disabled={!selectedTaskId || !canStart || startMutation.isPending}
+              isLoading={startMutation.isPending}
+            >
+              🎯 Start Focus
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handleStartTaskless}
+              disabled={!canStart || startTasklessMutation.isPending}
+              isLoading={startTasklessMutation.isPending}
+            >
+              ⏱️ Focus Time
+            </Button>
+            {lastTask && (
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={handleContinueLast}
+                disabled={!canStart || startMutation.isPending}
+              >
+                ↩️ Last
+              </Button>
+            )}
+          </>
         ) : (
-          <Button
-            variant="danger"
-            size="lg"
-            onClick={handleAbort}
-            disabled={abortMutation.isPending}
-            isLoading={abortMutation.isPending}
-          >
-            ⏹️ Stop
-          </Button>
+          <>
+            {currentPomodoro?.taskId && (
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={handleCompleteTask}
+                disabled={completeTaskMutation.isPending}
+                isLoading={completeTaskMutation.isPending}
+              >
+                ✅ Done
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => setShowTaskSwitcher(true)}
+              disabled={switchTaskMutation.isPending}
+            >
+              🔄 Switch
+            </Button>
+            <Button
+              variant="danger"
+              size="lg"
+              onClick={handleAbort}
+              disabled={abortMutation.isPending}
+              isLoading={abortMutation.isPending}
+            >
+              ⏹️ Stop
+            </Button>
+          </>
         )}
       </div>
+
+      {/* Task Switcher Modal (Multi-task Req 1) */}
+      {showTaskSwitcher && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Switch Task</h3>
+            <TaskSelector
+              tasks={availableTasks}
+              selectedTaskId={selectedTaskId}
+              onSelect={(taskId) => handleSwitchTask(taskId)}
+              disabled={switchTaskMutation.isPending}
+            />
+            {/* Quick Add to Inbox */}
+            <QuickAddInput onAdd={() => utils.task.getTodayTasks.invalidate()} />
+            <div className="flex gap-2 mt-4">
+              <Button
+                variant="secondary"
+                onClick={() => handleSwitchTask(null)}
+                disabled={switchTaskMutation.isPending}
+              >
+                Continue Taskless
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setShowTaskSwitcher(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status Messages */}
       {!canStart && !isRunning && (

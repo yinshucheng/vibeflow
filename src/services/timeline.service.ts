@@ -581,13 +581,13 @@ export const timelineService = {
         type: 'pomodoro',
         startTime: p.startTime,
         endTime: p.endTime,
-        duration: p.endTime 
+        duration: p.endTime
           ? Math.floor((p.endTime.getTime() - p.startTime.getTime()) / 1000)
           : p.duration * 60,
-        title: p.task.title,
+        title: p.task?.title ?? 'Taskless',
         metadata: {
           taskId: p.taskId,
-          projectId: p.task.projectId,
+          projectId: p.task?.projectId,
           status: p.status,
           summary: p.summary,
         },

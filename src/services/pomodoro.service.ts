@@ -13,12 +13,13 @@ const DEFAULT_POMODORO_DURATION = 25; // minutes
 
 // Validation schemas
 export const StartPomodoroSchema = z.object({
-  taskId: z.string().uuid('Invalid task ID'),
+  taskId: z.string().uuid('Invalid task ID').nullable().optional(),
   duration: z
     .number()
     .min(MIN_POMODORO_DURATION, `Duration must be at least ${MIN_POMODORO_DURATION} minutes`)
     .max(MAX_POMODORO_DURATION, `Duration must be at most ${MAX_POMODORO_DURATION} minutes`)
     .optional(),
+  label: z.string().max(100).optional(),
 });
 
 export const CompletePomodoroSchema = z.object({
@@ -39,14 +40,26 @@ export interface ServiceResult<T> {
   };
 }
 
-// Pomodoro with task type
+// Pomodoro with task type (task is nullable for taskless pomodoros)
 export type PomodoroWithTask = Pomodoro & {
   task: {
     id: string;
     title: string;
     projectId: string;
-  };
+  } | null;
 };
+
+// Time slice summary for pomodoro completion
+export interface TimeSliceSummary {
+  totalSeconds: number;
+  taskBreakdown: Array<{
+    taskId: string | null;
+    taskName: string | null;
+    seconds: number;
+    percentage: number;
+  }>;
+  switchCount: number;
+}
 
 export const pomodoroService = {
   /**
@@ -57,19 +70,21 @@ export const pomodoroService = {
     try {
       const validated = StartPomodoroSchema.parse(data);
 
-      // Verify task exists and belongs to user
-      const task = await prisma.task.findFirst({
-        where: { id: validated.taskId, userId },
-      });
+      // Verify task exists and belongs to user (only if taskId provided)
+      if (validated.taskId) {
+        const task = await prisma.task.findFirst({
+          where: { id: validated.taskId, userId },
+        });
 
-      if (!task) {
-        return {
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Task not found or does not belong to user',
-          },
-        };
+        if (!task) {
+          return {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Task not found or does not belong to user',
+            },
+          };
+        }
       }
 
       // Check for existing in-progress pomodoro
@@ -133,7 +148,7 @@ export const pomodoroService = {
         payload: {
           pomodoroId: pomodoro.id,
           taskId: pomodoro.taskId,
-          taskTitle: pomodoro.task.title,
+          taskTitle: pomodoro.task?.title ?? 'Taskless',
           duration: pomodoro.duration,
           startTime: pomodoro.startTime.toISOString(),
         },
@@ -245,7 +260,7 @@ export const pomodoroService = {
         payload: {
           pomodoroId: pomodoro.id,
           taskId: pomodoro.taskId,
-          taskTitle: pomodoro.task.title,
+          taskTitle: pomodoro.task?.title ?? 'Taskless',
           duration: pomodoro.duration,
           startTime: pomodoro.startTime.toISOString(),
           endTime: pomodoro.endTime?.toISOString() ?? null,
@@ -330,7 +345,7 @@ export const pomodoroService = {
         payload: {
           pomodoroId: pomodoro.id,
           taskId: pomodoro.taskId,
-          taskTitle: pomodoro.task.title,
+          taskTitle: pomodoro.task?.title ?? 'Taskless',
           duration: pomodoro.duration,
           startTime: pomodoro.startTime.toISOString(),
           endTime: pomodoro.endTime?.toISOString() ?? null,
@@ -533,7 +548,7 @@ export const pomodoroService = {
               payload: {
                 pomodoroId: pomodoro.id,
                 taskId: pomodoro.taskId,
-                taskTitle: pomodoro.task.title,
+                taskTitle: pomodoro.task?.title ?? 'Taskless',
                 duration: pomodoro.duration,
                 startTime: pomodoro.startTime.toISOString(),
                 endTime: expectedEndTime.toISOString(),
@@ -650,6 +665,131 @@ export const pomodoroService = {
       maxPomodoroDuration: MAX_POMODORO_DURATION,
       defaultPomodoroDuration: DEFAULT_POMODORO_DURATION,
     };
+  },
+
+  /**
+   * Start a taskless pomodoro (no task association)
+   * Requirements: Req 3 - Taskless Pomodoro
+   */
+  async startTaskless(userId: string, label?: string): Promise<ServiceResult<Pomodoro>> {
+    return this.start(userId, { taskId: null, label });
+  },
+
+  /**
+   * Get time slice summary for a pomodoro
+   * Requirements: Req 4 - Time Attribution
+   */
+  async getSummary(pomodoroId: string, userId: string): Promise<ServiceResult<TimeSliceSummary>> {
+    try {
+      const pomodoro = await prisma.pomodoro.findFirst({
+        where: { id: pomodoroId, userId },
+        include: {
+          timeSlices: {
+            include: { task: { select: { id: true, title: true } } },
+            orderBy: { startTime: 'asc' },
+          },
+        },
+      });
+
+      if (!pomodoro) {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'Pomodoro not found' } };
+      }
+
+      const taskBreakdown: Record<string, { taskId: string | null; taskName: string | null; seconds: number }> = {};
+      let totalSeconds = 0;
+
+      for (const slice of pomodoro.timeSlices) {
+        const key = slice.taskId ?? 'taskless';
+        if (!taskBreakdown[key]) {
+          taskBreakdown[key] = { taskId: slice.taskId, taskName: slice.task?.title ?? null, seconds: 0 };
+        }
+        taskBreakdown[key].seconds += slice.durationSeconds;
+        totalSeconds += slice.durationSeconds;
+      }
+
+      const summary: TimeSliceSummary = {
+        totalSeconds,
+        taskBreakdown: Object.values(taskBreakdown).map((t) => ({
+          ...t,
+          percentage: totalSeconds > 0 ? Math.round((t.seconds / totalSeconds) * 100) : 0,
+        })),
+        switchCount: pomodoro.taskSwitchCount,
+      };
+
+      return { success: true, data: summary };
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get summary' },
+      };
+    }
+  },
+
+  /**
+   * Complete the current task during an active pomodoro and optionally switch to another task
+   * Requirements: Req 2 - Complete Task in Pomodoro
+   */
+  async completeTaskInPomodoro(
+    pomodoroId: string,
+    userId: string,
+    nextTaskId?: string | null
+  ): Promise<ServiceResult<{ completedTaskId: string | null; nextTaskId: string | null }>> {
+    try {
+      const pomodoro = await prisma.pomodoro.findFirst({
+        where: { id: pomodoroId, userId, status: 'IN_PROGRESS' },
+      });
+
+      if (!pomodoro) {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'Active pomodoro not found' } };
+      }
+
+      const completedTaskId = pomodoro.taskId;
+
+      // Mark the current task as done if it exists
+      if (completedTaskId) {
+        await prisma.task.update({
+          where: { id: completedTaskId },
+          data: { status: 'DONE' },
+        });
+      }
+
+      // Update pomodoro to point to next task (or null for taskless)
+      await prisma.pomodoro.update({
+        where: { id: pomodoroId },
+        data: { taskId: nextTaskId ?? null },
+      });
+
+      return { success: true, data: { completedTaskId, nextTaskId: nextTaskId ?? null } };
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to complete task' },
+      };
+    }
+  },
+
+  /**
+   * Get the last task worked on (from most recent completed pomodoro)
+   */
+  async getLastTask(userId: string): Promise<ServiceResult<{ id: string; title: string } | null>> {
+    try {
+      const lastPomodoro = await prisma.pomodoro.findFirst({
+        where: { userId, status: 'COMPLETED', taskId: { not: null } },
+        orderBy: { endTime: 'desc' },
+        include: { task: { select: { id: true, title: true, status: true } } },
+      });
+
+      if (!lastPomodoro?.task || lastPomodoro.task.status === 'DONE') {
+        return { success: true, data: null };
+      }
+
+      return { success: true, data: { id: lastPomodoro.task.id, title: lastPomodoro.task.title } };
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get last task' },
+      };
+    }
   },
 };
 

@@ -26,6 +26,7 @@ import { workStartRouter } from './work-start';
 import { bypassDetectionRouter } from './bypass-detection';
 import { demoModeRouter } from './demo-mode';
 import { heartbeatRouter } from './heartbeat';
+import { timeSliceRouter } from './time-slice';
 
 /**
  * Main application router
@@ -52,6 +53,7 @@ export const appRouter = router({
   bypassDetection: bypassDetectionRouter,
   demoMode: demoModeRouter,
   heartbeat: heartbeatRouter,
+  timeSlice: timeSliceRouter,
 });
 
 /**

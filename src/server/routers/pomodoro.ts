@@ -151,12 +151,12 @@ export const pomodoroRouter = router({
       
       // Update tray with pomodoro start
       if (result.data) {
-        const pomodoroData = result.data as { 
-          id: string; 
-          taskId: string; 
+        const pomodoroData = result.data as {
+          id: string;
+          taskId: string | null;
           duration: number;
           startTime: Date;
-          task?: { title: string };
+          task?: { title: string } | null;
         };
         trayIntegrationService.updatePomodoroState({
           id: pomodoroData.id,
@@ -339,10 +339,101 @@ export const pomodoroRouter = router({
 
       // Update system state back to PLANNING
       await dailyStateService.updateSystemState(ctx.user.userId, 'planning');
-      
+
       // Broadcast policy update to update over rest status on desktop
       await broadcastPolicyUpdate(ctx.user.userId);
-      
+
       return result.data;
     }),
+
+  /**
+   * Start a taskless pomodoro session
+   * Requirements: Req 3 - Taskless Pomodoro
+   */
+  startTaskless: protectedProcedure
+    .input(z.object({ label: z.string().max(100).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const cappedResult = await dailyStateService.isDailyCapped(ctx.user.userId);
+      if (cappedResult.success && cappedResult.data) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Daily cap reached. Override required to start new pomodoro.',
+        });
+      }
+
+      const result = await pomodoroService.startTaskless(ctx.user.userId, input.label);
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: result.error?.code === 'CONFLICT' ? 'CONFLICT' : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to start taskless pomodoro',
+        });
+      }
+
+      await dailyStateService.updateSystemState(ctx.user.userId, 'focus');
+      await broadcastPolicyUpdate(ctx.user.userId);
+
+      return result.data;
+    }),
+
+  /**
+   * Get time slice summary for a pomodoro
+   * Requirements: Req 4 - Time Attribution
+   */
+  getSummary: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const result = await pomodoroService.getSummary(input.id, ctx.user.userId);
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to get summary',
+        });
+      }
+
+      return result.data;
+    }),
+
+  /**
+   * Complete the current task during an active pomodoro
+   * Requirements: Req 2 - Complete Task in Pomodoro
+   */
+  completeTask: protectedProcedure
+    .input(z.object({
+      pomodoroId: z.string().uuid(),
+      nextTaskId: z.string().uuid().nullable().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await pomodoroService.completeTaskInPomodoro(
+        input.pomodoroId,
+        ctx.user.userId,
+        input.nextTaskId
+      );
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to complete task',
+        });
+      }
+
+      return result.data;
+    }),
+
+  /**
+   * Get the last task worked on
+   */
+  getLastTask: protectedProcedure.query(async ({ ctx }) => {
+    const result = await pomodoroService.getLastTask(ctx.user.userId);
+
+    if (!result.success) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: result.error?.message ?? 'Failed to get last task',
+      });
+    }
+
+    return result.data;
+  }),
 });

@@ -107,4 +107,6 @@ Tools (executable): `vibe.complete_task`, `vibe.start_pomodoro`, `vibe.create_ta
 - `design.md` - 技术设计和架构决策
 - `tasks.md` - 实现任务拆分和进度跟踪
 
+每完成一个 Phase 或 Task 后，必须更新对应的 `tasks.md` 文件，将完成的任务标记为 `[x]`。
+
 参考现有 specs: `e2e-testing`, `pomodoro-enhancement`, `ai-native-enhancement`, `desktop-focus-enforcement` 等。

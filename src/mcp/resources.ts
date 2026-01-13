@@ -28,6 +28,9 @@ export const RESOURCE_URIS = {
   POMODORO_HISTORY: 'vibe://history/pomodoros',
   PRODUCTIVITY_ANALYTICS: 'vibe://analytics/productivity',
   ACTIVE_BLOCKERS: 'vibe://blockers/active',
+  // Multi-task pomodoro resources (Phase 6)
+  POMODORO_CURRENT: 'vibe://pomodoro/current',
+  POMODORO_SUMMARY: 'vibe://pomodoro/summary',
 } as const;
 
 /**
@@ -164,6 +167,42 @@ export interface ActiveBlockersResource {
   }>;
 }
 
+// Phase 6: Multi-task pomodoro resources
+export interface PomodoroCurrentResource {
+  id: string;
+  status: string;
+  duration: number;
+  elapsed: number;
+  remaining: number;
+  isTaskless: boolean;
+  label: string | null;
+  taskSwitchCount: number;
+  taskStack: Array<{
+    taskId: string | null;
+    taskTitle: string;
+    accumulatedSeconds: number;
+    isActive: boolean;
+  }>;
+  currentTask: {
+    id: string;
+    title: string;
+    projectTitle: string;
+  } | null;
+}
+
+export interface PomodoroSummaryResource {
+  pomodoroId: string;
+  totalDuration: number;
+  taskSwitchCount: number;
+  isTaskless: boolean;
+  timeDistribution: Array<{
+    taskId: string | null;
+    taskTitle: string;
+    seconds: number;
+    percentage: number;
+  }>;
+}
+
 /**
  * Register available resources
  */
@@ -225,6 +264,19 @@ export function registerResources() {
         description: 'Currently reported blockers and their status (Requirement 1.4)',
         mimeType: 'application/json',
       },
+      // Multi-task pomodoro resources (Phase 6)
+      {
+        uri: RESOURCE_URIS.POMODORO_CURRENT,
+        name: 'Current Pomodoro',
+        description: 'Current pomodoro session with task stack and time slices',
+        mimeType: 'application/json',
+      },
+      {
+        uri: RESOURCE_URIS.POMODORO_SUMMARY,
+        name: 'Pomodoro Summary',
+        description: 'Summary of the most recent completed pomodoro with time distribution',
+        mimeType: 'application/json',
+      },
     ],
   };
 }
@@ -267,6 +319,13 @@ export async function handleResourceRead(
         break;
       case RESOURCE_URIS.ACTIVE_BLOCKERS:
         data = await getActiveBlockers(context.userId);
+        break;
+      // Multi-task pomodoro resources (Phase 6)
+      case RESOURCE_URIS.POMODORO_CURRENT:
+        data = await getPomodoroCurrent(context.userId);
+        break;
+      case RESOURCE_URIS.POMODORO_SUMMARY:
+        data = await getPomodoroSummary(context.userId);
         break;
       default:
         data = {
@@ -323,42 +382,44 @@ async function getCurrentContext(userId: string): Promise<CurrentContextResource
     const totalSeconds = currentPomodoro.duration * 60;
     pomodoroRemaining = Math.max(0, Math.round(totalSeconds - elapsed));
 
-    // Get task details
-    const taskData = await prisma.task.findUnique({
-      where: { id: currentPomodoro.taskId },
-      include: {
-        project: true,
-        parent: {
-          include: {
-            parent: true,
+    // Get task details (only if taskId exists)
+    if (currentPomodoro.taskId) {
+      const taskData = await prisma.task.findUnique({
+        where: { id: currentPomodoro.taskId },
+        include: {
+          project: true,
+          parent: {
+            include: {
+              parent: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (taskData) {
-      // Build parent path
-      const parentPath: string[] = [];
-      // Only go one level deep since we only include parent.parent
-      if (taskData.parent) {
-        parentPath.unshift(taskData.parent.title);
-        if (taskData.parent.parent) {
-          parentPath.unshift(taskData.parent.parent.title);
+      if (taskData) {
+        // Build parent path
+        const parentPath: string[] = [];
+        // Only go one level deep since we only include parent.parent
+        if (taskData.parent) {
+          parentPath.unshift(taskData.parent.title);
+          if (taskData.parent.parent) {
+            parentPath.unshift(taskData.parent.parent.title);
+          }
         }
+
+        task = {
+          id: taskData.id,
+          title: taskData.title,
+          priority: taskData.priority,
+          parentPath,
+        };
+
+        project = {
+          id: taskData.project.id,
+          title: taskData.project.title,
+          deliverable: taskData.project.deliverable,
+        };
       }
-
-      task = {
-        id: taskData.id,
-        title: taskData.title,
-        priority: taskData.priority,
-        parentPath,
-      };
-
-      project = {
-        id: taskData.project.id,
-        title: taskData.project.title,
-        deliverable: taskData.project.deliverable,
-      };
     }
   }
 
@@ -573,10 +634,10 @@ async function getPomodoroHistory(userId: string): Promise<PomodoroHistoryResour
   // Map to resource format
   const sessions: PomodoroHistoryResource['sessions'] = pomodoros.map(p => ({
     id: p.id,
-    taskId: p.taskId,
-    taskTitle: p.task.title,
-    projectId: p.task.projectId,
-    projectTitle: p.task.project.title,
+    taskId: p.taskId ?? '',
+    taskTitle: p.task?.title ?? 'Taskless',
+    projectId: p.task?.projectId ?? '',
+    projectTitle: p.task?.project.title ?? '',
     duration: p.duration,
     status: p.status as 'COMPLETED' | 'INTERRUPTED' | 'ABORTED',
     startTime: p.startTime.toISOString(),
@@ -702,5 +763,112 @@ async function getActiveBlockers(userId: string): Promise<ActiveBlockersResource
       reportedAt: b.reportedAt.toISOString(),
       status: b.status as 'active' | 'resolved',
     })),
+  };
+}
+
+/**
+ * Get current pomodoro with task stack
+ * Phase 6: Multi-task pomodoro
+ */
+async function getPomodoroCurrent(userId: string): Promise<PomodoroCurrentResource | null> {
+  const result = await pomodoroService.getCurrent(userId);
+  if (!result.success || !result.data) return null;
+
+  const pomodoro = result.data;
+  const elapsed = Math.floor((Date.now() - new Date(pomodoro.startTime).getTime()) / 1000);
+  const totalSeconds = pomodoro.duration * 60;
+
+  // Get time slices for task stack
+  const timeSlices = await prisma.taskTimeSlice.findMany({
+    where: { pomodoroId: pomodoro.id },
+    include: { task: { select: { id: true, title: true, project: { select: { title: true } } } } },
+    orderBy: { startTime: 'asc' },
+  });
+
+  // Build task stack with accumulated time
+  const taskMap = new Map<string | null, { taskTitle: string; seconds: number }>();
+  let currentTaskId: string | null = null;
+
+  for (const slice of timeSlices) {
+    const key = slice.taskId;
+    const duration = slice.endTime
+      ? Math.floor((slice.endTime.getTime() - slice.startTime.getTime()) / 1000)
+      : Math.floor((Date.now() - slice.startTime.getTime()) / 1000);
+
+    if (!slice.endTime) currentTaskId = key;
+
+    const existing = taskMap.get(key) || { taskTitle: slice.task?.title || 'Taskless', seconds: 0 };
+    existing.seconds += duration;
+    taskMap.set(key, existing);
+  }
+
+  const taskStack = Array.from(taskMap.entries()).map(([taskId, data]) => ({
+    taskId,
+    taskTitle: data.taskTitle,
+    accumulatedSeconds: data.seconds,
+    isActive: taskId === currentTaskId,
+  }));
+
+  const currentSlice = timeSlices.find(s => !s.endTime);
+  const currentTask = currentSlice?.task ? {
+    id: currentSlice.task.id,
+    title: currentSlice.task.title,
+    projectTitle: currentSlice.task.project.title,
+  } : null;
+
+  return {
+    id: pomodoro.id,
+    status: pomodoro.status,
+    duration: pomodoro.duration,
+    elapsed,
+    remaining: Math.max(0, totalSeconds - elapsed),
+    isTaskless: pomodoro.isTaskless ?? false,
+    label: pomodoro.label ?? null,
+    taskSwitchCount: pomodoro.taskSwitchCount ?? 0,
+    taskStack,
+    currentTask,
+  };
+}
+
+/**
+ * Get summary of most recent completed pomodoro
+ * Phase 6: Multi-task pomodoro
+ */
+async function getPomodoroSummary(userId: string): Promise<PomodoroSummaryResource | null> {
+  const pomodoro = await prisma.pomodoro.findFirst({
+    where: { userId, status: 'COMPLETED' },
+    orderBy: { endTime: 'desc' },
+    include: { timeSlices: { include: { task: { select: { title: true } } } } },
+  });
+
+  if (!pomodoro) return null;
+
+  const totalDuration = pomodoro.endTime && pomodoro.startTime
+    ? Math.floor((pomodoro.endTime.getTime() - pomodoro.startTime.getTime()) / 1000)
+    : pomodoro.duration * 60;
+
+  // Calculate time distribution
+  const taskMap = new Map<string | null, { title: string; seconds: number }>();
+  for (const slice of pomodoro.timeSlices) {
+    const key = slice.taskId;
+    const duration = slice.durationSeconds ?? 0;
+    const existing = taskMap.get(key) || { title: slice.task?.title || 'Taskless', seconds: 0 };
+    existing.seconds += duration;
+    taskMap.set(key, existing);
+  }
+
+  const timeDistribution = Array.from(taskMap.entries()).map(([taskId, data]) => ({
+    taskId,
+    taskTitle: data.title,
+    seconds: data.seconds,
+    percentage: totalDuration > 0 ? Math.round((data.seconds / totalDuration) * 100) : 0,
+  }));
+
+  return {
+    pomodoroId: pomodoro.id,
+    totalDuration,
+    taskSwitchCount: pomodoro.taskSwitchCount ?? 0,
+    isTaskless: pomodoro.isTaskless ?? false,
+    timeDistribution,
   };
 }

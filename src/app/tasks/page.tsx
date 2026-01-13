@@ -206,14 +206,14 @@ function ProjectTasksCard({ project }: ProjectTasksCardProps) {
 interface CurrentPomodoroCardProps {
   pomodoro: {
     id: string;
-    taskId: string;
+    taskId: string | null;
     duration: number;
     startTime: Date;
     task: {
       id: string;
       title: string;
       projectId: string;
-    };
+    } | null;
   };
 }
 
@@ -296,7 +296,7 @@ function CurrentPomodoroCard({ pomodoro }: CurrentPomodoroCardProps) {
                 Focus Session in Progress
               </p>
               <p className="text-sm text-green-600 truncate max-w-[200px]">
-                {pomodoro.task.title}
+                {pomodoro.task?.title ?? 'Taskless'}
               </p>
             </div>
           </div>

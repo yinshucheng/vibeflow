@@ -55,7 +55,7 @@ export interface RecentActivityEntry {
 export interface PomodoroStatusContext {
   isActive: boolean;
   remainingMinutes: number;
-  taskId: string;
+  taskId?: string;
   taskTitle: string;
   duration: number;
   startTime: Date;
@@ -130,21 +130,23 @@ export const contextProviderService = {
         pomodoroStatus = {
           isActive: true,
           remainingMinutes,
-          taskId: pomodoro.taskId,
-          taskTitle: pomodoro.task.title,
+          taskId: pomodoro.taskId ?? undefined,
+          taskTitle: pomodoro.task?.title ?? 'Taskless',
           duration: pomodoro.duration,
           startTime,
         };
 
         // Get current task details (Requirement 6.1)
-        const taskResult = await this.getCurrentTaskContext(userId, pomodoro.taskId);
-        if (taskResult.success && taskResult.data) {
-          currentTask = taskResult.data;
-          
-          // Get current project details
-          const projectResult = await this.getCurrentProjectContext(userId, currentTask.projectId);
-          if (projectResult.success && projectResult.data) {
-            currentProject = projectResult.data;
+        if (pomodoro.taskId) {
+          const taskResult = await this.getCurrentTaskContext(userId, pomodoro.taskId);
+          if (taskResult.success && taskResult.data) {
+            currentTask = taskResult.data;
+
+            // Get current project details
+            const projectResult = await this.getCurrentProjectContext(userId, currentTask.projectId);
+            if (projectResult.success && projectResult.data) {
+              currentProject = projectResult.data;
+            }
           }
         }
       }
@@ -358,15 +360,15 @@ export const contextProviderService = {
       });
 
       for (const pomodoro of pomodoros) {
-        const statusText = pomodoro.status === 'COMPLETED' 
-          ? 'Completed' 
-          : pomodoro.status === 'IN_PROGRESS' 
-            ? 'Started' 
+        const statusText = pomodoro.status === 'COMPLETED'
+          ? 'Completed'
+          : pomodoro.status === 'IN_PROGRESS'
+            ? 'Started'
             : pomodoro.status;
-        
+
         activities.push({
           type: 'pomodoro',
-          description: `${statusText} ${pomodoro.duration}min pomodoro on "${pomodoro.task.title}"`,
+          description: `${statusText} ${pomodoro.duration}min pomodoro on "${pomodoro.task?.title ?? 'Taskless'}"`,
           timestamp: pomodoro.createdAt,
         });
       }

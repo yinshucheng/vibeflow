@@ -261,6 +261,9 @@ export const statsService = {
             break;
         }
 
+        // Skip grouping for taskless pomodoros
+        if (!pomodoro.task) continue;
+
         // Group by project (Requirement 3.1)
         const projectId = pomodoro.task.projectId;
         const projectTitle = pomodoro.task.project.title;

@@ -330,4 +330,22 @@ export const taskRouter = router({
       
       return result.data;
     }),
+
+  /**
+   * Quick create a task in user's first project (inbox-style)
+   */
+  quickCreateInbox: protectedProcedure
+    .input(z.object({ title: z.string().min(1).max(500) }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await taskService.quickCreateInboxTask(ctx.user.userId, input.title);
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to create task',
+        });
+      }
+
+      return result.data;
+    }),
 });

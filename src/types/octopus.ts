@@ -502,7 +502,7 @@ export interface DailyState {
  */
 export interface PomodoroState {
   id: string;
-  taskId: string;
+  taskId: string | null;
   startTime: number;
   duration: number;
   status: 'active' | 'paused' | 'completed' | 'aborted';

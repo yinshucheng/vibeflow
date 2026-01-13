@@ -33,12 +33,12 @@ interface TrayMenuState {
 // Pomodoro data for tray updates
 interface PomodoroData {
   id: string;
-  taskId: string;
+  taskId: string | null; // nullable for taskless pomodoros
   duration: number; // minutes
   startTime: Date;
   task?: {
     title: string;
-  };
+  } | null;
 }
 
 // Rest period data

@@ -14,23 +14,29 @@ import { activityLogService } from '../services/activity-log.service';
 import { mcpAuditService } from '../services/mcp-audit.service';
 import { efficiencyAnalysisService } from '../services/efficiency-analysis.service';
 import { nlParserService } from '../services/nl-parser.service';
+import { timeSliceService } from '../services/time-slice.service';
 
 /**
  * Tool definitions
  */
 export const TOOLS = {
-  COMPLETE_TASK: 'vibe.complete_task',
-  ADD_SUBTASK: 'vibe.add_subtask',
-  REPORT_BLOCKER: 'vibe.report_blocker',
-  START_POMODORO: 'vibe.start_pomodoro',
-  GET_TASK_CONTEXT: 'vibe.get_task_context',
+  COMPLETE_TASK: 'flow_complete_task',
+  ADD_SUBTASK: 'flow_add_subtask',
+  REPORT_BLOCKER: 'flow_report_blocker',
+  START_POMODORO: 'flow_start_pomodoro',
+  GET_TASK_CONTEXT: 'flow_get_task_context',
   // New AI-Native Enhancement tools (Requirements 4.1-4.4)
-  BATCH_UPDATE_TASKS: 'vibe.batch_update_tasks',
-  CREATE_PROJECT_FROM_TEMPLATE: 'vibe.create_project_from_template',
-  ANALYZE_TASK_DEPENDENCIES: 'vibe.analyze_task_dependencies',
-  GENERATE_DAILY_SUMMARY: 'vibe.generate_daily_summary',
+  BATCH_UPDATE_TASKS: 'flow_batch_update_tasks',
+  CREATE_PROJECT_FROM_TEMPLATE: 'flow_create_project_from_template',
+  ANALYZE_TASK_DEPENDENCIES: 'flow_analyze_task_dependencies',
+  GENERATE_DAILY_SUMMARY: 'flow_generate_daily_summary',
   // Natural Language Task Creation (Requirement 8.1)
-  CREATE_TASK_FROM_NL: 'vibe.create_task_from_nl',
+  CREATE_TASK_FROM_NL: 'flow_create_task_from_nl',
+  // Multi-task Pomodoro tools (Phase 6)
+  SWITCH_TASK: 'flow_switch_task',
+  START_TASKLESS_POMODORO: 'flow_start_taskless_pomodoro',
+  QUICK_CREATE_INBOX_TASK: 'flow_quick_create_inbox_task',
+  COMPLETE_CURRENT_TASK: 'flow_complete_current_task',
 } as const;
 
 /**
@@ -95,6 +101,25 @@ interface CreateTaskFromNLInput {
   description: string;           // Natural language task description
   project_id?: string;           // Optional project ID (if known)
   confirm?: boolean;             // If true, create task immediately; if false, return parsed result
+}
+
+// Multi-task Pomodoro tools (Phase 6)
+interface SwitchTaskInput {
+  pomodoro_id: string;
+  new_task_id: string | null;
+}
+
+interface StartTasklessPomodoroInput {
+  label?: string;
+}
+
+interface QuickCreateInboxTaskInput {
+  title: string;
+}
+
+interface CompleteCurrentTaskInput {
+  pomodoro_id: string;
+  next_task_id?: string | null;
 }
 
 /**
@@ -317,6 +342,53 @@ export function registerTools() {
           required: ['description'],
         },
       },
+      // Multi-task Pomodoro tools (Phase 6)
+      {
+        name: TOOLS.SWITCH_TASK,
+        description: 'Switch to a different task during an active pomodoro session',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            pomodoro_id: { type: 'string', description: 'The UUID of the active pomodoro' },
+            new_task_id: { type: ['string', 'null'], description: 'The UUID of the task to switch to, or null for taskless' },
+          },
+          required: ['pomodoro_id', 'new_task_id'],
+        },
+      },
+      {
+        name: TOOLS.START_TASKLESS_POMODORO,
+        description: 'Start a pomodoro session without associating it with a specific task',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            label: { type: 'string', description: 'Optional label for the taskless pomodoro' },
+          },
+          required: [],
+        },
+      },
+      {
+        name: TOOLS.QUICK_CREATE_INBOX_TASK,
+        description: 'Quickly create a task in the inbox (first active project)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'The title of the task to create' },
+          },
+          required: ['title'],
+        },
+      },
+      {
+        name: TOOLS.COMPLETE_CURRENT_TASK,
+        description: 'Complete the current task during an active pomodoro and optionally switch to another task',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            pomodoro_id: { type: 'string', description: 'The UUID of the active pomodoro' },
+            next_task_id: { type: ['string', 'null'], description: 'Optional task to switch to after completing current task' },
+          },
+          required: ['pomodoro_id'],
+        },
+      },
     ],
   };
 }
@@ -367,6 +439,19 @@ export async function handleToolCall(
       // Natural Language Task Creation (Requirement 8.1)
       case TOOLS.CREATE_TASK_FROM_NL:
         result = await createTaskFromNL(args as unknown as CreateTaskFromNLInput, context);
+        break;
+      // Multi-task Pomodoro tools (Phase 6)
+      case TOOLS.SWITCH_TASK:
+        result = await switchTask(args as unknown as SwitchTaskInput, context);
+        break;
+      case TOOLS.START_TASKLESS_POMODORO:
+        result = await startTasklessPomodoro(args as unknown as StartTasklessPomodoroInput, context);
+        break;
+      case TOOLS.QUICK_CREATE_INBOX_TASK:
+        result = await quickCreateInboxTask(args as unknown as QuickCreateInboxTaskInput, context);
+        break;
+      case TOOLS.COMPLETE_CURRENT_TASK:
+        result = await completeCurrentTask(args as unknown as CompleteCurrentTaskInput, context);
         break;
       default:
         success = false;
@@ -1291,12 +1376,13 @@ async function generateDailySummary(
     // Group pomodoros by task
     const taskPomodoroMap = new Map<string, { title: string; count: number }>();
     for (const pomodoro of pomodoros) {
+      if (!pomodoro.taskId) continue; // Skip taskless pomodoros
       const existing = taskPomodoroMap.get(pomodoro.taskId);
       if (existing) {
         existing.count++;
       } else {
         taskPomodoroMap.set(pomodoro.taskId, {
-          title: pomodoro.task.title,
+          title: pomodoro.task?.title ?? 'Unknown',
           count: 1,
         });
       }
@@ -1539,4 +1625,102 @@ async function createTaskFromNL(
       },
     };
   }
+}
+
+/**
+ * Switch task during an active pomodoro
+ * Phase 6: Multi-task Pomodoro
+ */
+async function switchTask(
+  input: SwitchTaskInput,
+  context: MCPContext
+): Promise<{ success: boolean; slice?: unknown; error?: unknown }> {
+  if (!input.pomodoro_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'pomodoro_id is required' } };
+  }
+
+  // Get current pomodoro and its active slice
+  const pomodoro = await prisma.pomodoro.findFirst({
+    where: { id: input.pomodoro_id, userId: context.userId, status: 'IN_PROGRESS' },
+    include: { timeSlices: { where: { endTime: null }, take: 1 } },
+  });
+
+  if (!pomodoro) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Active pomodoro not found' } };
+  }
+
+  const currentSliceId = pomodoro.timeSlices[0]?.id ?? null;
+  const result = await timeSliceService.switchTask(input.pomodoro_id, currentSliceId, input.new_task_id);
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return { success: true, slice: { id: result.data?.id, taskId: result.data?.taskId, startTime: result.data?.startTime } };
+}
+
+/**
+ * Start a taskless pomodoro
+ * Phase 6: Multi-task Pomodoro
+ */
+async function startTasklessPomodoro(
+  input: StartTasklessPomodoroInput,
+  context: MCPContext
+): Promise<{ success: boolean; pomodoro?: unknown; error?: unknown }> {
+  const result = await pomodoroService.startTaskless(context.userId, input.label);
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return {
+    success: true,
+    pomodoro: { id: result.data?.id, label: result.data?.label, startTime: result.data?.startTime, isTaskless: true },
+  };
+}
+
+/**
+ * Quick create a task in inbox
+ * Phase 6: Multi-task Pomodoro
+ */
+async function quickCreateInboxTask(
+  input: QuickCreateInboxTaskInput,
+  context: MCPContext
+): Promise<{ success: boolean; task?: unknown; error?: unknown }> {
+  if (!input.title?.trim()) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'title is required' } };
+  }
+
+  const result = await taskService.quickCreateInboxTask(context.userId, input.title.trim());
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return { success: true, task: { id: result.data?.id, title: result.data?.title, projectId: result.data?.projectId } };
+}
+
+/**
+ * Complete current task during an active pomodoro
+ * Phase 6: Multi-task Pomodoro
+ */
+async function completeCurrentTask(
+  input: CompleteCurrentTaskInput,
+  context: MCPContext
+): Promise<{ success: boolean; completedTask?: unknown; error?: unknown }> {
+  if (!input.pomodoro_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'pomodoro_id is required' } };
+  }
+
+  const result = await pomodoroService.completeTaskInPomodoro(
+    input.pomodoro_id,
+    context.userId,
+    input.next_task_id
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return { success: true, completedTask: result.data };
 }

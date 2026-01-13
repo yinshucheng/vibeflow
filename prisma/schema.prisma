@@ -230,6 +230,7 @@ model Task {
   pomodoros Pomodoro[]
   blockers  Blocker[]
   taskDecompositionFeedbacks TaskDecompositionFeedback[]
+  timeSlices TaskTimeSlice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -255,13 +256,36 @@ model Pomodoro {
   status    PomodoroStatus @default(IN_PROGRESS)
   summary   String? // completion summary
 
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  // Multi-task enhancement fields
+  taskId          String? // nullable for taskless pomodoros
+  task            Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  isTaskless      Boolean  @default(false) // true if started via "Start Focus Time"
+  taskSwitchCount Int      @default(0) // number of task switches during this pomodoro
+  label           String?  // optional label for taskless pomodoros
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
+  timeSlices TaskTimeSlice[]
+
   createdAt DateTime @default(now())
+}
+
+// TaskTimeSlice model for multi-task pomodoro tracking
+// Records time spent on each task within a pomodoro session
+model TaskTimeSlice {
+  id              String    @id @default(uuid())
+  pomodoroId      String
+  pomodoro        Pomodoro  @relation(fields: [pomodoroId], references: [id], onDelete: Cascade)
+  taskId          String?   // nullable for taskless time
+  task            Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  startTime       DateTime  @default(now())
+  endTime         DateTime?
+  durationSeconds Int       @default(0)
+  isFragment      Boolean   @default(false) // true if < 30 seconds
+
+  @@index([pomodoroId])
+  @@index([taskId])
 }
 
 enum PomodoroStatus {

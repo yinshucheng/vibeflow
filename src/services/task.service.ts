@@ -924,6 +924,29 @@ export const taskService = {
       };
     }
   },
+
+  /**
+   * Quick create a task in user's first project (inbox-style)
+   */
+  async quickCreateInboxTask(userId: string, title: string): Promise<ServiceResult<Task>> {
+    try {
+      const project = await prisma.project.findFirst({
+        where: { userId, status: 'ACTIVE' },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (!project) {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'No active project found' } };
+      }
+
+      return this.create(userId, { title, projectId: project.id, priority: 'P2' });
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to create task' },
+      };
+    }
+  },
 };
 
 export default taskService;

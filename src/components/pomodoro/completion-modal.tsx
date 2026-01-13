@@ -22,6 +22,33 @@ interface PomodoroCompletionModalProps {
   onStartBreak?: () => void;
 }
 
+// Time slice summary bar component
+function TimeDistributionBar({ breakdown }: { breakdown: Array<{ taskName: string | null; percentage: number }> }) {
+  const colors = ['bg-green-500', 'bg-blue-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500'];
+  return (
+    <div className="w-full">
+      <div className="flex h-3 rounded-full overflow-hidden bg-gray-200">
+        {breakdown.map((item, idx) => (
+          <div
+            key={idx}
+            className={`${colors[idx % colors.length]}`}
+            style={{ width: `${item.percentage}%` }}
+            title={`${item.taskName ?? 'Taskless'}: ${item.percentage}%`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2 mt-2 text-xs">
+        {breakdown.map((item, idx) => (
+          <div key={idx} className="flex items-center gap-1">
+            <div className={`w-2 h-2 rounded-full ${colors[idx % colors.length]}`} />
+            <span className="text-gray-600">{item.taskName ?? 'Taskless'} ({item.percentage}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function PomodoroCompletionModal({
   pomodoroId,
   taskTitle,
@@ -38,6 +65,12 @@ export function PomodoroCompletionModal({
 
   // Get user settings for auto-start config
   const { data: settings } = trpc.settings.get.useQuery();
+
+  // Get time slice summary for multi-task display (Req 4)
+  const { data: sliceSummary } = trpc.pomodoro.getSummary.useQuery(
+    { id: pomodoroId },
+    { enabled: !!pomodoroId }
+  );
 
   // Get auto-start settings with type assertion
   const autoStartSettings = useMemo(() => {
@@ -303,6 +336,19 @@ export function PomodoroCompletionModal({
         <p className="text-center text-gray-600 mb-6">
           Great work on <span className="font-medium text-gray-900">{taskTitle}</span>
         </p>
+
+        {/* Time Distribution (multi-task only) */}
+        {sliceSummary && sliceSummary.taskBreakdown && sliceSummary.taskBreakdown.length > 1 && (
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-700 mb-2">Time Distribution</p>
+            <TimeDistributionBar breakdown={sliceSummary.taskBreakdown} />
+            {sliceSummary.switchCount > 0 && (
+              <p className="text-xs text-gray-500 mt-2">
+                {sliceSummary.switchCount} task switch{sliceSummary.switchCount > 1 ? 'es' : ''}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Summary Input */}
         <div className="mb-6">

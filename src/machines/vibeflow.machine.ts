@@ -15,9 +15,16 @@ export type SystemState = 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest'
 // Airlock wizard steps
 export type AirlockStep = 'REVIEW' | 'PLAN' | 'COMMIT';
 
+// Task stack entry for multi-task tracking (Req 1)
+export interface TaskStackEntry {
+  taskId: string | null;  // null = taskless segment
+  startedAt: Date;
+}
+
 // Machine context
 export interface VibeFlowContext {
   userId: string;
+  /** @deprecated Use taskStack.at(-1)?.taskId instead */
   currentTaskId: string | null;
   currentPomodoroId: string | null;
   todayPomodoroCount: number;
@@ -28,12 +35,17 @@ export interface VibeFlowContext {
   pomodoroStartTime: Date | null;
   restStartTime: Date | null;
   overRestStartTime: Date | null;
+  // Multi-task enhancement fields (Req 1, 3)
+  taskStack: TaskStackEntry[];
+  currentTimeSliceId: string | null;
+  isTaskless: boolean;
 }
 
 // Machine events
 export type VibeFlowEvent =
   | { type: 'COMPLETE_AIRLOCK'; top3TaskIds: string[] }
   | { type: 'START_POMODORO'; taskId: string; pomodoroId: string }
+  | { type: 'START_TASKLESS_POMODORO'; pomodoroId: string; label?: string }
   | { type: 'COMPLETE_POMODORO' }
   | { type: 'ABORT_POMODORO' }
   | { type: 'COMPLETE_REST' }
@@ -43,7 +55,11 @@ export type VibeFlowEvent =
   | { type: 'SET_AIRLOCK_STEP'; step: AirlockStep }
   | { type: 'INCREMENT_POMODORO_COUNT' }
   | { type: 'SET_DAILY_CAP'; cap: number }
-  | { type: 'SYNC_STATE'; context: Partial<VibeFlowContext> };
+  | { type: 'SYNC_STATE'; context: Partial<VibeFlowContext> }
+  // Multi-task enhancement events (Req 1, 2, 3)
+  | { type: 'SWITCH_TASK'; taskId: string | null; timeSliceId: string }
+  | { type: 'ASSOCIATE_TASK'; taskId: string; timeSliceId: string }
+  | { type: 'COMPLETE_CURRENT_TASK' };
 
 // Input for machine initialization
 export interface VibeFlowInput {
@@ -69,6 +85,10 @@ const defaultContext: VibeFlowContext = {
   pomodoroStartTime: null,
   restStartTime: null,
   overRestStartTime: null,
+  // Multi-task enhancement defaults
+  taskStack: [],
+  currentTimeSliceId: null,
+  isTaskless: false,
 };
 
 
@@ -162,6 +182,93 @@ export const vibeFlowMachine = setup({
       },
       pomodoroStartTime: () => new Date(),
       overRestStartTime: () => null, // Exit over-rest when starting pomodoro
+      // Multi-task: initialize taskStack with the starting task
+      taskStack: ({ event }) => {
+        if (event.type === 'START_POMODORO') {
+          return [{ taskId: event.taskId, startedAt: new Date() }];
+        }
+        return [];
+      },
+      isTaskless: () => false,
+      currentTimeSliceId: () => null,
+    }),
+
+    /**
+     * Start a taskless pomodoro session (Req 3)
+     */
+    startTasklessPomodoro: assign({
+      currentTaskId: () => null,
+      currentPomodoroId: ({ event }) => {
+        if (event.type === 'START_TASKLESS_POMODORO') {
+          return event.pomodoroId;
+        }
+        return null;
+      },
+      pomodoroStartTime: () => new Date(),
+      overRestStartTime: () => null,
+      taskStack: () => [],
+      isTaskless: () => true,
+      currentTimeSliceId: () => null,
+    }),
+
+    /**
+     * Switch to a different task during pomodoro (Req 1)
+     */
+    switchTask: assign({
+      taskStack: ({ context, event }) => {
+        if (event.type === 'SWITCH_TASK') {
+          return [...context.taskStack, { taskId: event.taskId, startedAt: new Date() }];
+        }
+        return context.taskStack;
+      },
+      currentTaskId: ({ event }) => {
+        if (event.type === 'SWITCH_TASK') {
+          return event.taskId;
+        }
+        return null;
+      },
+      currentTimeSliceId: ({ event }) => {
+        if (event.type === 'SWITCH_TASK') {
+          return event.timeSliceId;
+        }
+        return null;
+      },
+    }),
+
+    /**
+     * Complete current task during pomodoro (Req 2)
+     */
+    completeCurrentTask: assign({
+      taskStack: ({ context }) => [
+        ...context.taskStack,
+        { taskId: null, startedAt: new Date() },
+      ],
+      currentTaskId: () => null,
+    }),
+
+    /**
+     * Associate a task to a taskless pomodoro (Req 3)
+     */
+    associateTask: assign({
+      isTaskless: () => false,
+      taskStack: ({ event }) => {
+        if (event.type === 'ASSOCIATE_TASK') {
+          return [{ taskId: event.taskId, startedAt: new Date() }];
+        }
+        return [];
+      },
+      currentTaskId: ({ event }) => {
+        if (event.type === 'ASSOCIATE_TASK') {
+          return event.taskId;
+        }
+        return null;
+      },
+      currentTimeSliceId: ({ event }) => {
+        if (event.type === 'ASSOCIATE_TASK') {
+          return event.timeSliceId;
+        }
+        return null;
+      },
     }),
 
     /**
@@ -172,6 +279,10 @@ export const vibeFlowMachine = setup({
       currentPomodoroId: () => null,
       pomodoroStartTime: () => null,
       restStartTime: () => new Date(),
+      // Reset multi-task fields
+      taskStack: () => [],
+      currentTimeSliceId: () => null,
+      isTaskless: () => false,
     }),
 
     /**
@@ -183,6 +294,10 @@ export const vibeFlowMachine = setup({
       currentPomodoroId: () => null,
       pomodoroStartTime: () => null,
       // Keep existing overRestStartTime, don't start new rest
+      // Reset multi-task fields
+      taskStack: () => [],
+      currentTimeSliceId: () => null,
+      isTaskless: () => false,
     }),
 
     /**
@@ -192,6 +307,10 @@ export const vibeFlowMachine = setup({
       currentTaskId: () => null,
       currentPomodoroId: () => null,
       pomodoroStartTime: () => null,
+      // Reset multi-task fields
+      taskStack: () => [],
+      currentTimeSliceId: () => null,
+      isTaskless: () => false,
     }),
 
     /**
@@ -229,6 +348,10 @@ export const vibeFlowMachine = setup({
       pomodoroStartTime: () => null,
       restStartTime: () => null,
       overRestStartTime: () => null,
+      // Reset multi-task fields
+      taskStack: () => [],
+      currentTimeSliceId: () => null,
+      isTaskless: () => false,
     }),
 
     /**
@@ -310,6 +433,11 @@ export const vibeFlowMachine = setup({
           guard: 'canStartPomodoro',
           actions: 'startPomodoro',
         },
+        START_TASKLESS_POMODORO: {
+          target: 'focus',
+          guard: 'canStartPomodoro',
+          actions: 'startTasklessPomodoro',
+        },
         ENTER_OVER_REST: {
           target: 'over_rest',
           actions: 'enterOverRest',
@@ -347,6 +475,16 @@ export const vibeFlowMachine = setup({
         ABORT_POMODORO: {
           target: 'planning',
           actions: 'abortPomodoro',
+        },
+        // Multi-task events (Req 1, 2, 3)
+        SWITCH_TASK: {
+          actions: 'switchTask',
+        },
+        ASSOCIATE_TASK: {
+          actions: 'associateTask',
+        },
+        COMPLETE_CURRENT_TASK: {
+          actions: 'completeCurrentTask',
         },
         DAILY_RESET: {
           target: 'locked',
@@ -403,6 +541,11 @@ export const vibeFlowMachine = setup({
           target: 'focus',
           guard: 'canStartPomodoro',
           actions: 'startPomodoro',
+        },
+        START_TASKLESS_POMODORO: {
+          target: 'focus',
+          guard: 'canStartPomodoro',
+          actions: 'startTasklessPomodoro',
         },
         DAILY_RESET: {
           target: 'locked',

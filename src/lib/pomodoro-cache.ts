@@ -15,7 +15,7 @@ const POMODORO_STATE_KEY = 'vibeflow_pomodoro_state';
  */
 export interface CachedPomodoroState {
   id: string;
-  taskId: string;
+  taskId: string | null;
   taskTitle: string;
   duration: number;      // Total duration in minutes
   startTime: string;     // ISO string
@@ -27,14 +27,14 @@ export interface CachedPomodoroState {
  */
 export interface PomodoroData {
   id: string;
-  taskId: string;
+  taskId: string | null;
   duration: number;
   startTime: Date | string;
   task: {
     id: string;
     title: string;
     projectId: string;
-  };
+  } | null;
 }
 
 /**
@@ -46,14 +46,14 @@ export interface PomodoroData {
  */
 export function cachePomodoroState(pomodoro: PomodoroData): void {
   if (typeof window === 'undefined') return;
-  
+
   const state: CachedPomodoroState = {
     id: pomodoro.id,
     taskId: pomodoro.taskId,
-    taskTitle: pomodoro.task.title,
+    taskTitle: pomodoro.task?.title ?? 'Taskless',
     duration: pomodoro.duration,
-    startTime: pomodoro.startTime instanceof Date 
-      ? pomodoro.startTime.toISOString() 
+    startTime: pomodoro.startTime instanceof Date
+      ? pomodoro.startTime.toISOString()
       : pomodoro.startTime,
     cachedAt: new Date().toISOString(),
   };
