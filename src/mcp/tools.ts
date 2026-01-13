@@ -37,6 +37,21 @@ export const TOOLS = {
   START_TASKLESS_POMODORO: 'flow_start_taskless_pomodoro',
   QUICK_CREATE_INBOX_TASK: 'flow_quick_create_inbox_task',
   COMPLETE_CURRENT_TASK: 'flow_complete_current_task',
+  // MCP Capability Enhancement - Task Management
+  GET_TASK: 'flow_get_task',
+  UPDATE_TASK: 'flow_update_task',
+  DELETE_TASK: 'flow_delete_task',
+  GET_BACKLOG_TASKS: 'flow_get_backlog_tasks',
+  GET_OVERDUE_TASKS: 'flow_get_overdue_tasks',
+  MOVE_TASK: 'flow_move_task',
+  SET_PLAN_DATE: 'flow_set_plan_date',
+  // MCP Capability Enhancement - Project Management
+  CREATE_PROJECT: 'flow_create_project',
+  UPDATE_PROJECT: 'flow_update_project',
+  GET_PROJECT: 'flow_get_project',
+  // MCP Capability Enhancement - Daily State
+  GET_TOP3: 'flow_get_top3',
+  SET_TOP3: 'flow_set_top3',
 } as const;
 
 /**
@@ -120,6 +135,69 @@ interface QuickCreateInboxTaskInput {
 interface CompleteCurrentTaskInput {
   pomodoro_id: string;
   next_task_id?: string | null;
+}
+
+// MCP Capability Enhancement - Task Management
+interface GetTaskInput {
+  task_id: string;
+}
+
+interface UpdateTaskInput {
+  task_id: string;
+  title?: string;
+  description?: string;
+  priority?: 'P1' | 'P2' | 'P3';
+  estimated_minutes?: number;
+  plan_date?: string | null;
+}
+
+interface DeleteTaskInput {
+  task_id: string;
+  archive?: boolean;
+}
+
+interface GetBacklogTasksInput {
+  project_id?: string;
+  limit?: number;
+}
+
+interface GetOverdueTasksInput {
+  project_id?: string;
+  include_today?: boolean;
+}
+
+interface MoveTaskInput {
+  task_id: string;
+  target_project_id: string;
+}
+
+interface SetPlanDateInput {
+  task_id: string;
+  plan_date: string | null;
+}
+
+// MCP Capability Enhancement - Project Management
+interface CreateProjectInput {
+  title: string;
+  deliverable: string;
+  goal_id?: string;
+}
+
+interface UpdateProjectInput {
+  project_id: string;
+  title?: string;
+  deliverable?: string;
+  status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+}
+
+interface GetProjectInput {
+  project_id: string;
+  include_tasks?: boolean;
+}
+
+// MCP Capability Enhancement - Daily State
+interface SetTop3Input {
+  task_ids: string[];
 }
 
 /**
@@ -389,6 +467,159 @@ export function registerTools() {
           required: ['pomodoro_id'],
         },
       },
+      // MCP Capability Enhancement - Task Management
+      {
+        name: TOOLS.GET_TASK,
+        description: 'Get detailed information about a specific task including subtasks, pomodoro history, and blockers',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'The UUID of the task' },
+          },
+          required: ['task_id'],
+        },
+      },
+      {
+        name: TOOLS.UPDATE_TASK,
+        description: 'Update task properties like title, description, priority, estimated time, or plan date',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'The UUID of the task to update' },
+            title: { type: 'string', description: 'New title for the task' },
+            description: { type: 'string', description: 'New description for the task' },
+            priority: { type: 'string', enum: ['P1', 'P2', 'P3'], description: 'New priority level' },
+            estimated_minutes: { type: 'number', description: 'Estimated time in minutes' },
+            plan_date: { type: ['string', 'null'], description: 'Plan date in ISO format (YYYY-MM-DD) or null to clear' },
+          },
+          required: ['task_id'],
+        },
+      },
+      {
+        name: TOOLS.DELETE_TASK,
+        description: 'Delete or archive a task (soft delete by default)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'The UUID of the task to delete' },
+            archive: { type: 'boolean', description: 'If true (default), soft delete. If false, hard delete.' },
+          },
+          required: ['task_id'],
+        },
+      },
+      {
+        name: TOOLS.GET_BACKLOG_TASKS,
+        description: 'Get tasks without a plan date (backlog)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'Optional project ID to filter by' },
+            limit: { type: 'number', description: 'Maximum number of tasks to return (default: 50)' },
+          },
+          required: [],
+        },
+      },
+      {
+        name: TOOLS.GET_OVERDUE_TASKS,
+        description: 'Get tasks that are past their plan date',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'Optional project ID to filter by' },
+            include_today: { type: 'boolean', description: 'Include tasks planned for today (default: false)' },
+          },
+          required: [],
+        },
+      },
+      {
+        name: TOOLS.MOVE_TASK,
+        description: 'Move a task to a different project',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'The UUID of the task to move' },
+            target_project_id: { type: 'string', description: 'The UUID of the target project' },
+          },
+          required: ['task_id', 'target_project_id'],
+        },
+      },
+      {
+        name: TOOLS.SET_PLAN_DATE,
+        description: 'Set or clear the plan date for a task',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'The UUID of the task' },
+            plan_date: { type: ['string', 'null'], description: 'Plan date in ISO format (YYYY-MM-DD) or null to clear' },
+          },
+          required: ['task_id', 'plan_date'],
+        },
+      },
+      // MCP Capability Enhancement - Project Management
+      {
+        name: TOOLS.CREATE_PROJECT,
+        description: 'Create a new project',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Project title' },
+            deliverable: { type: 'string', description: 'Project deliverable description' },
+            goal_id: { type: 'string', description: 'Optional goal ID to link the project to' },
+          },
+          required: ['title', 'deliverable'],
+        },
+      },
+      {
+        name: TOOLS.UPDATE_PROJECT,
+        description: 'Update project properties',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'The UUID of the project to update' },
+            title: { type: 'string', description: 'New title for the project' },
+            deliverable: { type: 'string', description: 'New deliverable description' },
+            status: { type: 'string', enum: ['ACTIVE', 'COMPLETED', 'ARCHIVED'], description: 'New status' },
+          },
+          required: ['project_id'],
+        },
+      },
+      {
+        name: TOOLS.GET_PROJECT,
+        description: 'Get detailed information about a project including tasks and progress',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'The UUID of the project' },
+            include_tasks: { type: 'boolean', description: 'Include task list (default: true)' },
+          },
+          required: ['project_id'],
+        },
+      },
+      // MCP Capability Enhancement - Daily State
+      {
+        name: TOOLS.GET_TOP3,
+        description: 'Get the current Top 3 priority tasks for today',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: TOOLS.SET_TOP3,
+        description: 'Set the Top 3 priority tasks for today',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_ids: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of 1-3 task IDs to set as Top 3',
+            },
+          },
+          required: ['task_ids'],
+        },
+      },
     ],
   };
 }
@@ -452,6 +683,45 @@ export async function handleToolCall(
         break;
       case TOOLS.COMPLETE_CURRENT_TASK:
         result = await completeCurrentTask(args as unknown as CompleteCurrentTaskInput, context);
+        break;
+      // MCP Capability Enhancement - Task Management
+      case TOOLS.GET_TASK:
+        result = await getTask(args as unknown as GetTaskInput, context);
+        break;
+      case TOOLS.UPDATE_TASK:
+        result = await updateTask(args as unknown as UpdateTaskInput, context);
+        break;
+      case TOOLS.DELETE_TASK:
+        result = await deleteTask(args as unknown as DeleteTaskInput, context);
+        break;
+      case TOOLS.GET_BACKLOG_TASKS:
+        result = await getBacklogTasks(args as unknown as GetBacklogTasksInput, context);
+        break;
+      case TOOLS.GET_OVERDUE_TASKS:
+        result = await getOverdueTasks(args as unknown as GetOverdueTasksInput, context);
+        break;
+      case TOOLS.MOVE_TASK:
+        result = await moveTask(args as unknown as MoveTaskInput, context);
+        break;
+      case TOOLS.SET_PLAN_DATE:
+        result = await setPlanDate(args as unknown as SetPlanDateInput, context);
+        break;
+      // MCP Capability Enhancement - Project Management
+      case TOOLS.CREATE_PROJECT:
+        result = await createProject(args as unknown as CreateProjectInput, context);
+        break;
+      case TOOLS.UPDATE_PROJECT:
+        result = await updateProject(args as unknown as UpdateProjectInput, context);
+        break;
+      case TOOLS.GET_PROJECT:
+        result = await getProject(args as unknown as GetProjectInput, context);
+        break;
+      // MCP Capability Enhancement - Daily State
+      case TOOLS.GET_TOP3:
+        result = await getTop3(context);
+        break;
+      case TOOLS.SET_TOP3:
+        result = await setTop3(args as unknown as SetTop3Input, context);
         break;
       default:
         success = false;
@@ -1723,4 +1993,524 @@ async function completeCurrentTask(
   }
 
   return { success: true, completedTask: result.data };
+}
+
+// ============================================================================
+// MCP Capability Enhancement - Task Management Tools
+// ============================================================================
+
+/**
+ * Get detailed task information
+ */
+async function getTask(
+  input: GetTaskInput,
+  context: MCPContext
+): Promise<{ success: boolean; task?: unknown; error?: unknown }> {
+  if (!input.task_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'task_id is required' } };
+  }
+
+  const task = await prisma.task.findFirst({
+    where: { id: input.task_id, userId: context.userId },
+    include: {
+      project: { select: { id: true, title: true } },
+      parent: { select: { id: true, title: true } },
+      subTasks: { select: { id: true, title: true, status: true }, orderBy: { sortOrder: 'asc' } },
+      pomodoros: { where: { status: 'COMPLETED' }, select: { id: true } },
+      blockers: { where: { status: 'active' }, select: { id: true, description: true, status: true } },
+    },
+  });
+
+  if (!task) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Task not found' } };
+  }
+
+  return {
+    success: true,
+    task: {
+      id: task.id,
+      title: task.title,
+      priority: task.priority,
+      status: task.status,
+      planDate: task.planDate?.toISOString().split('T')[0] ?? null,
+      estimatedMinutes: task.estimatedMinutes,
+      projectId: task.projectId,
+      projectTitle: task.project.title,
+      parentId: task.parentId,
+      subtasks: task.subTasks,
+      pomodoroCount: task.pomodoros.length,
+      blockers: task.blockers,
+      createdAt: task.createdAt.toISOString(),
+      updatedAt: task.updatedAt.toISOString(),
+    },
+  };
+}
+
+/**
+ * Update task properties
+ */
+async function updateTask(
+  input: UpdateTaskInput,
+  context: MCPContext
+): Promise<{ success: boolean; task?: unknown; error?: unknown }> {
+  if (!input.task_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'task_id is required' } };
+  }
+
+  const task = await prisma.task.findFirst({
+    where: { id: input.task_id, userId: context.userId },
+  });
+
+  if (!task) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Task not found' } };
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (input.title !== undefined) updateData.title = input.title;
+  if (input.description !== undefined) updateData.description = input.description;
+  if (input.priority !== undefined) updateData.priority = input.priority;
+  if (input.estimated_minutes !== undefined) updateData.estimatedMinutes = input.estimated_minutes;
+  if (input.plan_date !== undefined) {
+    updateData.planDate = input.plan_date ? new Date(input.plan_date) : null;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'No fields to update' } };
+  }
+
+  const updated = await prisma.task.update({
+    where: { id: input.task_id },
+    data: updateData,
+  });
+
+  return {
+    success: true,
+    task: {
+      id: updated.id,
+      title: updated.title,
+      priority: updated.priority,
+      status: updated.status,
+      planDate: updated.planDate?.toISOString().split('T')[0] ?? null,
+    },
+  };
+}
+
+/**
+ * Delete or archive a task
+ */
+async function deleteTask(
+  input: DeleteTaskInput,
+  context: MCPContext
+): Promise<{ success: boolean; error?: unknown }> {
+  if (!input.task_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'task_id is required' } };
+  }
+
+  const task = await prisma.task.findFirst({
+    where: { id: input.task_id, userId: context.userId },
+  });
+
+  if (!task) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Task not found' } };
+  }
+
+  const archive = input.archive !== false; // default true
+
+  if (archive) {
+    await prisma.task.update({
+      where: { id: input.task_id },
+      data: { status: 'DONE' },
+    });
+  } else {
+    await prisma.task.delete({ where: { id: input.task_id } });
+  }
+
+  return { success: true };
+}
+
+/**
+ * Get backlog tasks (no plan date)
+ */
+async function getBacklogTasks(
+  input: GetBacklogTasksInput,
+  context: MCPContext
+): Promise<{ success: boolean; tasks?: unknown[]; error?: unknown }> {
+  const where: Record<string, unknown> = {
+    userId: context.userId,
+    planDate: null,
+    status: { not: 'DONE' },
+  };
+
+  if (input.project_id) {
+    where.projectId = input.project_id;
+  }
+
+  const tasks = await prisma.task.findMany({
+    where,
+    take: input.limit || 50,
+    orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+    include: { project: { select: { id: true, title: true } } },
+  });
+
+  return {
+    success: true,
+    tasks: tasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      priority: t.priority,
+      status: t.status,
+      projectId: t.projectId,
+      projectTitle: t.project.title,
+      createdAt: t.createdAt.toISOString(),
+    })),
+  };
+}
+
+/**
+ * Get overdue tasks
+ */
+async function getOverdueTasks(
+  input: GetOverdueTasksInput,
+  context: MCPContext
+): Promise<{ success: boolean; tasks?: unknown[]; error?: unknown }> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const where: Record<string, unknown> = {
+    userId: context.userId,
+    status: { not: 'DONE' },
+    planDate: input.include_today ? { lte: today } : { lt: today },
+  };
+
+  if (input.project_id) {
+    where.projectId = input.project_id;
+  }
+
+  const tasks = await prisma.task.findMany({
+    where,
+    orderBy: [{ planDate: 'asc' }, { priority: 'asc' }],
+    include: { project: { select: { id: true, title: true } } },
+  });
+
+  return {
+    success: true,
+    tasks: tasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      priority: t.priority,
+      status: t.status,
+      planDate: t.planDate?.toISOString().split('T')[0] ?? null,
+      projectId: t.projectId,
+      projectTitle: t.project.title,
+    })),
+  };
+}
+
+/**
+ * Move task to another project
+ */
+async function moveTask(
+  input: MoveTaskInput,
+  context: MCPContext
+): Promise<{ success: boolean; task?: unknown; error?: unknown }> {
+  if (!input.task_id || !input.target_project_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'task_id and target_project_id are required' } };
+  }
+
+  const [task, targetProject] = await Promise.all([
+    prisma.task.findFirst({ where: { id: input.task_id, userId: context.userId } }),
+    prisma.project.findFirst({ where: { id: input.target_project_id, userId: context.userId } }),
+  ]);
+
+  if (!task) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Task not found' } };
+  }
+  if (!targetProject) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Target project not found' } };
+  }
+
+  const updated = await prisma.task.update({
+    where: { id: input.task_id },
+    data: { projectId: input.target_project_id, parentId: null },
+    include: { project: { select: { title: true } } },
+  });
+
+  return {
+    success: true,
+    task: {
+      id: updated.id,
+      title: updated.title,
+      projectId: updated.projectId,
+      projectTitle: updated.project.title,
+    },
+  };
+}
+
+/**
+ * Set plan date for a task
+ */
+async function setPlanDate(
+  input: SetPlanDateInput,
+  context: MCPContext
+): Promise<{ success: boolean; task?: unknown; error?: unknown }> {
+  if (!input.task_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'task_id is required' } };
+  }
+
+  const task = await prisma.task.findFirst({
+    where: { id: input.task_id, userId: context.userId },
+  });
+
+  if (!task) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Task not found' } };
+  }
+
+  const updated = await prisma.task.update({
+    where: { id: input.task_id },
+    data: { planDate: input.plan_date ? new Date(input.plan_date) : null },
+  });
+
+  return {
+    success: true,
+    task: {
+      id: updated.id,
+      title: updated.title,
+      planDate: updated.planDate?.toISOString().split('T')[0] ?? null,
+    },
+  };
+}
+
+// ============================================================================
+// MCP Capability Enhancement - Project Management Tools
+// ============================================================================
+
+/**
+ * Create a new project
+ */
+async function createProject(
+  input: CreateProjectInput,
+  context: MCPContext
+): Promise<{ success: boolean; project?: unknown; error?: unknown }> {
+  if (!input.title || !input.deliverable) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'title and deliverable are required' } };
+  }
+
+  const project = await prisma.project.create({
+    data: {
+      title: input.title,
+      deliverable: input.deliverable,
+      userId: context.userId,
+      goals: input.goal_id ? { create: { goalId: input.goal_id } } : undefined,
+    },
+  });
+
+  return {
+    success: true,
+    project: { id: project.id, title: project.title, deliverable: project.deliverable, status: project.status },
+  };
+}
+
+/**
+ * Update project properties
+ */
+async function updateProject(
+  input: UpdateProjectInput,
+  context: MCPContext
+): Promise<{ success: boolean; project?: unknown; error?: unknown }> {
+  if (!input.project_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'project_id is required' } };
+  }
+
+  const project = await prisma.project.findFirst({
+    where: { id: input.project_id, userId: context.userId },
+  });
+
+  if (!project) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Project not found' } };
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (input.title !== undefined) updateData.title = input.title;
+  if (input.deliverable !== undefined) updateData.deliverable = input.deliverable;
+  if (input.status !== undefined) updateData.status = input.status;
+
+  if (Object.keys(updateData).length === 0) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'No fields to update' } };
+  }
+
+  const updated = await prisma.project.update({
+    where: { id: input.project_id },
+    data: updateData,
+  });
+
+  return {
+    success: true,
+    project: { id: updated.id, title: updated.title, deliverable: updated.deliverable, status: updated.status },
+  };
+}
+
+/**
+ * Get project details
+ */
+async function getProject(
+  input: GetProjectInput,
+  context: MCPContext
+): Promise<{ success: boolean; project?: unknown; error?: unknown }> {
+  if (!input.project_id) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'project_id is required' } };
+  }
+
+  const includeTasks = input.include_tasks !== false;
+
+  const project = await prisma.project.findFirst({
+    where: { id: input.project_id, userId: context.userId },
+    include: {
+      tasks: includeTasks ? {
+        where: { parentId: null },
+        orderBy: [{ status: 'asc' }, { priority: 'asc' }, { sortOrder: 'asc' }],
+        select: { id: true, title: true, status: true, priority: true, planDate: true },
+      } : false,
+      goals: { include: { goal: { select: { id: true, title: true } } } },
+    },
+  });
+
+  if (!project) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'Project not found' } };
+  }
+
+  const taskCount = await prisma.task.count({ where: { projectId: project.id } });
+  const completedCount = await prisma.task.count({ where: { projectId: project.id, status: 'DONE' } });
+
+  return {
+    success: true,
+    project: {
+      id: project.id,
+      title: project.title,
+      deliverable: project.deliverable,
+      status: project.status,
+      taskCount,
+      completedTaskCount: completedCount,
+      progress: taskCount > 0 ? Math.round((completedCount / taskCount) * 100) : 0,
+      tasks: includeTasks ? project.tasks.map(t => ({
+        ...t,
+        planDate: t.planDate?.toISOString().split('T')[0] ?? null,
+      })) : undefined,
+      linkedGoals: project.goals.map(g => ({ id: g.goal.id, title: g.goal.title })),
+      createdAt: project.createdAt.toISOString(),
+    },
+  };
+}
+
+// ============================================================================
+// MCP Capability Enhancement - Daily State Tools
+// ============================================================================
+
+/**
+ * Get Top 3 tasks for today
+ */
+async function getTop3(
+  context: MCPContext
+): Promise<{ success: boolean; tasks?: unknown[]; error?: unknown }> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get daily state with top3TaskIds
+  const dailyState = await prisma.dailyState.findUnique({
+    where: { userId_date: { userId: context.userId, date: today } },
+  });
+
+  if (!dailyState || !dailyState.top3TaskIds || dailyState.top3TaskIds.length === 0) {
+    return { success: true, tasks: [] };
+  }
+
+  // Fetch the tasks
+  const tasks = await prisma.task.findMany({
+    where: { id: { in: dailyState.top3TaskIds }, userId: context.userId },
+    include: { project: { select: { id: true, title: true } } },
+  });
+
+  // Sort by the order in top3TaskIds
+  const sortedTasks = dailyState.top3TaskIds
+    .map((id, index) => {
+      const task = tasks.find(t => t.id === id);
+      return task ? { ...task, order: index + 1 } : null;
+    })
+    .filter(Boolean);
+
+  return {
+    success: true,
+    tasks: sortedTasks.map(t => ({
+      id: t!.id,
+      title: t!.title,
+      priority: t!.priority,
+      status: t!.status,
+      projectId: t!.projectId,
+      projectTitle: t!.project.title,
+      order: t!.order,
+    })),
+  };
+}
+
+/**
+ * Set Top 3 tasks for today
+ */
+async function setTop3(
+  input: SetTop3Input,
+  context: MCPContext
+): Promise<{ success: boolean; tasks?: unknown[]; error?: unknown }> {
+  if (!input.task_ids || !Array.isArray(input.task_ids) || input.task_ids.length === 0) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'task_ids array is required (1-3 items)' } };
+  }
+
+  if (input.task_ids.length > 3) {
+    return { success: false, error: { code: 'VALIDATION_ERROR', message: 'Maximum 3 tasks allowed' } };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Verify all tasks exist and belong to user
+  const tasks = await prisma.task.findMany({
+    where: { id: { in: input.task_ids }, userId: context.userId },
+    include: { project: { select: { id: true, title: true } } },
+  });
+
+  if (tasks.length !== input.task_ids.length) {
+    return { success: false, error: { code: 'NOT_FOUND', message: 'One or more tasks not found' } };
+  }
+
+  // Update or create daily state with top3TaskIds
+  await prisma.dailyState.upsert({
+    where: { userId_date: { userId: context.userId, date: today } },
+    update: { top3TaskIds: input.task_ids },
+    create: {
+      userId: context.userId,
+      date: today,
+      systemState: 'PLANNING',
+      top3TaskIds: input.task_ids,
+    },
+  });
+
+  // Also set planDate for these tasks to today
+  await prisma.task.updateMany({
+    where: { id: { in: input.task_ids } },
+    data: { planDate: today },
+  });
+
+  // Return tasks in order
+  const sortedTasks = input.task_ids.map((id, index) => {
+    const task = tasks.find(t => t.id === id);
+    return task ? { ...task, order: index + 1 } : null;
+  }).filter(Boolean);
+
+  return {
+    success: true,
+    tasks: sortedTasks.map(t => ({
+      id: t!.id,
+      title: t!.title,
+      priority: t!.priority,
+      projectTitle: t!.project.title,
+      order: t!.order,
+    })),
+  };
 }

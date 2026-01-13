@@ -31,6 +31,10 @@ export const RESOURCE_URIS = {
   // Multi-task pomodoro resources (Phase 6)
   POMODORO_CURRENT: 'vibe://pomodoro/current',
   POMODORO_SUMMARY: 'vibe://pomodoro/summary',
+  // MCP Capability Enhancement resources
+  STATE_CURRENT: 'vibe://state/current',
+  PROJECTS_ALL: 'vibe://projects/all',
+  TIMELINE_TODAY: 'vibe://timeline/today',
 } as const;
 
 /**
@@ -203,6 +207,33 @@ export interface PomodoroSummaryResource {
   }>;
 }
 
+// MCP Capability Enhancement resources
+export interface StateCurrentResource {
+  systemState: string;
+  pomodoroCount: number;
+  adjustedGoal: number | null;
+  top3TaskIds: string[];
+}
+
+export interface ProjectsAllResource {
+  projects: Array<{
+    id: string;
+    title: string;
+    status: string;
+    taskCount: number;
+  }>;
+}
+
+export interface TimelineTodayResource {
+  activities: Array<{
+    type: 'pomodoro';
+    startTime: string;
+    endTime: string | null;
+    taskTitle: string;
+    duration: number;
+  }>;
+}
+
 /**
  * Register available resources
  */
@@ -277,6 +308,25 @@ export function registerResources() {
         description: 'Summary of the most recent completed pomodoro with time distribution',
         mimeType: 'application/json',
       },
+      // MCP Capability Enhancement resources
+      {
+        uri: RESOURCE_URIS.STATE_CURRENT,
+        name: 'Current State',
+        description: 'Current system state including pomodoro count and daily goal',
+        mimeType: 'application/json',
+      },
+      {
+        uri: RESOURCE_URIS.PROJECTS_ALL,
+        name: 'All Projects',
+        description: 'All projects with task counts',
+        mimeType: 'application/json',
+      },
+      {
+        uri: RESOURCE_URIS.TIMELINE_TODAY,
+        name: 'Today Timeline',
+        description: 'Timeline of today activities (pomodoros and completed tasks)',
+        mimeType: 'application/json',
+      },
     ],
   };
 }
@@ -326,6 +376,16 @@ export async function handleResourceRead(
         break;
       case RESOURCE_URIS.POMODORO_SUMMARY:
         data = await getPomodoroSummary(context.userId);
+        break;
+      // MCP Capability Enhancement resources
+      case RESOURCE_URIS.STATE_CURRENT:
+        data = await getStateCurrent(context.userId);
+        break;
+      case RESOURCE_URIS.PROJECTS_ALL:
+        data = await getProjectsAll(context.userId);
+        break;
+      case RESOURCE_URIS.TIMELINE_TODAY:
+        data = await getTimelineToday(context.userId);
         break;
       default:
         data = {
@@ -871,4 +931,74 @@ async function getPomodoroSummary(userId: string): Promise<PomodoroSummaryResour
     isTaskless: pomodoro.isTaskless ?? false,
     timeDistribution,
   };
+}
+
+/**
+ * Get current system state
+ * MCP Capability Enhancement
+ */
+async function getStateCurrent(userId: string): Promise<StateCurrentResource> {
+  const stateResult = await dailyStateService.getCurrentState(userId);
+  const today = new Date().toISOString().split('T')[0];
+
+  const dailyState = await prisma.dailyState.findUnique({
+    where: { userId_date: { userId, date: new Date(today) } },
+  });
+
+  const completedPomodoros = await prisma.pomodoro.count({
+    where: { userId, status: 'COMPLETED', startTime: { gte: new Date(today) } },
+  });
+
+  return {
+    systemState: (stateResult.success && stateResult.data) ? stateResult.data : 'LOCKED',
+    pomodoroCount: completedPomodoros,
+    adjustedGoal: dailyState?.adjustedGoal ?? null,
+    top3TaskIds: dailyState?.top3TaskIds ?? [],
+  };
+}
+
+/**
+ * Get all projects with task counts
+ * MCP Capability Enhancement
+ */
+async function getProjectsAll(userId: string): Promise<ProjectsAllResource> {
+  const projects = await prisma.project.findMany({
+    where: { userId },
+    include: { _count: { select: { tasks: true } } },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  return {
+    projects: projects.map(p => ({
+      id: p.id,
+      title: p.title,
+      status: p.status,
+      taskCount: p._count.tasks,
+    })),
+  };
+}
+
+/**
+ * Get today's activity timeline
+ * MCP Capability Enhancement
+ */
+async function getTimelineToday(userId: string): Promise<TimelineTodayResource> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const pomodoros = await prisma.pomodoro.findMany({
+    where: { userId, startTime: { gte: today } },
+    include: { task: { select: { title: true } } },
+    orderBy: { startTime: 'asc' },
+  });
+
+  const activities = pomodoros.map(p => ({
+    type: 'pomodoro' as const,
+    startTime: p.startTime.toISOString(),
+    endTime: p.endTime?.toISOString() ?? null,
+    taskTitle: p.task?.title ?? (p.label || 'Taskless'),
+    duration: p.duration,
+  }));
+
+  return { activities };
 }
