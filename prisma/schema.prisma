@@ -149,7 +149,7 @@ model UserSettings {
   autoStartOnLogin      Boolean @default(true)  // auto-start on system login
 
   // Work Apps Configuration (shared list) - REST & SLEEP enforcement
-  workApps                Json?              @default("[]") // [{bundleId: string, name: string}]
+  workApps                Json               @default("[]") // [{bundleId: string, name: string}]
 
   // REST State Enforcement
   restEnforcementEnabled  Boolean            @default(false)
@@ -607,6 +607,7 @@ model RestExemption {
   expiresAt  DateTime?
 
   @@index([userId, grantedAt])
+  @@index([pomodoroId])
 }
 
 // Daily Entertainment State model for tracking entertainment quota usage (Requirements 8.1, 8.7)
