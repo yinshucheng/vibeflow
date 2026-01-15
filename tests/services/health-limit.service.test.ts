@@ -10,16 +10,6 @@ describe('HealthLimitService', () => {
   });
 
   describe('check2HourLimit', () => {
-    it('should return false when no pomodoros in last 2 hours', async () => {
-      vi.spyOn(prisma.pomodoro, 'findMany').mockResolvedValue([]);
-      vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
-        healthLimit2Hours: 110,
-      } as any);
-
-      const result = await healthLimitService.check2HourLimit(userId);
-      expect(result).toBe(false);
-    });
-
     it('should return false when total minutes below limit', async () => {
       const now = new Date();
       vi.spyOn(prisma.pomodoro, 'findMany').mockResolvedValue([

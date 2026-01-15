@@ -73,8 +73,6 @@ class HealthLimitService {
       return { available: false, remaining: 0 };
     }
 
-    await this.checkAndResetWeeklyTokens(userId, settings);
-
     const remaining = settings.skipTokenWeeklyLimit - settings.skipTokenUsed;
     return {
       available: remaining > 0,
@@ -110,14 +108,6 @@ class HealthLimitService {
         skipTokenResetAt: nextMonday
       }
     });
-  }
-
-  private async checkAndResetWeeklyTokens(userId: string, settings: any): Promise<void> {
-    const now = new Date();
-
-    if (!settings.skipTokenResetAt || now >= settings.skipTokenResetAt) {
-      await this.resetWeeklyTokens(userId);
-    }
   }
 
   private getNextMonday(date: Date): Date {
