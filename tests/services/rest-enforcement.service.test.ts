@@ -43,8 +43,6 @@ describe('RestEnforcementService', () => {
       );
 
       expect(result.granted).toBe(true);
-      expect(result.exemption).toBeDefined();
-      expect(result.exemption?.type).toBe('GRACE');
       expect(result.remaining).toBe(2);
     });
 

@@ -4,8 +4,7 @@ import { healthLimitService } from './health-limit.service';
 
 export interface GraceRequestResult {
   granted: boolean;
-  exemption?: RestExemption;
-  remaining?: number;
+  remaining: number;
 }
 
 export interface SkipRestResult {
@@ -44,7 +43,7 @@ class RestEnforcementService {
 
     const graceDuration = settings?.restGraceDuration ?? 2;
     const now = new Date();
-    const exemption = await prisma.restExemption.create({
+    await prisma.restExemption.create({
       data: {
         userId,
         pomodoroId,
@@ -56,7 +55,6 @@ class RestEnforcementService {
 
     return {
       granted: true,
-      exemption,
       remaining: graceLimit - graceCount - 1,
     };
   }
@@ -114,6 +112,17 @@ class RestEnforcementService {
       exemption,
       tokenRemaining: consumeResult.remaining,
     };
+  }
+
+  async shouldEnforceRest(userId: string, pomodoroId: string): Promise<boolean> {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+    });
+    return settings?.restEnforcementEnabled ?? true;
+  }
+
+  async enforceWorkAppBlock(userId: string, actions: string[]): Promise<void> {
+    console.log(`[RestEnforcement] Placeholder: enforceWorkAppBlock for user ${userId}, actions:`, actions);
   }
 }
 
