@@ -1,16 +1,16 @@
 /**
  * PomodoroStatus Component
  *
- * Read-only display of current pomodoro status.
+ * Display of current pomodoro status with start control.
  * Shows countdown timer, task title, and daily progress.
- * No controls - all state changes come from server.
  *
  * Requirements: 4.2, 4.3, 4.4, 4.5, 4.7
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useAppStore } from '@/store/app.store';
+import { actionService } from '@/services/action.service';
 import {
   calculateRemainingTime,
   calculateProgress,
@@ -26,10 +26,14 @@ import {
 export function PomodoroStatus(): React.JSX.Element {
   const activePomodoro = useAppStore((state) => state.activePomodoro);
   const dailyState = useAppStore((state) => state.dailyState);
+  const optimisticStartPomodoro = useAppStore((s) => s.optimisticStartPomodoro);
+  const confirmOptimisticUpdate = useAppStore((s) => s.confirmOptimisticUpdate);
+  const rollbackOptimisticUpdate = useAppStore((s) => s.rollbackOptimisticUpdate);
 
   // Local state for countdown (updates every second)
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [isStarting, setIsStarting] = useState(false);
 
   // Update countdown every second when pomodoro is active
   useEffect(() => {
@@ -53,6 +57,27 @@ export function PomodoroStatus(): React.JSX.Element {
     return () => clearInterval(interval);
   }, [activePomodoro]);
 
+  const handleStartPomodoro = async () => {
+    if (isStarting || activePomodoro) return;
+
+    setIsStarting(true);
+
+    // Apply optimistic update
+    const optimisticId = optimisticStartPomodoro();
+
+    // Send to server
+    const result = await actionService.startPomodoro();
+
+    if (result.success) {
+      confirmOptimisticUpdate(optimisticId);
+    } else {
+      rollbackOptimisticUpdate(optimisticId);
+      Alert.alert('启动失败', result.error?.message || '无法启动番茄钟');
+    }
+
+    setIsStarting(false);
+  };
+
   return (
     <View style={styles.container}>
       {/* Timer Display */}
@@ -72,7 +97,16 @@ export function PomodoroStatus(): React.JSX.Element {
           </>
         ) : (
           <View style={styles.noPomodoro}>
-            <Text style={styles.noPomodoroText}>无进行中的番茄钟</Text>
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={handleStartPomodoro}
+              disabled={isStarting}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.startButtonText}>
+                {isStarting ? '启动中...' : '开始番茄钟'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -192,6 +226,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
     borderRadius: 100,
+  },
+  startButton: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 25,
+  },
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   noPomodoroText: {
     fontSize: 16,

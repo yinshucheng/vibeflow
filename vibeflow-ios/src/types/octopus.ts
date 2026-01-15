@@ -30,7 +30,8 @@ export type CommandType =
   | 'SYNC_STATE'
   | 'EXECUTE_ACTION'
   | 'UPDATE_POLICY'
-  | 'SHOW_UI';
+  | 'SHOW_UI'
+  | 'ACTION_RESULT';
 
 export type ActionType =
   | 'CLOSE_APP'
@@ -208,6 +209,52 @@ export interface UpdatePolicyCommand extends BaseCommand {
 // UNION TYPES
 // =============================================================================
 
-export type OctopusEvent = HeartbeatEvent;
+// =============================================================================
+// USER ACTION TYPES (iOS → Vibe Brain)
+// =============================================================================
 
-export type OctopusCommand = SyncStateCommand | UpdatePolicyCommand;
+export type UserActionType =
+  | 'TASK_COMPLETE'
+  | 'TASK_STATUS_CHANGE'
+  | 'TASK_CREATE'
+  | 'TASK_UPDATE'
+  | 'POMODORO_START'
+  | 'POMODORO_SWITCH_TASK'
+  | 'TOP3_SET'
+  | 'POLICY_UPDATE'
+  | 'SLEEP_TIME_UPDATE';
+
+export interface UserActionPayload {
+  actionType: UserActionType;
+  optimisticId: string;
+  data: Record<string, unknown>;
+}
+
+export interface UserActionEvent extends BaseEvent {
+  eventType: 'USER_ACTION';
+  payload: UserActionPayload;
+}
+
+// =============================================================================
+// ACTION RESULT TYPES (Vibe Brain → iOS)
+// =============================================================================
+
+export interface ActionResultPayload {
+  optimisticId: string;
+  success: boolean;
+  error?: { code: string; message: string };
+  data?: Record<string, unknown>;
+}
+
+export interface ActionResultCommand extends BaseCommand {
+  commandType: 'ACTION_RESULT';
+  payload: ActionResultPayload;
+}
+
+// =============================================================================
+// UNION TYPES
+// =============================================================================
+
+export type OctopusEvent = HeartbeatEvent | UserActionEvent;
+
+export type OctopusCommand = SyncStateCommand | UpdatePolicyCommand | ActionResultCommand;

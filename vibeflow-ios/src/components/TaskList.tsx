@@ -1,16 +1,16 @@
 /**
  * TaskList Component
  *
- * Read-only display of today's tasks.
+ * Display of today's tasks with interactive completion.
  * Shows Top 3 tasks and all scheduled tasks for today.
- * No controls - all state changes come from server.
  *
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActionSheetIOS } from 'react-native';
 import { useAppStore } from '@/store/app.store';
+import { actionService } from '@/services/action.service';
 import {
   getTop3Tasks,
   getNonTop3TodayTasks,
@@ -22,7 +22,11 @@ import type { TaskData } from '@/types';
 // COMPONENT
 // =============================================================================
 
-export function TaskList(): React.JSX.Element {
+interface TaskListProps {
+  onEditTask?: (taskId: string) => void;
+}
+
+export function TaskList({ onEditTask }: TaskListProps): React.JSX.Element {
   const todayTasks = useAppStore((state) => state.todayTasks);
   const top3Tasks = useAppStore((state) => state.top3Tasks);
 
@@ -42,7 +46,7 @@ export function TaskList(): React.JSX.Element {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>今日 Top 3</Text>
           {sortedTop3.map((task) => (
-            <TaskItem key={task.id} task={task} isTop3 />
+            <TaskItem key={task.id} task={task} isTop3 onEdit={onEditTask} />
           ))}
         </View>
       )}
@@ -52,7 +56,7 @@ export function TaskList(): React.JSX.Element {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>其他任务</Text>
           {otherTasks.map((task) => (
-            <TaskItem key={task.id} task={task} />
+            <TaskItem key={task.id} task={task} onEdit={onEditTask} />
           ))}
         </View>
       )}
@@ -77,23 +81,97 @@ export function TaskList(): React.JSX.Element {
 interface TaskItemProps {
   task: TaskData;
   isTop3?: boolean;
+  onEdit?: (taskId: string) => void;
 }
 
-function TaskItem({ task, isTop3 = false }: TaskItemProps): React.JSX.Element {
+function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.Element {
   const isCompleted = task.status === 'completed';
   const isInProgress = task.status === 'in_progress';
   const isCurrent = task.isCurrentTask;
 
+  const optimisticCompleteTask = useAppStore((s) => s.optimisticCompleteTask);
+  const optimisticUpdateTaskStatus = useAppStore((s) => s.optimisticUpdateTaskStatus);
+  const confirmOptimisticUpdate = useAppStore((s) => s.confirmOptimisticUpdate);
+  const rollbackOptimisticUpdate = useAppStore((s) => s.rollbackOptimisticUpdate);
+
+  const handleComplete = async () => {
+    if (isCompleted) return;
+
+    // Apply optimistic update
+    const optimisticId = optimisticCompleteTask(task.id);
+
+    // Send to server
+    const result = await actionService.completeTask(task.id);
+
+    if (result.success) {
+      confirmOptimisticUpdate(optimisticId);
+    } else {
+      rollbackOptimisticUpdate(optimisticId);
+      Alert.alert('操作失败', result.error?.message || '无法完成任务');
+    }
+  };
+
+  const handleStatusChange = async (newStatus: 'pending' | 'in_progress' | 'completed') => {
+    if (task.status === newStatus) return;
+
+    const optimisticId = optimisticUpdateTaskStatus(task.id, newStatus);
+    const serverStatus = newStatus === 'pending' ? 'TODO' : newStatus === 'in_progress' ? 'IN_PROGRESS' : 'DONE';
+
+    const result = await actionService.updateTaskStatus(task.id, serverStatus as 'TODO' | 'IN_PROGRESS' | 'DONE');
+
+    if (result.success) {
+      confirmOptimisticUpdate(optimisticId);
+    } else {
+      rollbackOptimisticUpdate(optimisticId);
+      Alert.alert('操作失败', result.error?.message || '无法更新状态');
+    }
+  };
+
+  const handleLongPress = () => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ['取消', '编辑', '标记为待办', '标记为进行中', '标记为已完成', '开始番茄钟'],
+        cancelButtonIndex: 0,
+      },
+      (buttonIndex) => {
+        switch (buttonIndex) {
+          case 1:
+            onEdit?.(task.id);
+            break;
+          case 2:
+            handleStatusChange('pending');
+            break;
+          case 3:
+            handleStatusChange('in_progress');
+            break;
+          case 4:
+            handleStatusChange('completed');
+            break;
+          case 5:
+            actionService.startPomodoro(task.id);
+            break;
+        }
+      }
+    );
+  };
+
   return (
-    <View
+    <TouchableOpacity
       style={[
         styles.taskItem,
         isCompleted && styles.taskItemCompleted,
         isCurrent && styles.taskItemCurrent,
       ]}
+      onLongPress={handleLongPress}
+      activeOpacity={0.9}
     >
-      {/* Status Indicator */}
-      <View style={styles.statusIndicator}>
+      {/* Checkbox - Tappable */}
+      <TouchableOpacity
+        style={styles.statusIndicator}
+        onPress={handleComplete}
+        disabled={isCompleted}
+        activeOpacity={0.6}
+      >
         {isCompleted ? (
           <View style={styles.checkmark}>
             <Text style={styles.checkmarkText}>✓</Text>
@@ -103,7 +181,7 @@ function TaskItem({ task, isTop3 = false }: TaskItemProps): React.JSX.Element {
         ) : (
           <View style={styles.pendingDot} />
         )}
-      </View>
+      </TouchableOpacity>
 
       {/* Task Content */}
       <View style={styles.taskContent}>
@@ -129,7 +207,7 @@ function TaskItem({ task, isTop3 = false }: TaskItemProps): React.JSX.Element {
           <Text style={styles.top3Text}>★</Text>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 

@@ -7,17 +7,19 @@
  * Requirements: 4.1, 9.1, 9.4
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PomodoroStatus } from '@/components/PomodoroStatus';
 import { TaskList } from '@/components/TaskList';
+import { TaskEditScreen } from '@/screens/TaskEditScreen';
 import {
   useConnectionStatus,
   useDailyState,
@@ -112,7 +114,8 @@ export function StatusScreen(): React.JSX.Element {
   const theme = useTheme();
   const dailyState = useDailyState();
   const connectionStatus = useConnectionStatus();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
   // Pull to refresh handler (just visual feedback, actual sync is automatic)
   const onRefresh = React.useCallback(() => {
@@ -165,7 +168,7 @@ export function StatusScreen(): React.JSX.Element {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             今日任务
           </Text>
-          <TaskList />
+          <TaskList onEditTask={setEditingTaskId} />
         </View>
 
         {/* Footer */}
@@ -173,6 +176,13 @@ export function StatusScreen(): React.JSX.Element {
           <LastSyncTime />
         </View>
       </ScrollView>
+
+      {/* Task Edit Modal */}
+      <Modal visible={!!editingTaskId} animationType="slide">
+        {editingTaskId && (
+          <TaskEditScreen taskId={editingTaskId} onClose={() => setEditingTaskId(null)} />
+        )}
+      </Modal>
     </SafeAreaView>
   );
 }

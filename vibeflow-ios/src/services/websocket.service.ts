@@ -18,7 +18,10 @@ import { getSocketAuthPayload } from '@/config/auth';
 import type {
   SyncStateCommand,
   UpdatePolicyCommand,
+  ActionResultCommand,
   OctopusEvent,
+  UserActionEvent,
+  UserActionType,
 } from '@/types';
 
 // =============================================================================
@@ -35,6 +38,7 @@ export interface WebSocketServiceConfig {
 
 type SyncStateHandler = (command: SyncStateCommand) => void;
 type PolicyUpdateHandler = (command: UpdatePolicyCommand) => void;
+type ActionResultHandler = (command: ActionResultCommand) => void;
 type ConnectionHandler = () => void;
 type StatusChangeHandler = (status: ConnectionStatus) => void;
 
@@ -74,6 +78,7 @@ class WebSocketService {
   // Event handlers
   private syncStateHandlers: SyncStateHandler[] = [];
   private policyUpdateHandlers: PolicyUpdateHandler[] = [];
+  private actionResultHandlers: ActionResultHandler[] = [];
   private disconnectHandlers: ConnectionHandler[] = [];
   private reconnectHandlers: ConnectionHandler[] = [];
   private statusChangeHandlers: StatusChangeHandler[] = [];
@@ -154,6 +159,34 @@ class WebSocketService {
     this.socket.emit('octopus:event', event);
   }
 
+  /**
+   * Send a user action event to the server.
+   */
+  sendUserAction(
+    actionType: UserActionType,
+    data: Record<string, unknown>,
+    optimisticId: string
+  ): void {
+    if (!this.socket?.connected) {
+      console.warn('[WebSocket] Cannot send action: not connected');
+      return;
+    }
+
+    const event: UserActionEvent = {
+      eventId: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      eventType: 'USER_ACTION',
+      userId: '', // Will be filled by server from auth
+      clientId: 'ios-app',
+      clientType: 'mobile',
+      timestamp: Date.now(),
+      sequenceNumber: 0,
+      payload: { actionType, optimisticId, data },
+    };
+
+    console.log('[WebSocket] Sending USER_ACTION:', actionType);
+    this.socket.emit('OCTOPUS_EVENT', event);
+  }
+
   // ===========================================================================
   // EVENT SUBSCRIPTION
   // ===========================================================================
@@ -177,6 +210,18 @@ class WebSocketService {
     this.policyUpdateHandlers.push(handler);
     return () => {
       this.policyUpdateHandlers = this.policyUpdateHandlers.filter(
+        (h) => h !== handler
+      );
+    };
+  }
+
+  /**
+   * Subscribe to ACTION_RESULT commands.
+   */
+  onActionResult(handler: ActionResultHandler): () => void {
+    this.actionResultHandlers.push(handler);
+    return () => {
+      this.actionResultHandlers = this.actionResultHandlers.filter(
         (h) => h !== handler
       );
     };
@@ -274,7 +319,7 @@ class WebSocketService {
     });
   }
 
-  private handleCommand(command: SyncStateCommand | UpdatePolicyCommand): void {
+  private handleCommand(command: SyncStateCommand | UpdatePolicyCommand | ActionResultCommand): void {
     switch (command.commandType) {
       case 'SYNC_STATE':
         this.syncStateHandlers.forEach((handler) =>
@@ -284,6 +329,12 @@ class WebSocketService {
       case 'UPDATE_POLICY':
         this.policyUpdateHandlers.forEach((handler) =>
           handler(command as UpdatePolicyCommand)
+        );
+        break;
+      case 'ACTION_RESULT':
+        console.log('[WebSocket] Received ACTION_RESULT:', (command as ActionResultCommand).payload.optimisticId);
+        this.actionResultHandlers.forEach((handler) =>
+          handler(command as ActionResultCommand)
         );
         break;
     }

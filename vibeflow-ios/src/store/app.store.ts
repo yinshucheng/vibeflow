@@ -2,7 +2,7 @@
  * App State Store (Zustand)
  *
  * Central state management for the iOS app.
- * All state is read-only - updates come only from server via WebSocket.
+ * Supports optimistic updates for user actions.
  *
  * Requirements: 2.3, 4.1
  */
@@ -21,6 +21,17 @@ import type {
   FullState,
   StateDelta,
 } from '@/types';
+
+// =============================================================================
+// OPTIMISTIC UPDATE TYPES
+// =============================================================================
+
+export interface OptimisticUpdate {
+  id: string;
+  type: string;
+  previousState: Partial<AppState>;
+  timestamp: number;
+}
 
 // =============================================================================
 // STORE STATE INTERFACE
@@ -56,6 +67,9 @@ export interface AppState {
 
   // State version for sync
   stateVersion: number;
+
+  // Optimistic updates tracking
+  pendingUpdates: Map<string, OptimisticUpdate>;
 }
 
 // =============================================================================
@@ -80,6 +94,14 @@ export interface AppActions {
 
   // Set user info (from server sync)
   setUserInfo: (userId: string, email: string) => void;
+
+  // Optimistic update actions
+  optimisticCompleteTask: (taskId: string) => string;
+  optimisticStartPomodoro: (taskId?: string) => string;
+  optimisticUpdateTaskStatus: (taskId: string, status: TaskData['status']) => string;
+  optimisticSetTop3: (taskIds: string[]) => string;
+  confirmOptimisticUpdate: (optimisticId: string) => void;
+  rollbackOptimisticUpdate: (optimisticId: string) => void;
 }
 
 // =============================================================================
@@ -101,6 +123,7 @@ const initialState: AppState = {
   blockedApps: [],
   screenTimeAuthorized: false,
   stateVersion: 0,
+  pendingUpdates: new Map(),
 };
 
 // =============================================================================
@@ -381,6 +404,154 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   clearState: () => {
     set(initialState);
+  },
+
+  // ===========================================================================
+  // OPTIMISTIC UPDATE ACTIONS
+  // ===========================================================================
+
+  optimisticCompleteTask: (taskId: string): string => {
+    const optimisticId = `opt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const currentState = get();
+
+    // Save previous state for rollback
+    const previousState: Partial<AppState> = {
+      top3Tasks: [...currentState.top3Tasks],
+      todayTasks: [...currentState.todayTasks],
+    };
+
+    // Apply optimistic update
+    const updateTask = (tasks: TaskData[]) =>
+      tasks.map((t) => (t.id === taskId ? { ...t, status: 'completed' as const } : t));
+
+    const pendingUpdates = new Map(currentState.pendingUpdates);
+    pendingUpdates.set(optimisticId, {
+      id: optimisticId,
+      type: 'TASK_COMPLETE',
+      previousState,
+      timestamp: Date.now(),
+    });
+
+    set({
+      top3Tasks: updateTask(currentState.top3Tasks),
+      todayTasks: updateTask(currentState.todayTasks),
+      pendingUpdates,
+    });
+
+    return optimisticId;
+  },
+
+  optimisticStartPomodoro: (taskId?: string): string => {
+    const optimisticId = `opt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const currentState = get();
+
+    const previousState: Partial<AppState> = {
+      activePomodoro: currentState.activePomodoro,
+      dailyState: currentState.dailyState,
+      isBlockingActive: currentState.isBlockingActive,
+    };
+
+    const task = taskId ? currentState.top3Tasks.find((t) => t.id === taskId) : null;
+
+    const pendingUpdates = new Map(currentState.pendingUpdates);
+    pendingUpdates.set(optimisticId, {
+      id: optimisticId,
+      type: 'POMODORO_START',
+      previousState,
+      timestamp: Date.now(),
+    });
+
+    set({
+      activePomodoro: {
+        id: `temp_${optimisticId}`,
+        taskId: taskId ?? '',
+        taskTitle: task?.title ?? 'Focus Session',
+        startTime: Date.now(),
+        duration: 25 * 60 * 1000,
+        status: 'active',
+      },
+      dailyState: currentState.dailyState
+        ? { ...currentState.dailyState, state: 'FOCUS' }
+        : null,
+      isBlockingActive: true,
+      pendingUpdates,
+    });
+
+    return optimisticId;
+  },
+
+  optimisticUpdateTaskStatus: (taskId: string, status: TaskData['status']): string => {
+    const optimisticId = `opt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const currentState = get();
+
+    const previousState: Partial<AppState> = {
+      top3Tasks: [...currentState.top3Tasks],
+      todayTasks: [...currentState.todayTasks],
+    };
+
+    const updateTask = (tasks: TaskData[]) =>
+      tasks.map((t) => (t.id === taskId ? { ...t, status } : t));
+
+    const pendingUpdates = new Map(currentState.pendingUpdates);
+    pendingUpdates.set(optimisticId, {
+      id: optimisticId,
+      type: 'TASK_STATUS_CHANGE',
+      previousState,
+      timestamp: Date.now(),
+    });
+
+    set({
+      top3Tasks: updateTask(currentState.top3Tasks),
+      todayTasks: updateTask(currentState.todayTasks),
+      pendingUpdates,
+    });
+
+    return optimisticId;
+  },
+
+  optimisticSetTop3: (taskIds: string[]): string => {
+    const optimisticId = `opt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const currentState = get();
+
+    const previousState: Partial<AppState> = {
+      top3Tasks: [...currentState.top3Tasks],
+    };
+
+    const pendingUpdates = new Map(currentState.pendingUpdates);
+    pendingUpdates.set(optimisticId, {
+      id: optimisticId,
+      type: 'SET_TOP3',
+      previousState,
+      timestamp: Date.now(),
+    });
+
+    // Filter tasks from todayTasks that match the taskIds
+    const allTasks = [...currentState.todayTasks, ...currentState.top3Tasks];
+    const newTop3 = taskIds
+      .map((id) => allTasks.find((t) => t.id === id))
+      .filter((t): t is TaskData => t !== undefined);
+
+    set({ top3Tasks: newTop3, pendingUpdates });
+
+    return optimisticId;
+  },
+
+  confirmOptimisticUpdate: (optimisticId: string): void => {
+    const currentState = get();
+    const pendingUpdates = new Map(currentState.pendingUpdates);
+    pendingUpdates.delete(optimisticId);
+    set({ pendingUpdates });
+  },
+
+  rollbackOptimisticUpdate: (optimisticId: string): void => {
+    const currentState = get();
+    const update = currentState.pendingUpdates.get(optimisticId);
+
+    if (update) {
+      const pendingUpdates = new Map(currentState.pendingUpdates);
+      pendingUpdates.delete(optimisticId);
+      set({ ...update.previousState, pendingUpdates });
+    }
   },
 }));
 
