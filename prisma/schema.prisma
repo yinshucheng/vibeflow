@@ -35,6 +35,7 @@ model User {
   dataAccessLogs           DataAccessLog[]
   focusSessions            FocusSession[]
   sleepExemptions          SleepExemption[]
+  restExemptions           RestExemption[]
   dailyEntertainmentStates DailyEntertainmentState[]
   workStartRecords         WorkStartRecord[]
   blockers                 Blocker[]
@@ -146,6 +147,27 @@ model UserSettings {
   // Process guardian settings (Requirements 8.5, 8.6)
   enableProcessGuardian Boolean @default(true)  // enable process guardian in production
   autoStartOnLogin      Boolean @default(true)  // auto-start on system login
+
+  // Work Apps Configuration (shared list) - REST & SLEEP enforcement
+  workApps                Json?              @default("[]") // [{bundleId: string, name: string}]
+
+  // REST State Enforcement
+  restEnforcementEnabled  Boolean            @default(false)
+  restEnforcementActions  String[]           @default([])  // ["force_quit", "hide_window", "show_notification"]
+  restGraceLimit          Int                @default(2)   // Grace times per REST cycle
+  restGraceDuration       Int                @default(2)   // Minutes per grace
+
+  // SLEEP State Enforcement (extends existing)
+  sleepEnforcementActions String[]           @default(["force_quit"])  // Actions for SLEEP state
+
+  // Health Limits Configuration
+  healthLimit2Hours       Int                @default(110) // 2-hour pomodoro time limit (minutes)
+  healthLimitDaily        Int                @default(600) // Daily pomodoro time limit (minutes, 10 hours)
+
+  // Skip Token Configuration
+  skipTokenWeeklyLimit    Int                @default(5)   // Weekly skip token quota
+  skipTokenUsed           Int                @default(0)   // Tokens used this week
+  skipTokenResetAt        DateTime?                        // Next reset time (Monday 00:00)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -266,7 +288,8 @@ model Pomodoro {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
-  timeSlices TaskTimeSlice[]
+  timeSlices     TaskTimeSlice[]
+  restExemptions RestExemption[]
 
   createdAt DateTime @default(now())
 }
@@ -569,6 +592,21 @@ model SleepExemption {
 
   @@index([userId])
   @@index([userId, timestamp])
+}
+
+// Rest Exemption model for tracking REST state overrides
+// Records grace and skip rest usage during REST state
+model RestExemption {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pomodoroId String?
+  pomodoro   Pomodoro? @relation(fields: [pomodoroId], references: [id])
+  type       String    // "grace" or "skip"
+  grantedAt  DateTime  @default(now())
+  expiresAt  DateTime?
+
+  @@index([userId, grantedAt])
 }
 
 // Daily Entertainment State model for tracking entertainment quota usage (Requirements 8.1, 8.7)
