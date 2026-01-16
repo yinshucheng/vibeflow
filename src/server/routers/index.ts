@@ -10,3 +10,5 @@ export { taskRouter } from './task';
 export { goalRouter } from './goal';
 export { pomodoroRouter } from './pomodoro';
 export { settingsRouter } from './settings';
+export { restEnforcementRouter } from './rest-enforcement';
+export { healthLimitRouter } from './health-limit';

@@ -27,6 +27,8 @@ import { bypassDetectionRouter } from './bypass-detection';
 import { demoModeRouter } from './demo-mode';
 import { heartbeatRouter } from './heartbeat';
 import { timeSliceRouter } from './time-slice';
+import { restEnforcementRouter } from './rest-enforcement';
+import { healthLimitRouter } from './health-limit';
 
 /**
  * Main application router
@@ -54,6 +56,8 @@ export const appRouter = router({
   demoMode: demoModeRouter,
   heartbeat: heartbeatRouter,
   timeSlice: timeSliceRouter,
+  restEnforcement: restEnforcementRouter,
+  healthLimit: healthLimitRouter,
 });
 
 /**
