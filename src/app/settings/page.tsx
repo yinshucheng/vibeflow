@@ -9,12 +9,12 @@
 
 import { useState } from 'react';
 import { MainLayout, PageHeader } from '@/components/layout';
-import { 
-  TimerSettingsForm, 
-  UrlListSettings, 
-  CodingPrinciplesSettings, 
-  NotificationSettings, 
-  WorkTimeSettings, 
+import {
+  TimerSettingsForm,
+  UrlListSettings,
+  CodingPrinciplesSettings,
+  NotificationSettings,
+  WorkTimeSettings,
   ExpectationSettings,
   SettingsLockBanner,
   AutoStartSettings,
@@ -25,8 +25,9 @@ import {
   EntertainmentSitesSettings,
   DemoModeSettings
 } from '@/components/settings';
+import { WorkAppsSettings } from '@/components/settings/work-apps-settings';
 
-type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices' | 'demomode';
+type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'workapps' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices' | 'demomode';
 
 interface TabConfig {
   id: SettingsTab;
@@ -60,15 +61,21 @@ const tabs: TabConfig[] = [
     icon: '😴',
     description: 'Sleep time window and app enforcement'
   },
-  { 
-    id: 'overrest', 
-    label: 'Over Rest', 
+  {
+    id: 'overrest',
+    label: 'Over Rest',
     icon: '⏰',
     description: 'Actions when resting too long during work hours'
   },
-  { 
-    id: 'expectations', 
-    label: 'Expectations', 
+  {
+    id: 'workapps',
+    label: 'Work Apps',
+    icon: '💼',
+    description: 'Apps to block during REST and SLEEP states'
+  },
+  {
+    id: 'expectations',
+    label: 'Expectations',
     icon: '🎯',
     description: 'Daily expected work time and pomodoro count'
   },
@@ -163,6 +170,7 @@ export default function SettingsPage() {
         {activeTab === 'worktime' && <WorkTimeSettings />}
         {activeTab === 'sleeptime' && <SleepTimeSettings />}
         {activeTab === 'overrest' && <OverRestSettings />}
+        {activeTab === 'workapps' && <WorkAppsSettings />}
         {activeTab === 'expectations' && <ExpectationSettings />}
         {activeTab === 'notifications' && <NotificationSettings />}
         {activeTab === 'earlywarning' && <EarlyWarningSettings />}
