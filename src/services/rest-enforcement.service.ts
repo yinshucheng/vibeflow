@@ -30,7 +30,7 @@ class RestEnforcementService {
       where: {
         userId,
         pomodoroId,
-        type: 'GRACE',
+        type: 'grace',
       },
     });
 
@@ -47,7 +47,7 @@ class RestEnforcementService {
       data: {
         userId,
         pomodoroId,
-        type: 'GRACE',
+        type: 'grace',
         grantedAt: now,
         expiresAt: new Date(now.getTime() + graceDuration * 60 * 1000),
       },
@@ -66,7 +66,7 @@ class RestEnforcementService {
       const exemption = await prisma.restExemption.create({
         data: {
           userId,
-          type: 'SKIP_REST',
+          type: 'skip',
           grantedAt: new Date(),
           expiresAt: null,
         },
@@ -101,7 +101,7 @@ class RestEnforcementService {
     const exemption = await prisma.restExemption.create({
       data: {
         userId,
-        type: 'SKIP_REST',
+        type: 'skip',
         grantedAt: new Date(),
         expiresAt: null,
       },
@@ -118,7 +118,7 @@ class RestEnforcementService {
     const settings = await prisma.userSettings.findUnique({
       where: { userId },
     });
-    return settings?.restEnforcementEnabled ?? true;
+    return settings?.restEnforcementEnabled ?? false;
   }
 
   async enforceWorkAppBlock(userId: string, actions: string[]): Promise<void> {
