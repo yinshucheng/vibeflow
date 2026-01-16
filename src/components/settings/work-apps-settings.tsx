@@ -8,6 +8,22 @@ interface WorkApp {
   name: string;
 }
 
+function isWorkApp(obj: unknown): obj is WorkApp {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'bundleId' in obj &&
+    'name' in obj &&
+    typeof obj.bundleId === 'string' &&
+    typeof obj.name === 'string'
+  );
+}
+
+function parseWorkApps(data: unknown): WorkApp[] {
+  if (!Array.isArray(data)) return [];
+  return data.filter(isWorkApp);
+}
+
 const PRESET_WORK_APPS: WorkApp[] = [
   { bundleId: 'com.microsoft.VSCode', name: 'VS Code' },
   { bundleId: 'com.apple.Terminal', name: 'Terminal' },
@@ -20,9 +36,7 @@ export function WorkAppsSettings() {
   const { data: settings } = trpc.settings.get.useQuery();
   const updateSettings = trpc.settings.update.useMutation();
 
-  const workApps = Array.isArray(settings?.workApps)
-    ? (settings.workApps as unknown as WorkApp[])
-    : [];
+  const workApps = parseWorkApps(settings?.workApps);
 
   const addApp = (app: WorkApp) => {
     const newWorkApps = [...workApps, app];
