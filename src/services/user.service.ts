@@ -103,6 +103,11 @@ export const UpdateSettingsSchema = z.object({
   // Demo mode settings (Requirements 6.13, 6.14)
   demoTokensPerMonth: z.number().min(1).max(10).optional(),
   demoMaxDurationMinutes: z.number().min(30).max(180).optional(),
+  // Work apps settings
+  workApps: z.array(z.object({
+    bundleId: z.string(),
+    name: z.string(),
+  })).optional(),
 });
 
 export type UpdateSettingsInput = z.infer<typeof UpdateSettingsSchema>;
