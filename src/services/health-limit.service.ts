@@ -7,7 +7,7 @@ class HealthLimitService {
     const pomodoros = await prisma.pomodoro.findMany({
       where: {
         userId,
-        completedAt: { gte: twoHoursAgo },
+        endTime: { gte: twoHoursAgo },
         status: 'COMPLETED'
       }
     });
@@ -29,7 +29,7 @@ class HealthLimitService {
     const pomodoros = await prisma.pomodoro.findMany({
       where: {
         userId,
-        completedAt: { gte: startOfDay },
+        endTime: { gte: startOfDay },
         status: 'COMPLETED'
       }
     });
