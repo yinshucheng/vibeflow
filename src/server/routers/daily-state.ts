@@ -8,12 +8,14 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
-import { 
-  dailyStateService, 
+import prisma from '@/lib/prisma';
+import {
+  dailyStateService,
   CompleteAirlockSchema,
-  OverrideCapSchema 
+  OverrideCapSchema
 } from '@/services/daily-state.service';
 import { progressCalculationService } from '@/services/progress-calculation.service';
+import { parseSystemState } from '@/machines/vibeflow.machine';
 
 export const dailyStateRouter = router({
   /**
@@ -291,14 +293,66 @@ export const dailyStateRouter = router({
    */
   getGoalRiskSuggestions: protectedProcedure.query(async ({ ctx }) => {
     const result = await progressCalculationService.getGoalRiskSuggestions(ctx.user.userId);
-    
+
     if (!result.success) {
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: result.error?.message ?? 'Failed to get goal risk suggestions',
       });
     }
-    
+
     return result.data;
+  }),
+
+  /**
+   * Get current rest status for UI recovery
+   * Returns rest start time and duration to restore rest countdown after page refresh
+   * Requirements: 7.1 - Rest period tracking
+   */
+  getRestStatus: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.user.userId;
+
+    // Get current daily state
+    const dailyState = await dailyStateService.getTodayWithProgress(userId);
+    if (!dailyState.success || !dailyState.data) {
+      return null;
+    }
+
+    // Return data if in rest or over_rest state (over_rest is still a rest period)
+    const currentState = parseSystemState(dailyState.data.systemState);
+    if (currentState !== 'rest' && currentState !== 'over_rest') {
+      return null;
+    }
+
+    // Get last completed pomodoro to calculate rest start time
+    const lastPomodoro = await prisma.pomodoro.findFirst({
+      where: { userId, status: 'COMPLETED' },
+      orderBy: { endTime: 'desc' },
+    });
+
+    if (!lastPomodoro?.endTime) {
+      return null;
+    }
+
+    // Get user settings for rest duration calculation
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+    });
+
+    // Calculate rest duration based on pomodoro count and settings
+    const pomodoroCount = dailyState.data.progress?.pomodoroCount ?? 0;
+    const longRestInterval = settings?.longRestInterval ?? 4;
+    const isLongRest = pomodoroCount > 0 && pomodoroCount % longRestInterval === 0;
+    const restDuration = isLongRest
+      ? (settings?.longRestDuration ?? 15)
+      : (settings?.shortRestDuration ?? 5);
+
+    return {
+      restStartTime: lastPomodoro.endTime.toISOString(),
+      restDuration, // in minutes
+      isLongRest,
+      pomodoroCount,
+      isOverRest: currentState === 'over_rest',
+    };
   }),
 });

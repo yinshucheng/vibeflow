@@ -23,15 +23,11 @@ module.exports = {
       // Application name (used in PM2 commands)
       name: 'vibeflow-backend',
       
-      // Script to run
-      script: 'npm',
-      args: 'run start',
+      // Script to run (custom server with Socket.io)
+      script: 'dist/server.js',
       
       // Working directory
       cwd: __dirname,
-      
-      // Interpreter (use node for npm)
-      interpreter: 'none',
       
       // Auto-restart configuration
       autorestart: true,

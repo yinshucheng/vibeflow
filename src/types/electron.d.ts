@@ -287,6 +287,12 @@ interface VibeflowAPI {
     isSupported: () => Promise<boolean>;
   };
 
+  // Pomodoro countdown (main process for background updates)
+  pomodoro: {
+    startCountdown: (data: { startTime: number; durationMs: number; taskTitle?: string }) => Promise<{ success: boolean }>;
+    stopCountdown: () => Promise<{ success: boolean }>;
+  };
+
   // Focus Enforcer
   focusEnforcer: {
     startMonitoring: () => Promise<{ success: boolean }>;

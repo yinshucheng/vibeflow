@@ -125,4 +125,17 @@ export function getConnectedUserIds(): string[] {
   return socketServer.getConnectedUserIds();
 }
 
+/**
+ * Shutdown socket server and cleanup resources
+ */
+export function shutdownSocketServer(): void {
+  if (mcpEventCleanupInterval) {
+    clearInterval(mcpEventCleanupInterval);
+    mcpEventCleanupInterval = null;
+  }
+  dailyResetSchedulerService.stop();
+  socketServer.shutdown();
+  isInitialized = false;
+}
+
 export { socketServer };

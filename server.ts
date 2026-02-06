@@ -1,19 +1,20 @@
 /**
  * Custom Server with Socket.io
- * 
+ *
  * This file creates a custom HTTP server that integrates Next.js with Socket.io.
- * 
+ *
  * Run with:
  *   Development (with hot reload): npm run dev
  *   Production: node dist/server.js
- * 
+ *
  * Requirements: 6.7
+ * Test: Hot reload cleanup verification
  */
 
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { parse } from 'url';
 import next from 'next';
-import { initializeSocketServer } from './src/server/socket-init';
+import { initializeSocketServer, shutdownSocketServer } from './src/server/socket-init';
 import { pomodoroSchedulerService } from './src/services/pomodoro-scheduler.service';
 
 // ============================================
@@ -153,6 +154,15 @@ app.prepare().then(() => {
       process.exit(0);
     });
   });
+
+  // Hot reload cleanup (tsx watch sends SIGUSR2)
+  if (dev) {
+    process.on('SIGUSR2', () => {
+      log('WARN', '🔄 Hot reload detected, cleaning up...');
+      shutdownSocketServer();
+      process.kill(process.pid, 'SIGUSR2');
+    });
+  }
 }).catch((err) => {
   log('ERROR', '❌ Failed to start server:', err);
   process.exit(1);

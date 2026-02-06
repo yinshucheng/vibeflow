@@ -20,6 +20,8 @@ interface PomodoroCompletionModalProps {
   onConfirm: () => void;
   /** Callback to start break mode */
   onStartBreak?: () => void;
+  /** Whether the pomodoro is already completed (skips API call) */
+  alreadyCompleted?: boolean;
 }
 
 // Time slice summary bar component
@@ -54,6 +56,7 @@ export function PomodoroCompletionModal({
   taskTitle,
   onConfirm,
   onStartBreak,
+  alreadyCompleted = false,
 }: PomodoroCompletionModalProps) {
   const [summary, setSummary] = useState('');
   const [showConfetti, setShowConfetti] = useState(true);
@@ -88,16 +91,28 @@ export function PomodoroCompletionModal({
 
   const completeMutation = trpc.pomodoro.complete.useMutation({
     onSuccess: () => {
-      setIsCompleted(true);
-      // Check if auto-start break is enabled (Requirements 7.1, 7.5)
-      if (autoStartSettings.autoStartBreak && onStartBreak) {
-        setShowAutoStartCountdown(true);
-      } else {
-        // Auto-start disabled - show manual confirmation (Requirements 7.3, 7.6)
-        setIsWaitingForConfirmation(true);
-      }
+      markAsCompleted();
     },
   });
+
+  // Mark the pomodoro as completed and proceed to break selection
+  const markAsCompleted = useCallback(() => {
+    setIsCompleted(true);
+    // Check if auto-start break is enabled (Requirements 7.1, 7.5)
+    if (autoStartSettings.autoStartBreak && onStartBreak) {
+      setShowAutoStartCountdown(true);
+    } else {
+      // Auto-start disabled - show manual confirmation (Requirements 7.3, 7.6)
+      setIsWaitingForConfirmation(true);
+    }
+  }, [autoStartSettings.autoStartBreak, onStartBreak]);
+
+  // If already completed (by timer), skip to break selection immediately
+  useEffect(() => {
+    if (alreadyCompleted && !isCompleted) {
+      markAsCompleted();
+    }
+  }, [alreadyCompleted, isCompleted, markAsCompleted]);
 
   // Play completion sound and show confetti effect
   useEffect(() => {
@@ -148,6 +163,13 @@ export function PomodoroCompletionModal({
   }, []);
 
   const handleConfirm = async () => {
+    // If already completed by the timer, just proceed to break selection
+    if (alreadyCompleted) {
+      markAsCompleted();
+      return;
+    }
+
+    // Otherwise, call the complete API (for manual completion scenarios)
     try {
       await completeMutation.mutateAsync({
         id: pomodoroId,
@@ -159,6 +181,7 @@ export function PomodoroCompletionModal({
   };
 
   // Handle manual start break (Requirements 7.3)
+  // Only call onStartBreak - do NOT call onConfirm (they are mutually exclusive)
   const handleManualStartBreak = useCallback(() => {
     // Stop confirmation sound
     if (confirmationSoundIntervalRef.current) {
@@ -166,11 +189,12 @@ export function PomodoroCompletionModal({
       confirmationSoundIntervalRef.current = null;
     }
     setIsWaitingForConfirmation(false);
+    // Only call onStartBreak - it handles the state transition to 'resting'
     onStartBreak?.();
-    onConfirm();
-  }, [onStartBreak, onConfirm]);
+  }, [onStartBreak]);
 
   // Handle skip break (go back to planning)
+  // Only call onConfirm - do NOT call onStartBreak
   const handleSkipBreak = useCallback(() => {
     // Stop confirmation sound
     if (confirmationSoundIntervalRef.current) {
@@ -178,15 +202,17 @@ export function PomodoroCompletionModal({
       confirmationSoundIntervalRef.current = null;
     }
     setIsWaitingForConfirmation(false);
+    // Only call onConfirm - it handles the state transition to 'idle'
     onConfirm();
   }, [onConfirm]);
 
   // Handle auto-start break (Requirements 7.1, 7.5)
+  // Only call onStartBreak - do NOT call onConfirm
   const handleAutoStartBreak = useCallback(() => {
     setShowAutoStartCountdown(false);
+    // Only call onStartBreak - it handles the state transition to 'resting'
     onStartBreak?.();
-    onConfirm();
-  }, [onStartBreak, onConfirm]);
+  }, [onStartBreak]);
 
   // Handle cancel auto-start - show manual confirmation instead
   const handleCancelAutoStart = useCallback(() => {

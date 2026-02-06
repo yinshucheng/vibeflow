@@ -8,7 +8,7 @@
     "dev:socket": "tsx watch --clear-screen=false server.ts",
     "dev:mcp": "tsx watch --clear-screen=false src/mcp/run.ts",
     "build": "next build",
-    "build:server": "tsc --project tsconfig.server.json",
+    "build:server": "tsc --project tsconfig.server.json && tsc-alias -p tsconfig.server.json",
     "start": "next start",
     "start:socket": "node dist/server.js",
     "start:mcp": "node dist/mcp/run.js",
@@ -67,6 +67,7 @@
     "fast-check": "^3.23.2",
     "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"

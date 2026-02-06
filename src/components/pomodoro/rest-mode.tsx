@@ -45,29 +45,22 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
   const hasPlayedInitialSound = useRef(false);
 
   const utils = trpc.useUtils();
-  
+
   // Get user settings for rest duration and auto-start config
   const { data: settings } = trpc.settings.get.useQuery();
-  
+
   // Get daily state to check pomodoro count for long rest
   const { data: dailyState } = trpc.dailyState.getToday.useQuery();
 
-  // Complete rest mutation
-  const updateStateMutation = trpc.dailyState.updateSystemState.useMutation({
-    onSuccess: () => {
-      utils.dailyState.getToday.invalidate();
-      onRestComplete();
-    },
+  // Get rest status for recovery after page refresh
+  const { data: restStatus, isLoading: restStatusLoading } = trpc.dailyState.getRestStatus.useQuery(undefined, {
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
   });
 
-  // Start pomodoro mutation (for auto-start)
-  const startPomodoroMutation = trpc.pomodoro.start.useMutation({
-    onSuccess: () => {
-      utils.pomodoro.getCurrent.invalidate();
-      utils.dailyState.getToday.invalidate();
-      onRestComplete();
-    },
-  });
+  // Note: RestModeUI now delegates state transitions to the parent (PomodoroPage via usePomodoroMachine)
+  // The onRestComplete callback handles the API calls, so we don't need local mutations here anymore.
+  // We keep minimal mutation references only for loading states.
 
   // Get auto-start settings with type assertion
   const autoStartSettings = useMemo(() => {
@@ -100,10 +93,34 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
     return settings.shortRestDuration ?? 5;
   }, [settings, dailyState]);
 
-  // Initialize timer
+  // Initialize timer - recover from server if page was refreshed
   useEffect(() => {
-    setTimeRemaining(restDuration * 60);
-  }, [restDuration]);
+    // Wait for rest status query to complete before initializing
+    if (restStatusLoading) {
+      return;
+    }
+
+    if (restStatus?.restStartTime) {
+      // Recover from server: calculate elapsed time since rest started
+      const restStartMs = new Date(restStatus.restStartTime).getTime();
+      const elapsedSeconds = Math.floor((Date.now() - restStartMs) / 1000);
+      const totalSeconds = restStatus.restDuration * 60;
+      const remaining = Math.max(0, totalSeconds - elapsedSeconds);
+      setTimeRemaining(remaining);
+
+      // If rest already completed, trigger completion state
+      if (remaining <= 0) {
+        if (autoStartSettings.autoStartNextPomodoro && nextTaskId) {
+          setShowAutoStartCountdown(true);
+        } else {
+          setIsWaitingForConfirmation(true);
+        }
+      }
+    } else {
+      // New rest session (no server data yet)
+      setTimeRemaining(restDuration * 60);
+    }
+  }, [restStatusLoading, restStatus, restDuration, autoStartSettings.autoStartNextPomodoro, nextTaskId]);
 
   // Countdown timer - trigger auto-start countdown or waiting state when rest completes
   useEffect(() => {
@@ -174,6 +191,7 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
   }, [restDuration, timeRemaining]);
 
   // Handle end rest (manual) - goes back to planning state
+  // Delegates to parent (usePomodoroMachine.endRest) which handles the API call
   const handleEndRest = async () => {
     // Stop confirmation sound
     if (confirmationSoundIntervalRef.current) {
@@ -181,17 +199,14 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
       confirmationSoundIntervalRef.current = null;
     }
     setIsWaitingForConfirmation(false);
-    
-    try {
-      await updateStateMutation.mutateAsync('planning');
-    } catch (error) {
-      console.error('Failed to end rest:', error);
-      // Fallback: just call onRestComplete
-      onRestComplete();
-    }
+
+    // Delegate to parent - it handles the API call via usePomodoroMachine
+    onRestComplete();
   };
 
   // Handle manual start pomodoro (Requirements 7.4)
+  // For now, delegates to handleEndRest which notifies parent
+  // TODO: Add onStartNextPomodoro callback for better control
   const handleManualStartPomodoro = async () => {
     // Stop confirmation sound
     if (confirmationSoundIntervalRef.current) {
@@ -199,61 +214,24 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
       confirmationSoundIntervalRef.current = null;
     }
     setIsWaitingForConfirmation(false);
-    
-    if (!nextTaskId) {
-      handleEndRest();
-      return;
-    }
-    
-    try {
-      await startPomodoroMutation.mutateAsync({
-        taskId: nextTaskId,
-        duration: autoStartSettings.pomodoroDuration,
-      });
-    } catch (error) {
-      console.error('Failed to start pomodoro:', error);
-      // Fallback: just end rest
-      handleEndRest();
-    }
+
+    // Delegate to parent - it can handle starting the next pomodoro
+    // The parent (PomodoroPage) will transition to idle, and user can start new pomodoro
+    onRestComplete();
   };
 
   // Handle auto-start pomodoro (Requirements 7.2, 7.5)
+  // Delegates to parent which handles the state transition
   const handleAutoStartPomodoro = useCallback(async () => {
-    if (!nextTaskId) {
-      // End rest inline
-      if (confirmationSoundIntervalRef.current) {
-        clearInterval(confirmationSoundIntervalRef.current);
-        confirmationSoundIntervalRef.current = null;
-      }
-      setIsWaitingForConfirmation(false);
-      try {
-        await updateStateMutation.mutateAsync('planning');
-      } catch {
-        onRestComplete();
-      }
-      return;
+    if (confirmationSoundIntervalRef.current) {
+      clearInterval(confirmationSoundIntervalRef.current);
+      confirmationSoundIntervalRef.current = null;
     }
+    setIsWaitingForConfirmation(false);
 
-    try {
-      await startPomodoroMutation.mutateAsync({
-        taskId: nextTaskId,
-        duration: autoStartSettings.pomodoroDuration,
-      });
-    } catch (error) {
-      console.error('Failed to auto-start pomodoro:', error);
-      // Fallback: just end rest
-      if (confirmationSoundIntervalRef.current) {
-        clearInterval(confirmationSoundIntervalRef.current);
-        confirmationSoundIntervalRef.current = null;
-      }
-      setIsWaitingForConfirmation(false);
-      try {
-        await updateStateMutation.mutateAsync('planning');
-      } catch {
-        onRestComplete();
-      }
-    }
-  }, [nextTaskId, autoStartSettings.pomodoroDuration, startPomodoroMutation, updateStateMutation, onRestComplete]);
+    // Delegate to parent - it handles the state transition
+    onRestComplete();
+  }, [onRestComplete]);
 
   // Handle cancel auto-start
   const handleCancelAutoStart = useCallback(() => {
@@ -381,19 +359,17 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
               variant="primary"
               size="lg"
               onClick={handleManualStartPomodoro}
-              isLoading={startPomodoroMutation.isPending}
               className="w-full bg-green-600 hover:bg-green-700"
             >
               🎯 Start Focus Session
             </Button>
           )}
-          
+
           {/* Secondary: Back to planning */}
           <Button
             variant={nextTaskId ? 'outline' : 'primary'}
             size={nextTaskId ? 'md' : 'lg'}
             onClick={handleEndRest}
-            isLoading={updateStateMutation.isPending}
             className={nextTaskId ? '' : 'bg-purple-600 hover:bg-purple-700'}
           >
             {nextTaskId ? 'Choose Different Task' : '🎯 Ready to Focus'}

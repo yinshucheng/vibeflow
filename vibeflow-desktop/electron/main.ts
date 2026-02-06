@@ -99,6 +99,19 @@ const DEFAULT_CONFIG: ElectronMainConfig = {
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;
 
+// ============================================================================
+// Pomodoro Countdown State (main process)
+// Maintains countdown independently of renderer process to ensure updates
+// continue when app is in background (Chromium throttles renderer timers)
+// ============================================================================
+let pomodoroCountdown: {
+  active: boolean;
+  startTime: number;
+  durationMs: number;
+  taskTitle?: string;
+  timerId?: ReturnType<typeof setInterval>;
+} | null = null;
+
 // Get current configuration
 function getConfig(): ElectronMainConfig {
   return store.get('config', DEFAULT_CONFIG);
@@ -292,6 +305,59 @@ function updateTrayMenu(state: Partial<TrayMenuState>): void {
 // Helper function to get current tray state
 function getTrayState(): TrayMenuState | null {
   return trayManager?.getState() ?? null;
+}
+
+// ============================================================================
+// Pomodoro Countdown Functions (main process)
+// ============================================================================
+
+function startPomodoroCountdown(startTime: number, durationMs: number, taskTitle?: string): void {
+  stopPomodoroCountdown();
+
+  pomodoroCountdown = {
+    active: true,
+    startTime,
+    durationMs,
+    taskTitle,
+  };
+
+  // Update immediately
+  updatePomodoroCountdown();
+  // Update every second
+  pomodoroCountdown.timerId = setInterval(updatePomodoroCountdown, 1000);
+  console.log('[Main] Pomodoro countdown started:', { startTime, durationMs, taskTitle });
+}
+
+function updatePomodoroCountdown(): void {
+  if (!pomodoroCountdown?.active) return;
+
+  const elapsed = Date.now() - pomodoroCountdown.startTime;
+  const remainingMs = Math.max(0, pomodoroCountdown.durationMs - elapsed);
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
+
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+  updateTrayMenu({
+    pomodoroActive: true,
+    pomodoroTimeRemaining: timeStr,
+    currentTask: pomodoroCountdown.taskTitle,
+    systemState: 'FOCUS',
+  });
+
+  // Timer complete - stop countdown (notification handled by EXECUTE event from server)
+  if (remainingMs <= 0) {
+    stopPomodoroCountdown();
+  }
+}
+
+function stopPomodoroCountdown(): void {
+  if (pomodoroCountdown?.timerId) {
+    clearInterval(pomodoroCountdown.timerId);
+  }
+  pomodoroCountdown = null;
+  console.log('[Main] Pomodoro countdown stopped');
 }
 
 // Setup auto-launch using AutoLaunchManager
@@ -641,6 +707,17 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('heartbeat:setActivePomodoroId', (_, pomodoroId: string | null) => {
     heartbeatManager.setActivePomodoroId(pomodoroId);
+    return { success: true };
+  });
+
+  // Pomodoro countdown handlers (main process countdown for background updates)
+  ipcMain.handle('pomodoro:startCountdown', (_, data: { startTime: number; durationMs: number; taskTitle?: string }) => {
+    startPomodoroCountdown(data.startTime, data.durationMs, data.taskTitle);
+    return { success: true };
+  });
+
+  ipcMain.handle('pomodoro:stopCountdown', () => {
+    stopPomodoroCountdown();
     return { success: true };
   });
 
@@ -1040,6 +1117,59 @@ app.whenReady().then(async () => {
       hasActivePomodoro: isFocusSessionActive,
     });
     console.log('[Main] Updated quit prevention config with work time slots');
+  });
+
+  // Subscribe to real-time state changes from server
+  // This handles automatic state transitions (e.g., FOCUS -> REST when pomodoro ends)
+  connectionManager.onStateChange((state: string) => {
+    console.log('[Main] Received STATE_CHANGE from server:', state);
+
+    // Map server state to tray menu state format
+    const stateMapping: Record<string, 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST'> = {
+      'locked': 'LOCKED',
+      'planning': 'PLANNING',
+      'focus': 'FOCUS',
+      'rest': 'REST',
+      'over_rest': 'OVER_REST',
+      // Handle uppercase versions too
+      'LOCKED': 'LOCKED',
+      'PLANNING': 'PLANNING',
+      'FOCUS': 'FOCUS',
+      'REST': 'REST',
+      'OVER_REST': 'OVER_REST',
+    };
+
+    const mappedState = stateMapping[state];
+    if (mappedState) {
+      console.log('[Main] Updating tray menu with state:', mappedState);
+      updateTrayMenu({ systemState: mappedState });
+
+      // Stop main process countdown when leaving FOCUS state
+      if (mappedState !== 'FOCUS' && pomodoroCountdown?.active) {
+        console.log('[Main] Stopping main process countdown due to state change to:', mappedState);
+        stopPomodoroCountdown();
+      }
+    } else {
+      console.warn('[Main] Unknown state received:', state);
+    }
+  });
+
+  // Subscribe to execute commands from server for notifications
+  // This handles POMODORO_COMPLETE, IDLE_ALERT, etc.
+  connectionManager.onExecuteCommand((command) => {
+    console.log('[Main] Received EXECUTE command:', command.action);
+
+    switch (command.action) {
+      case 'POMODORO_COMPLETE': {
+        // Show notification and bring to front
+        const taskTitle = command.params?.taskTitle as string | undefined;
+        notificationManager.showPomodoroComplete(taskTitle);
+        // Stop the main process countdown
+        stopPomodoroCountdown();
+        break;
+      }
+      // IDLE_ALERT is handled by focusEnforcer.onIntervention
+    }
   });
 
   // Set up snooze request callback to communicate with server

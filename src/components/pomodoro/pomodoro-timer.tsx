@@ -80,12 +80,24 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
   const hasRequestedPermission = useRef(false);
 
   const utils = trpc.useUtils();
-  
-  // Socket connection for WebSocket events (Requirement 4.6)
-  const { connected: socketConnected } = useSocket();
-  
+
+  // Socket connection for WebSocket events (Requirement 4.6, 6.7)
+  // Listen for real-time state changes to sync pomodoro state
+  const { connected: socketConnected, systemState: socketState } = useSocket();
+
   // Get current pomodoro if any
   const { data: currentPomodoro, isLoading: pomodoroLoading, refetch: refetchCurrent } = trpc.pomodoro.getCurrent.useQuery();
+
+  // Refetch pomodoro state when system state changes via WebSocket
+  // This ensures the timer updates immediately when pomodoro completes server-side
+  useEffect(() => {
+    if (socketState) {
+      console.log('[PomodoroTimer] State change detected via WebSocket:', socketState);
+      refetchCurrent();
+      utils.dailyState.canStartPomodoro.invalidate();
+      utils.dailyState.getToday.invalidate();
+    }
+  }, [socketState, refetchCurrent, utils.dailyState.canStartPomodoro, utils.dailyState.getToday]);
 
   // Get time slices for current pomodoro (Multi-task Req 4)
   const { data: timeSlices } = trpc.timeSlice.getByPomodoro.useQuery(
@@ -182,33 +194,53 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
     },
   });
 
-  const completeMutation = trpc.pomodoro.complete.useMutation({
-    onSuccess: (data) => {
-      utils.pomodoro.getCurrent.invalidate();
-      utils.dailyState.getToday.invalidate();
-      // Clear cache on completion (Requirement 1.5)
-      clearPomodoroCache();
-      setIsRunning(false);
-      setTimeRemaining(0);
-      
-      // Update tray to show no active pomodoro
-      trayIntegrationService.updatePomodoroState(null);
-      
-      // Trigger notifications on completion (Requirements 4.1, 4.2, 4.5)
-      // Use type assertion as the mutation returns PomodoroWithTask
-      const pomodoroData = data as { task?: { title: string } } | undefined;
-      if (pomodoroData?.task?.title) {
-        notifyPomodoroComplete(pomodoroData.task.title, notificationConfig);
-      }
-      
-      onComplete?.();
-    },
-  });
+  // Track if we've already triggered completion for this session
+  // This prevents duplicate onComplete calls from timer and sync intervals
+  const hasTriggeredComplete = useRef(false);
+
+  // Handle completion - only notify parent, don't call API directly
+  // The parent (PomodoroPage via usePomodoroMachine) handles the API call
+  const handleTimerComplete = useCallback(() => {
+    // Idempotent: only trigger once per session
+    if (hasTriggeredComplete.current) {
+      console.log('[PomodoroTimer] Ignoring duplicate completion trigger');
+      return;
+    }
+
+    hasTriggeredComplete.current = true;
+    console.log('[PomodoroTimer] Timer completed, notifying parent');
+
+    // Clear local state
+    clearPomodoroCache();
+    setIsRunning(false);
+    setTimeRemaining(0);
+
+    // Update tray to show no active pomodoro
+    trayIntegrationService.updatePomodoroState(null);
+
+    // Trigger notifications on completion (Requirements 4.1, 4.2, 4.5)
+    if (currentPomodoro?.task?.title) {
+      notifyPomodoroComplete(currentPomodoro.task.title, notificationConfig);
+    }
+
+    // Notify parent to handle state transition
+    onComplete?.();
+  }, [currentPomodoro?.task?.title, notificationConfig, onComplete]);
+
+  // Reset completion flag when a new pomodoro starts
+  useEffect(() => {
+    if (currentPomodoro?.id) {
+      hasTriggeredComplete.current = false;
+    }
+  }, [currentPomodoro?.id]);
 
   const abortMutation = trpc.pomodoro.abort.useMutation({
-    onSuccess: () => {
-      utils.pomodoro.getCurrent.invalidate();
-      utils.dailyState.getToday.invalidate();
+    onSuccess: async () => {
+      // Refetch queries to ensure UI updates immediately
+      await Promise.all([
+        utils.pomodoro.getCurrent.refetch(),
+        utils.dailyState.getToday.refetch(),
+      ]);
       // Clear cache on abort (Requirement 1.5)
       clearPomodoroCache();
       setIsRunning(false);
@@ -347,12 +379,13 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
         if (prev <= 1) {
           setIsRunning(false);
           // Auto-complete the pomodoro when timer reaches 0 (Requirement 1.4)
+          // Only notify parent - don't call API directly (single responsibility)
           if (currentPomodoro) {
-            completeMutation.mutate({ id: currentPomodoro.id });
+            handleTimerComplete();
           }
           return 0;
         }
-        
+
         // Update tray with new countdown time every second
         if (currentPomodoro && prev > 1) {
           trayIntegrationService.updatePomodoroState({
@@ -363,7 +396,7 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
             task: currentPomodoro.task,
           });
         }
-        
+
         return prev - 1;
       });
     }, 1000);
@@ -376,14 +409,14 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
           currentPomodoro.startTime,
           currentPomodoro.duration
         );
-        
+
         // If server says the pomodoro should be completed, complete it immediately
         if (serverRemaining <= 0) {
           setIsRunning(false);
           setTimeRemaining(0);
-          // Auto-complete if not already completed
+          // Notify parent to handle completion - don't call API directly
           if (currentPomodoro.status === 'IN_PROGRESS') {
-            completeMutation.mutate({ id: currentPomodoro.id });
+            handleTimerComplete();
           } else {
             // Already completed on server, just refetch to sync state
             await refetchCurrent();
@@ -407,7 +440,7 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
       clearInterval(interval);
       clearInterval(syncInterval);
     };
-  }, [isRunning, timeRemaining, currentPomodoro, refetchCurrent, completeMutation]);
+  }, [isRunning, timeRemaining, currentPomodoro, refetchCurrent, handleTimerComplete]);
 
   // Format time as MM:SS
   const formatTime = useCallback((seconds: number) => {

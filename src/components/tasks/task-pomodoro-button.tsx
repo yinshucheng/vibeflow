@@ -44,10 +44,14 @@ export function TaskPomodoroButton({
 
   // Start pomodoro mutation
   const startMutation = trpc.pomodoro.start.useMutation({
-    onSuccess: () => {
-      utils.pomodoro.getCurrent.invalidate();
-      utils.dailyState.getToday.invalidate();
-      // Navigate to pomodoro page after starting (Requirement 2.3)
+    onSuccess: async () => {
+      // Invalidate and refetch caches to ensure fresh data
+      // Use refetch instead of just invalidate to ensure data is loaded before navigation
+      await Promise.all([
+        utils.pomodoro.getCurrent.refetch(),
+        utils.dailyState.getToday.refetch(),
+      ]);
+      // Navigate to pomodoro page with fresh data
       router.push('/pomodoro');
     },
   });

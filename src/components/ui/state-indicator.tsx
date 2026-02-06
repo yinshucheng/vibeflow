@@ -13,6 +13,8 @@ interface StateIndicatorProps {
   state: SystemState;
   showLabel?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  /** Optional time remaining to display (e.g., "2:30" for rest countdown) */
+  timeRemaining?: string;
 }
 
 const sizeClasses = {
@@ -28,15 +30,16 @@ const colorClasses: Record<string, string> = {
   purple: 'bg-purple-100 text-purple-700 border-purple-300',
 };
 
-export function StateIndicator({ 
-  state, 
-  showLabel = true, 
-  size = 'md' 
+export function StateIndicator({
+  state,
+  showLabel = true,
+  size = 'md',
+  timeRemaining,
 }: StateIndicatorProps) {
   const displayInfo = getStateDisplayInfo(state);
-  
+
   return (
-    <div 
+    <div
       className={`
         inline-flex items-center gap-1.5 rounded-full border font-medium
         ${sizeClasses[size]}
@@ -45,7 +48,12 @@ export function StateIndicator({
       title={displayInfo.description}
     >
       <span>{displayInfo.icon}</span>
-      {showLabel && <span>{displayInfo.label}</span>}
+      {showLabel && (
+        <span>
+          {displayInfo.label}
+          {timeRemaining && ` (${timeRemaining})`}
+        </span>
+      )}
     </div>
   );
 }

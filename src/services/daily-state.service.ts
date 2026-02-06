@@ -151,15 +151,29 @@ export const dailyStateService = {
 
       const dailyState = stateResult.data;
 
-      // Check for over_rest state if currently in rest or planning
+      // Determine effective system state
+      // Priority: Active pomodoro > Stored state > Over-rest check (only for rest state)
       let effectiveSystemState = dailyState.systemState;
       const currentState = parseSystemState(dailyState.systemState);
-      if (currentState === 'rest' || currentState === 'planning') {
+
+      // First check if there's an active pomodoro - if so, state should be FOCUS
+      // This prevents race conditions during state transitions
+      const activePomodoro = await prisma.pomodoro.findFirst({
+        where: { userId, status: 'IN_PROGRESS' },
+      });
+
+      if (activePomodoro) {
+        // There's an active pomodoro, state should be FOCUS regardless of stored state
+        effectiveSystemState = 'FOCUS';
+      } else if (currentState === 'rest') {
+        // Only check over-rest if state is explicitly 'rest'
+        // Do NOT check for planning - user has explicitly chosen to exit rest
         const overRestResult = await overRestService.checkOverRestStatus(userId);
         if (overRestResult.success && overRestResult.data?.isOverRest) {
           effectiveSystemState = 'OVER_REST';
         }
       }
+      // For 'planning' state, respect the user's choice - don't override to over_rest
 
       // Get user's daily cap setting
       const settings = await prisma.userSettings.findUnique({

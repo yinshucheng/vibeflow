@@ -139,11 +139,17 @@ cmd_start() {
     # Start backend with PM2
     print_info "Starting backend server on port $BACKEND_PORT..."
 
+    # Build custom server (server.ts -> dist/server.js)
+    print_info "Building custom server with Socket.io..."
+    npm run build:server
+
     # Check if ecosystem.config.js exists
     if [ -f "ecosystem.config.js" ]; then
-        pm2 start ecosystem.config.js --env production
+        # Only start vibeflow-backend (the custom server with Socket.io)
+        pm2 start ecosystem.config.js --only vibeflow-backend --env production
     else
-        pm2 start npm --name "$PM2_NAME" -- run start
+        # Fallback: start the dist/server.js directly
+        pm2 start dist/server.js --name "$PM2_NAME" --cwd "$PROJECT_DIR"
     fi
 
     # Wait for backend to be healthy

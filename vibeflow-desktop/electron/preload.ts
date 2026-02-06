@@ -465,6 +465,14 @@ const vibeflowAPI = {
       ipcRenderer.invoke('notification:isSupported'),
   },
 
+  // Pomodoro countdown (main process for background updates)
+  pomodoro: {
+    startCountdown: (data: { startTime: number; durationMs: number; taskTitle?: string }): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('pomodoro:startCountdown', data),
+    stopCountdown: (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('pomodoro:stopCountdown'),
+  },
+
   // Focus Enforcer
   focusEnforcer: {
     startMonitoring: (): Promise<{ success: boolean }> =>

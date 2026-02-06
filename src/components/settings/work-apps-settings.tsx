@@ -33,6 +33,9 @@ const PRESET_WORK_APPS: WorkApp[] = [
 ];
 
 export function WorkAppsSettings() {
+  const [customName, setCustomName] = useState('');
+  const [customBundleId, setCustomBundleId] = useState('');
+
   const { data: settings } = trpc.settings.get.useQuery();
   const updateSettings = trpc.settings.update.useMutation();
 
@@ -41,6 +44,13 @@ export function WorkAppsSettings() {
   const addApp = (app: WorkApp) => {
     const newWorkApps = [...workApps, app];
     updateSettings.mutate({ workApps: newWorkApps });
+  };
+
+  const addCustomApp = () => {
+    if (!customName.trim() || !customBundleId.trim()) return;
+    addApp({ name: customName.trim(), bundleId: customBundleId.trim() });
+    setCustomName('');
+    setCustomBundleId('');
   };
 
   const removeApp = (bundleId: string) => {
@@ -83,6 +93,33 @@ export function WorkAppsSettings() {
               + {preset.name}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="space-y-2 pt-4 border-t">
+        <p className="text-sm font-medium">Add Custom App:</p>
+        <div className="space-y-2">
+          <input
+            type="text"
+            placeholder="App Name (e.g., Slack)"
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            className="w-full px-3 py-2 text-sm border rounded"
+          />
+          <input
+            type="text"
+            placeholder="Bundle ID (e.g., com.tinyspeck.slackmacgap)"
+            value={customBundleId}
+            onChange={(e) => setCustomBundleId(e.target.value)}
+            className="w-full px-3 py-2 text-sm border rounded"
+          />
+          <button
+            onClick={addCustomApp}
+            disabled={!customName.trim() || !customBundleId.trim()}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            Add Custom App
+          </button>
         </div>
       </div>
     </div>

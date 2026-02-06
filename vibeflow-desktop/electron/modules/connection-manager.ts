@@ -138,6 +138,18 @@ type CommandHandler = (command: DesktopCommand) => void;
 // Policy update handler type
 type PolicyUpdateHandler = (policy: DesktopPolicy) => void;
 
+// State change handler type
+type StateChangeHandler = (state: string) => void;
+
+// Execute command from server (pomodoro complete, idle alert, etc.)
+export interface ExecuteCommand {
+  action: string;
+  params: Record<string, unknown>;
+}
+
+// Execute command handler type
+type ExecuteCommandHandler = (command: ExecuteCommand) => void;
+
 /**
  * Desktop client capabilities
  * Requirements: 4.1-4.5
@@ -187,6 +199,8 @@ class ConnectionManager {
   private listeners: Set<ConnectionEventListener> = new Set();
   private commandHandlers: Set<CommandHandler> = new Set();
   private policyUpdateHandlers: Set<PolicyUpdateHandler> = new Set();
+  private stateChangeHandlers: Set<StateChangeHandler> = new Set();
+  private executeCommandHandlers: Set<ExecuteCommandHandler> = new Set();
   private socket: Socket | null = null;
   private startTime: number = Date.now();
 
@@ -310,6 +324,24 @@ class ConnectionManager {
   onPolicyUpdate(handler: PolicyUpdateHandler): () => void {
     this.policyUpdateHandlers.add(handler);
     return () => this.policyUpdateHandlers.delete(handler);
+  }
+
+  /**
+   * Subscribe to state change events
+   * Receives real-time state changes (LOCKED, PLANNING, FOCUS, REST, OVER_REST)
+   */
+  onStateChange(handler: StateChangeHandler): () => void {
+    this.stateChangeHandlers.add(handler);
+    return () => this.stateChangeHandlers.delete(handler);
+  }
+
+  /**
+   * Subscribe to execute command events from server
+   * Receives commands like POMODORO_COMPLETE, IDLE_ALERT, etc.
+   */
+  onExecuteCommand(handler: ExecuteCommandHandler): () => void {
+    this.executeCommandHandlers.add(handler);
+    return () => this.executeCommandHandlers.delete(handler);
   }
 
   /**
@@ -607,6 +639,22 @@ class ConnectionManager {
       this.sendToRenderer('octopus:stateSync', state);
     });
 
+    // State change from server (real-time state updates)
+    // This event is sent when system state changes (e.g., FOCUS -> REST, REST -> PLANNING)
+    this.socket.on('STATE_CHANGE', (payload: { state: string }) => {
+      console.log('[ConnectionManager] STATE_CHANGE received:', payload.state);
+      this.notifyStateChange(payload.state);
+      this.sendToRenderer('system:stateChange', payload);
+    });
+
+    // Execute command from server (pomodoro complete, idle alert, etc.)
+    // This event is sent when server wants client to execute an action
+    this.socket.on('EXECUTE', (command: ExecuteCommand) => {
+      console.log('[ConnectionManager] EXECUTE received:', command.action);
+      this.notifyExecuteCommand(command);
+      this.sendToRenderer('execute:command', command);
+    });
+
     // Error from server
     this.socket.on('error', (error: { code: string; message: string }) => {
       console.error('[ConnectionManager] Server error:', error);
@@ -711,6 +759,32 @@ class ConnectionManager {
 
     // Send to renderer process
     this.sendToRenderer('octopus:policyUpdated', policy);
+  }
+
+  /**
+   * Notify state change handlers
+   */
+  private notifyStateChange(state: string): void {
+    this.stateChangeHandlers.forEach((handler) => {
+      try {
+        handler(state);
+      } catch (error) {
+        console.error('[ConnectionManager] State change handler error:', error);
+      }
+    });
+  }
+
+  /**
+   * Notify execute command handlers
+   */
+  private notifyExecuteCommand(command: ExecuteCommand): void {
+    this.executeCommandHandlers.forEach((handler) => {
+      try {
+        handler(command);
+      } catch (error) {
+        console.error('[ConnectionManager] Execute command handler error:', error);
+      }
+    });
   }
 
   /**
@@ -1017,6 +1091,7 @@ class ConnectionManager {
     this.listeners.clear();
     this.commandHandlers.clear();
     this.policyUpdateHandlers.clear();
+    this.stateChangeHandlers.clear();
     this.mainWindow = null;
   }
 }
