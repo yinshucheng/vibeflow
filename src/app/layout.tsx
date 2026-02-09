@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { SessionProvider } from '@/components/providers/session-provider';
 import { TRPCProvider } from '@/components/providers/trpc-provider';
 import { TraySyncProvider } from '@/components/providers/tray-sync-provider';
+import { SidebarProvider } from '@/contexts/sidebar-context';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function RootLayout({
       <body className="antialiased">
         <SessionProvider>
           <TRPCProvider>
-            <TraySyncProvider>{children}</TraySyncProvider>
+            <TraySyncProvider>
+              <SidebarProvider>{children}</SidebarProvider>
+            </TraySyncProvider>
           </TRPCProvider>
         </SessionProvider>
       </body>

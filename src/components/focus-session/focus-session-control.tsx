@@ -2,16 +2,17 @@
 
 /**
  * FocusSessionControl Component
- * 
- * Controls for starting, ending, and extending ad-hoc focus sessions.
+ *
+ * Notion-style controls for starting, ending, and extending ad-hoc focus sessions.
  * Displays remaining time when a session is active.
  * Handles sleep time override confirmation.
- * 
+ *
  * Requirements: 5.1, 5.2, 5.3, 5.4, 7.1, 7.2, 7.3, 13.1, 13.2
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui';
+import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
 
 // Preset durations in minutes (Requirements: 7.1)
@@ -34,16 +35,16 @@ interface FocusSessionControlProps {
   compact?: boolean;
 }
 
-export function FocusSessionControl({ 
-  onSessionStart, 
+export function FocusSessionControl({
+  onSessionStart,
   onSessionEnd,
-  compact = false 
+  compact = false,
 }: FocusSessionControlProps) {
   const [customDuration, setCustomDuration] = useState<number>(45);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [showExtendOptions, setShowExtendOptions] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
-  
+
   // Sleep time override confirmation state (Requirements: 13.1, 13.2)
   const [showSleepOverrideConfirm, setShowSleepOverrideConfirm] = useState(false);
   const [pendingDuration, setPendingDuration] = useState<number | null>(null);
@@ -189,14 +190,23 @@ export function FocusSessionControl({
   // Validate custom duration
   const isValidCustomDuration = useMemo(() => {
     if (!durationConfig) return false;
-    return customDuration >= durationConfig.minSessionDuration && 
-           customDuration <= durationConfig.maxSessionDuration;
+    return (
+      customDuration >= durationConfig.minSessionDuration &&
+      customDuration <= durationConfig.maxSessionDuration
+    );
   }, [customDuration, durationConfig]);
+
+  const LoaderIcon = Icons.loader;
+  const MoonIcon = Icons.moon;
+  const GoalIcon = Icons.goals;
+  const TimerIcon = Icons.pomodoro;
+  const PlayIcon = Icons.play;
+  const StopIcon = Icons.stop;
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-pulse text-gray-500">Loading...</div>
+        <LoaderIcon className="w-5 h-5 animate-spin text-notion-text-tertiary" />
       </div>
     );
   }
@@ -206,23 +216,19 @@ export function FocusSessionControl({
     return (
       <div className={`flex flex-col items-center gap-4 ${compact ? 'py-4' : 'py-6'}`}>
         <div className="text-center">
-          <span className="text-4xl">🌙</span>
-          <h3 className="mt-2 font-medium text-gray-900">Sleep Time Active</h3>
-          <p className="text-sm text-gray-500 mt-2 max-w-xs">
-            You are currently in your configured sleep time. Starting a focus session will 
+          <MoonIcon className="w-10 h-10 mx-auto text-notion-accent-purple" />
+          <h3 className="mt-2 font-medium text-notion-text">Sleep Time Active</h3>
+          <p className="text-sm text-notion-text-secondary mt-2 max-w-xs">
+            You are currently in your configured sleep time. Starting a focus session will
             temporarily override sleep enforcement.
           </p>
-          <p className="text-xs text-amber-600 mt-2">
+          <p className="text-xs text-notion-accent-orange mt-2">
             This will be recorded in your exemption history.
           </p>
         </div>
 
         <div className="flex gap-3 mt-2">
-          <Button
-            variant="outline"
-            size={compact ? 'sm' : 'md'}
-            onClick={handleCancelSleepOverride}
-          >
+          <Button variant="outline" size={compact ? 'sm' : 'md'} onClick={handleCancelSleepOverride}>
             Cancel
           </Button>
           <Button
@@ -244,14 +250,14 @@ export function FocusSessionControl({
     return (
       <div className={`flex flex-col items-center gap-4 ${compact ? 'py-4' : 'py-6'}`}>
         {/* Session Active Indicator */}
-        <div className="flex items-center gap-2 text-green-600">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+        <div className="flex items-center gap-2 text-notion-accent-green">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-notion-accent-green opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-notion-accent-green"></span>
           </span>
           <span className="text-sm font-medium">Focus Session Active</span>
           {activeSession.overridesSleepTime && (
-            <span className="text-xs text-amber-600 ml-1">(overriding sleep time)</span>
+            <span className="text-xs text-notion-accent-orange ml-1">(overriding sleep time)</span>
           )}
         </div>
 
@@ -264,7 +270,7 @@ export function FocusSessionControl({
               cy="50"
               r="45"
               fill="none"
-              stroke="#e5e7eb"
+              className="stroke-notion-bg-tertiary"
               strokeWidth="6"
             />
             <circle
@@ -272,21 +278,22 @@ export function FocusSessionControl({
               cy="50"
               r="45"
               fill="none"
-              stroke="#22c55e"
+              className="stroke-notion-accent-green"
               strokeWidth="6"
               strokeLinecap="round"
               strokeDasharray={`${2 * Math.PI * 45}`}
               strokeDashoffset={`${2 * Math.PI * 45 * (1 - progress / 100)}`}
-              className="transition-all duration-1000"
             />
           </svg>
 
           {/* Time Display */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`font-bold text-gray-900 ${compact ? 'text-2xl' : 'text-4xl'}`}>
+            <span
+              className={`font-bold text-notion-text tabular-nums ${compact ? 'text-2xl' : 'text-4xl'}`}
+            >
               {formatTime(timeRemaining)}
             </span>
-            <span className="text-xs text-gray-500 mt-1">remaining</span>
+            <span className="text-xs text-notion-text-tertiary mt-1">remaining</span>
           </div>
         </div>
 
@@ -306,11 +313,7 @@ export function FocusSessionControl({
                   {preset.label}
                 </Button>
               ))}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowExtendOptions(false)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setShowExtendOptions(false)}>
                 Cancel
               </Button>
             </div>
@@ -321,7 +324,8 @@ export function FocusSessionControl({
                 size={compact ? 'sm' : 'md'}
                 onClick={() => setShowExtendOptions(true)}
               >
-                ⏱️ Extend
+                <TimerIcon className="w-3.5 h-3.5" />
+                Extend
               </Button>
               <Button
                 variant="danger"
@@ -330,7 +334,8 @@ export function FocusSessionControl({
                 disabled={endMutation.isPending}
                 isLoading={endMutation.isPending}
               >
-                ⏹️ End Session
+                <StopIcon className="w-3.5 h-3.5" />
+                End Session
               </Button>
             </div>
           )}
@@ -344,9 +349,9 @@ export function FocusSessionControl({
     <div className={`flex flex-col items-center gap-4 ${compact ? 'py-4' : 'py-6'}`}>
       {/* Icon and Title */}
       <div className="text-center">
-        <span className="text-4xl">🎯</span>
-        <h3 className="mt-2 font-medium text-gray-900">Start Focus Session</h3>
-        <p className="text-sm text-gray-500">Block distractions and stay focused</p>
+        <GoalIcon className="w-10 h-10 mx-auto text-notion-accent-blue" />
+        <h3 className="mt-2 font-medium text-notion-text">Start Focus Session</h3>
+        <p className="text-sm text-notion-text-secondary">Block distractions and stay focused</p>
       </div>
 
       {/* Preset Duration Buttons (Requirements: 7.1, 7.2) */}
@@ -373,10 +378,10 @@ export function FocusSessionControl({
             max={durationConfig?.maxSessionDuration ?? 240}
             value={customDuration}
             onChange={(e) => setCustomDuration(parseInt(e.target.value) || 0)}
-            className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-20 px-3 py-2 border border-notion-border-strong rounded-notion-md text-center text-notion-text bg-notion-bg focus:outline-none focus:ring-2 focus:ring-notion-accent-blue"
             placeholder="min"
           />
-          <span className="text-sm text-gray-500">minutes</span>
+          <span className="text-sm text-notion-text-secondary">minutes</span>
           <Button
             variant="primary"
             size="sm"
@@ -384,20 +389,17 @@ export function FocusSessionControl({
             disabled={!isValidCustomDuration || startMutation.isPending}
             isLoading={startMutation.isPending}
           >
+            <PlayIcon className="w-3.5 h-3.5" />
             Start
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowCustomInput(false)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setShowCustomInput(false)}>
             Cancel
           </Button>
         </div>
       ) : (
         <button
           onClick={() => setShowCustomInput(true)}
-          className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+          className="text-sm text-notion-accent-blue hover:underline"
         >
           Custom duration...
         </button>
@@ -405,16 +407,14 @@ export function FocusSessionControl({
 
       {/* Duration hint */}
       {durationConfig && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-notion-text-tertiary">
           {durationConfig.minSessionDuration}-{durationConfig.maxSessionDuration} minutes
         </p>
       )}
 
       {/* Error display */}
       {startMutation.error && !showSleepOverrideConfirm && (
-        <p className="text-sm text-red-600">
-          {startMutation.error.message}
-        </p>
+        <p className="text-sm text-notion-accent-red">{startMutation.error.message}</p>
       )}
     </div>
   );

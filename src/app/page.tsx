@@ -2,17 +2,31 @@
 
 /**
  * Home Page / Dashboard
- * 
- * Main dashboard showing system state and quick actions.
+ *
+ * Notion-style dashboard showing system state and quick actions.
  * Redirects to Airlock when system is in LOCKED state (respects airlockMode setting).
  */
 
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MainLayout, PageHeader, Card, CardHeader, CardContent, EmptyState } from '@/components/layout';
+import {
+  MainLayout,
+  PageHeader,
+  Card,
+  CardHeader,
+  CardContent,
+  EmptyState,
+} from '@/components/layout';
 import { FocusSessionControl } from '@/components/focus-session';
-import { DashboardStatus, DailyProgressCard, GoalRiskSuggestions, TaskSuggestions } from '@/components/dashboard';
+import {
+  DashboardStatus,
+  DailyProgressCard,
+  GoalRiskSuggestions,
+  TaskSuggestions,
+} from '@/components/dashboard';
+import { Button } from '@/components/ui/button';
+import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
 import type { SystemState } from '@/machines/vibeflow.machine';
 
@@ -33,17 +47,29 @@ export default function Home() {
   // Redirect to Airlock when system is locked and airlock not completed
   // Only redirect if airlockMode is 'required'
   useEffect(() => {
-    if (!stateLoading && !settingsLoading && isLocked && !airlockCompleted && airlockMode === 'required') {
+    if (
+      !stateLoading &&
+      !settingsLoading &&
+      isLocked &&
+      !airlockCompleted &&
+      airlockMode === 'required'
+    ) {
       router.push('/airlock');
     }
   }, [stateLoading, settingsLoading, isLocked, airlockCompleted, airlockMode, router]);
+
+  const LoaderIcon = Icons.loader;
+  const SunriseIcon = Icons.airlock;
+  const ProjectIcon = Icons.projects;
+  const TaskIcon = Icons.tasks;
+  const PlusIcon = Icons.plus;
 
   // Show loading while checking state
   if (stateLoading || settingsLoading) {
     return (
       <MainLayout title="Dashboard">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-pulse text-gray-500">Loading...</div>
+          <LoaderIcon className="w-5 h-5 animate-spin text-notion-text-tertiary" />
         </div>
       </MainLayout>
     );
@@ -54,8 +80,8 @@ export default function Home() {
     return (
       <MainLayout title="Dashboard">
         <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <span className="text-4xl">🌅</span>
-          <p className="text-gray-600">Redirecting to Morning Airlock...</p>
+          <SunriseIcon className="w-10 h-10 text-notion-accent-orange" />
+          <p className="text-notion-text-secondary">Redirecting to Morning Airlock...</p>
         </div>
       </MainLayout>
     );
@@ -63,27 +89,23 @@ export default function Home() {
 
   return (
     <MainLayout title="Dashboard">
-      <PageHeader 
-        title="Welcome to VibeFlow" 
-        description="Your AI-Native Output Engine"
-      />
+      <PageHeader title="Welcome to VibeFlow" description="Your AI-Native Output Engine" />
 
       {/* Show Airlock prompt if locked but not required */}
       {isLocked && !airlockCompleted && airlockMode !== 'disabled' && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
+        <div className="mb-6 p-4 bg-notion-accent-purple-bg border border-notion-border rounded-notion-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🌅</span>
+              <SunriseIcon className="w-6 h-6 text-notion-accent-purple" />
               <div>
-                <h3 className="font-medium text-gray-900">Start your day with intention</h3>
-                <p className="text-sm text-gray-600">Complete the Morning Airlock to plan your day</p>
+                <h3 className="font-medium text-notion-text">Start your day with intention</h3>
+                <p className="text-sm text-notion-text-secondary">
+                  Complete the Morning Airlock to plan your day
+                </p>
               </div>
             </div>
-            <Link
-              href="/airlock"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-            >
-              Open Airlock →
+            <Link href="/airlock">
+              <Button variant="primary">Open Airlock</Button>
             </Link>
           </div>
         </div>
@@ -108,10 +130,7 @@ export default function Home() {
 
         {/* Ad-hoc Focus Session Card (Requirements: 5.1, 5.2, 5.3, 5.4) */}
         <Card>
-          <CardHeader 
-            title="Focus Session" 
-            description="Block distractions outside work hours"
-          />
+          <CardHeader title="Focus Session" description="Block distractions outside work hours" />
           <CardContent>
             <FocusSessionControl compact />
           </CardContent>
@@ -124,10 +143,7 @@ export default function Home() {
 
         {/* Task Suggestions Card (Requirements: 22.1-22.4) */}
         <Card>
-          <CardHeader 
-            title="Suggested Tasks" 
-            description="Based on priority and remaining time"
-          />
+          <CardHeader title="Suggested Tasks" description="Based on priority and remaining time" />
           <CardContent>
             <TaskSuggestions maxSuggestions={3} compact />
           </CardContent>
@@ -135,11 +151,14 @@ export default function Home() {
 
         {/* Active Projects Card */}
         <Card>
-          <CardHeader 
-            title="Active Projects" 
+          <CardHeader
+            title="Active Projects"
             actions={
-              <Link href="/projects" className="text-sm text-blue-600 hover:text-blue-700">
-                View all →
+              <Link
+                href="/projects"
+                className="text-sm text-notion-accent-blue hover:underline"
+              >
+                View all
               </Link>
             }
           />
@@ -147,26 +166,26 @@ export default function Home() {
             {projectsLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse h-12 bg-gray-100 rounded" />
+                  <div key={i} className="animate-pulse h-12 bg-notion-bg-tertiary rounded-notion-md" />
                 ))}
               </div>
             ) : projects && projects.length > 0 ? (
-              <ul className="space-y-2">
+              <ul className="space-y-1">
                 {projects
                   .filter((p: { status: string }) => p.status === 'ACTIVE')
                   .slice(0, 5)
                   .map((project: { id: string; title: string; deliverable: string }) => (
                     <li key={project.id}>
-                      <Link 
+                      <Link
                         href={`/projects/${project.id}`}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 transition-colors"
+                        className="group flex items-center gap-2 p-2 rounded-notion-md hover:bg-notion-bg-hover transition-colors"
                       >
-                        <span className="text-lg">📁</span>
+                        <ProjectIcon className="w-4 h-4 text-notion-text-tertiary" />
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-900 truncate">
+                          <div className="font-medium text-sm text-notion-text truncate">
                             {project.title}
                           </div>
-                          <div className="text-xs text-gray-500 truncate">
+                          <div className="text-xs text-notion-text-tertiary truncate">
                             {project.deliverable}
                           </div>
                         </div>
@@ -175,16 +194,16 @@ export default function Home() {
                   ))}
               </ul>
             ) : (
-              <EmptyState 
-                icon="📁" 
-                title="No Projects" 
+              <EmptyState
+                icon={<ProjectIcon className="w-8 h-8" />}
+                title="No Projects"
                 description="Create your first project to get started"
                 action={
-                  <Link 
-                    href="/projects/new" 
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-                  >
-                    Create Project
+                  <Link href="/projects/new">
+                    <Button variant="primary" size="sm">
+                      <PlusIcon className="w-3.5 h-3.5" />
+                      Create Project
+                    </Button>
                   </Link>
                 }
               />
@@ -194,11 +213,11 @@ export default function Home() {
 
         {/* Today's Tasks Card */}
         <Card>
-          <CardHeader 
-            title="Today's Tasks" 
+          <CardHeader
+            title="Today's Tasks"
             actions={
-              <Link href="/tasks" className="text-sm text-blue-600 hover:text-blue-700">
-                View all →
+              <Link href="/tasks" className="text-sm text-notion-accent-blue hover:underline">
+                View all
               </Link>
             }
           />
@@ -206,38 +225,55 @@ export default function Home() {
             {tasksLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse h-10 bg-gray-100 rounded" />
+                  <div key={i} className="animate-pulse h-10 bg-notion-bg-tertiary rounded-notion-md" />
                 ))}
               </div>
             ) : todayTasks && todayTasks.length > 0 ? (
-              <ul className="space-y-2">
-                {todayTasks.slice(0, 5).map((task: { id: string; title: string; status: string; priority: string }) => (
-                  <li key={task.id}>
-                    <div className="flex items-center gap-2 p-2 rounded hover:bg-gray-50">
-                      <input 
-                        type="checkbox" 
-                        checked={task.status === 'DONE'}
-                        readOnly
-                        className="w-4 h-4 rounded border-gray-300"
-                      />
-                      <span className={`flex-1 text-sm ${task.status === 'DONE' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                        {task.title}
-                      </span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        task.priority === 'P1' ? 'bg-red-100 text-red-700' :
-                        task.priority === 'P2' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {task.priority}
-                      </span>
-                    </div>
-                  </li>
-                ))}
+              <ul className="space-y-1">
+                {todayTasks
+                  .slice(0, 5)
+                  .map((task: { id: string; title: string; status: string; priority: string }) => (
+                    <li key={task.id}>
+                      <div className="group flex items-center gap-2 p-2 rounded-notion-md hover:bg-notion-bg-hover transition-colors">
+                        <div
+                          className={`w-4 h-4 rounded-notion-sm border flex items-center justify-center ${
+                            task.status === 'DONE'
+                              ? 'bg-notion-accent-blue border-notion-accent-blue'
+                              : 'border-notion-border-strong'
+                          }`}
+                        >
+                          {task.status === 'DONE' && (
+                            <Icons.check className="w-3 h-3 text-white" />
+                          )}
+                        </div>
+                        <span
+                          className={`flex-1 text-sm ${
+                            task.status === 'DONE'
+                              ? 'line-through text-notion-text-tertiary'
+                              : 'text-notion-text'
+                          }`}
+                        >
+                          {task.title}
+                        </span>
+                        <span
+                          className={`text-xs px-1.5 py-0.5 rounded-notion-sm ${
+                            task.priority === 'P1'
+                              ? 'bg-notion-accent-red-bg text-notion-accent-red'
+                              : task.priority === 'P2'
+                                ? 'bg-notion-accent-orange-bg text-notion-accent-orange'
+                                : 'bg-notion-bg-tertiary text-notion-text-tertiary'
+                          }`}
+                        >
+                          {task.priority}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
               </ul>
             ) : (
-              <EmptyState 
-                icon="✅" 
-                title="No Tasks Today" 
+              <EmptyState
+                icon={<TaskIcon className="w-8 h-8" />}
+                title="No Tasks Today"
                 description="Plan your day in the Morning Airlock"
               />
             )}

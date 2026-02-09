@@ -3,7 +3,7 @@
 /**
  * Header Component
  *
- * Top header bar with state indicator and MCP status.
+ * Notion-style header bar with state indicator and status.
  * Requirements: 5.7, 9.8
  * Requirements: 9.4, 9.5 - Offline mode indicator
  * Requirements: 6.7 - Real-time state updates via WebSocket
@@ -16,6 +16,7 @@ import { MCPIndicatorWithPolling } from '@/components/ui/mcp-indicator';
 import { OfflineModeIndicatorWithStatus } from '@/components/ui/offline-mode-indicator';
 import { trpc } from '@/lib/trpc';
 import { useSocket } from '@/hooks/use-socket';
+import { Icons } from '@/lib/icons';
 import type { SystemState } from '@/machines/vibeflow.machine';
 
 interface HeaderProps {
@@ -32,7 +33,8 @@ export function Header({ title = 'VibeFlow' }: HeaderProps) {
   });
 
   // Prefer WebSocket state (real-time) over tRPC state (polled)
-  const systemState = socketState || (dailyState?.systemState?.toLowerCase() as SystemState | undefined);
+  const systemState =
+    socketState || (dailyState?.systemState?.toLowerCase() as SystemState | undefined);
 
   // Get rest status for countdown display (when in rest or over_rest state)
   const isInRestState = systemState === 'rest' || systemState === 'over_rest';
@@ -76,23 +78,24 @@ export function Header({ title = 'VibeFlow' }: HeaderProps) {
     return () => clearInterval(interval);
   }, [isInRestState, restStatus, calculateRemaining]);
 
+  const TimerIcon = Icons.pomodoro;
+
   return (
-    <header className="sticky top-0 z-10 bg-white border-b border-gray-200">
-      <div className="flex items-center justify-between h-14 px-4">
-        {/* Left: Logo and Title */}
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🌊</span>
-          <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
+    <header className="sticky top-0 z-10 bg-notion-bg border-b border-notion-border">
+      <div className="flex items-center justify-between h-12 px-4">
+        {/* Left: Title */}
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-medium text-notion-text">{title}</h1>
         </div>
 
         {/* Right: Status Indicators */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Offline Mode Indicator - Requirements 9.4, 9.5 */}
           <OfflineModeIndicatorWithStatus variant="compact" />
-          
+
           {/* MCP Connection Status */}
           <MCPIndicatorWithPolling />
-          
+
           {/* System State */}
           {isLoading ? (
             <StateIndicatorSkeleton />
@@ -102,14 +105,14 @@ export function Header({ title = 'VibeFlow' }: HeaderProps) {
 
           {/* Pomodoro Progress */}
           {dailyState?.progress && (
-            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
-              <span>🍅</span>
+            <div className="hidden sm:flex items-center gap-2 text-xs text-notion-text-secondary">
+              <TimerIcon className="w-3.5 h-3.5" />
               <span>
                 {dailyState.progress.pomodoroCount}/{dailyState.progress.dailyCap}
               </span>
-              <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-green-500 transition-all duration-300"
+              <div className="w-12 h-1.5 bg-notion-bg-tertiary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-notion-accent-green transition-all duration-300"
                   style={{ width: `${dailyState.progress.percentage}%` }}
                 />
               </div>

@@ -2,8 +2,8 @@
 
 /**
  * TaskTree Component
- * 
- * Displays tasks in a collapsible tree structure with drag-and-drop reordering.
+ *
+ * Notion-style collapsible task tree with drag-and-drop reordering.
  * Includes pomodoro start button for each task.
  * Requirements: 2.2, 2.3, 2.4, 2.6, 20.5
  */
@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
+import { Icons } from '@/lib/icons';
 import { TaskPomodoroButton } from './task-pomodoro-button';
 import type { Task, Project, TaskStatus, Priority } from '@prisma/client';
 
@@ -28,18 +29,18 @@ interface TaskTreeProps {
 
 export function TaskTree({ tasks, showProject = false, parentId = null }: TaskTreeProps) {
   // Filter to only show root-level tasks (no parent) or tasks with matching parentId
-  const rootTasks = tasks.filter(t => t.parentId === parentId);
-  
+  const rootTasks = tasks.filter((t) => t.parentId === parentId);
+
   if (rootTasks.length === 0) {
     return null;
   }
 
   return (
-    <ul className="space-y-1">
+    <ul className="space-y-0.5">
       {rootTasks.map((task, index) => (
-        <TaskTreeItem 
-          key={task.id} 
-          task={task} 
+        <TaskTreeItem
+          key={task.id}
+          task={task}
           allTasks={tasks}
           showProject={showProject}
           index={index}
@@ -60,9 +61,9 @@ interface TaskTreeItemProps {
 function TaskTreeItem({ task, allTasks, showProject, index, depth = 0 }: TaskTreeItemProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
-  
+
   const utils = trpc.useUtils();
-  
+
   const updateStatusMutation = trpc.task.updateStatus.useMutation({
     onSuccess: () => {
       utils.task.getTodayTasks.invalidate();
@@ -78,7 +79,7 @@ function TaskTreeItem({ task, allTasks, showProject, index, depth = 0 }: TaskTre
   });
 
   // Find subtasks
-  const subTasks = allTasks.filter(t => t.parentId === task.id);
+  const subTasks = allTasks.filter((t) => t.parentId === task.id);
   const hasSubTasks = subTasks.length > 0;
 
   const handleStatusToggle = () => {
@@ -107,7 +108,7 @@ function TaskTreeItem({ task, allTasks, showProject, index, depth = 0 }: TaskTre
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const draggedTaskId = e.dataTransfer.getData('taskId');
-    
+
     if (draggedTaskId && draggedTaskId !== task.id) {
       reorderMutation.mutate({
         taskId: draggedTaskId,
@@ -117,10 +118,15 @@ function TaskTreeItem({ task, allTasks, showProject, index, depth = 0 }: TaskTre
   };
 
   const priorityColors: Record<Priority, string> = {
-    P1: 'bg-red-100 text-red-700',
-    P2: 'bg-yellow-100 text-yellow-700',
-    P3: 'bg-gray-100 text-gray-700',
+    P1: 'bg-notion-accent-red-bg text-notion-accent-red',
+    P2: 'bg-notion-accent-orange-bg text-notion-accent-orange',
+    P3: 'bg-notion-bg-tertiary text-notion-text-tertiary',
   };
+
+  const ChevronIcon = isExpanded ? Icons.chevronDown : Icons.chevronRight;
+  const CheckIcon = Icons.check;
+  const ProjectIcon = Icons.projects;
+  const MoreIcon = Icons.more;
 
   return (
     <li>
@@ -131,9 +137,8 @@ function TaskTreeItem({ task, allTasks, showProject, index, depth = 0 }: TaskTre
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={`
-          flex items-center gap-2 p-2 rounded-lg transition-colors
-          ${isDragging ? 'opacity-50 bg-blue-50' : 'hover:bg-gray-50'}
-          ${depth > 0 ? 'ml-6' : ''}
+          group flex items-center gap-2 p-2 rounded-notion-md transition-colors
+          ${isDragging ? 'opacity-50 bg-notion-accent-blue-bg' : 'hover:bg-notion-bg-hover'}
         `}
         style={{ marginLeft: depth * 24 }}
       >
@@ -141,9 +146,9 @@ function TaskTreeItem({ task, allTasks, showProject, index, depth = 0 }: TaskTre
         {hasSubTasks ? (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600"
+            className="w-4 h-4 flex items-center justify-center text-notion-text-tertiary hover:text-notion-text-secondary"
           >
-            {isExpanded ? '▼' : '▶'}
+            <ChevronIcon className="w-3.5 h-3.5" />
           </button>
         ) : (
           <span className="w-4" />
@@ -154,65 +159,68 @@ function TaskTreeItem({ task, allTasks, showProject, index, depth = 0 }: TaskTre
           onClick={handleStatusToggle}
           disabled={updateStatusMutation.isPending}
           className={`
-            w-5 h-5 flex items-center justify-center rounded border
-            ${task.status === 'DONE' 
-              ? 'bg-green-500 border-green-500 text-white' 
-              : 'border-gray-300 hover:border-gray-400'
+            w-4 h-4 flex items-center justify-center rounded-notion-sm border transition-colors
+            ${
+              task.status === 'DONE'
+                ? 'bg-notion-accent-blue border-notion-accent-blue text-white'
+                : 'border-notion-border-strong hover:border-notion-text-tertiary'
             }
             ${updateStatusMutation.isPending ? 'opacity-50' : ''}
           `}
         >
-          {task.status === 'DONE' && '✓'}
+          {task.status === 'DONE' && <CheckIcon className="w-3 h-3" />}
         </button>
 
         {/* Task Content */}
-        <Link 
-          href={`/tasks/${task.id}`}
-          className="flex-1 min-w-0 flex items-center gap-2"
-        >
-          <span className={`text-sm ${task.status === 'DONE' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+        <Link href={`/tasks/${task.id}`} className="flex-1 min-w-0 flex items-center gap-2">
+          <span
+            className={`text-sm ${
+              task.status === 'DONE'
+                ? 'line-through text-notion-text-tertiary'
+                : 'text-notion-text'
+            }`}
+          >
             {task.title}
           </span>
         </Link>
 
         {/* Priority Badge */}
-        <span className={`text-xs px-1.5 py-0.5 rounded ${priorityColors[task.priority]}`}>
+        <span className={`text-xs px-1.5 py-0.5 rounded-notion-sm ${priorityColors[task.priority]}`}>
           {task.priority}
         </span>
 
         {/* Estimated Time Badge (Requirements: 20.5) */}
         {task.estimatedMinutes && task.estimatedMinutes > 0 && (
-          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">
+          <span className="text-xs px-1.5 py-0.5 rounded-notion-sm bg-notion-accent-blue-bg text-notion-accent-blue">
             {task.estimatedMinutes}min
           </span>
         )}
 
         {/* Pomodoro Button (Requirement 2.1, 2.2) */}
         {task.status !== 'DONE' && (
-          <TaskPomodoroButton
-            taskId={task.id}
-            taskTitle={task.title}
-            size="sm"
-          />
+          <TaskPomodoroButton taskId={task.id} taskTitle={task.title} size="sm" />
         )}
 
         {/* Project Badge (optional) */}
         {showProject && task.project && (
-          <Link 
+          <Link
             href={`/projects/${task.projectId}`}
-            className="text-xs text-gray-500 hover:text-gray-700 truncate max-w-[100px]"
+            className="inline-flex items-center gap-1 text-xs text-notion-text-tertiary hover:text-notion-text-secondary truncate max-w-[100px]"
           >
-            📁 {task.project.title}
+            <ProjectIcon className="w-3 h-3" />
+            {task.project.title}
           </Link>
         )}
 
-        {/* Drag Handle */}
-        <span className="text-gray-300 cursor-grab active:cursor-grabbing">⋮⋮</span>
+        {/* Drag Handle - visible on hover */}
+        <span className="text-notion-text-tertiary opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition-opacity">
+          <MoreIcon className="w-4 h-4 rotate-90" />
+        </span>
       </div>
 
       {/* Subtasks */}
       {hasSubTasks && isExpanded && (
-        <ul className="mt-1">
+        <ul className="mt-0.5">
           {subTasks.map((subTask, subIndex) => (
             <TaskTreeItem
               key={subTask.id}

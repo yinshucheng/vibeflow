@@ -3,7 +3,7 @@
 /**
  * Pomodoro Page
  *
- * Main page for the Pomodoro timer functionality.
+ * Notion-style Pomodoro timer functionality.
  * Uses centralized state machine for reliable state transitions.
  *
  * Requirements: 4.1, 4.2, 4.3, 4.4, 7.3, 7.4, 7.5, 7.6
@@ -18,6 +18,7 @@ import { PomodoroCompletionModal } from '@/components/pomodoro/completion-modal'
 import { RestModeUI } from '@/components/pomodoro/rest-mode';
 import { DailyCapModal } from '@/components/pomodoro/daily-cap-modal';
 import { IdleAlert } from '@/components/pomodoro/idle-alert';
+import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
 import { usePomodoroMachine } from '@/hooks/use-pomodoro-machine';
 
@@ -25,14 +26,8 @@ export default function PomodoroPage() {
   const router = useRouter();
 
   // Use centralized state machine for all pomodoro state management
-  const {
-    phase,
-    pomodoro,
-    completedPomodoro,
-    systemState,
-    isLoading,
-    actions,
-  } = usePomodoroMachine();
+  const { phase, pomodoro, completedPomodoro, systemState, isLoading, actions } =
+    usePomodoroMachine();
 
   // Get daily state for progress display and cap checking
   const { data: dailyState } = trpc.dailyState.getToday.useQuery();
@@ -62,12 +57,16 @@ export default function PomodoroPage() {
     }
   };
 
+  const LoaderIcon = Icons.loader;
+  const SunriseIcon = Icons.airlock;
+  const TimerIcon = Icons.pomodoro;
+
   // Loading state
   if (isLoading || phase === 'loading') {
     return (
       <MainLayout title="Pomodoro">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-pulse text-gray-500">Loading...</div>
+          <LoaderIcon className="w-5 h-5 animate-spin text-notion-text-tertiary" />
         </div>
       </MainLayout>
     );
@@ -78,8 +77,8 @@ export default function PomodoroPage() {
     return (
       <MainLayout title="Pomodoro">
         <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <span className="text-4xl">🌅</span>
-          <p className="text-gray-600">Redirecting to Morning Airlock...</p>
+          <SunriseIcon className="w-10 h-10 text-notion-accent-orange" />
+          <p className="text-notion-text-secondary">Redirecting to Morning Airlock...</p>
         </div>
       </MainLayout>
     );
@@ -87,10 +86,7 @@ export default function PomodoroPage() {
 
   return (
     <MainLayout title="Pomodoro">
-      <PageHeader
-        title="Focus Session"
-        description={getDescription()}
-      />
+      <PageHeader title="Focus Session" description={getDescription()} />
 
       <div className="max-w-2xl mx-auto">
         {/* Progress Stats */}
@@ -99,21 +95,24 @@ export default function PomodoroPage() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm text-gray-500">Today&apos;s Progress</div>
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-sm text-notion-text-secondary">Today&apos;s Progress</div>
+                  <div className="flex items-center gap-2 text-2xl font-bold text-notion-text">
+                    <TimerIcon className="w-5 h-5 text-notion-text-tertiary" />
                     {dailyState.progress.pomodoroCount} / {dailyState.progress.dailyCap}
                   </div>
                 </div>
                 <div className="w-32">
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-2 bg-notion-bg-tertiary rounded-full overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${
-                        dailyState.progress.isCapped ? 'bg-amber-500' : 'bg-green-500'
+                        dailyState.progress.isCapped
+                          ? 'bg-notion-accent-orange'
+                          : 'bg-notion-accent-green'
                       }`}
                       style={{ width: `${dailyState.progress.percentage}%` }}
                     />
                   </div>
-                  <div className="text-xs text-gray-500 mt-1 text-right">
+                  <div className="text-xs text-notion-text-tertiary mt-1 text-right">
                     {dailyState.progress.percentage}%
                   </div>
                 </div>
@@ -132,10 +131,7 @@ export default function PomodoroPage() {
                 nextTaskTitle={completedPomodoro?.task?.title ?? pomodoro?.task?.title ?? undefined}
               />
             ) : (
-              <PomodoroTimer
-                onComplete={actions.triggerComplete}
-                onAbort={actions.abortPomodoro}
-              />
+              <PomodoroTimer onComplete={actions.triggerComplete} onAbort={actions.abortPomodoro} />
             )}
           </CardContent>
         </Card>

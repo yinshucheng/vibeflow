@@ -2,13 +2,15 @@
 
 /**
  * MainLayout Component
- * 
- * Main application layout with sidebar navigation, header, and content area.
+ *
+ * Notion-style main application layout with collapsible sidebar.
  * Requirements: 5.7, 9.8
  */
 
 import { Header } from './header';
-import { Navigation, MobileNavigation } from './navigation';
+import { Sidebar } from './sidebar';
+import { MobileNavigation } from './navigation';
+import { useSidebar } from '@/contexts/sidebar-context';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -16,24 +18,30 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, title }: MainLayoutProps) {
+  const { effectiveWidth } = useSidebar();
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-notion-bg">
       {/* Desktop Sidebar */}
-      <aside className="fixed left-0 top-0 bottom-0 w-56 bg-white border-r border-gray-200 hidden md:block">
-        <div className="flex items-center gap-2 h-14 px-4 border-b border-gray-200">
-          <span className="text-2xl">🌊</span>
-          <span className="font-semibold text-gray-900">VibeFlow</span>
-        </div>
-        <Navigation />
-      </aside>
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
 
       {/* Main Content Area */}
-      <div className="md:ml-56">
+      <div
+        className="transition-all duration-normal hidden md:block"
+        style={{ marginLeft: effectiveWidth }}
+      >
         <Header title={title} />
-        
-        <main className="p-4 pb-20 md:pb-4">
-          {children}
-        </main>
+
+        <main className="p-6 max-w-5xl">{children}</main>
+      </div>
+
+      {/* Mobile Layout - Full width without sidebar */}
+      <div className="md:hidden">
+        <Header title={title} />
+
+        <main className="p-4 pb-20">{children}</main>
       </div>
 
       {/* Mobile Bottom Navigation */}
@@ -43,7 +51,7 @@ export function MainLayout({ children, title }: MainLayoutProps) {
 }
 
 /**
- * PageHeader - Consistent page header with title and optional actions
+ * PageHeader - Notion-style page header with title and optional actions
  */
 interface PageHeaderProps {
   title: string;
@@ -55,22 +63,18 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+        <h1 className="text-2xl font-bold text-notion-text">{title}</h1>
         {description && (
-          <p className="mt-1 text-sm text-gray-500">{description}</p>
+          <p className="mt-1 text-sm text-notion-text-secondary">{description}</p>
         )}
       </div>
-      {actions && (
-        <div className="flex items-center gap-2">
-          {actions}
-        </div>
-      )}
+      {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   );
 }
 
 /**
- * Card - Reusable card component
+ * Card - Notion-style card component
  */
 interface CardProps {
   children: React.ReactNode;
@@ -79,14 +83,16 @@ interface CardProps {
 
 export function Card({ children, className = '' }: CardProps) {
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}>
+    <div
+      className={`bg-notion-bg rounded-notion-lg border border-notion-border shadow-notion-sm ${className}`}
+    >
       {children}
     </div>
   );
 }
 
 /**
- * CardHeader - Card header section
+ * CardHeader - Notion-style card header section
  */
 interface CardHeaderProps {
   title: string;
@@ -96,11 +102,11 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, description, actions }: CardHeaderProps) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-notion-border">
       <div>
-        <h3 className="font-medium text-gray-900">{title}</h3>
+        <h3 className="font-medium text-notion-text">{title}</h3>
         {description && (
-          <p className="text-sm text-gray-500">{description}</p>
+          <p className="text-sm text-notion-text-secondary">{description}</p>
         )}
       </div>
       {actions}
@@ -112,34 +118,30 @@ export function CardHeader({ title, description, actions }: CardHeaderProps) {
  * CardContent - Card content section
  */
 export function CardContent({ children, className = '' }: CardProps) {
-  return (
-    <div className={`p-4 ${className}`}>
-      {children}
-    </div>
-  );
+  return <div className={`p-4 ${className}`}>{children}</div>;
 }
 
 /**
- * EmptyState - Empty state placeholder
+ * EmptyState - Notion-style empty state placeholder
  */
 interface EmptyStateProps {
-  icon?: string;
+  icon?: React.ReactNode;
   title: string;
   description?: string;
   action?: React.ReactNode;
 }
 
-export function EmptyState({ icon = '📭', title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <span className="text-4xl mb-4">{icon}</span>
-      <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+      {icon && <div className="mb-4 text-notion-text-tertiary">{icon}</div>}
+      <h3 className="text-lg font-medium text-notion-text">{title}</h3>
       {description && (
-        <p className="mt-1 text-sm text-gray-500 max-w-sm">{description}</p>
+        <p className="mt-1 text-sm text-notion-text-secondary max-w-sm">
+          {description}
+        </p>
       )}
-      {action && (
-        <div className="mt-4">{action}</div>
-      )}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
