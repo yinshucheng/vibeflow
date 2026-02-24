@@ -1,0 +1,8 @@
+{
+  "name": "screen-time",
+  "version": "1.0.0",
+  "description": "iOS Screen Time integration via FamilyControls + ManagedSettings",
+  "main": "index.ts",
+  "author": "vibeflow",
+  "license": "MIT"
+}

@@ -24,15 +24,18 @@ import {
   useConnectionStatus,
   useDailyState,
   useLastSyncTime,
+  useBlockingState,
+  usePolicy,
 } from '@/store/app.store';
 import { useTheme } from '@/theme';
+import type { BlockingReason } from '@/types';
 
 // =============================================================================
 // DAILY STATE INDICATOR
 // =============================================================================
 
 interface DailyStateIndicatorProps {
-  state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | null;
+  state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST' | null;
 }
 
 function DailyStateIndicator({ state }: DailyStateIndicatorProps): React.JSX.Element {
@@ -43,6 +46,7 @@ function DailyStateIndicator({ state }: DailyStateIndicatorProps): React.JSX.Ele
     PLANNING: { label: '计划中', color: theme.colors.primary },
     FOCUS: { label: '专注中', color: theme.colors.success },
     REST: { label: '休息中', color: theme.colors.warning },
+    OVER_REST: { label: '超时休息', color: theme.colors.error },
   };
 
   const config = state ? stateConfig[state] ?? { label: '未知', color: theme.colors.textMuted } : { label: '未知', color: theme.colors.textMuted };
@@ -107,6 +111,93 @@ function LastSyncTime(): React.JSX.Element | null {
 }
 
 // =============================================================================
+// STATE INFO BANNER
+// =============================================================================
+
+const BLOCKING_REASON_CONFIG: Record<BlockingReason, { label: string; icon: string }> = {
+  focus: { label: '专注模式 — 娱乐应用已阻断', icon: '🎯' },
+  over_rest: { label: '超时休息 — 娱乐应用已阻断', icon: '⏰' },
+  sleep: { label: '睡眠时段 — 娱乐应用已阻断', icon: '🌙' },
+};
+
+function StateInfoBanner(): React.JSX.Element | null {
+  const theme = useTheme();
+  const dailyState = useDailyState();
+  const { isBlockingActive, blockingReason } = useBlockingState();
+  const policy = usePolicy();
+
+  // Determine current time period
+  const getTimePeriodLabel = (): string | null => {
+    if (policy?.sleepTime?.isCurrentlyActive && policy.sleepTime.enabled) {
+      if (policy.sleepTime.isSnoozed) return '睡眠时段（已贪睡）';
+      return `睡眠时段 ${policy.sleepTime.startTime} - ${policy.sleepTime.endTime}`;
+    }
+    if (policy?.overRest?.isOverRest) {
+      return `超时休息 ${policy.overRest.overRestMinutes} 分钟`;
+    }
+    const state = dailyState?.state;
+    if (state === 'FOCUS') return '工作时间';
+    if (state === 'REST') return '休息时间';
+    if (state === 'PLANNING') return '计划时间';
+    return null;
+  };
+
+  const timePeriod = getTimePeriodLabel();
+  const showBanner = isBlockingActive || timePeriod;
+  if (!showBanner) return null;
+
+  return (
+    <View style={{ marginBottom: 12, gap: 8 }}>
+      {/* Blocking active banner */}
+      {isBlockingActive && blockingReason && (
+        <View style={{
+          backgroundColor: blockingReason === 'focus' ? theme.colors.error + '15' :
+                          blockingReason === 'sleep' ? '#6366F1' + '15' :
+                          theme.colors.warning + '15',
+          borderRadius: 12,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          borderWidth: 1,
+          borderColor: blockingReason === 'focus' ? theme.colors.error + '30' :
+                      blockingReason === 'sleep' ? '#6366F1' + '30' :
+                      theme.colors.warning + '30',
+        }}>
+          <Text style={{ fontSize: 20 }}>{BLOCKING_REASON_CONFIG[blockingReason].icon}</Text>
+          <Text style={{
+            fontSize: 14,
+            fontWeight: '600',
+            color: blockingReason === 'focus' ? theme.colors.error :
+                  blockingReason === 'sleep' ? '#6366F1' :
+                  theme.colors.warning,
+            flex: 1,
+          }}>
+            {BLOCKING_REASON_CONFIG[blockingReason].label}
+          </Text>
+        </View>
+      )}
+      {/* Time period info */}
+      {timePeriod && !isBlockingActive && (
+        <View style={{
+          backgroundColor: theme.colors.primary + '10',
+          borderRadius: 10,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '500' }}>
+            当前时段: {timePeriod}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// =============================================================================
 // STATUS SCREEN
 // =============================================================================
 
@@ -157,6 +248,9 @@ export function StatusScreen(): React.JSX.Element {
             </Text>
           </View>
         )}
+
+        {/* State Info Banner */}
+        <StateInfoBanner />
 
         {/* Pomodoro Status */}
         <View style={styles.section}>

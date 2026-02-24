@@ -11,7 +11,7 @@ export * from './octopus';
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
 export interface DailyStateData {
-  state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST';
+  state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
   completedPomodoros: number;
   dailyCap: number;
   totalFocusMinutes: number;
@@ -19,7 +19,7 @@ export interface DailyStateData {
 
 export interface ActivePomodoroData {
   id: string;
-  taskId: string;
+  taskId: string | null;
   taskTitle: string;
   startTime: number;
   duration: number;
@@ -36,10 +36,26 @@ export interface TaskData {
   planDate?: string;
 }
 
+export interface SleepTimePolicyData {
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+  isCurrentlyActive: boolean;
+  isSnoozed: boolean;
+  snoozeEndTime?: number;
+}
+
+export interface OverRestPolicyData {
+  isOverRest: boolean;
+  overRestMinutes: number;
+}
+
 export interface PolicyData {
   version: number;
   distractionApps: BlockedApp[];
   updatedAt: number;
+  sleepTime?: SleepTimePolicyData;
+  overRest?: OverRestPolicyData;
 }
 
 export interface BlockedApp {
@@ -69,11 +85,14 @@ export type AuthorizationStatus =
   | 'notDetermined'
   | 'restricted';
 
+export type BlockingReason = 'focus' | 'over_rest' | 'sleep';
+
 export interface BlockingState {
   isActive: boolean;
   blockedApps: BlockedApp[];
   pomodoroId: string | null;
   activatedAt: number | null;
+  reason: BlockingReason | null;
 }
 
 // =============================================================================

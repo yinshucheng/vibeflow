@@ -89,8 +89,11 @@ export function PomodoroStatus(): React.JSX.Element {
               {formatRemainingTime(remainingSeconds)}
             </Text>
             <Text style={styles.taskTitle} numberOfLines={2}>
-              {activePomodoro.taskTitle}
+              {activePomodoro.taskTitle || '未关联任务'}
             </Text>
+            {!activePomodoro.taskId && (
+              <Text style={styles.switchHint}>长按任务可切换</Text>
+            )}
             {activePomodoro.status === 'paused' && (
               <Text style={styles.pausedLabel}>已暂停</Text>
             )}
@@ -208,6 +211,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 20,
+  },
+  switchHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 4,
   },
   pausedLabel: {
     fontSize: 14,

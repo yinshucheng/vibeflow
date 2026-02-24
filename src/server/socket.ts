@@ -21,6 +21,9 @@ import { clientRegistryService } from '@/services/client-registry.service';
 import { policyDistributionService } from '@/services/policy-distribution.service';
 import { commandQueueService } from '@/services/command-queue.service';
 import { overRestService } from '@/services/over-rest.service';
+import { pomodoroService } from '@/services/pomodoro.service';
+import { timeSliceService } from '@/services/time-slice.service';
+import { dailyStateService } from '@/services/daily-state.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -290,6 +293,8 @@ export class VibeFlowSocketServer {
         credentials: true,
       },
       transports: ['websocket', 'polling'],
+      pingInterval: 25000,
+      pingTimeout: 60000, // 60s timeout for mobile networks
     });
 
     // Authentication middleware
@@ -658,6 +663,14 @@ export class VibeFlowSocketServer {
         return;
       }
       
+      // Fill in userId from auth before validation (mobile clients may not have it)
+      if (typeof event === 'object' && event !== null) {
+        const evt = event as Record<string, unknown>;
+        if (!evt.userId || evt.userId === '' || evt.userId === 'dev-user') {
+          evt.userId = userId;
+        }
+      }
+
       // Validate event using Zod schema
       const validationResult = validateEvent(event);
       
@@ -673,13 +686,17 @@ export class VibeFlowSocketServer {
 
       const validatedEvent = validationResult.data;
 
-      // Verify event userId matches socket userId
-      if (validatedEvent.userId !== userId) {
+      // Verify event userId matches socket userId (allow empty for mobile clients)
+      if (validatedEvent.userId && validatedEvent.userId !== userId) {
         socket.emit('error', {
           code: 'FORBIDDEN',
           message: 'Event userId does not match authenticated user',
         });
         return;
+      }
+      // Fill in userId from auth if not provided
+      if (!validatedEvent.userId) {
+        validatedEvent.userId = userId;
       }
 
       // Process event based on type
@@ -1000,14 +1017,167 @@ export class VibeFlowSocketServer {
   }
 
   /**
-   * Process USER_ACTION event
+   * Process USER_ACTION event from iOS client
+   * Dispatches to business services and sends ACTION_RESULT back
    */
   private async processUserActionEvent(userId: string, event: OctopusEvent): Promise<void> {
     if (event.eventType !== 'USER_ACTION') return;
 
     const { payload } = event;
-    
-    console.log(`[Socket.io] Processed USER_ACTION for user ${userId}: ${payload.actionType} on ${payload.targetEntity}`);
+    // iOS client sends { actionType, optimisticId, data }
+    const actionType = payload.actionType as string;
+    const rawPayload = payload as unknown as Record<string, unknown>;
+    const optimisticId = rawPayload.optimisticId as string | undefined;
+    const data = (rawPayload.data ?? payload.parameters ?? {}) as Record<string, unknown>;
+
+    console.log(`[Socket.io] Processing USER_ACTION for user ${userId}: ${actionType}, optimisticId: ${optimisticId}`);
+
+    let success = false;
+    let error: { code: string; message: string } | undefined;
+    let resultData: Record<string, unknown> | undefined;
+
+    try {
+      switch (actionType) {
+        case 'POMODORO_START': {
+          const taskId = data.taskId as string | undefined;
+          const result = await pomodoroService.start(userId, { taskId: taskId ?? null });
+          if (result.success && result.data) {
+            success = true;
+            const pom = result.data as { id: string };
+            resultData = { pomodoroId: pom.id };
+            // Update system state to FOCUS
+            await dailyStateService.updateSystemState(userId, 'focus');
+            // Broadcast state change and policy to all clients
+            this.broadcastStateChange(userId, 'focus');
+            await this.broadcastPolicyUpdate(userId);
+            // Re-send full state snapshot so all clients get the activePomodoro
+            await this.broadcastFullStateToUser(userId);
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to start pomodoro' };
+          }
+          break;
+        }
+
+        case 'TASK_COMPLETE': {
+          const taskId = data.taskId as string;
+          if (taskId) {
+            await prisma.task.update({
+              where: { id: taskId, userId },
+              data: { status: 'DONE' },
+            });
+            success = true;
+            await this.broadcastFullStateToUser(userId);
+          } else {
+            error = { code: 'VALIDATION_ERROR', message: 'taskId is required' };
+          }
+          break;
+        }
+
+        case 'TASK_STATUS_CHANGE': {
+          const taskId = data.taskId as string;
+          const status = data.status as 'TODO' | 'IN_PROGRESS' | 'DONE';
+          if (taskId && status) {
+            await prisma.task.update({
+              where: { id: taskId, userId },
+              data: { status },
+            });
+            success = true;
+            await this.broadcastFullStateToUser(userId);
+          } else {
+            error = { code: 'VALIDATION_ERROR', message: 'taskId and status are required' };
+          }
+          break;
+        }
+
+        case 'TOP3_SET': {
+          const taskIds = data.taskIds as string[];
+          if (taskIds && Array.isArray(taskIds)) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            await prisma.dailyState.upsert({
+              where: { userId_date: { userId, date: today } },
+              update: { top3TaskIds: taskIds },
+              create: { userId, date: today, systemState: 'PLANNING', top3TaskIds: taskIds },
+            });
+            success = true;
+            await this.broadcastFullStateToUser(userId);
+          } else {
+            error = { code: 'VALIDATION_ERROR', message: 'taskIds array is required' };
+          }
+          break;
+        }
+
+        case 'POMODORO_SWITCH_TASK': {
+          const newTaskId = data.newTaskId as string | null;
+          // Find active pomodoro with open time slice
+          const pomodoro = await prisma.pomodoro.findFirst({
+            where: { userId, status: 'IN_PROGRESS' },
+            include: { timeSlices: { where: { endTime: null }, take: 1 } },
+          });
+          if (!pomodoro) {
+            error = { code: 'NOT_FOUND', message: 'No active pomodoro' };
+            break;
+          }
+          const currentSliceId = pomodoro.timeSlices[0]?.id ?? null;
+          const switchResult = await timeSliceService.switchTask(
+            pomodoro.id, currentSliceId, newTaskId ?? null
+          );
+          if (switchResult.success) {
+            await prisma.pomodoro.update({
+              where: { id: pomodoro.id },
+              data: { taskId: newTaskId ?? null },
+            });
+            success = true;
+            resultData = { pomodoroId: pomodoro.id, newTaskId };
+            await this.broadcastFullStateToUser(userId);
+          } else {
+            error = switchResult.error ?? { code: 'UNKNOWN', message: 'Switch failed' };
+          }
+          break;
+        }
+
+        default:
+          console.log(`[Socket.io] Unhandled USER_ACTION type: ${actionType}`);
+          error = { code: 'NOT_IMPLEMENTED', message: `Action type ${actionType} not implemented` };
+      }
+    } catch (err) {
+      console.error(`[Socket.io] Error processing USER_ACTION ${actionType}:`, err);
+      error = { code: 'INTERNAL_ERROR', message: err instanceof Error ? err.message : 'Internal error' };
+    }
+
+    // Send ACTION_RESULT back if we have an optimisticId
+    if (optimisticId) {
+      const resultCommand = {
+        commandId: crypto.randomUUID(),
+        commandType: 'ACTION_RESULT' as const,
+        targetClient: event.clientType || 'mobile' as const,
+        priority: 'high' as const,
+        requiresAck: false,
+        createdAt: Date.now(),
+        payload: {
+          optimisticId,
+          success,
+          error,
+          data: resultData,
+        },
+      };
+
+      const userRoom = `user:${userId}`;
+      this.io?.to(userRoom).emit('OCTOPUS_COMMAND', resultCommand as never);
+      console.log(`[Socket.io] Sent ACTION_RESULT for ${actionType}: success=${success}, optimisticId=${optimisticId}`);
+    }
+  }
+
+  /**
+   * Broadcast a full state snapshot to all of a user's connected clients
+   */
+  private async broadcastFullStateToUser(userId: string): Promise<void> {
+    if (!this.io) return;
+    const userRoom = `user:${userId}`;
+    const sockets = await this.io.in(userRoom).fetchSockets();
+    for (const socket of sockets) {
+      await this.sendStateSnapshotToSocket(socket as unknown as Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>);
+    }
   }
 
   /**
@@ -1120,13 +1290,37 @@ export class VibeFlowSocketServer {
         }
       }
       
-      // Get top 3 tasks from IDs if available
+      // Get top 3 tasks from IDs if available, otherwise fall back to today's planned tasks
       let top3Tasks: { id: string; title: string; status: string; priority: string }[] = [];
       if (dailyState?.top3TaskIds && dailyState.top3TaskIds.length > 0) {
         const fetchedTasks = await prisma.task.findMany({
           where: { id: { in: dailyState.top3TaskIds } },
         });
         top3Tasks = fetchedTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+        }));
+      }
+      // Fallback: if no top3 set, use today's planned tasks or recent tasks
+      if (top3Tasks.length === 0) {
+        const fallbackTasks = await prisma.task.findMany({
+          where: {
+            userId,
+            status: { not: 'DONE' },
+            OR: [
+              { planDate: today },
+              { planDate: null },
+            ],
+          },
+          orderBy: [
+            { priority: 'asc' },
+            { updatedAt: 'desc' },
+          ],
+          take: 10,
+        });
+        top3Tasks = fallbackTasks.map(t => ({
           id: t.id,
           title: t.title,
           status: t.status,
@@ -1163,6 +1357,7 @@ export class VibeFlowSocketServer {
             activePomodoro: activePomodoro ? {
               id: activePomodoro.id,
               taskId: activePomodoro.taskId,
+              taskTitle: activePomodoro.task?.title ?? null,
               startTime: activePomodoro.startTime.getTime(),
               duration: activePomodoro.duration,
               status: 'active' as const,

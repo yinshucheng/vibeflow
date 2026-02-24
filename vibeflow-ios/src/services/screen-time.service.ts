@@ -2,16 +2,14 @@
  * Screen Time Service
  *
  * TypeScript interface for iOS Screen Time / Family Controls API.
- * This service provides the bridge between React Native and native iOS code.
- *
- * Note: The actual native implementation requires Swift code in
- * vibeflow-ios/ios/ScreenTimeBridge/ directory.
+ * Uses Expo native module when available, falls back to mock for development.
  *
  * Requirements: 6.1, 6.2, 6.3
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { BlockedApp, BlockingState, AuthorizationStatus } from '@/types';
+import * as ScreenTimeNative from '../../modules/screen-time';
+import type { BlockedApp, BlockingState, BlockingReason, AuthorizationStatus } from '@/types';
 
 // =============================================================================
 // CONSTANTS
@@ -31,58 +29,14 @@ export const DEFAULT_BLOCKED_APPS: BlockedApp[] = [
 ];
 
 // =============================================================================
-// SCREEN TIME BRIDGE INTERFACE
+// MOCK BRIDGE (for simulator / development)
 // =============================================================================
 
-/**
- * Interface for the native Screen Time bridge module
- * This will be implemented in Swift and exposed via React Native
- */
-export interface ScreenTimeBridge {
-  /**
-   * Request Screen Time authorization from the user
-   * @returns Authorization status after request
-   */
-  requestAuthorization(): Promise<AuthorizationStatus>;
-
-  /**
-   * Get current authorization status
-   * @returns Current authorization status
-   */
-  getAuthorizationStatus(): Promise<AuthorizationStatus>;
-
-  /**
-   * Enable app blocking for specified apps
-   * @param apps List of apps to block
-   */
-  enableBlocking(apps: BlockedApp[]): Promise<void>;
-
-  /**
-   * Disable all app blocking
-   */
-  disableBlocking(): Promise<void>;
-
-  /**
-   * Check if blocking is currently enabled
-   * @returns true if blocking is active
-   */
-  isBlockingEnabled(): Promise<boolean>;
-}
-
-// =============================================================================
-// MOCK IMPLEMENTATION (for development/testing)
-// =============================================================================
-
-/**
- * Mock implementation of Screen Time bridge for development
- * Replace with actual native module in production
- */
-class MockScreenTimeBridge implements ScreenTimeBridge {
+class MockScreenTimeBridge {
   private authorized: AuthorizationStatus = 'notDetermined';
   private blocking = false;
 
   async requestAuthorization(): Promise<AuthorizationStatus> {
-    // In development, simulate authorization granted
     this.authorized = 'authorized';
     console.log('[MockScreenTime] Authorization requested, returning: authorized');
     return this.authorized;
@@ -92,13 +46,13 @@ class MockScreenTimeBridge implements ScreenTimeBridge {
     return this.authorized;
   }
 
-  async enableBlocking(apps: BlockedApp[]): Promise<void> {
+  async enableBlocking(): Promise<void> {
     if (this.authorized !== 'authorized') {
       console.warn('[MockScreenTime] Cannot enable blocking - not authorized');
       return;
     }
     this.blocking = true;
-    console.log('[MockScreenTime] Blocking enabled for apps:', apps.map(a => a.name).join(', '));
+    console.log('[MockScreenTime] Blocking enabled (category-based)');
   }
 
   async disableBlocking(): Promise<void> {
@@ -112,134 +66,139 @@ class MockScreenTimeBridge implements ScreenTimeBridge {
 }
 
 // =============================================================================
-// SCREEN TIME SERVICE
+// BRIDGE SELECTION
+// =============================================================================
+
+const useNative = ScreenTimeNative.isNativeModuleAvailable();
+const mockBridge = useNative ? null : new MockScreenTimeBridge();
+
+if (useNative) {
+  console.log('[ScreenTimeService] Using native ScreenTime module');
+} else {
+  console.log('[ScreenTimeService] Native module unavailable, using mock');
+}
+
+// =============================================================================
+// SCREEN TIME SERVICE INTERFACE
 // =============================================================================
 
 export interface ScreenTimeService {
-  /**
-   * Initialize the service and check authorization
-   */
   initialize(): Promise<void>;
-
-  /**
-   * Request Screen Time authorization
-   * @returns Authorization status
-   */
   requestAuthorization(): Promise<AuthorizationStatus>;
-
-  /**
-   * Get current authorization status
-   */
   getAuthorizationStatus(): Promise<AuthorizationStatus>;
-
-  /**
-   * Enable blocking for the given apps
-   * @param apps Apps to block
-   * @param pomodoroId Associated pomodoro ID
-   */
-  enableBlocking(apps: BlockedApp[], pomodoroId: string): Promise<void>;
-
-  /**
-   * Disable all blocking
-   */
+  enableBlocking(apps: BlockedApp[], pomodoroId: string, reason: BlockingReason): Promise<void>;
   disableBlocking(): Promise<void>;
-
-  /**
-   * Check if blocking is currently active
-   */
   isBlockingActive(): Promise<boolean>;
-
-  /**
-   * Get the current blocking state
-   */
   getBlockingState(): Promise<BlockingState | null>;
-
-  /**
-   * Persist blocking state for app restart recovery
-   */
   persistBlockingState(state: BlockingState): Promise<void>;
-
-  /**
-   * Load persisted blocking state
-   */
   loadBlockingState(): Promise<BlockingState | null>;
-
-  /**
-   * Clear persisted blocking state
-   */
   clearBlockingState(): Promise<void>;
 }
 
-/**
- * Create the Screen Time service
- * @param bridge Native bridge implementation (or mock for development)
- */
-function createScreenTimeService(bridge: ScreenTimeBridge): ScreenTimeService {
+// =============================================================================
+// SERVICE IMPLEMENTATION
+// =============================================================================
+
+function createScreenTimeService(): ScreenTimeService {
   let currentState: BlockingState | null = null;
+
+  async function bridgeRequestAuth(): Promise<AuthorizationStatus> {
+    if (useNative) {
+      return ScreenTimeNative.requestAuthorization() as Promise<AuthorizationStatus>;
+    }
+    return mockBridge!.requestAuthorization();
+  }
+
+  async function bridgeGetAuthStatus(): Promise<AuthorizationStatus> {
+    if (useNative) {
+      return ScreenTimeNative.getAuthorizationStatus() as Promise<AuthorizationStatus>;
+    }
+    return mockBridge!.getAuthorizationStatus();
+  }
+
+  async function bridgeEnableBlocking(): Promise<void> {
+    if (useNative) {
+      return ScreenTimeNative.enableBlocking();
+    }
+    return mockBridge!.enableBlocking();
+  }
+
+  async function bridgeDisableBlocking(): Promise<void> {
+    if (useNative) {
+      return ScreenTimeNative.disableBlocking();
+    }
+    return mockBridge!.disableBlocking();
+  }
+
+  async function bridgeIsBlockingEnabled(): Promise<boolean> {
+    if (useNative) {
+      return ScreenTimeNative.isBlockingEnabled();
+    }
+    return mockBridge!.isBlockingEnabled();
+  }
 
   return {
     async initialize(): Promise<void> {
-      // Load persisted state on startup
       const persistedState = await this.loadBlockingState();
-      
+
       if (persistedState && persistedState.isActive) {
-        // Restore blocking if it was active before app restart
-        const status = await bridge.getAuthorizationStatus();
+        const status = await bridgeGetAuthStatus();
         if (status === 'authorized') {
-          await bridge.enableBlocking(persistedState.blockedApps);
+          await bridgeEnableBlocking();
           currentState = persistedState;
           console.log('[ScreenTimeService] Restored blocking state from persistence');
         } else {
-          // Clear invalid state
           await this.clearBlockingState();
         }
       }
     },
 
     async requestAuthorization(): Promise<AuthorizationStatus> {
-      return bridge.requestAuthorization();
+      return bridgeRequestAuth();
     },
 
     async getAuthorizationStatus(): Promise<AuthorizationStatus> {
-      return bridge.getAuthorizationStatus();
+      return bridgeGetAuthStatus();
     },
 
-    async enableBlocking(apps: BlockedApp[], pomodoroId: string): Promise<void> {
-      const status = await bridge.getAuthorizationStatus();
-      
+    async enableBlocking(apps: BlockedApp[], pomodoroId: string, reason: BlockingReason): Promise<void> {
+      const status = await bridgeGetAuthStatus();
+
       if (status !== 'authorized') {
         console.warn('[ScreenTimeService] Cannot enable blocking - not authorized');
         return;
       }
 
-      await bridge.enableBlocking(apps);
-      
+      // Phase 1: category-based blocking via native module
+      await bridgeEnableBlocking();
+
       currentState = {
         isActive: true,
         blockedApps: apps,
         pomodoroId,
         activatedAt: Date.now(),
+        reason,
       };
 
-      // Persist for app restart recovery
       await this.persistBlockingState(currentState);
     },
 
     async disableBlocking(): Promise<void> {
-      await bridge.disableBlocking();
-      
+      await bridgeDisableBlocking();
+
       currentState = {
         isActive: false,
         blockedApps: [],
         pomodoroId: null,
         activatedAt: null,
+        reason: null,
       };
 
       await this.clearBlockingState();
     },
 
     async isBlockingActive(): Promise<boolean> {
-      return bridge.isBlockingEnabled();
+      return bridgeIsBlockingEnabled();
     },
 
     async getBlockingState(): Promise<BlockingState | null> {
@@ -279,11 +238,7 @@ function createScreenTimeService(bridge: ScreenTimeBridge): ScreenTimeService {
 // SINGLETON INSTANCE
 // =============================================================================
 
-// Use mock bridge for development
-// TODO: Replace with actual native module when available
-const bridge = new MockScreenTimeBridge();
-
-export const screenTimeService = createScreenTimeService(bridge);
+export const screenTimeService = createScreenTimeService();
 
 // =============================================================================
 // EXPORTS

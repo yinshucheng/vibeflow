@@ -94,7 +94,8 @@ class SyncService {
 
     // Listen for connection status changes
     const unsubStatus = websocketService.onStatusChange((status) => {
-      store.setConnectionStatus(status);
+      console.log('[SyncService] Connection status changed to:', status);
+      useAppStore.getState().setConnectionStatus(status);
     });
     this.unsubscribers.push(unsubStatus);
 
@@ -138,7 +139,12 @@ class SyncService {
     }
 
     // Delegate to store handler
-    useAppStore.getState().handleSyncState(command);
+    try {
+      useAppStore.getState().handleSyncState(command);
+      console.log('[SyncService] State sync applied successfully');
+    } catch (error) {
+      console.error('[SyncService] Error applying state sync:', error);
+    }
   }
 
   /**

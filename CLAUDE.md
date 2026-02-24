@@ -4,109 +4,177 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VibeFlow is an AI-Native Output Engine - a productivity and focus management system with multi-client support (web, desktop, browser extension, iOS).
+VibeFlow is an AI-Native Output Engine — a productivity and focus management system built around the Pomodoro technique. It has four clients sharing one backend:
 
-## Tech Stack
+| Client | Path | Stack |
+|--------|------|-------|
+| Web (primary) | `src/` | Next.js 14 App Router, React 19, Tailwind CSS |
+| Desktop | `vibeflow-desktop/` | Electron 28 (macOS focus enforcement) |
+| Browser Extension | `vibeflow-extension/` | Chrome Manifest V3 |
+| iOS | `vibeflow-ios/` | Expo SDK 54, React Native, Zustand |
 
-- **Frontend**: Next.js 14, React 19, TypeScript 5.7, Tailwind CSS
-- **Backend**: tRPC 11, Socket.io 4.8
-- **State Machine**: XState 5.19 (LOCKED → PLANNING → FOCUS → REST)
-- **Database**: PostgreSQL + Prisma 6.2
-- **AI Integration**: MCP SDK 1.25
+Backend: tRPC 11, Socket.io 4.8, PostgreSQL + Prisma 6.2, XState 5.19
 
 ## Commands
 
 ```bash
 # Development
-npm run dev              # Full stack (Next.js + Socket.io + hot reload)
-npm run dev:mcp          # MCP server for AI integration
+npm run dev              # Full stack: Next.js + Socket.io + hot reload (port 3000)
+npm run dev:mcp          # MCP server (stdio transport)
 
 # Testing
-npm run test             # Vitest unit tests
+npm run test             # Vitest (single run)
 npm run test:watch       # Vitest watch mode
-npm run e2e              # Playwright E2E tests
+npx vitest run path/to/file.test.ts        # Single test file
+npx vitest run -t "test name pattern"      # Single test by name
+npm run e2e              # Playwright E2E (starts dev server automatically)
 npm run e2e:ui           # Playwright UI mode
+npx playwright test e2e/tests/file.spec.ts # Single E2E test
 
 # Database
 npm run db:generate      # Generate Prisma client
-npm run db:push          # Sync schema to DB
-npm run db:studio        # Prisma Studio GUI
+npm run db:push          # Sync schema to DB (dev)
+npm run db:migrate       # Run migrations (production)
 
-# Linting
+# Build & Lint
+npm run build            # Next.js build (also validates TypeScript)
+npm run build:server     # Server build (tsc + tsc-alias → dist/)
 npm run lint             # ESLint
+
+# Sub-project tests
+cd vibeflow-desktop && npx vitest run   # Desktop unit tests
+cd vibeflow-desktop && npx playwright test  # Desktop E2E
+cd vibeflow-ios && npx jest             # iOS tests
 ```
+
+## Code Quality Gates (必须遵守)
+
+Every code change must pass these checks in order:
+
+1. **TypeScript compilation**: `npm run build` or `npx tsc --noEmit`
+2. **Tests pass**: `npm test`
+3. **Lint clean**: `npm run lint`
+
+Cross-environment type compatibility: use `ReturnType<typeof setTimeout>` instead of `NodeJS.Timeout`.
 
 ## Architecture
 
-### DDD Bounded Contexts
+### Domain Hierarchy
 
-The codebase follows Domain-Driven Design with 11 bounded contexts:
-- User Management, Project Management, Task Management
-- Pomodoro/Focus, Activity Tracking, Settings
-- Entertainment, Demo Mode, Bypass Detection
-- AI-Native Features, MCP Integration
+```
+Goals (1 week–5 years)
+  └── Projects (task containers)
+        └── Tasks (P1/P2/P3, hierarchical with subtasks, require planDate)
+              └── Pomodoros (10–120 min focus sessions, always tied to a task)
+```
 
-### Key Directories
+### Daily State Machine
 
-- `/src/services` - 44 business logic services (single responsibility)
-- `/src/server` - tRPC routers and Socket.io setup
-- `/src/mcp` - MCP server (resources, tools, auth)
-- `/src/machines` - XState state machine definitions
-- `/prisma` - Database schema (30+ models)
-- `/e2e` - Playwright E2E tests
-- `/tests/property` - Property-based tests with fast-check
+```
+LOCKED → PLANNING → FOCUS ↔ REST → LOCKED
+                              ↓
+                          OVER_REST
+```
 
-### State Machine
+| State | User Can Do |
+|-------|-------------|
+| `LOCKED` | Complete airlock only |
+| `PLANNING` | Start pomodoro, manage tasks |
+| `FOCUS` | Complete/abort active pomodoro, switch tasks |
+| `REST` | Complete rest, override daily cap |
+| `OVER_REST` | Forced return after exceeding rest time |
 
-Core system state managed by XState: `LOCKED → PLANNING → FOCUS → REST`
-- Guards enforce business rules (canStartPomodoro, dailyCapReached)
-- Located in `/src/machines/vibeflow.machine.ts`
+Machine: `src/machines/vibeflow.machine.ts`. Daily reset at 04:00 AM. Default cap: 8 pomodoros/day. Top 3 task selection during airlock (0–3 tasks).
+
+### Service Layer Pattern
+
+All business logic lives in `src/services/` as singleton objects (~50 services). Services return `ServiceResult<T>`:
+
+```typescript
+type ServiceResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: { code: ErrorCode; message: string } };
+// ErrorCode: 'VALIDATION_ERROR' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL_ERROR' | 'AUTH_ERROR'
+```
+
+Pattern: Zod schema → validate → verify userId ownership → Prisma operation → broadcast state change.
+
+All services exported from `src/services/index.ts`.
+
+### tRPC Router Pattern
+
+Routers in `src/server/routers/` are thin wrappers — no business logic. Root router at `_app.ts` combines ~21 domain routers.
+
+Three procedure types in `src/server/trpc.ts`:
+- `publicProcedure` — no auth
+- `protectedProcedure` — requires authenticated user
+- `withStateValidation(allowedStates)` — enforces state machine guard
+
+### Real-time Communication
+
+`src/server/socket.ts` handles all WebSocket events. After state mutations, always call `socketBroadcastService.broadcastStateChange(userId, state)`.
 
 ### MCP Integration
 
-Resources (read-only): `vibe://context/current`, `vibe://tasks/today`, `vibe://analytics/productivity`, etc.
-Tools (executable): `vibe.complete_task`, `vibe.start_pomodoro`, `vibe.create_task_from_nl`, etc.
+`src/mcp/` provides AI assistant integration via `@modelcontextprotocol/sdk` (stdio transport):
+- 13 resources (`vibe://` URIs) for reading context, tasks, analytics
+- 28 tools (`flow_*`) for task management, pomodoro control, project operations
+
+Auth: dev mode uses `dev_<email>` tokens, production uses `vibeflow_<userId>_<secret>`.
+
+### Import Convention
+
+Path alias: `@/*` → `./src/*`
+
+```typescript
+import { prisma } from '@/lib/prisma';
+import { trpc } from '@/lib/trpc';
+```
+
+### Testing Layout
+
+| Type | Tool | Location | Pattern |
+|------|------|----------|---------|
+| Unit/Integration | Vitest | Co-located or `tests/` | `*.test.ts` |
+| Property | fast-check + Vitest | `tests/property/` | `*.property.ts` |
+| E2E | Playwright | `e2e/tests/` | `*.spec.ts` |
+| E2E fixtures | Playwright | `e2e/fixtures/factories/` | `*.factory.ts` |
+
+E2E auth via `X-Dev-User-Email` header (non-production only).
+
+### Database
+
+Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access layer.
+
+### Entry Point
+
+`server.ts` — custom HTTP server that boots Next.js + Socket.io + pomodoro scheduler. Graceful shutdown on SIGTERM/SIGINT. Hot reload via tsx watch (SIGUSR2).
 
 ## Development Principles
 
 - 整体架构按照DDD方式构建，不做过度抽象
 - 分阶段开发，每个阶段要有happy path测试后再进入下一阶段
-- Type-safe throughout (TypeScript strict mode)
+- Services verify `userId` ownership before any data access
+- Zod schemas define validation once, reuse in routers and services
+- Routers stay thin — delegate to services
 - Multi-client support with offline resilience
-
-## Code Quality Gates (必须遵守)
-
-每次代码改动后，必须按顺序通过以下检查：
-
-1. **TypeScript 编译**: `npm run build` 或 `npx tsc --noEmit`
-2. **测试通过**: `npm test`
-3. **Lint 检查**: `npm run lint`
-
-### 改动原则
-
-- 修改任何 `.ts/.tsx` 文件后，立即运行 `npm test` 验证
-- 修复一个问题时，不要引入新问题（测试回归）
-- 类型修改要考虑跨环境兼容（浏览器 vs Node.js），如 `setTimeout` 返回类型用 `ReturnType<typeof setTimeout>`
-- 测试文件修改后，确保测试仍能独立运行（检查变量作用域、异步初始化）
 
 ## Steering Documents (必读)
 
-每次新需求启动前，必须先阅读 `.kiro/steering/` 目录下的文档：
+Before starting any new feature, read `.kiro/steering/`:
+- `product.md` — domain hierarchy, Daily State Machine, platform locations
+- `structure.md` — service/router patterns, component conventions
+- `tech.md` — tech stack, import conventions, constraints
 
-- `product.md` - 产品上下文、领域层级、Daily State Machine
-- `structure.md` - 目录结构、Service Layer 模式、tRPC Router 模式
-- `tech.md` - 技术栈、命令、测试工具、关键约束
-
-如果实现过程中发现文档与代码不一致，或有新的架构决策，需要同步更新 steering 文档。
+Update steering docs if implementation reveals inconsistencies.
 
 ## Feature Specs (Required)
 
-新功能开发必须先在 `.kiro/specs/<feature-name>/` 下创建设计文档：
+New features require specs in `.kiro/specs/<feature-name>/`:
+- `requirements.md` — requirements and acceptance criteria
+- `design.md` — technical design and architecture decisions
+- `tasks.md` — implementation tasks and progress tracking (mark `[x]` on completion)
 
-- `requirements.md` - 需求定义和验收标准
-- `design.md` - 技术设计和架构决策
-- `tasks.md` - 实现任务拆分和进度跟踪
+## Environment Setup
 
-每完成一个 Phase 或 Task 后，必须更新对应的 `tasks.md` 文件，将完成的任务标记为 `[x]`。
-
-参考现有 specs: `e2e-testing`, `pomodoro-enhancement`, `ai-native-enhancement`, `desktop-focus-enforcement` 等。
+See `.env.example` for required variables: `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `DEV_MODE`, `DEV_USER_EMAIL`.

@@ -12,6 +12,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { syncService, heartbeatService, websocketService } from '@/services';
+import { blockingService } from '@/services/blocking.service';
 import { useAppStore } from '@/store';
 import { DEV_USER_EMAIL } from '@/config/auth';
 
@@ -30,8 +31,12 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     // Initialize sync service (connects WebSocket events to store)
     syncService.initialize({ autoConnect: true });
 
-    // Start heartbeat service
-    heartbeatService.start();
+    // Start heartbeat service with userId
+    heartbeatService.start({ userId: 'dev-user' });
+
+    // Initialize blocking service (restores persisted state, starts listening)
+    blockingService.initialize();
+    const cleanupBlocking = blockingService.startListening();
 
     // Handle app state changes (background/foreground)
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -39,6 +44,7 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     // Cleanup on unmount
     return () => {
       subscription.remove();
+      cleanupBlocking();
       heartbeatService.stop();
       syncService.cleanup();
     };

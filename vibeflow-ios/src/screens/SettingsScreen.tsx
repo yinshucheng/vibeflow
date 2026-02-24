@@ -2,33 +2,42 @@
  * Settings Screen (Read-Only)
  *
  * Displays user info, blocked apps, and app status.
- * All content is read-only - no editable settings.
+ * Includes Screen Time authorization and blocking reason display.
  *
  * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   useConnectionStatus,
   useUserInfo,
   useBlockingState,
+  usePolicy,
 } from '@/store/app.store';
 import { blockingService } from '@/services/blocking.service';
 import { useTheme } from '@/theme';
-import type { AuthorizationStatus } from '@/types';
+import type { AuthorizationStatus, BlockingReason } from '@/types';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
 
 const APP_VERSION = '1.0.0';
+
+const BLOCKING_REASON_LABELS: Record<BlockingReason, string> = {
+  focus: '专注模式',
+  over_rest: '超时休息',
+  sleep: '睡眠时段',
+};
 
 // =============================================================================
 // SECTION COMPONENT
@@ -143,7 +152,8 @@ export function SettingsScreen(): React.JSX.Element {
   const theme = useTheme();
   const connectionStatus = useConnectionStatus();
   const { userEmail } = useUserInfo();
-  const { blockedApps, isBlockingActive } = useBlockingState();
+  const { blockedApps, isBlockingActive, blockingReason } = useBlockingState();
+  const policy = usePolicy();
   const [authStatus, setAuthStatus] = useState<AuthorizationStatus>('notDetermined');
 
   // Load authorization status on mount
@@ -155,10 +165,31 @@ export function SettingsScreen(): React.JSX.Element {
     loadAuthStatus();
   }, []);
 
+  const handleRequestAuthorization = useCallback(async () => {
+    try {
+      const status = await blockingService.requestAuthorization();
+      setAuthStatus(status);
+      if (status === 'denied') {
+        Alert.alert(
+          '授权被拒绝',
+          '请在系统设置 > 屏幕使用时间中手动授权本应用。',
+        );
+      }
+    } catch {
+      Alert.alert('授权失败', '请稍后重试或在系统设置中授权。');
+    }
+  }, []);
+
   const connectionStatusText = {
     connected: '已连接',
     connecting: '连接中...',
     disconnected: '离线',
+  };
+
+  const blockingStatusText = (): string => {
+    if (!isBlockingActive) return '未启用';
+    if (blockingReason) return BLOCKING_REASON_LABELS[blockingReason];
+    return '已启用';
   };
 
   return (
@@ -171,16 +202,57 @@ export function SettingsScreen(): React.JSX.Element {
 
         {/* Screen Time Section */}
         <Section title="屏幕使用时间">
-          <View style={styles.row}>
+          <View style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }]}>
             <Text style={[styles.rowLabel, { color: theme.colors.text }]}>授权状态</Text>
             <AuthStatusBadge status={authStatus} />
           </View>
-          <Row
-            label="屏蔽状态"
-            value={isBlockingActive ? '已启用' : '未启用'}
-            isLast
-          />
+          {authStatus !== 'authorized' && (
+            <TouchableOpacity
+              style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }]}
+              onPress={handleRequestAuthorization}
+            >
+              <Text style={[styles.rowLabel, { color: theme.colors.primary }]}>请求屏幕时间授权</Text>
+            </TouchableOpacity>
+          )}
+          <Row label="阻断状态" value={blockingStatusText()} />
+          {blockingReason && (
+            <Row label="阻断原因" value={BLOCKING_REASON_LABELS[blockingReason]} isLast />
+          )}
+          {!blockingReason && (
+            <View style={{ height: 0 }} />
+          )}
         </Section>
+
+        {/* Sleep Time Section */}
+        {policy?.sleepTime && (
+          <Section title="睡眠时间">
+            <Row label="状态" value={policy.sleepTime.enabled ? '已启用' : '未启用'} />
+            <Row label="开始时间" value={policy.sleepTime.startTime} />
+            <Row label="结束时间" value={policy.sleepTime.endTime} />
+            <Row
+              label="当前状态"
+              value={
+                policy.sleepTime.isCurrentlyActive
+                  ? policy.sleepTime.isSnoozed
+                    ? '已贪睡'
+                    : '睡眠时段中'
+                  : '非睡眠时段'
+              }
+              isLast
+            />
+          </Section>
+        )}
+
+        {/* Over Rest Section */}
+        {policy?.overRest?.isOverRest && (
+          <Section title="超时休息">
+            <Row
+              label="超时"
+              value={`${policy.overRest.overRestMinutes} 分钟`}
+              isLast
+            />
+          </Section>
+        )}
 
         {/* Blocked Apps Section */}
         <Section title="屏蔽应用列表">

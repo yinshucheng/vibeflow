@@ -1,8 +1,12 @@
 /**
  * Blocking Service
  *
- * Manages app blocking state based on server-synced pomodoro status.
- * Automatically enables/disables blocking when pomodoro state changes.
+ * Manages app blocking state based on multiple signals:
+ * 1. Active pomodoro (FOCUS) — highest priority
+ * 2. Over-rest (OVER_REST) — server policy field
+ * 3. Sleep time (SLEEP) — server policy field
+ *
+ * Automatically enables/disables blocking when any condition changes.
  * Read-only listener - all state changes come from server.
  *
  * Requirements: 6.2, 6.3, 6.8
@@ -13,55 +17,20 @@ import {
   screenTimeService,
   DEFAULT_BLOCKED_APPS,
 } from './screen-time.service';
-import type { BlockedApp, AuthorizationStatus } from '@/types';
+import type { BlockedApp, BlockingReason, AuthorizationStatus } from '@/types';
 
 // =============================================================================
 // BLOCKING SERVICE INTERFACE
 // =============================================================================
 
 export interface BlockingService {
-  /**
-   * Initialize the blocking service
-   * - Request authorization if needed
-   * - Restore blocking state if app was restarted during active pomodoro
-   */
   initialize(): Promise<void>;
-
-  /**
-   * Start listening to pomodoro state changes
-   * Automatically enables/disables blocking based on state
-   */
   startListening(): () => void;
-
-  /**
-   * Get current authorization status
-   */
   getAuthorizationStatus(): Promise<AuthorizationStatus>;
-
-  /**
-   * Request Screen Time authorization
-   */
   requestAuthorization(): Promise<AuthorizationStatus>;
-
-  /**
-   * Check if blocking is currently active
-   */
   isBlockingActive(): Promise<boolean>;
-
-  /**
-   * Get the list of apps to block
-   * Uses server policy if available, otherwise defaults
-   */
   getBlockedApps(): BlockedApp[];
-
-  /**
-   * Manually enable blocking (for testing/recovery)
-   */
   enableBlocking(): Promise<void>;
-
-  /**
-   * Manually disable blocking (for testing/recovery)
-   */
   disableBlocking(): Promise<void>;
 }
 
@@ -71,7 +40,6 @@ export interface BlockingService {
 
 function createBlockingService(): BlockingService {
   let unsubscribe: (() => void) | null = null;
-  let lastPomodoroId: string | null = null;
 
   /**
    * Get the list of apps to block from policy or defaults
@@ -85,32 +53,63 @@ function createBlockingService(): BlockingService {
   }
 
   /**
-   * Handle pomodoro state changes
+   * Evaluate blocking state from all signals.
+   * Priority: focus > over_rest > sleep
+   * Returns the reason to block, or null if no blocking needed.
    */
-  async function handlePomodoroChange(): Promise<void> {
-    const { activePomodoro, isBlockingActive } = useAppStore.getState();
-    const status = await screenTimeService.getAuthorizationStatus();
+  function evaluateBlockingReason(): BlockingReason | null {
+    const { activePomodoro, policy } = useAppStore.getState();
 
-    // Skip if not authorized
+    // 1. Active pomodoro — focus blocking
+    if (activePomodoro && activePomodoro.status === 'active') {
+      return 'focus';
+    }
+
+    // 2. Over rest — server says user exceeded rest time
+    if (policy?.overRest?.isOverRest) {
+      return 'over_rest';
+    }
+
+    // 3. Sleep time — within sleep window, enabled, not snoozed
+    if (
+      policy?.sleepTime?.enabled &&
+      policy.sleepTime.isCurrentlyActive &&
+      !policy.sleepTime.isSnoozed
+    ) {
+      return 'sleep';
+    }
+
+    return null;
+  }
+
+  /**
+   * Core state evaluation — called whenever relevant store fields change
+   */
+  async function evaluateBlockingState(): Promise<void> {
+    const status = await screenTimeService.getAuthorizationStatus();
     if (status !== 'authorized') {
       return;
     }
 
-    if (activePomodoro && activePomodoro.status === 'active') {
-      // Pomodoro is active - enable blocking if not already
-      if (!isBlockingActive || lastPomodoroId !== activePomodoro.id) {
+    const reason = evaluateBlockingReason();
+    const { isBlockingActive, blockingReason } = useAppStore.getState();
+
+    if (reason !== null) {
+      // Should be blocking
+      if (!isBlockingActive || blockingReason !== reason) {
         const apps = getBlockedApps();
-        await screenTimeService.enableBlocking(apps, activePomodoro.id);
+        const pomodoroId = useAppStore.getState().activePomodoro?.id ?? reason;
+        await screenTimeService.enableBlocking(apps, pomodoroId, reason);
         useAppStore.getState().setBlockingActive(true);
-        lastPomodoroId = activePomodoro.id;
-        console.log('[BlockingService] Blocking enabled for pomodoro:', activePomodoro.id);
+        useAppStore.getState().setBlockingReason(reason);
+        console.log('[BlockingService] Blocking enabled, reason:', reason);
       }
     } else {
-      // No active pomodoro - disable blocking if active
+      // Should not be blocking
       if (isBlockingActive) {
         await screenTimeService.disableBlocking();
         useAppStore.getState().setBlockingActive(false);
-        lastPomodoroId = null;
+        useAppStore.getState().setBlockingReason(null);
         console.log('[BlockingService] Blocking disabled');
       }
     }
@@ -118,44 +117,57 @@ function createBlockingService(): BlockingService {
 
   return {
     async initialize(): Promise<void> {
-      // Initialize screen time service (restores persisted state)
       await screenTimeService.initialize();
 
-      // Check if we need to sync blocking state with store
       const isBlocking = await screenTimeService.isBlockingActive();
       const blockingState = await screenTimeService.getBlockingState();
 
       if (isBlocking && blockingState) {
         useAppStore.getState().setBlockingActive(true);
         useAppStore.getState().setBlockedApps(blockingState.blockedApps);
-        lastPomodoroId = blockingState.pomodoroId;
+        useAppStore.getState().setBlockingReason(blockingState.reason);
       }
 
       console.log('[BlockingService] Initialized, blocking active:', isBlocking);
     },
 
     startListening(): () => void {
-      // Subscribe to store changes
-      // Track previous state for comparison
-      let prevPomodoro = useAppStore.getState().activePomodoro;
+      // Track previous values for comparison
+      let prevPomodoroId = useAppStore.getState().activePomodoro?.id ?? null;
+      let prevPomodoroStatus = useAppStore.getState().activePomodoro?.status ?? null;
+      let prevPolicyVersion = useAppStore.getState().policy?.version ?? 0;
+      let prevSleepActive = useAppStore.getState().policy?.sleepTime?.isCurrentlyActive ?? false;
+      let prevOverRest = useAppStore.getState().policy?.overRest?.isOverRest ?? false;
 
       unsubscribe = useAppStore.subscribe((state) => {
-        const currentPomodoro = state.activePomodoro;
-        
-        // Only trigger if pomodoro id or status changed
-        if (
-          prevPomodoro?.id !== currentPomodoro?.id ||
-          prevPomodoro?.status !== currentPomodoro?.status
-        ) {
-          prevPomodoro = currentPomodoro;
-          handlePomodoroChange();
+        const curPomodoroId = state.activePomodoro?.id ?? null;
+        const curPomodoroStatus = state.activePomodoro?.status ?? null;
+        const curPolicyVersion = state.policy?.version ?? 0;
+        const curSleepActive = state.policy?.sleepTime?.isCurrentlyActive ?? false;
+        const curOverRest = state.policy?.overRest?.isOverRest ?? false;
+
+        const pomodoroChanged =
+          prevPomodoroId !== curPomodoroId ||
+          prevPomodoroStatus !== curPomodoroStatus;
+
+        const policyChanged =
+          prevPolicyVersion !== curPolicyVersion ||
+          prevSleepActive !== curSleepActive ||
+          prevOverRest !== curOverRest;
+
+        if (pomodoroChanged || policyChanged) {
+          prevPomodoroId = curPomodoroId;
+          prevPomodoroStatus = curPomodoroStatus;
+          prevPolicyVersion = curPolicyVersion;
+          prevSleepActive = curSleepActive;
+          prevOverRest = curOverRest;
+          evaluateBlockingState();
         }
       });
 
-      // Initial check
-      handlePomodoroChange();
+      // Initial evaluation
+      evaluateBlockingState();
 
-      // Return cleanup function
       return () => {
         if (unsubscribe) {
           unsubscribe();
@@ -170,10 +182,7 @@ function createBlockingService(): BlockingService {
 
     async requestAuthorization(): Promise<AuthorizationStatus> {
       const status = await screenTimeService.requestAuthorization();
-      
-      // Update store with authorization status
       useAppStore.getState().setScreenTimeAuthorized(status === 'authorized');
-      
       return status;
     },
 
@@ -184,17 +193,20 @@ function createBlockingService(): BlockingService {
     getBlockedApps,
 
     async enableBlocking(): Promise<void> {
+      const reason = evaluateBlockingReason() ?? 'focus';
       const { activePomodoro } = useAppStore.getState();
       const pomodoroId = activePomodoro?.id ?? 'manual';
       const apps = getBlockedApps();
-      
-      await screenTimeService.enableBlocking(apps, pomodoroId);
+
+      await screenTimeService.enableBlocking(apps, pomodoroId, reason);
       useAppStore.getState().setBlockingActive(true);
+      useAppStore.getState().setBlockingReason(reason);
     },
 
     async disableBlocking(): Promise<void> {
       await screenTimeService.disableBlocking();
       useAppStore.getState().setBlockingActive(false);
+      useAppStore.getState().setBlockingReason(null);
     },
   };
 }

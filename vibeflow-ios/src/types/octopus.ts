@@ -108,7 +108,8 @@ export interface DailyState {
 
 export interface PomodoroState {
   id: string;
-  taskId: string;
+  taskId: string | null;
+  taskTitle?: string | null;
   startTime: number;
   duration: number;
   status: 'active' | 'paused' | 'completed' | 'aborted';
@@ -183,6 +184,34 @@ export interface SkipTokenConfig {
   delayMinutes: number;
 }
 
+export interface SleepEnforcementAppPolicy {
+  bundleId: string;
+  name: string;
+}
+
+export interface SleepTimePolicy {
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+  enforcementApps: SleepEnforcementAppPolicy[];
+  isCurrentlyActive: boolean;
+  isSnoozed: boolean;
+  snoozeEndTime?: number;
+}
+
+export interface OverRestPolicy {
+  isOverRest: boolean;
+  overRestMinutes: number;
+  enforcementApps: SleepEnforcementAppPolicy[];
+  bringToFront: boolean;
+}
+
+export interface AdhocFocusSession {
+  active: boolean;
+  endTime: number;
+  overridesSleepTime?: boolean;
+}
+
 export interface Policy {
   version: number;
   blacklist: string[];
@@ -192,6 +221,9 @@ export interface Policy {
   skipTokens: SkipTokenConfig;
   distractionApps: DistractionApp[];
   updatedAt: number;
+  sleepTime?: SleepTimePolicy;
+  overRest?: OverRestPolicy;
+  adhocFocusSession?: AdhocFocusSession;
 }
 
 export interface UpdatePolicyPayload {

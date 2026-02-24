@@ -12,6 +12,7 @@ export {
   useTop3Tasks,
   useTodayTasks,
   useBlockingState,
+  useBlockingReason,
   usePolicy,
   useUserInfo,
   useLastSyncTime,

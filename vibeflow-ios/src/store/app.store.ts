@@ -16,6 +16,7 @@ import type {
   TaskData,
   PolicyData,
   BlockedApp,
+  BlockingReason,
   SyncStateCommand,
   UpdatePolicyCommand,
   FullState,
@@ -64,6 +65,7 @@ export interface AppState {
   isBlockingActive: boolean;
   blockedApps: BlockedApp[];
   screenTimeAuthorized: boolean;
+  blockingReason: BlockingReason | null;
 
   // State version for sync
   stateVersion: number;
@@ -88,6 +90,7 @@ export interface AppActions {
   setBlockingActive: (active: boolean) => void;
   setBlockedApps: (apps: BlockedApp[]) => void;
   setScreenTimeAuthorized: (authorized: boolean) => void;
+  setBlockingReason: (reason: BlockingReason | null) => void;
 
   // Clear state
   clearState: () => void;
@@ -122,6 +125,7 @@ const initialState: AppState = {
   isBlockingActive: false,
   blockedApps: [],
   screenTimeAuthorized: false,
+  blockingReason: null,
   stateVersion: 0,
   pendingUpdates: new Map(),
 };
@@ -138,9 +142,10 @@ function mapFullStateToAppState(
 ): Partial<AppState> {
   const { systemState, dailyState, activePomodoro, top3Tasks, settings } = fullState;
 
-  // Map daily state
+  // Map daily state (server sends lowercase, app uses uppercase)
+  const normalizedState = systemState.state.toUpperCase() as DailyStateData['state'];
   const mappedDailyState: DailyStateData = {
-    state: systemState.state as DailyStateData['state'],
+    state: normalizedState,
     completedPomodoros: dailyState.completedPomodoros,
     dailyCap: settings.dailyCap,
     totalFocusMinutes: dailyState.totalFocusMinutes,
@@ -151,7 +156,7 @@ function mapFullStateToAppState(
     ? {
         id: activePomodoro.id,
         taskId: activePomodoro.taskId,
-        taskTitle: (activePomodoro as { taskTitle?: string }).taskTitle ?? findTaskTitle(top3Tasks, activePomodoro.taskId),
+        taskTitle: activePomodoro.taskTitle ?? findTaskTitle(top3Tasks, activePomodoro.taskId),
         startTime: activePomodoro.startTime,
         duration: activePomodoro.duration,
         status: activePomodoro.status === 'active' || activePomodoro.status === 'paused'
@@ -171,12 +176,18 @@ function mapFullStateToAppState(
     planDate: dailyState.date,
   }));
 
+  // Blocking is active during focus, or when system state is over_rest/OVER_REST
+  const stateUpper = systemState.state.toUpperCase();
+  const isBlocking =
+    (mappedPomodoro !== null && mappedPomodoro.status === 'active') ||
+    stateUpper === 'OVER_REST';
+
   return {
     dailyState: mappedDailyState,
     activePomodoro: mappedPomodoro,
     top3Tasks: mappedTasks,
     todayTasks: mappedTasks, // In MVP, today tasks = top3 tasks
-    isBlockingActive: mappedPomodoro !== null && mappedPomodoro.status === 'active',
+    isBlockingActive: isBlocking,
   };
 }
 
@@ -185,8 +196,9 @@ function mapFullStateToAppState(
  */
 function findTaskTitle(
   tasks: { id: string; title: string }[],
-  taskId: string
+  taskId: string | null
 ): string {
+  if (!taskId) return '';
   const task = tasks.find((t) => t.id === taskId);
   return task?.title ?? 'Unknown Task';
 }
@@ -205,8 +217,10 @@ function mapPriority(priority: string): TaskData['priority'] {
  * Map server task status to app status
  */
 function mapTaskStatus(status: string): TaskData['status'] {
-  switch (status) {
+  const normalized = status.toLowerCase();
+  switch (normalized) {
     case 'completed':
+    case 'done':
       return 'completed';
     case 'in_progress':
       return 'in_progress';
@@ -235,10 +249,15 @@ function applyDeltaChanges(
     switch (pathParts[0]) {
       case 'systemState':
         if (pathParts[1] === 'state' && currentState.dailyState) {
+          const newState = (change.value as string).toUpperCase() as DailyStateData['state'];
           updates.dailyState = {
             ...currentState.dailyState,
-            state: change.value as DailyStateData['state'],
+            state: newState,
           };
+          // Mark blocking active when entering OVER_REST
+          if (newState === 'OVER_REST') {
+            updates.isBlockingActive = true;
+          }
         }
         break;
 
@@ -261,11 +280,13 @@ function applyDeltaChanges(
       case 'activePomodoro':
         if (change.value === null) {
           updates.activePomodoro = null;
-          updates.isBlockingActive = false;
+          // Don't force isBlockingActive to false — over_rest/sleep may still need blocking.
+          // The blocking service listener will evaluate the full state.
         } else if (typeof change.value === 'object') {
           const pomodoroData = change.value as {
             id: string;
-            taskId: string;
+            taskId: string | null;
+            taskTitle?: string | null;
             startTime: number;
             duration: number;
             status: string;
@@ -273,12 +294,14 @@ function applyDeltaChanges(
           updates.activePomodoro = {
             id: pomodoroData.id,
             taskId: pomodoroData.taskId,
-            taskTitle: findTaskTitle(currentState.top3Tasks, pomodoroData.taskId),
+            taskTitle: pomodoroData.taskTitle ?? findTaskTitle(currentState.top3Tasks, pomodoroData.taskId),
             startTime: pomodoroData.startTime,
             duration: pomodoroData.duration,
             status: pomodoroData.status === 'paused' ? 'paused' : 'active',
           };
-          updates.isBlockingActive = pomodoroData.status === 'active';
+          if (pomodoroData.status === 'active') {
+            updates.isBlockingActive = true;
+          }
         }
         break;
 
@@ -362,6 +385,22 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         name: app.name,
       })),
       updatedAt: policy.updatedAt,
+      sleepTime: policy.sleepTime
+        ? {
+            enabled: policy.sleepTime.enabled,
+            startTime: policy.sleepTime.startTime,
+            endTime: policy.sleepTime.endTime,
+            isCurrentlyActive: policy.sleepTime.isCurrentlyActive,
+            isSnoozed: policy.sleepTime.isSnoozed,
+            snoozeEndTime: policy.sleepTime.snoozeEndTime,
+          }
+        : undefined,
+      overRest: policy.overRest
+        ? {
+            isOverRest: policy.overRest.isOverRest,
+            overRestMinutes: policy.overRest.overRestMinutes,
+          }
+        : undefined,
     };
 
     set({
@@ -384,6 +423,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   setScreenTimeAuthorized: (authorized: boolean) => {
     set({ screenTimeAuthorized: authorized });
+  },
+
+  setBlockingReason: (reason: BlockingReason | null) => {
+    set({ blockingReason: reason });
   },
 
   // ===========================================================================
@@ -467,7 +510,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         taskId: taskId ?? '',
         taskTitle: task?.title ?? 'Focus Session',
         startTime: Date.now(),
-        duration: 25 * 60 * 1000,
+        duration: 25, // minutes — consistent with server format
         status: 'active',
       },
       dailyState: currentState.dailyState
@@ -596,7 +639,14 @@ export const useBlockingState = () =>
   useAppStore(useShallow((state) => ({
     isBlockingActive: state.isBlockingActive,
     blockedApps: state.blockedApps,
+    blockingReason: state.blockingReason,
   })));
+
+/**
+ * Select blocking reason
+ */
+export const useBlockingReason = () =>
+  useAppStore((state) => state.blockingReason);
 
 /**
  * Select policy

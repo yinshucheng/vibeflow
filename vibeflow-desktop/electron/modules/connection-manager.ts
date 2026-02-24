@@ -633,10 +633,18 @@ class ConnectionManager {
       this.notifyPolicyUpdate(policy);
     });
 
-    // State sync from server
+    // State sync from server (legacy event name — kept for backward compatibility)
     this.socket.on('state:sync', (state: unknown) => {
-      console.log('[ConnectionManager] State sync received');
+      console.log('[ConnectionManager] State sync received (legacy)');
       this.sendToRenderer('octopus:stateSync', state);
+    });
+
+    // Octopus protocol commands from server (SYNC_STATE, UPDATE_POLICY, ACTION_RESULT)
+    this.socket.on('OCTOPUS_COMMAND', (command: { commandType: string; payload: unknown }) => {
+      console.log('[ConnectionManager] OCTOPUS_COMMAND received:', command.commandType);
+      if (command.commandType === 'SYNC_STATE') {
+        this.sendToRenderer('octopus:stateSync', command);
+      }
     });
 
     // State change from server (real-time state updates)

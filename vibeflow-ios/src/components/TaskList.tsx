@@ -89,6 +89,7 @@ function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.El
   const isInProgress = task.status === 'in_progress';
   const isCurrent = task.isCurrentTask;
 
+  const activePomodoro = useAppStore((s) => s.activePomodoro);
   const optimisticCompleteTask = useAppStore((s) => s.optimisticCompleteTask);
   const optimisticUpdateTaskStatus = useAppStore((s) => s.optimisticUpdateTaskStatus);
   const confirmOptimisticUpdate = useAppStore((s) => s.confirmOptimisticUpdate);
@@ -128,12 +129,15 @@ function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.El
   };
 
   const handleLongPress = () => {
+    const hasActivePomodoro = !!activePomodoro;
+    const pomodoroLabel = hasActivePomodoro ? '切换到此任务' : '开始番茄钟';
+
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        options: ['取消', '编辑', '标记为待办', '标记为进行中', '标记为已完成', '开始番茄钟'],
+        options: ['取消', '编辑', '标记为待办', '标记为进行中', '标记为已完成', pomodoroLabel],
         cancelButtonIndex: 0,
       },
-      (buttonIndex) => {
+      async (buttonIndex) => {
         switch (buttonIndex) {
           case 1:
             onEdit?.(task.id);
@@ -148,7 +152,17 @@ function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.El
             handleStatusChange('completed');
             break;
           case 5:
-            actionService.startPomodoro(task.id);
+            if (hasActivePomodoro) {
+              const result = await actionService.switchTask(activePomodoro.id, task.id);
+              if (!result.success) {
+                Alert.alert('切换失败', result.error?.message || '无法切换任务');
+              }
+            } else {
+              const result = await actionService.startPomodoro(task.id);
+              if (!result.success) {
+                Alert.alert('启动失败', result.error?.message || '无法启动番茄钟');
+              }
+            }
             break;
         }
       }

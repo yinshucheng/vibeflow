@@ -503,6 +503,7 @@ export interface DailyState {
 export interface PomodoroState {
   id: string;
   taskId: string | null;
+  taskTitle?: string | null;
   startTime: number;
   duration: number;
   status: 'active' | 'paused' | 'completed' | 'aborted';
@@ -984,12 +985,15 @@ export const StateChangeEventSchema = BaseEventSchema.extend({
   payload: StateChangePayloadSchema,
 });
 
-// User action payload schema
+// User action payload schema (supports both legacy and mobile client formats)
 export const UserActionPayloadSchema = z.object({
   actionType: z.string(),
-  targetEntity: z.string(),
-  parameters: z.record(z.unknown()),
-  result: z.string(),
+  targetEntity: z.string().optional(),
+  parameters: z.record(z.unknown()).optional(),
+  result: z.string().optional(),
+  // Mobile client fields
+  optimisticId: z.string().optional(),
+  data: z.record(z.unknown()).optional(),
 });
 
 // User action event schema
