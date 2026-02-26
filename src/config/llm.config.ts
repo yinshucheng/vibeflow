@@ -23,21 +23,22 @@ const siliconflow = createOpenAI({
 // ===== MODEL_REGISTRY =====
 // 按 provider 分组，lazy 实例化
 const MODEL_REGISTRY = {
-  // Qwen
-  'qwen-max': () => qwen('qwen-max'),
-  'qwen-plus': () => qwen('qwen-plus'),
-  'qwen-turbo': () => qwen('qwen-turbo'),
+  // Qwen — 使用 .chat() 走 /chat/completions 端点
+  'qwen-max': () => qwen.chat('qwen-max'),
+  'qwen-plus': () => qwen.chat('qwen-plus'),
+  'qwen-turbo': () => qwen.chat('qwen-turbo'),
 
-  // Kimi
-  'kimi-128k': () => kimi('moonshot-v1-128k'),
-  'kimi-32k': () => kimi('moonshot-v1-32k'),
-  'kimi-8k': () => kimi('moonshot-v1-8k'),
+  // Kimi — 使用 .chat() 走 /chat/completions 端点
+  'kimi-k2': () => kimi.chat('kimi-k2-0905-preview'),
+  'kimi-128k': () => kimi.chat('moonshot-v1-128k'),
+  'kimi-32k': () => kimi.chat('moonshot-v1-32k'),
+  'kimi-8k': () => kimi.chat('moonshot-v1-8k'),
 
-  // SiliconFlow (聚合多种模型)
-  'sf-deepseek-v3': () => siliconflow('deepseek-ai/DeepSeek-V3'),
-  'sf-deepseek-r1': () => siliconflow('deepseek-ai/DeepSeek-R1'),
-  'sf-qwen-72b': () => siliconflow('Qwen/Qwen2.5-72B-Instruct'),
-  'sf-qwen-32b': () => siliconflow('Qwen/Qwen2.5-32B-Instruct'),
+  // SiliconFlow — 使用 .chat() 走 /chat/completions 端点
+  'sf-deepseek-v3': () => siliconflow.chat('deepseek-ai/DeepSeek-V3'),
+  'sf-deepseek-r1': () => siliconflow.chat('deepseek-ai/DeepSeek-R1'),
+  'sf-qwen-72b': () => siliconflow.chat('Qwen/Qwen2.5-72B-Instruct'),
+  'sf-qwen-32b': () => siliconflow.chat('Qwen/Qwen2.5-32B-Instruct'),
 } as const;
 
 type ModelId = keyof typeof MODEL_REGISTRY;
@@ -70,6 +71,12 @@ const MODEL_META: Record<ModelId, {
   },
 
   // Kimi
+  'kimi-k2': {
+    contextWindow: 131072,
+    maxOutputTokens: 8192,
+    provider: 'kimi',
+    displayName: 'Kimi K2 (0905 Preview)',
+  },
   'kimi-128k': {
     contextWindow: 131072,
     maxOutputTokens: 8192,

@@ -3,7 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock @ai-sdk/openai before importing anything that uses it
 vi.mock('@ai-sdk/openai', () => {
   const mockModel = { modelId: 'mock-model', provider: 'mock-provider' };
+  const mockChatFn = vi.fn(() => mockModel);
   const mockProviderFn = vi.fn(() => mockModel);
+  mockProviderFn.chat = mockChatFn;
   return {
     createOpenAI: vi.fn(() => mockProviderFn),
   };
