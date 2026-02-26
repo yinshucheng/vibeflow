@@ -528,6 +528,14 @@ export {
   calculateWarningLevel,
 } from './bypass-detection.service';
 
+// LLM Adapter Service exports (F2)
+export { llmAdapterService } from './llm-adapter.service';
+export type {
+  CallLLMOptions,
+  GenerateTextOptions,
+  TokenUsage,
+} from './llm-adapter.service';
+
 // Demo Mode Service exports (Requirements: 6.1, 6.2, 6.3, 6.4, 6.7, 6.9, 6.10)
 export { demoModeService } from './demo-mode.service';
 export type {
