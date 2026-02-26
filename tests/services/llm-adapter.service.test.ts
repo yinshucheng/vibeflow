@@ -4,10 +4,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@ai-sdk/openai', () => {
   const mockModel = { modelId: 'mock-model', provider: 'mock-provider' };
   const mockChatFn = vi.fn(() => mockModel);
-  const mockProviderFn = vi.fn(() => mockModel);
-  mockProviderFn.chat = mockChatFn;
+  const mockProvider = Object.assign(vi.fn(() => mockModel), { chat: mockChatFn });
   return {
-    createOpenAI: vi.fn(() => mockProviderFn),
+    createOpenAI: vi.fn(() => mockProvider),
   };
 });
 

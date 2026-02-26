@@ -52,6 +52,10 @@ model User {
   bypassAttempts           BypassAttempt[]
   demoTokens               DemoToken[]
   demoModeEvents           DemoModeEvent[]
+
+  // AI Chat relations
+  conversations            Conversation[]
+  llmUsageLogs             LLMUsageLog[]
 }
 
 model UserSettings {
@@ -886,4 +890,72 @@ model DemoModeEvent {
   @@index([userId])
   @@index([timestamp])
   @@index([userId, timestamp])
+}
+
+// ===== AI Chat Models =====
+
+enum ConversationType {
+  DEFAULT
+  DAILY
+  TOPIC
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+model Conversation {
+  id        String             @id @default(uuid())
+  userId    String
+  type      ConversationType   @default(DEFAULT)
+  status    ConversationStatus @default(ACTIVE)
+  title     String?            @default("VibeFlow Assistant")
+  date      String?            // reserved for DAILY type (YYYY-MM-DD)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages     ChatMessage[]
+  llmUsageLogs LLMUsageLog[]
+
+  @@index([userId, type, status])
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  role           String   // 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'system'
+  content        String
+  metadata       Json?    // toolCallId, toolName, parameters, isProactive, triggerId etc.
+  tokenCount     Int?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model LLMUsageLog {
+  id                  String   @id @default(uuid())
+  userId              String
+  conversationId      String
+  messageId           String?
+  scene               String   // 'chat:default', 'chat:quick_action', 'trigger:xxx', etc.
+  model               String   // MODEL_REGISTRY key, e.g. 'qwen-plus', 'kimi-k2'
+  inputTokens         Int
+  outputTokens        Int
+  totalTokens         Int      // inputTokens + outputTokens
+  contextLength       Int      // actual context length in tokens
+  maxContextLimit     Int      // model's context window limit
+  contextUsagePercent Float    // contextLength / maxContextLimit * 100
+  createdAt           DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([conversationId])
 }

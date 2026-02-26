@@ -25,7 +25,9 @@ export type EventType =
   | 'TAB_SWITCH'
   | 'BROWSER_FOCUS'
   | 'ENTERTAINMENT_MODE'
-  | 'WORK_START';
+  | 'WORK_START'
+  | 'CHAT_MESSAGE'
+  | 'CHAT_ACTION';
 
 /**
  * Client types for identifying the source/target of events and commands
@@ -39,7 +41,11 @@ export type CommandType =
   | 'SYNC_STATE'
   | 'EXECUTE_ACTION'
   | 'UPDATE_POLICY'
-  | 'SHOW_UI';
+  | 'SHOW_UI'
+  | 'CHAT_RESPONSE'
+  | 'CHAT_TOOL_CALL'
+  | 'CHAT_TOOL_RESULT'
+  | 'CHAT_SYNC';
 
 /**
  * Action types that can be executed by clients
@@ -433,6 +439,37 @@ export interface WorkStartEvent extends BaseEvent {
   payload: WorkStartPayload;
 }
 
+// ---- AI Chat Events ----
+
+export interface ChatAttachment {
+  type: 'task' | 'project' | 'goal' | 'pomodoro';
+  id: string;
+  title: string;
+}
+
+export interface ChatMessagePayload {
+  conversationId: string;
+  messageId: string;
+  content: string;
+  attachments?: ChatAttachment[];
+}
+
+export interface ChatMessageEvent extends BaseEvent {
+  eventType: 'CHAT_MESSAGE';
+  payload: ChatMessagePayload;
+}
+
+export interface ChatActionPayload {
+  conversationId: string;
+  toolCallId: string;
+  action: 'confirm' | 'cancel';
+}
+
+export interface ChatActionEvent extends BaseEvent {
+  eventType: 'CHAT_ACTION';
+  payload: ChatActionPayload;
+}
+
 /**
  * Union type for all event types
  */
@@ -446,7 +483,9 @@ export type OctopusEvent =
   | TabSwitchEvent
   | BrowserFocusEvent
   | EntertainmentModeEvent
-  | WorkStartEvent;
+  | WorkStartEvent
+  | ChatMessageEvent
+  | ChatActionEvent;
 
 
 // =============================================================================
@@ -649,6 +688,65 @@ export interface ShowUICommand extends BaseCommand {
   payload: ShowUIPayload;
 }
 
+// ---- AI Chat Commands ----
+
+export interface ChatResponsePayload {
+  conversationId: string;
+  messageId: string;
+  type: 'delta' | 'complete';
+  content: string;
+  usage?: { inputTokens: number; outputTokens: number };
+}
+
+export interface ChatResponseCommand extends BaseCommand {
+  commandType: 'CHAT_RESPONSE';
+  payload: ChatResponsePayload;
+}
+
+export interface ChatToolCallPayload {
+  conversationId: string;
+  messageId: string;
+  toolCallId: string;
+  toolName: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  requiresConfirmation: boolean;
+}
+
+export interface ChatToolCallCommand extends BaseCommand {
+  commandType: 'CHAT_TOOL_CALL';
+  payload: ChatToolCallPayload;
+}
+
+export interface ChatToolResultPayload {
+  conversationId: string;
+  messageId: string;
+  toolCallId: string;
+  success: boolean;
+  summary: string;
+}
+
+export interface ChatToolResultCommand extends BaseCommand {
+  commandType: 'CHAT_TOOL_RESULT';
+  payload: ChatToolResultPayload;
+}
+
+export interface ChatSyncPayload {
+  conversationId: string;
+  messages: Array<{
+    id: string;
+    role: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+    createdAt: string;
+  }>;
+}
+
+export interface ChatSyncCommand extends BaseCommand {
+  commandType: 'CHAT_SYNC';
+  payload: ChatSyncPayload;
+}
+
 /**
  * Union type for all command types
  */
@@ -656,7 +754,11 @@ export type OctopusCommand =
   | SyncStateCommand
   | ExecuteActionCommand
   | UpdatePolicyCommand
-  | ShowUICommand;
+  | ShowUICommand
+  | ChatResponseCommand
+  | ChatToolCallCommand
+  | ChatToolResultCommand
+  | ChatSyncCommand;
 
 // =============================================================================
 // POLICY TYPES
@@ -897,6 +999,8 @@ export const EventTypeSchema = z.enum([
   'BROWSER_FOCUS',
   'ENTERTAINMENT_MODE',
   'WORK_START',
+  'CHAT_MESSAGE',
+  'CHAT_ACTION',
 ]);
 
 // Client type enum schema
@@ -908,6 +1012,10 @@ export const CommandTypeSchema = z.enum([
   'EXECUTE_ACTION',
   'UPDATE_POLICY',
   'SHOW_UI',
+  'CHAT_RESPONSE',
+  'CHAT_TOOL_CALL',
+  'CHAT_TOOL_RESULT',
+  'CHAT_SYNC',
 ]);
 
 // Action type enum schema
@@ -1149,6 +1257,37 @@ export const WorkStartEventSchema = BaseEventSchema.extend({
   payload: WorkStartPayloadSchema,
 });
 
+// ---- AI Chat Event Schemas ----
+
+export const ChatAttachmentSchema = z.object({
+  type: z.enum(['task', 'project', 'goal', 'pomodoro']),
+  id: z.string(),
+  title: z.string(),
+});
+
+export const ChatMessagePayloadSchema = z.object({
+  conversationId: z.string(),
+  messageId: z.string(),
+  content: z.string(),
+  attachments: z.array(ChatAttachmentSchema).optional(),
+});
+
+export const ChatMessageEventSchema = BaseEventSchema.extend({
+  eventType: z.literal('CHAT_MESSAGE'),
+  payload: ChatMessagePayloadSchema,
+});
+
+export const ChatActionPayloadSchema = z.object({
+  conversationId: z.string(),
+  toolCallId: z.string(),
+  action: z.enum(['confirm', 'cancel']),
+});
+
+export const ChatActionEventSchema = BaseEventSchema.extend({
+  eventType: z.literal('CHAT_ACTION'),
+  payload: ChatActionPayloadSchema,
+});
+
 // Union schema for all events
 export const OctopusEventSchema = z.discriminatedUnion('eventType', [
   ActivityLogEventSchema,
@@ -1161,6 +1300,8 @@ export const OctopusEventSchema = z.discriminatedUnion('eventType', [
   BrowserFocusEventSchema,
   EntertainmentModeEventSchema,
   WorkStartEventSchema,
+  ChatMessageEventSchema,
+  ChatActionEventSchema,
 ]);
 
 // =============================================================================
@@ -1375,11 +1516,77 @@ export const ShowUICommandSchema = BaseCommandSchema.extend({
 });
 
 // Union schema for all commands
+// ---- AI Chat Command Schemas ----
+
+export const ChatResponsePayloadSchema = z.object({
+  conversationId: z.string(),
+  messageId: z.string(),
+  type: z.enum(['delta', 'complete']),
+  content: z.string(),
+  usage: z.object({
+    inputTokens: z.number(),
+    outputTokens: z.number(),
+  }).optional(),
+});
+
+export const ChatResponseCommandSchema = BaseCommandSchema.extend({
+  commandType: z.literal('CHAT_RESPONSE'),
+  payload: ChatResponsePayloadSchema,
+});
+
+export const ChatToolCallPayloadSchema = z.object({
+  conversationId: z.string(),
+  messageId: z.string(),
+  toolCallId: z.string(),
+  toolName: z.string(),
+  description: z.string(),
+  parameters: z.record(z.unknown()),
+  requiresConfirmation: z.boolean(),
+});
+
+export const ChatToolCallCommandSchema = BaseCommandSchema.extend({
+  commandType: z.literal('CHAT_TOOL_CALL'),
+  payload: ChatToolCallPayloadSchema,
+});
+
+export const ChatToolResultPayloadSchema = z.object({
+  conversationId: z.string(),
+  messageId: z.string(),
+  toolCallId: z.string(),
+  success: z.boolean(),
+  summary: z.string(),
+});
+
+export const ChatToolResultCommandSchema = BaseCommandSchema.extend({
+  commandType: z.literal('CHAT_TOOL_RESULT'),
+  payload: ChatToolResultPayloadSchema,
+});
+
+export const ChatSyncPayloadSchema = z.object({
+  conversationId: z.string(),
+  messages: z.array(z.object({
+    id: z.string(),
+    role: z.string(),
+    content: z.string(),
+    metadata: z.record(z.unknown()).optional(),
+    createdAt: z.string(),
+  })),
+});
+
+export const ChatSyncCommandSchema = BaseCommandSchema.extend({
+  commandType: z.literal('CHAT_SYNC'),
+  payload: ChatSyncPayloadSchema,
+});
+
 export const OctopusCommandSchema = z.discriminatedUnion('commandType', [
   SyncStateCommandSchema,
   ExecuteActionCommandSchema,
   UpdatePolicyCommandSchema,
   ShowUICommandSchema,
+  ChatResponseCommandSchema,
+  ChatToolCallCommandSchema,
+  ChatToolResultCommandSchema,
+  ChatSyncCommandSchema,
 ]);
 
 // =============================================================================
@@ -1392,7 +1599,7 @@ export const OctopusCommandSchema = z.discriminatedUnion('commandType', [
 export function validateEvent(event: unknown): { success: true; data: OctopusEvent } | { success: false; error: { code: ErrorCode; message: string; details?: Record<string, unknown> } } {
   const result = OctopusEventSchema.safeParse(event);
   if (result.success) {
-    return { success: true, data: result.data };
+    return { success: true, data: result.data as OctopusEvent };
   }
   return {
     success: false,
