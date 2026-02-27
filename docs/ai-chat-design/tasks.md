@@ -456,32 +456,32 @@ describe('chatService', () => {
 
 ### F8. 端侧框架 (iOS)
 
-- [ ] **F8.1 类型定义**
+- [x] **F8.1 类型定义** ✅ `784553d`
   - `vibeflow-ios/src/types/chat.ts`: ChatMessage, PendingToolCall, ChatAttachment, ChatResponsePayload 等
 
-- [ ] **F8.2 Chat Store (Zustand)**
+- [x] **F8.2 Chat Store (Zustand)** ✅ `784553d`
   - `isPanelOpen` / `panelHeight`
   - `messages` / `isStreaming` / `streamingContent`
   - `pendingToolCalls`
   - Actions: `sendMessage`, `appendStreamDelta`, `finalizeStreamMessage`, `confirmToolCall`, `cancelToolCall`
 
-- [ ] **F8.3 Chat Service (iOS)**
+- [x] **F8.3 Chat Service (iOS)** ✅ `784553d`
   - 监听 Socket.io 命令: `CHAT_RESPONSE`, `CHAT_TOOL_CALL`, `CHAT_TOOL_RESULT`, `CHAT_SYNC`
   - 发送事件: `CHAT_MESSAGE`, `CHAT_ACTION`
   - `initialize()` / `cleanup()` 生命周期
 
-- [ ] **F8.4 Chat UI 骨架**
+- [x] **F8.4 Chat UI 骨架** ✅ `784553d`
   - `ChatFAB.tsx`: 浮动按钮（右下角）
   - `ChatPanel.tsx`: BottomSheet 容器（半屏/全屏）
   - `ChatMessageList.tsx`: FlatList
   - `ChatBubble.tsx`: 用户/AI 消息气泡（支持 Markdown）
   - `ChatInput.tsx`: 输入框 + 发送按钮
 
-- [ ] **F8.5 AppProvider 集成**
+- [x] **F8.5 AppProvider 集成** ✅ `784553d`
   - `ChatFAB` + `ChatPanel` 放在 `NavigationContainer` 外层
   - `chatService.initialize()` 在 AppProvider `useEffect` 中调用
 
-- [ ] **F8.6 测试: 端侧框架**
+- [x] **F8.6 测试: 端侧框架** ✅ `784553d`
   - `vibeflow-ios/__tests__/chat-store.test.ts`:
     - `appendStreamDelta`: 多次追加 → streamingContent 拼接正确
     - `finalizeStreamMessage`: isStreaming → false, streamingContent 清空, messages 追加完整消息
