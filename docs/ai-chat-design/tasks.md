@@ -868,18 +868,18 @@ describe('chatService', () => {
 
 > 依赖: F3 会话管理
 
-- [ ] **S8.1 Daily Archive**
+- [x] **S8.1 Daily Archive** ✅ `e786352`
   - 04:00 AM: 归档 DEFAULT → DAILY/ARCHIVED + 创建新 DEFAULT
   - 日期分割线 (`role: 'system'`)
 
-- [ ] **S8.2 历史记录 UI**
+- [x] **S8.2 历史记录 UI** ✅ `e786352`
   - iOS / Web "历史记录" 入口
   - 归档 Session 列表 → 只读消息查看
 
-- [ ] **S8.3 会话清理**
+- [x] **S8.3 会话清理** ✅ `e786352`
   - 30 天以上消息自动删除
 
-- [ ] **S8.4 测试: 会话归档**
+- [x] **S8.4 测试: 会话归档** ✅ `e786352`
   - `tests/services/chat-archive.test.ts`:
     - archiveAndRotate: 旧 DEFAULT → type=DAILY, status=ARCHIVED, date=昨天
     - archiveAndRotate: 新 DEFAULT 创建，messages 为空
@@ -905,12 +905,12 @@ describe('chatService', () => {
 
 > 依赖: S4 触发框架
 
-- [ ] **S9.1 `morning_greeting`**: 工作日晨间提醒（LOCKED 状态时）
-- [ ] **S9.2 `evening_summary`**: 下班时间今日总结（LLM）
-- [ ] **S9.3 `progress_check`**: 每 2h 进度检查（FOCUS 不打断）
-- [ ] **S9.4 `midday_check`**: 午间回顾（默认关闭）
+- [x] **S9.1 `morning_greeting`**: 工作日晨间提醒（LOCKED 状态时） ✅ `e786352`
+- [x] **S9.2 `evening_summary`**: 下班时间今日总结（LLM） ✅ `e786352`
+- [x] **S9.3 `progress_check`**: 每 2h 进度检查（FOCUS 不打断） ✅ `e786352`
+- [x] **S9.4 `midday_check`**: 午间回顾（默认关闭） ✅ `e786352`
 
-- [ ] **S9.5 测试: 定时触发器**
+- [x] **S9.5 测试: 定时触发器** ✅ `e786352`
   - `tests/services/chat-triggers-cron.test.ts`:
     - `morning_greeting`: 用户 LOCKED + 工作日 9:00 → 触发
     - `morning_greeting`: 用户已在 PLANNING → 不触发
@@ -936,15 +936,15 @@ describe('chatService', () => {
 
 > 依赖: S4 (触发器) + S6 (场景路由)
 
-- [ ] **S10.1 触发器配置 UI**
+- [x] **S10.1 触发器配置 UI** ✅ `e786352`
   - SettingsScreen "AI 助手" 区: 全局开关、静默时段、各触发器独立开关
   - `UserSettings.aiTriggerConfig`
 
-- [ ] **S10.2 模型偏好设置 UI**
+- [x] **S10.2 模型偏好设置 UI** ✅ `e786352`
   - 默认模型 / 快速操作模型 / 规划模型 下拉选择
   - `UserSettings.aiModelConfig`
 
-- [ ] **S10.3 测试: 用户配置**
+- [x] **S10.3 测试: 用户配置** ✅ `e786352`
   - `tests/services/chat-user-config.test.ts`:
     - aiTriggerConfig.enabled=false → 所有触发器不触发
     - aiTriggerConfig.triggers.morning_greeting.enabled=false → 该触发器不触发，其他不受影响
