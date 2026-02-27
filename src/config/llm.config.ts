@@ -135,11 +135,15 @@ interface SceneModelConfig {
 const SCENE_ENV_MAP: Record<string, string> = {
   'chat:default': 'LLM_MODEL_CHAT_DEFAULT',
   'chat:quick_action': 'LLM_MODEL_CHAT_QUICK_ACTION',
+  'chat:planning': 'LLM_MODEL_CHAT_PLANNING',
+  'chat:review': 'LLM_MODEL_CHAT_REVIEW',
   'chat:summary': 'LLM_MODEL_CHAT_SUMMARY',
   'chat:decompose': 'LLM_MODEL_CHAT_DECOMPOSE',
+  'internal:summarize': 'LLM_MODEL_INTERNAL_SUMMARIZE',
 };
 
 const DEFAULT_SCENE_CONFIG: Record<string, SceneModelConfig> = {
+  // ── User-initiated chat ──
   'chat:default': {
     model: 'qwen-plus',
     maxTokens: 4096,
@@ -152,6 +156,19 @@ const DEFAULT_SCENE_CONFIG: Record<string, SceneModelConfig> = {
     temperature: 0.3,
     toolsEnabled: true,
   },
+  'chat:planning': {
+    model: 'qwen-plus',
+    maxTokens: 4096,
+    temperature: 0.7,
+    toolsEnabled: true,
+  },
+  'chat:review': {
+    model: 'qwen-plus',
+    maxTokens: 4096,
+    temperature: 0.5,
+    toolsEnabled: true,
+  },
+  // ── Internal ──
   'chat:summary': {
     model: 'qwen-plus',
     maxTokens: 2048,
@@ -162,6 +179,12 @@ const DEFAULT_SCENE_CONFIG: Record<string, SceneModelConfig> = {
     model: 'qwen-plus',
     maxTokens: 2048,
     temperature: 0.5,
+    toolsEnabled: false,
+  },
+  'internal:summarize': {
+    model: 'qwen-turbo',
+    maxTokens: 512,
+    temperature: 0.3,
     toolsEnabled: false,
   },
 };

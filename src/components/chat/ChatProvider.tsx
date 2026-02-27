@@ -41,12 +41,21 @@ export interface PendingToolCall {
   conversationId: string;
 }
 
+export interface ContextUsageInfo {
+  contextUsagePercent: number;
+  currentTokens: number;
+  maxTokens: number;
+  messageCount: number;
+  modelName: string;
+}
+
 interface ChatContextValue {
   messages: ChatMessage[];
   isStreaming: boolean;
   streamingContent: string;
   isPanelOpen: boolean;
   pendingToolCalls: PendingToolCall[];
+  contextUsage: ContextUsageInfo | null;
   openPanel: () => void;
   closePanel: () => void;
   sendMessage: (content: string) => void;
@@ -85,6 +94,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [streamingContent, setStreamingContent] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [pendingToolCalls, setPendingToolCalls] = useState<PendingToolCall[]>([]);
+  const [contextUsage, setContextUsage] = useState<ContextUsageInfo | null>(null);
   const listenerAttached = useRef(false);
 
   // Attach Socket.io listeners for OCTOPUS_COMMAND events
@@ -181,6 +191,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         case 'CHAT_SYNC': {
           const p = command.payload as { messages: ChatMessage[] };
           setMessages(p.messages);
+          break;
+        }
+        case 'CHAT_STATS': {
+          const p = command.payload as ContextUsageInfo;
+          setContextUsage(p);
           break;
         }
       }
@@ -298,6 +313,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         streamingContent,
         isPanelOpen,
         pendingToolCalls,
+        contextUsage,
         openPanel,
         closePanel,
         sendMessage,

@@ -10,9 +10,10 @@
 import { useChatContext } from './ChatProvider';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatInput } from './ChatInput';
+import { ContextUsageBar } from './ContextUsageBar';
 
 export function ChatPanel() {
-  const { isPanelOpen, closePanel } = useChatContext();
+  const { isPanelOpen, closePanel, contextUsage } = useChatContext();
 
   if (!isPanelOpen) return null;
 
@@ -52,6 +53,17 @@ export function ChatPanel() {
 
         {/* Messages */}
         <ChatMessageList />
+
+        {/* Context usage bar (S7.3) */}
+        {contextUsage && (
+          <ContextUsageBar
+            contextUsagePercent={contextUsage.contextUsagePercent}
+            currentTokens={contextUsage.currentTokens}
+            maxTokens={contextUsage.maxTokens}
+            messageCount={contextUsage.messageCount}
+            modelName={contextUsage.modelName}
+          />
+        )}
 
         {/* Input */}
         <ChatInput />
