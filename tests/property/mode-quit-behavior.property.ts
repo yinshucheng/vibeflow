@@ -316,25 +316,33 @@ describe('Property 1: Mode-Based Quit Behavior', () => {
           
           // Find a time outside all work slots
           const enabledSlots = config.workTimeSlots.filter(s => s.enabled);
-          const sortedSlots = [...enabledSlots].sort((a, b) => 
+          const sortedSlots = [...enabledSlots].sort((a, b) =>
             parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime)
           );
-          
-          // Try to find a time before the first slot
-          const firstStart = parseTimeToMinutes(sortedSlots[0].startTime);
-          let currentTime: number;
 
-          if (firstStart > 0) {
-            currentTime = 0; // Before first slot
-          } else {
-            // Try after the last slot
-            const lastEnd = parseTimeToMinutes(sortedSlots[sortedSlots.length - 1].endTime);
-            if (lastEnd < 1439) {
-              currentTime = lastEnd + 1; // After last slot (add 1 to ensure outside)
-            } else {
-              // Skip this test case if no time outside slots
-              return true;
+          // Build list of candidate times outside all slots
+          let currentTime: number | null = null;
+
+          // Try time before the first slot
+          const firstStart = parseTimeToMinutes(sortedSlots[0].startTime);
+          if (firstStart > 0 && !isWithinWorkHours(enabledSlots, 0)) {
+            currentTime = 0;
+          }
+
+          if (currentTime === null) {
+            // Try gaps between consecutive slots and after the last slot
+            for (let i = 0; i < sortedSlots.length; i++) {
+              const end = parseTimeToMinutes(sortedSlots[i].endTime);
+              if (end <= 1439 && !isWithinWorkHours(enabledSlots, end)) {
+                currentTime = end;
+                break;
+              }
             }
+          }
+
+          if (currentTime === null) {
+            // No time found outside all slots — skip this test case
+            return true;
           }
           
           const result = canQuit('production', config, currentTime);
