@@ -543,6 +543,9 @@ export type {
   OnDeltaCallback,
 } from './chat.service';
 
+// Chat Context Service exports (F6)
+export { chatContextService, CONTEXT_WINDOW, estimateTokens, SYSTEM_PROMPT_TEMPLATE } from './chat-context.service';
+
 // Chat Tools Service exports (F4)
 export { chatToolsService, createChatTools, getChatToolDefinitions } from './chat-tools.service';
 export type {
