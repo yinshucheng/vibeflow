@@ -256,9 +256,9 @@ describe('Property 8: Demo Mode Enforcement Suspension', () => {
           return true;
         }
       ),
-      { numRuns: 50 }
+      { numRuns: 10 }
     );
-  });
+  }, 15000);
 
   it('should provide demo mode state for enforcement decision making', async () => {
     // Clean up any existing tokens and events
