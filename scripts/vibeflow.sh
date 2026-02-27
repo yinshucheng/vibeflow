@@ -121,12 +121,46 @@ cmd_start() {
         pm2 delete "$PM2_NAME" 2>/dev/null || true
     fi
 
+    # 确保从 main 分支构建稳定版
+    cd "$PROJECT_DIR"
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD)
+    SWITCHED_FROM=""
+    if [ "$CURRENT_BRANCH" != "main" ]; then
+        print_info "当前分支: $CURRENT_BRANCH，切换到 main 分支构建稳定版..."
+        # 保存当前工作状态
+        git stash --include-untracked -m "vibeflow-build-$(date +%s)" 2>/dev/null || true
+        git checkout main
+        SWITCHED_FROM="$CURRENT_BRANCH"
+    fi
+
     # Build backend
     print_info "Building backend..."
     cd "$PROJECT_DIR"
     rm -rf .next
     npm run build
     print_success "Backend built successfully"
+
+    # Build custom server (server.ts -> dist/server.js)
+    print_info "Building custom server with Socket.io..."
+    npm run build:server
+
+    # 标记这个 main commit 为已验证的稳定版
+    local tag_name="stable/$(date +%Y%m%d-%H%M%S)"
+    git tag -f "$tag_name" HEAD 2>/dev/null || true
+    # 只保留最近 5 个 stable tag
+    git tag -l 'stable/*' | sort -r | tail -n +6 | xargs git tag -d 2>/dev/null || true
+    print_info "已标记为 $tag_name"
+
+    # 恢复到原分支
+    if [ -n "${SWITCHED_FROM}" ]; then
+        cd "$PROJECT_DIR"
+        git checkout "$SWITCHED_FROM"
+        # 恢复 stash（如果有）
+        if git stash list | head -1 | grep -q "vibeflow-build-"; then
+            git stash pop 2>/dev/null || true
+        fi
+        print_info "已恢复到分支: $SWITCHED_FROM"
+    fi
 
     # Check for port conflicts
     if check_port $BACKEND_PORT; then
@@ -138,10 +172,6 @@ cmd_start() {
 
     # Start backend with PM2
     print_info "Starting backend server on port $BACKEND_PORT..."
-
-    # Build custom server (server.ts -> dist/server.js)
-    print_info "Building custom server with Socket.io..."
-    npm run build:server
 
     # Check if ecosystem.config.js exists
     if [ -f "ecosystem.config.js" ]; then
@@ -352,6 +382,55 @@ cmd_resume() {
     fi
 }
 
+# Rollback command - 回滚到指定的稳定版本
+cmd_rollback() {
+    local target="${2:-}"
+    cd "$PROJECT_DIR"
+
+    check_pm2
+
+    if [ -z "$target" ]; then
+        target=$(git tag -l 'stable/*' --sort=-creatordate | head -1)
+        if [ -z "$target" ]; then
+            print_error "没有找到稳定版本 tag，请先运行 vibeflow start"
+            exit 1
+        fi
+    fi
+    print_info "回滚到 $target ..."
+
+    # 保存当前分支
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD)
+    git stash --include-untracked -m "vibeflow-rollback-$(date +%s)" 2>/dev/null || true
+    git checkout "$target"
+
+    # 重新构建并启动
+    cmd_stop
+    sleep 2
+
+    print_info "Building backend from $target ..."
+    rm -rf .next
+    npm run build
+    npm run build:server
+
+    if [ -f "ecosystem.config.js" ]; then
+        pm2 start ecosystem.config.js --only vibeflow-backend --env production
+    else
+        pm2 start dist/server.js --name "$PM2_NAME" --cwd "$PROJECT_DIR"
+    fi
+
+    if check_backend_health; then
+        print_success "回滚成功，稳定版已恢复到 $target"
+    else
+        print_error "回滚后健康检查失败，请检查日志"
+    fi
+
+    # 恢复到原分支（不影响已编译的 dist/）
+    git checkout "$CURRENT_BRANCH" 2>/dev/null || true
+    if git stash list | head -1 | grep -q "vibeflow-rollback-"; then
+        git stash pop 2>/dev/null || true
+    fi
+}
+
 # Guardian install command
 cmd_guardian_install() {
     print_info "安装 Guardian 守护进程..."
@@ -396,8 +475,10 @@ cmd_help() {
     echo ""
     echo "Commands:"
     echo "  start     Start all VibeFlow services (backend + desktop)"
+    echo "              Always builds from main branch regardless of current checkout"
     echo "  stop      Stop all VibeFlow services"
     echo "  restart   Restart all VibeFlow services"
+    echo "  rollback [tag]  Rollback to a stable version (default: latest stable tag)"
     echo "  status    Show status of all services"
     echo "  logs      Show backend server logs (default: last 100 lines)"
     echo "  pause [m] Pause Guardian for m minutes (default/max: 60)"
@@ -410,11 +491,12 @@ cmd_help() {
     echo "  VIBEFLOW_PORT    Backend server port (default: 3000)"
     echo ""
     echo "Examples:"
-    echo "  vibeflow start              # Start all services"
+    echo "  vibeflow start              # Build from main + start all services"
+    echo "  vibeflow rollback           # Rollback to latest stable tag"
+    echo "  vibeflow rollback stable/20260227-143000  # Rollback to specific tag"
     echo "  vibeflow status             # Check service status"
     echo "  vibeflow logs 50            # Show last 50 log lines"
     echo "  vibeflow pause 30           # Pause Guardian for 30 minutes"
-    echo "  VIBEFLOW_PORT=3001 vibeflow start  # Start on custom port"
     echo ""
 }
 
@@ -446,6 +528,9 @@ case "${1:-help}" in
         ;;
     guardian-uninstall)
         cmd_guardian_uninstall
+        ;;
+    rollback)
+        cmd_rollback "$@"
         ;;
     help|--help|-h)
         cmd_help

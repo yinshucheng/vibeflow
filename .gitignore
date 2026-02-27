@@ -18,9 +18,11 @@ playwright/.cache/
 # Environment files
 .env
 .env.local
+.env.dev
 .env.development.local
 .env.test.local
 .env.production.local
+vibeflow-ios/.env
 
 # IDE & Editor
 .vscode/
