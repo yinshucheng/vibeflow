@@ -765,27 +765,27 @@ describe('chatService', () => {
 
 > 依赖: F6 上下文管理
 
-- [ ] **S6.1 意图分类 `classifyIntent()`**
+- [x] **S6.1 意图分类 `classifyIntent()`** ✅ `9fceada`
   - 关键词匹配: quick_action / planning / review / task_mgmt / project
   - 零 LLM 成本
 
-- [ ] **S6.2 Tool 子集策略**
+- [x] **S6.2 Tool 子集策略** ✅ `9fceada`
   - 按系统状态 + 意图动态选择 Tool 子集
   - FOCUS: + switch_task, complete_current_task, report_blocker
   - PLANNING: + overdue, backlog, batch_update, set_plan_date, move_task
   - 意图=project: + 项目管理 5 个
 
-- [ ] **S6.3 Dynamic Context 按意图加载**
+- [x] **S6.3 Dynamic Context 按意图加载** ✅ `9fceada`
   - planning → tasks/today + analytics/productivity
   - review → history/pomodoros + analytics/productivity
   - task_mgmt → tasks/today + projects/active
   - quick_action → 不加载额外上下文
 
-- [ ] **S6.4 场景路由配置**
+- [x] **S6.4 场景路由配置** ✅ `9fceada`
   - `DEFAULT_SCENE_CONFIG`: 不同场景使用不同模型/温度/maxTokens
   - `getSceneConfig()`: 代码默认 → 环境变量 → 用户设置 三级优先级
 
-- [ ] **S6.5 测试: 意图路由**
+- [x] **S6.5 测试: 意图路由** ✅ `9fceada`
   - `tests/services/chat-intent.test.ts`:
     - "搞定了" / "完成" / "done" → quick_action
     - "帮我规划今天" / "今天做什么" → planning
@@ -823,22 +823,22 @@ describe('chatService', () => {
 
 > 依赖: F6 + F7
 
-- [ ] **S7.1 摘要生成**
+- [x] **S7.1 摘要生成** ✅ `9fceada`
   - 消息 > 40 条时用 Haiku 生成早期消息摘要
   - 摘要缓存，注入 LLM 消息头部
 
-- [ ] **S7.2 Tool Result 压缩**
+- [x] **S7.2 Tool Result 压缩** ✅ `9fceada`
   - DB 存完整 JSON，LLM Prompt 中截断到 500 tokens
 
-- [ ] **S7.3 上下文使用率 UI**
+- [x] **S7.3 上下文使用率 UI** ✅ `9fceada`
   - Chat 面板底部: 使用率条 + 颜色梯度（绿/黄/橙/红）
   - 展示 tokens / 模型窗口 + 消息轮次 + 模型名
 
-- [ ] **S7.4 自动压缩触发**
+- [x] **S7.4 自动压缩触发** ✅ `9fceada`
   - 上下文使用率 > 80% → 自动生成摘要压缩历史
   - > 90% → 建议开新会话
 
-- [ ] **S7.5 测试: 长对话保障**
+- [x] **S7.5 测试: 长对话保障** ✅ `9fceada`
   - `tests/services/chat-summary.test.ts`:
     - 消息数 <= 40 → 不生成摘要
     - 消息数 > 40 → 调用 LLM 生成摘要（mock），摘要注入消息头部
