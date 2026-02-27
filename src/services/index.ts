@@ -536,6 +536,13 @@ export type {
   TokenUsage,
 } from './llm-adapter.service';
 
+// Chat Service exports (F3)
+export { chatService, conversationLocks, acquireLock } from './chat.service';
+export type {
+  HandleMessageResult,
+  OnDeltaCallback,
+} from './chat.service';
+
 // Demo Mode Service exports (Requirements: 6.1, 6.2, 6.3, 6.4, 6.7, 6.9, 6.10)
 export { demoModeService } from './demo-mode.service';
 export type {
