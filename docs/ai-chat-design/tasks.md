@@ -410,19 +410,19 @@ describe('chatService', () => {
 
 ### F6. 上下文管理
 
-- [ ] **F6.1 System Prompt 构建**
+- [x] **F6.1 System Prompt 构建** ✅ `3d8731a`
   - `buildSystemPrompt(userId)`: 静态模板（角色定义 + 行为准则）+ 动态上下文
   - 动态上下文: 复用 `contextProviderService.getFullContext(userId)` — 当前状态、活跃番茄钟、Top 3 等
   - MVP 阶段始终加载全量上下文（不做意图路由）
 
-- [ ] **F6.2 消息构建与滑动窗口**
+- [x] **F6.2 消息构建与滑动窗口** ✅ `3d8731a`
   - `buildLLMMessages(userId, conversationId, newMessage)`:
     - DB 取最近 N=20 条消息
     - 跳过 `role: 'system'`（日期分割线等不送入 LLM）
     - 加入新用户消息
   - Token 裁剪: 超出预算时从最早的 recent 消息开始移除
 
-- [ ] **F6.3 测试: 上下文管理**
+- [x] **F6.3 测试: 上下文管理** ✅ `3d8731a`
   - `tests/services/chat-context.test.ts`:
     - `buildSystemPrompt`: 返回值包含当前状态、Top 3 等动态数据
     - `buildLLMMessages`: 数据库有 30 条消息 → 只取最近 20 条
