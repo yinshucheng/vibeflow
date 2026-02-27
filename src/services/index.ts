@@ -546,8 +546,8 @@ export type {
 // Chat Context Service exports (F6)
 export { chatContextService, CONTEXT_WINDOW, estimateTokens, SYSTEM_PROMPT_TEMPLATE } from './chat-context.service';
 
-// Chat Tools Service exports (F4)
-export { chatToolsService, createChatTools, getChatToolDefinitions } from './chat-tools.service';
+// Chat Tools Service exports (F4 + S1)
+export { chatToolsService, createChatTools, getChatToolDefinitions, CHAT_TOOL_SCHEMAS } from './chat-tools.service';
 export type {
   ChatToolDefinition,
   ChatToolResult,

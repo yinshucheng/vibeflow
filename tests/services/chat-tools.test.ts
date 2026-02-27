@@ -16,12 +16,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('../../src/services/task.service', () => ({
   taskService: {
     updateStatus: vi.fn(),
+    create: vi.fn(),
+    quickCreateInboxTask: vi.fn(),
   },
 }));
 
 vi.mock('../../src/services/pomodoro.service', () => ({
   pomodoroService: {
     start: vi.fn(),
+    startTaskless: vi.fn(),
+    completeTaskInPomodoro: vi.fn(),
+    record: vi.fn(),
   },
 }));
 
@@ -29,6 +34,35 @@ vi.mock('../../src/services/nl-parser.service', () => ({
   nlParserService: {
     parseTaskDescription: vi.fn(),
     confirmAndCreate: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/services/project.service', () => ({
+  projectService: { create: vi.fn(), update: vi.fn(), getById: vi.fn() },
+}));
+
+vi.mock('../../src/services/time-slice.service', () => ({
+  timeSliceService: { switchTask: vi.fn() },
+}));
+
+vi.mock('../../src/services/activity-log.service', () => ({
+  activityLogService: { create: vi.fn() },
+}));
+
+vi.mock('../../src/services/efficiency-analysis.service', () => ({
+  efficiencyAnalysisService: { getHistoricalAnalysis: vi.fn() },
+}));
+
+vi.mock('../../src/lib/prisma', () => ({
+  default: {
+    task: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(), create: vi.fn(), delete: vi.fn(), count: vi.fn() },
+    project: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    pomodoro: { findFirst: vi.fn(), findMany: vi.fn() },
+    dailyState: { findUnique: vi.fn(), upsert: vi.fn() },
+    goal: { findFirst: vi.fn() },
+    projectTemplate: { findFirst: vi.fn() },
+    userSettings: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -58,9 +92,9 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('getChatToolDefinitions', () => {
-  it('should return 3 tool definitions', () => {
+  it('should return 27 tool definitions (3 original + 24 from S1)', () => {
     const defs = getChatToolDefinitions();
-    expect(defs).toHaveLength(3);
+    expect(defs).toHaveLength(27);
     const names = defs.map((d) => d.name);
     expect(names).toContain('flow_complete_task');
     expect(names).toContain('flow_create_task_from_nl');
@@ -80,9 +114,9 @@ describe('getChatToolDefinitions', () => {
 });
 
 describe('createChatTools', () => {
-  it('should return a ToolSet with all 3 tools', () => {
+  it('should return a ToolSet with all 27 tools', () => {
     const toolSet = createChatTools(TEST_USER_ID);
-    expect(Object.keys(toolSet)).toHaveLength(3);
+    expect(Object.keys(toolSet)).toHaveLength(27);
     expect(toolSet).toHaveProperty('flow_complete_task');
     expect(toolSet).toHaveProperty('flow_create_task_from_nl');
     expect(toolSet).toHaveProperty('flow_start_pomodoro');

@@ -10,21 +10,43 @@ import fc from 'fast-check';
 
 // Mock services before importing chat-tools
 vi.mock('../../src/services/task.service', () => ({
-  taskService: {
-    updateStatus: vi.fn(),
-  },
+  taskService: { updateStatus: vi.fn(), create: vi.fn(), quickCreateInboxTask: vi.fn() },
 }));
 
 vi.mock('../../src/services/pomodoro.service', () => ({
-  pomodoroService: {
-    start: vi.fn(),
-  },
+  pomodoroService: { start: vi.fn(), startTaskless: vi.fn(), completeTaskInPomodoro: vi.fn(), record: vi.fn() },
 }));
 
 vi.mock('../../src/services/nl-parser.service', () => ({
-  nlParserService: {
-    parseTaskDescription: vi.fn(),
-    confirmAndCreate: vi.fn(),
+  nlParserService: { parseTaskDescription: vi.fn(), confirmAndCreate: vi.fn() },
+}));
+
+vi.mock('../../src/services/project.service', () => ({
+  projectService: { create: vi.fn(), update: vi.fn(), getById: vi.fn() },
+}));
+
+vi.mock('../../src/services/time-slice.service', () => ({
+  timeSliceService: { switchTask: vi.fn() },
+}));
+
+vi.mock('../../src/services/activity-log.service', () => ({
+  activityLogService: { create: vi.fn() },
+}));
+
+vi.mock('../../src/services/efficiency-analysis.service', () => ({
+  efficiencyAnalysisService: { getHistoricalAnalysis: vi.fn() },
+}));
+
+vi.mock('../../src/lib/prisma', () => ({
+  default: {
+    task: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(), create: vi.fn(), delete: vi.fn(), count: vi.fn() },
+    project: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    pomodoro: { findFirst: vi.fn(), findMany: vi.fn() },
+    dailyState: { findUnique: vi.fn(), upsert: vi.fn() },
+    goal: { findFirst: vi.fn() },
+    projectTemplate: { findFirst: vi.fn() },
+    userSettings: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
