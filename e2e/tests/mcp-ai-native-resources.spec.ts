@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures';
+import { PomodoroStatus } from '@prisma/client';
 
 /**
  * MCP AI-Native Enhancement Resources E2E Tests
@@ -118,7 +119,7 @@ test.describe('MCP AI-Native Enhancement Resources', () => {
           taskId: task.id,
           userId: testUser.id,
           duration: 25,
-          status: 'COMPLETED',
+          status: 'COMPLETED' as PomodoroStatus,
           startTime,
           endTime: new Date(startTime.getTime() + 25 * 60 * 1000),
         });
@@ -149,8 +150,8 @@ test.describe('MCP AI-Native Enhancement Resources', () => {
       for (const p of pomodoros) {
         expect(p.id).toBeDefined();
         expect(p.taskId).toBe(task.id);
-        expect(p.task.title).toBe('Pomodoro History Task');
-        expect(p.task.project.title).toBe('Pomodoro History Project');
+        expect(p.task!.title).toBe('Pomodoro History Task');
+        expect(p.task!.project.title).toBe('Pomodoro History Project');
         expect(p.duration).toBe(25);
         expect(p.status).toBe('COMPLETED');
         expect(p.startTime).toBeDefined();
@@ -183,7 +184,7 @@ test.describe('MCP AI-Native Enhancement Resources', () => {
             taskId: task.id,
             userId: testUser.id,
             duration: 25,
-            status: 'COMPLETED',
+            status: 'COMPLETED' as PomodoroStatus,
             startTime: new Date(now.getTime() - 1000 * 60 * 60),
             endTime: new Date(now.getTime() - 1000 * 60 * 35),
           },
@@ -259,7 +260,7 @@ test.describe('MCP AI-Native Enhancement Resources', () => {
           taskId: task.id,
           userId: testUser.id,
           duration: 25,
-          status: 'COMPLETED',
+          status: 'COMPLETED' as PomodoroStatus,
           startTime: new Date(now.getTime() - i * 60 * 60 * 1000),
           endTime: new Date(now.getTime() - i * 60 * 60 * 1000 + 25 * 60 * 1000),
         });
@@ -271,7 +272,7 @@ test.describe('MCP AI-Native Enhancement Resources', () => {
       const completedPomodoros = await prisma.pomodoro.count({
         where: {
           userId: testUser.id,
-          status: 'COMPLETED',
+          status: 'COMPLETED' as PomodoroStatus,
         },
       });
 
@@ -543,7 +544,7 @@ test.describe('MCP AI-Native Enhancement Resources', () => {
           userId: otherUser.id,
           taskId: otherTask.id,
           duration: 25,
-          status: 'COMPLETED',
+          status: 'COMPLETED' as PomodoroStatus,
           startTime: new Date(),
           endTime: new Date(Date.now() + 25 * 60 * 1000),
         },

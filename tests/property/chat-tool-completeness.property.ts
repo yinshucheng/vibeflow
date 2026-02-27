@@ -50,14 +50,14 @@ import { getChatToolDefinitions, CHAT_TOOL_SCHEMAS } from '../../src/services/ch
 // Extract all MCP tool names from the TOOLS constant
 // ---------------------------------------------------------------------------
 
-const MCP_TOOL_NAMES = new Set(Object.values(TOOLS));
+const MCP_TOOL_NAMES: Set<string> = new Set(Object.values(TOOLS));
 const CHAT_TOOL_NAMES = new Set(getChatToolDefinitions().map(d => d.name));
 const CHAT_SCHEMA_NAMES = new Set(Object.keys(CHAT_TOOL_SCHEMAS));
 
 describe('Chat Tool ↔ MCP Tool completeness', () => {
   it('every MCP tool should have a corresponding Chat Tool definition', () => {
     const missingInChat: string[] = [];
-    for (const mcpToolName of MCP_TOOL_NAMES) {
+    for (const mcpToolName of Array.from(MCP_TOOL_NAMES)) {
       if (!CHAT_TOOL_NAMES.has(mcpToolName)) {
         missingInChat.push(mcpToolName);
       }
@@ -67,7 +67,7 @@ describe('Chat Tool ↔ MCP Tool completeness', () => {
 
   it('every Chat Tool definition should correspond to an MCP tool', () => {
     const extraInChat: string[] = [];
-    for (const chatToolName of CHAT_TOOL_NAMES) {
+    for (const chatToolName of Array.from(CHAT_TOOL_NAMES)) {
       if (!MCP_TOOL_NAMES.has(chatToolName)) {
         extraInChat.push(chatToolName);
       }
@@ -76,14 +76,14 @@ describe('Chat Tool ↔ MCP Tool completeness', () => {
   });
 
   it('MCP tools set and Chat Tools set should be identical', () => {
-    const mcpNames = [...MCP_TOOL_NAMES].sort();
-    const chatNames = [...CHAT_TOOL_NAMES].sort();
+    const mcpNames = Array.from(MCP_TOOL_NAMES).sort();
+    const chatNames = Array.from(CHAT_TOOL_NAMES).sort();
     expect(chatNames).toEqual(mcpNames);
   });
 
   it('every Chat Tool should have an exported Zod schema', () => {
     const missingSchemas: string[] = [];
-    for (const chatToolName of CHAT_TOOL_NAMES) {
+    for (const chatToolName of Array.from(CHAT_TOOL_NAMES)) {
       if (!CHAT_SCHEMA_NAMES.has(chatToolName)) {
         missingSchemas.push(chatToolName);
       }

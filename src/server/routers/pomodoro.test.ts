@@ -53,14 +53,14 @@ vi.mock('@/services/socket-broadcast.service', () => ({
   broadcastPolicyUpdate: vi.fn(),
 }));
 
-const mockPomodoroService = pomodoroService as {
+const mockPomodoroService = pomodoroService as unknown as {
   startTaskless: ReturnType<typeof vi.fn>;
   getSummary: ReturnType<typeof vi.fn>;
   completeTaskInPomodoro: ReturnType<typeof vi.fn>;
   getLastTask: ReturnType<typeof vi.fn>;
 };
 
-const mockDailyStateService = dailyStateService as {
+const mockDailyStateService = dailyStateService as unknown as {
   isDailyCapped: ReturnType<typeof vi.fn>;
   updateSystemState: ReturnType<typeof vi.fn>;
 };

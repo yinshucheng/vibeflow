@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures';
+import { PomodoroStatus } from '@prisma/client';
 
 /**
  * MCP AI-Native Enhancement Tools E2E Tests
@@ -565,8 +566,8 @@ test.describe('MCP AI-Native Enhancement Tools', () => {
       // Group by task
       const taskPomodoros = new Map<string, number>();
       for (const p of completedPomodoros) {
-        const count = taskPomodoros.get(p.taskId) || 0;
-        taskPomodoros.set(p.taskId, count + 1);
+        const count = taskPomodoros.get(p.taskId!) || 0;
+        taskPomodoros.set(p.taskId!, count + 1);
       }
 
       expect(taskPomodoros.get(task1.id)).toBe(2);
@@ -607,7 +608,7 @@ test.describe('MCP AI-Native Enhancement Tools', () => {
           taskId: task.id,
           userId: testUser.id,
           duration: 25,
-          status: 'COMPLETED',
+          status: 'COMPLETED' as PomodoroStatus,
           startTime: new Date(today.getTime() + (9 + i) * 60 * 60 * 1000),
           endTime: new Date(today.getTime() + (9 + i) * 60 * 60 * 1000 + 25 * 60 * 1000),
         });

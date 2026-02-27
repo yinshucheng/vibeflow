@@ -96,8 +96,8 @@ test.describe('MCP Integration', () => {
       });
 
       expect(currentPomodoro).not.toBeNull();
-      expect(currentPomodoro?.task.project.title).toBe('MCP Test Project');
-      expect(currentPomodoro?.task.title).toBe('MCP Test Task');
+      expect(currentPomodoro?.task!.project.title).toBe('MCP Test Project');
+      expect(currentPomodoro?.task!.title).toBe('MCP Test Task');
     });
 
     test('should return user goals', async ({

@@ -170,8 +170,8 @@ describe('createChatTools — full ToolSet', () => {
 describe('S1.1 Task management tools', () => {
   describe('flow_update_task', () => {
     it('should update task via prisma with injected userId', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 'task-1', userId: TEST_USER_ID });
-      mockPrisma.task.update.mockResolvedValue({ id: 'task-1', title: 'Updated', priority: 'P1', status: 'TODO', planDate: null });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 'task-1', userId: TEST_USER_ID } as never);
+      mockPrisma.task.update.mockResolvedValue({ id: 'task-1', title: 'Updated', priority: 'P1', status: 'TODO', planDate: null } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_update_task.execute!({ task_id: 'task-1', title: 'Updated', priority: 'P1' }, TOOL_CALL_CTX);
@@ -196,7 +196,7 @@ describe('S1.1 Task management tools', () => {
         project: { id: 'proj-1', title: 'Project' }, parent: null,
         subTasks: [], pomodoros: [], blockers: [],
         createdAt: new Date(), updatedAt: new Date(),
-      });
+      } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_get_task.execute!({ task_id: 'task-1' }, TOOL_CALL_CTX);
@@ -208,7 +208,7 @@ describe('S1.1 Task management tools', () => {
 
   describe('flow_add_subtask', () => {
     it('should create subtask under parent task with injected userId', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 'parent-1', userId: TEST_USER_ID, projectId: 'proj-1' });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 'parent-1', userId: TEST_USER_ID, projectId: 'proj-1' } as never);
       vi.mocked(taskService.create).mockResolvedValue({
         success: true,
         data: { id: 'sub-1', title: 'Sub', priority: 'P2', parentId: 'parent-1', projectId: 'proj-1' } as never,
@@ -232,11 +232,11 @@ describe('S1.1 Task management tools', () => {
 
   describe('flow_get_top3', () => {
     it('should return top 3 tasks from daily state', async () => {
-      mockPrisma.dailyState.findUnique.mockResolvedValue({ top3TaskIds: ['t1', 't2'] });
+      mockPrisma.dailyState.findUnique.mockResolvedValue({ top3TaskIds: ['t1', 't2'] } as never);
       mockPrisma.task.findMany.mockResolvedValue([
         { id: 't1', title: 'Task 1', priority: 'P1', status: 'TODO', projectId: 'p1', project: { id: 'p1', title: 'Proj' } },
         { id: 't2', title: 'Task 2', priority: 'P2', status: 'TODO', projectId: 'p1', project: { id: 'p1', title: 'Proj' } },
-      ]);
+      ] as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_get_top3.execute!({}, TOOL_CALL_CTX);
@@ -256,8 +256,8 @@ describe('S1.1 Task management tools', () => {
     it('should set top 3 tasks for today', async () => {
       mockPrisma.task.findMany.mockResolvedValue([
         { id: 't1', title: 'T1', priority: 'P1', project: { id: 'p1', title: 'P' } },
-      ]);
-      mockPrisma.dailyState.upsert.mockResolvedValue({});
+      ] as never);
+      mockPrisma.dailyState.upsert.mockResolvedValue({} as never);
       mockPrisma.task.updateMany.mockResolvedValue({ count: 1 });
 
       const tools = createChatTools(TEST_USER_ID);
@@ -300,7 +300,7 @@ describe('S1.2 Pomodoro control tools', () => {
       mockPrisma.pomodoro.findFirst.mockResolvedValue({
         id: 'pom-1', userId: TEST_USER_ID, status: 'IN_PROGRESS',
         timeSlices: [{ id: 'slice-1', endTime: null }],
-      });
+      } as never);
       vi.mocked(timeSliceService.switchTask).mockResolvedValue({
         success: true,
         data: { id: 'slice-2', taskId: 'task-2', startTime: new Date() } as never,
@@ -380,7 +380,7 @@ describe('S1.3 Batch & planning tools', () => {
     it('should fetch overdue tasks with injected userId', async () => {
       mockPrisma.task.findMany.mockResolvedValue([
         { id: 't1', title: 'Late', priority: 'P1', status: 'TODO', planDate: new Date('2025-01-01'), projectId: 'p1', project: { id: 'p1', title: 'Proj' } },
-      ]);
+      ] as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_get_overdue_tasks.execute!({}, TOOL_CALL_CTX);
@@ -404,11 +404,11 @@ describe('S1.3 Batch & planning tools', () => {
 
   describe('flow_batch_update_tasks', () => {
     it('should batch update tasks in transaction', async () => {
-      mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => Promise<void>) => {
-        await fn(mockPrisma);
+      mockPrisma.$transaction.mockImplementation(async (fn: unknown) => {
+        await (fn as (tx: typeof mockPrisma) => Promise<void>)(mockPrisma);
       });
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID });
-      mockPrisma.task.update.mockResolvedValue({ id: 't1' });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID } as never);
+      mockPrisma.task.update.mockResolvedValue({ id: 't1' } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_batch_update_tasks.execute!(
@@ -428,8 +428,8 @@ describe('S1.3 Batch & planning tools', () => {
 
   describe('flow_set_plan_date', () => {
     it('should set plan date with injected userId', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID });
-      mockPrisma.task.update.mockResolvedValue({ id: 't1', title: 'T', planDate: new Date('2026-03-01') });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID } as never);
+      mockPrisma.task.update.mockResolvedValue({ id: 't1', title: 'T', planDate: new Date('2026-03-01') } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_set_plan_date.execute!({ task_id: 't1', plan_date: '2026-03-01' }, TOOL_CALL_CTX);
@@ -439,8 +439,8 @@ describe('S1.3 Batch & planning tools', () => {
     });
 
     it('should clear plan date with null', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID });
-      mockPrisma.task.update.mockResolvedValue({ id: 't1', title: 'T', planDate: null });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID } as never);
+      mockPrisma.task.update.mockResolvedValue({ id: 't1', title: 'T', planDate: null } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_set_plan_date.execute!({ task_id: 't1', plan_date: null }, TOOL_CALL_CTX);
@@ -452,9 +452,9 @@ describe('S1.3 Batch & planning tools', () => {
 
   describe('flow_move_task', () => {
     it('should move task to target project with injected userId', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID });
-      mockPrisma.project.findFirst.mockResolvedValue({ id: 'p2', userId: TEST_USER_ID });
-      mockPrisma.task.update.mockResolvedValue({ id: 't1', title: 'T', projectId: 'p2', project: { title: 'Target' } });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID } as never);
+      mockPrisma.project.findFirst.mockResolvedValue({ id: 'p2', userId: TEST_USER_ID } as never);
+      mockPrisma.task.update.mockResolvedValue({ id: 't1', title: 'T', projectId: 'p2', project: { title: 'Target' } } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_move_task.execute!({ task_id: 't1', target_project_id: 'p2' }, TOOL_CALL_CTX);
@@ -463,7 +463,7 @@ describe('S1.3 Batch & planning tools', () => {
     });
 
     it('should return NOT_FOUND for missing target project', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID } as never);
       mockPrisma.project.findFirst.mockResolvedValue(null);
 
       const tools = createChatTools(TEST_USER_ID);
@@ -480,7 +480,7 @@ describe('S1.3 Batch & planning tools', () => {
 describe('S1.4 Project management tools', () => {
   describe('flow_create_project', () => {
     it('should create project with injected userId', async () => {
-      mockPrisma.project.create.mockResolvedValue({ id: 'proj-1', title: 'New', deliverable: 'Del', status: 'ACTIVE' });
+      mockPrisma.project.create.mockResolvedValue({ id: 'proj-1', title: 'New', deliverable: 'Del', status: 'ACTIVE' } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_create_project.execute!({ title: 'New', deliverable: 'Del' }, TOOL_CALL_CTX);
@@ -492,8 +492,8 @@ describe('S1.4 Project management tools', () => {
 
   describe('flow_update_project', () => {
     it('should update project with injected userId', async () => {
-      mockPrisma.project.findFirst.mockResolvedValue({ id: 'proj-1', userId: TEST_USER_ID });
-      mockPrisma.project.update.mockResolvedValue({ id: 'proj-1', title: 'Updated', deliverable: 'D', status: 'ACTIVE' });
+      mockPrisma.project.findFirst.mockResolvedValue({ id: 'proj-1', userId: TEST_USER_ID } as never);
+      mockPrisma.project.update.mockResolvedValue({ id: 'proj-1', title: 'Updated', deliverable: 'D', status: 'ACTIVE' } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_update_project.execute!({ project_id: 'proj-1', title: 'Updated' }, TOOL_CALL_CTX);
@@ -515,7 +515,7 @@ describe('S1.4 Project management tools', () => {
       mockPrisma.project.findFirst.mockResolvedValue({
         id: 'proj-1', title: 'P', deliverable: 'D', status: 'ACTIVE',
         tasks: [], goals: [], createdAt: new Date(),
-      });
+      } as never);
       mockPrisma.task.count.mockResolvedValueOnce(10).mockResolvedValueOnce(3);
 
       const tools = createChatTools(TEST_USER_ID);
@@ -527,11 +527,11 @@ describe('S1.4 Project management tools', () => {
 
   describe('flow_create_project_from_template', () => {
     it('should create project from template with injected userId', async () => {
-      mockPrisma.projectTemplate.findFirst.mockResolvedValue({ id: 'tmpl-1', name: 'Tmpl', structure: { deliverable: 'D', tasks: [] } });
-      mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => Promise<{ project: { id: string; title: string }; tasks: never[] }>) => {
-        return fn(mockPrisma);
+      mockPrisma.projectTemplate.findFirst.mockResolvedValue({ id: 'tmpl-1', name: 'Tmpl', structure: { deliverable: 'D', tasks: [] } } as never);
+      mockPrisma.$transaction.mockImplementation(async (fn: unknown) => {
+        return (fn as (tx: typeof mockPrisma) => Promise<{ project: { id: string; title: string }; tasks: never[] }>)(mockPrisma);
       });
-      mockPrisma.project.create.mockResolvedValue({ id: 'proj-new', title: 'From Template' });
+      mockPrisma.project.create.mockResolvedValue({ id: 'proj-new', title: 'From Template' } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_create_project_from_template.execute!(
@@ -558,7 +558,7 @@ describe('S1.4 Project management tools', () => {
           { id: 't1', title: 'A', priority: 'P1', status: 'TODO', parentId: null, subTasks: [], blockers: [] },
           { id: 't2', title: 'B', priority: 'P2', status: 'TODO', parentId: null, subTasks: [], blockers: [] },
         ],
-      });
+      } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_analyze_task_dependencies.execute!({ project_id: 'proj-1' }, TOOL_CALL_CTX);
@@ -575,7 +575,7 @@ describe('S1.4 Project management tools', () => {
 describe('S1.5 Other tools', () => {
   describe('flow_report_blocker', () => {
     it('should report blocker with injected userId', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', title: 'Task', userId: TEST_USER_ID });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', title: 'Task', userId: TEST_USER_ID } as never);
       vi.mocked(activityLogService.create).mockResolvedValue({ success: true, data: { id: 'log-1' } as never });
 
       const tools = createChatTools(TEST_USER_ID);
@@ -588,8 +588,8 @@ describe('S1.5 Other tools', () => {
 
   describe('flow_delete_task', () => {
     it('should soft-delete (archive) by default', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID });
-      mockPrisma.task.update.mockResolvedValue({ id: 't1' });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID } as never);
+      mockPrisma.task.update.mockResolvedValue({ id: 't1' } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_delete_task.execute!({ task_id: 't1' }, TOOL_CALL_CTX);
@@ -599,8 +599,8 @@ describe('S1.5 Other tools', () => {
     });
 
     it('should hard-delete when archive=false', async () => {
-      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID });
-      mockPrisma.task.delete.mockResolvedValue({ id: 't1' });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: TEST_USER_ID } as never);
+      mockPrisma.task.delete.mockResolvedValue({ id: 't1' } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_delete_task.execute!({ task_id: 't1', archive: false }, TOOL_CALL_CTX);
@@ -620,7 +620,7 @@ describe('S1.5 Other tools', () => {
         id: 't1', title: 'T', priority: 'P2', status: 'TODO', planDate: null,
         project: { id: 'p1', title: 'P', deliverable: 'D', status: 'ACTIVE', goals: [] },
         parent: null, subTasks: [], pomodoros: [],
-      });
+      } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_get_task_context.execute!({ task_id: 't1' }, TOOL_CALL_CTX);
@@ -633,7 +633,7 @@ describe('S1.5 Other tools', () => {
     it('should generate summary with injected userId', async () => {
       mockPrisma.pomodoro.findMany.mockResolvedValue([]);
       mockPrisma.task.findMany.mockResolvedValue([]);
-      mockPrisma.userSettings.findUnique.mockResolvedValue({ expectedPomodoroCount: 8 });
+      mockPrisma.userSettings.findUnique.mockResolvedValue({ expectedPomodoroCount: 8 } as never);
       vi.mocked(efficiencyAnalysisService.getHistoricalAnalysis).mockResolvedValue({ success: true, data: { insights: [], byTimePeriod: [] } as never });
 
       const tools = createChatTools(TEST_USER_ID);
@@ -650,8 +650,8 @@ describe('S1.5 Other tools', () => {
 
 describe('userId injection — all tools use closure userId', () => {
   it('different users get different closures for flow_update_task', async () => {
-    mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: 'user-A' });
-    mockPrisma.task.update.mockResolvedValue({ id: 't1', title: 'x', priority: 'P2', status: 'TODO', planDate: null });
+    mockPrisma.task.findFirst.mockResolvedValue({ id: 't1', userId: 'user-A' } as never);
+    mockPrisma.task.update.mockResolvedValue({ id: 't1', title: 'x', priority: 'P2', status: 'TODO', planDate: null } as never);
 
     const toolsA = createChatTools('user-A');
     const toolsB = createChatTools('user-B');
@@ -659,7 +659,7 @@ describe('userId injection — all tools use closure userId', () => {
     await toolsA.flow_update_task.execute!({ task_id: 't1', title: 'x' }, TOOL_CALL_CTX);
     await toolsB.flow_update_task.execute!({ task_id: 't1', title: 'y' }, TOOL_CALL_CTX);
 
-    const calls = mockPrisma.task.findFirst.mock.calls;
+    const calls = mockPrisma.task.findFirst.mock.calls as Array<[{ where: { userId: string } }]>;
     expect(calls[0][0].where.userId).toBe('user-A');
     expect(calls[1][0].where.userId).toBe('user-B');
   });

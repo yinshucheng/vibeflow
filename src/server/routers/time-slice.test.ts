@@ -10,7 +10,7 @@ vi.mock('@/services/time-slice.service', () => ({
   },
 }));
 
-const mockService = timeSliceService as {
+const mockService = timeSliceService as unknown as {
   switchTask: ReturnType<typeof vi.fn>;
   getByPomodoro: ReturnType<typeof vi.fn>;
   updateSlice: ReturnType<typeof vi.fn>;
