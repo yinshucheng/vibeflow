@@ -582,3 +582,31 @@ export {
   MAX_DEMO_DURATION_MINUTES,
   DEFAULT_CONFIRMATION_PHRASE,
 } from './demo-mode.service';
+
+// AI Trigger Service exports (S4)
+export { aiTriggerService, registerProactiveBroadcaster } from './ai-trigger.service';
+export type {
+  TriggerDefinition,
+  TriggerPriority,
+  TriggerSourceType,
+  AITriggerConfig,
+  FireResult,
+} from './ai-trigger.service';
+export {
+  DEFAULT_AI_TRIGGER_CONFIG,
+  BUILTIN_TRIGGERS,
+  getEscalationLevel,
+  getEscalationTemplate,
+} from './ai-trigger.service';
+
+// Chat State Triggers Service exports (S5)
+export { chatTriggersStateService } from './chat-triggers-state.service';
+export {
+  handleDailyStateChanged,
+  handlePomodoroCompleted,
+  handleOverRestEscalation,
+  handlePlanningEnter,
+  handleRestEnter,
+  handleOverRestEnter,
+  handleTaskStuck,
+} from './chat-triggers-state.service';

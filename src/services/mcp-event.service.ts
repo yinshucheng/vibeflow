@@ -31,6 +31,13 @@ export const MCPEventTypeSchema = z.enum([
   'pomodoro.aborted',
   // Daily state events (Requirement 10.3)
   'daily_state.changed',
+  'daily_state.over_rest_entered',
+  'daily_state.daily_reset',
+  // Entertainment events (S4.2)
+  'entertainment.started',
+  'entertainment.stopped',
+  // Early warning events (S4.2)
+  'early_warning.triggered',
   // Blocker events
   'blocker.reported',
   'blocker.resolved',

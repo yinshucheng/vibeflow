@@ -696,6 +696,10 @@ export interface ChatResponsePayload {
   type: 'delta' | 'complete';
   content: string;
   usage?: { inputTokens: number; outputTokens: number };
+  /** True when message is an AI-initiated proactive push (S4) */
+  isProactive?: boolean;
+  /** Trigger that generated this proactive message (S4) */
+  triggerId?: string;
 }
 
 export interface ChatResponseCommand extends BaseCommand {
@@ -1527,6 +1531,8 @@ export const ChatResponsePayloadSchema = z.object({
     inputTokens: z.number(),
     outputTokens: z.number(),
   }).optional(),
+  isProactive: z.boolean().optional(),
+  triggerId: z.string().optional(),
 });
 
 export const ChatResponseCommandSchema = BaseCommandSchema.extend({

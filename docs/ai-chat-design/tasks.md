@@ -673,23 +673,23 @@ describe('chatService', () => {
 
 > 依赖: F5 传输层 + F3 会话管理
 
-- [ ] **S4.1 触发器框架 `ai-trigger.service.ts`**
+- [x] **S4.1 触发器框架 `ai-trigger.service.ts`** ✅ `COMMIT_HASH`
   - `TriggerDefinition` 接口 + 注册表
   - `shouldFire()`: 防抖 / 用户偏好 / 静默期 / FOCUS 保护
   - `fire()`: LLM 生成或模板渲染 → Socket.io 推送 → 审计日志
   - 消息标记 `metadata.isProactive` + `metadata.triggerId`
 
-- [ ] **S4.2 补齐 MCP 事件发布**
+- [x] **S4.2 补齐 MCP 事件发布** ✅ `COMMIT_HASH`
   - `daily_state.over_rest_entered` → overRestService
   - `entertainment.started/stopped` → entertainmentService
   - `daily_state.daily_reset` → dailyResetSchedulerService
   - `early_warning.triggered` → earlyWarningService
 
-- [ ] **S4.3 主动消息客户端展示**
+- [x] **S4.3 主动消息客户端展示** ✅ `COMMIT_HASH`
   - iOS: `isProactive` 消息视觉区分（触发原因标签 + 快捷操作按钮）
   - Chat 面板未打开时 → 系统通知
 
-- [ ] **S4.4 测试: 主动触发框架**
+- [x] **S4.4 测试: 主动触发框架** ✅ `COMMIT_HASH`
   - `tests/services/ai-trigger.service.test.ts`:
     - `shouldFire`: 全局关闭 → false
     - `shouldFire`: 该触发器关闭 → false
@@ -718,22 +718,22 @@ describe('chatService', () => {
 
 > 依赖: S4 触发框架
 
-- [ ] **S5.1 `on_planning_enter`**
+- [x] **S5.1 `on_planning_enter`** ✅ `COMMIT_HASH`
   - Airlock 完成 → LLM 生成每日规划建议（Top 3 推荐）
 
-- [ ] **S5.2 `on_rest_enter`**
+- [x] **S5.2 `on_rest_enter`** ✅ `COMMIT_HASH`
   - 番茄钟完成 → LLM 总结本轮 + 推荐下一步
 
-- [ ] **S5.3 `on_over_rest_enter`**
+- [x] **S5.3 `on_over_rest_enter`** ✅ `COMMIT_HASH`
   - 休息超时 → 模板提醒回归
 
-- [ ] **S5.4 `over_rest_escalation`**
+- [x] **S5.4 `over_rest_escalation`** ✅ `COMMIT_HASH`
   - 超时升级: 0-5min 温和 / 5-10min 催促 / 10min+ 强烈
 
-- [ ] **S5.5 `task_stuck`**
+- [x] **S5.5 `task_stuck`** ✅ `COMMIT_HASH`
   - 同一任务连续 3+ 番茄钟 → LLM 建议拆分
 
-- [ ] **S5.6 测试: 状态转换触发器**
+- [x] **S5.6 测试: 状态转换触发器** ✅ `COMMIT_HASH`
   - `tests/services/chat-triggers-state.test.ts`:
     - 模拟 `daily_state.changed` 事件 (newState=planning) → `on_planning_enter` 触发
     - 模拟 `pomodoro.completed` 事件 → `on_rest_enter` 触发

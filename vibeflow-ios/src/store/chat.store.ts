@@ -44,6 +44,9 @@ export interface ChatActions {
   finalizeStreamMessage: (messageId: string, content: string) => void;
   setMessages: (messages: ChatMessage[]) => void;
 
+  // Proactive message action (S4.3)
+  addProactiveMessage: (messageId: string, content: string, triggerId?: string) => void;
+
   // Tool call actions
   addPendingToolCall: (toolCall: PendingToolCall) => void;
   addToolCallMessage: (payload: ChatToolCallPayload) => void;
@@ -139,6 +142,22 @@ export const useChatStore = create<ChatState & ChatActions>((set) => ({
   },
 
   setMessages: (messages: ChatMessage[]) => set({ messages }),
+
+  // ---- Proactive message action (S4.3) ----
+
+  addProactiveMessage: (messageId: string, content: string, triggerId?: string) => {
+    const proactiveMessage: ChatMessage = {
+      id: messageId,
+      role: 'assistant',
+      content,
+      metadata: { isProactive: true, triggerId },
+      createdAt: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      messages: [...state.messages, proactiveMessage],
+    }));
+  },
 
   // ---- Tool call actions ----
 

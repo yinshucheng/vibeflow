@@ -4,6 +4,7 @@ import type { Pomodoro, PomodoroStatus } from '@prisma/client';
 import { mcpEventService } from './mcp-event.service';
 import { dailyStateService } from './daily-state.service';
 import { overRestService } from './over-rest.service';
+import { chatTriggersStateService } from './chat-triggers-state.service';
 
 // Timer configuration constraints (Requirements: 14.5)
 const MIN_POMODORO_DURATION = 10; // minutes
@@ -263,19 +264,24 @@ export const pomodoroService = {
       });
 
       // Publish pomodoro.completed event (Requirement 10.2)
+      const pomodoroPayload = {
+        pomodoroId: pomodoro.id,
+        taskId: pomodoro.taskId,
+        taskTitle: pomodoro.task?.title ?? 'Taskless',
+        duration: pomodoro.duration,
+        startTime: pomodoro.startTime.toISOString(),
+        endTime: pomodoro.endTime?.toISOString() ?? null,
+        summary: pomodoro.summary,
+      };
       await mcpEventService.publish({
         type: 'pomodoro.completed',
         userId,
-        payload: {
-          pomodoroId: pomodoro.id,
-          taskId: pomodoro.taskId,
-          taskTitle: pomodoro.task?.title ?? 'Taskless',
-          duration: pomodoro.duration,
-          startTime: pomodoro.startTime.toISOString(),
-          endTime: pomodoro.endTime?.toISOString() ?? null,
-          summary: pomodoro.summary,
-        },
+        payload: pomodoroPayload,
       });
+
+      // S5: Fire proactive AI triggers on pomodoro completion (async, non-blocking)
+      chatTriggersStateService.handlePomodoroCompleted(userId, pomodoroPayload)
+        .catch((err) => console.error('[AI Trigger] handlePomodoroCompleted error:', err));
 
       return { success: true, data: pomodoro };
     } catch (error) {
@@ -551,19 +557,24 @@ export const pomodoroService = {
             });
 
             // Publish pomodoro.completed event
+            const expiredPayload = {
+              pomodoroId: pomodoro.id,
+              taskId: pomodoro.taskId,
+              taskTitle: pomodoro.task?.title ?? 'Taskless',
+              duration: pomodoro.duration,
+              startTime: pomodoro.startTime.toISOString(),
+              endTime: expectedEndTime.toISOString(),
+              summary: 'Auto-completed (expired)',
+            };
             await mcpEventService.publish({
               type: 'pomodoro.completed',
               userId,
-              payload: {
-                pomodoroId: pomodoro.id,
-                taskId: pomodoro.taskId,
-                taskTitle: pomodoro.task?.title ?? 'Taskless',
-                duration: pomodoro.duration,
-                startTime: pomodoro.startTime.toISOString(),
-                endTime: expectedEndTime.toISOString(),
-                summary: 'Auto-completed (expired)',
-              },
+              payload: expiredPayload,
             });
+
+            // S5: Fire proactive AI triggers (async, non-blocking)
+            chatTriggersStateService.handlePomodoroCompleted(userId, expiredPayload)
+              .catch((err) => console.error('[AI Trigger] handlePomodoroCompleted (expired) error:', err));
 
             // Update system state to REST (fixes tray showing PLANNING after auto-complete)
             // Check if already in over-rest state
@@ -849,19 +860,24 @@ export const pomodoroService = {
       });
 
       // Publish event
+      const recordPayload = {
+        pomodoroId: pomodoro.id,
+        taskId: pomodoro.taskId,
+        taskTitle: pomodoro.task?.title ?? 'Recorded retroactively',
+        duration: pomodoro.duration,
+        startTime: startTime.toISOString(),
+        endTime: validated.completedAt.toISOString(),
+        summary: pomodoro.summary,
+      };
       await mcpEventService.publish({
         type: 'pomodoro.completed',
         userId,
-        payload: {
-          pomodoroId: pomodoro.id,
-          taskId: pomodoro.taskId,
-          taskTitle: pomodoro.task?.title ?? 'Recorded retroactively',
-          duration: pomodoro.duration,
-          startTime: startTime.toISOString(),
-          endTime: validated.completedAt.toISOString(),
-          summary: pomodoro.summary,
-        },
+        payload: recordPayload,
       });
+
+      // S5: Fire proactive AI triggers (async, non-blocking)
+      chatTriggersStateService.handlePomodoroCompleted(userId, recordPayload)
+        .catch((err) => console.error('[AI Trigger] handlePomodoroCompleted (record) error:', err));
 
       return { success: true, data: pomodoro };
     } catch (error) {

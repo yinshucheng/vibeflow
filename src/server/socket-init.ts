@@ -18,6 +18,7 @@ import {
 } from '@/services/socket-broadcast.service';
 import { registerMCPEventBroadcaster as registerMCPServiceBroadcaster, mcpEventService } from '@/services/mcp-event.service';
 import { dailyResetSchedulerService } from '@/services/daily-reset-scheduler.service';
+import { registerProactiveBroadcaster } from '@/services/ai-trigger.service';
 
 let isInitialized = false;
 let mcpEventCleanupInterval: ReturnType<typeof setInterval> | null = null;
@@ -58,6 +59,19 @@ export function initializeSocketServer(httpServer: HttpServer): void {
   registerMCPEventBroadcaster(mcpEventBroadcaster);
   registerMCPServiceBroadcaster(mcpEventBroadcaster);
   
+  // Register proactive message broadcaster for AI triggers (S4)
+  registerProactiveBroadcaster((userId, command) => {
+    socketServer.broadcastOctopusCommand(userId, {
+      commandId: crypto.randomUUID(),
+      commandType: command.commandType,
+      targetClient: 'all',
+      priority: 'normal',
+      requiresAck: false,
+      createdAt: Date.now(),
+      payload: command.payload,
+    } as unknown as import('@/types/octopus').OctopusCommand);
+  });
+
   // Start the daily reset scheduler (Requirements: 5.7)
   dailyResetSchedulerService.start();
   

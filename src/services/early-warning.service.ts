@@ -11,6 +11,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { progressCalculationService } from './progress-calculation.service';
 import type { PressureLevel } from './progress-calculation.service';
+import { mcpEventService } from './mcp-event.service';
 
 // Service result type
 export interface ServiceResult<T> {
@@ -408,6 +409,19 @@ export const earlyWarningService = {
       if (!check.shouldWarn) {
         return { success: true, data: null };
       }
+
+      // S4.2: Publish early_warning.triggered event
+      mcpEventService.publish({
+        type: 'early_warning.triggered',
+        userId,
+        payload: {
+          gap: check.gap,
+          currentProgress: check.currentProgress,
+          expectedProgress: check.expectedProgress,
+          pressureLevel: check.pressureLevel,
+          message: check.message,
+        },
+      }).catch((err) => console.error('[MCP Event] early_warning.triggered publish error:', err));
 
       // Generate notification (Requirements: 26.3, 26.4)
       const notification: EarlyWarningNotification = {

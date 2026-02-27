@@ -13,6 +13,7 @@ import prisma from '@/lib/prisma';
 import type { DailyEntertainmentState, UserSettings } from '@prisma/client';
 import { isWithinWorkHours } from './idle.service';
 import type { WorkTimeSlot } from './user.service';
+import { mcpEventService } from './mcp-event.service';
 
 // ============================================================================
 // Constants
@@ -339,6 +340,13 @@ export const entertainmentService = {
         },
       });
       
+      // S4.2: Publish entertainment.started event
+      mcpEventService.publish({
+        type: 'entertainment.started',
+        userId,
+        payload: { sessionId, endTime: new Date(endTime).toISOString() },
+      }).catch((err) => console.error('[MCP Event] entertainment.started publish error:', err));
+
       return {
         success: true,
         data: {
@@ -409,6 +417,13 @@ export const entertainmentService = {
         },
       });
       
+      // S4.2: Publish entertainment.stopped event
+      mcpEventService.publish({
+        type: 'entertainment.stopped',
+        userId,
+        payload: { reason, duration: durationMinutes, quotaUsed: newQuotaUsed },
+      }).catch((err) => console.error('[MCP Event] entertainment.stopped publish error:', err));
+
       return {
         success: true,
         data: {

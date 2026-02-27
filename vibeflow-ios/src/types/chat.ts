@@ -52,6 +52,10 @@ export interface ChatResponsePayload {
   content: string;
   /** Only present when type === 'complete' */
   usage?: { inputTokens: number; outputTokens: number };
+  /** True when message is an AI-initiated proactive push (S4) */
+  isProactive?: boolean;
+  /** Trigger that generated this proactive message (S4) */
+  triggerId?: string;
 }
 
 /** Server → Client: AI requests tool execution */

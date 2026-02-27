@@ -180,6 +180,13 @@ class ChatService {
   private handleChatResponse: CommandHandler<ChatResponsePayload> = (payload) => {
     const store = useChatStore.getState();
 
+    // S4.3: Handle proactive messages differently — they arrive unsolicited
+    if (payload.isProactive && payload.type === 'complete') {
+      store.addProactiveMessage(payload.messageId, payload.content, payload.triggerId);
+      // If panel is not open, could trigger a system notification (future enhancement)
+      return;
+    }
+
     if (payload.type === 'delta') {
       store.appendStreamDelta(payload.content);
     } else {

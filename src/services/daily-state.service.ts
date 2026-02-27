@@ -17,6 +17,7 @@ import {
 import { broadcastStateChange } from '@/services/socket-broadcast.service';
 import { mcpEventService } from './mcp-event.service';
 import { overRestService } from './over-rest.service';
+import { chatTriggersStateService } from './chat-triggers-state.service';
 
 // Validation schemas
 export const CompleteAirlockSchema = z.object({
@@ -269,6 +270,24 @@ export const dailyStateService = {
           airlockCompleted: dailyState.airlockCompleted,
         },
       });
+
+      // S4.2: Publish over_rest_entered event if transitioning to over_rest
+      if (state === 'over_rest' && previousSystemState !== 'over_rest') {
+        mcpEventService.publish({
+          type: 'daily_state.over_rest_entered',
+          userId,
+          payload: { previousState: previousSystemState, date: today.toISOString() },
+        }).catch((err) => console.error('[MCP Event] over_rest_entered publish error:', err));
+      }
+
+      // S4/S5: Fire proactive AI triggers on state transitions (async, non-blocking)
+      chatTriggersStateService.handleDailyStateChanged(userId, {
+        previousState: previousSystemState,
+        newState: state,
+        date: today.toISOString(),
+        pomodoroCount: dailyState.pomodoroCount,
+        airlockCompleted: dailyState.airlockCompleted,
+      }).catch((err) => console.error('[AI Trigger] handleDailyStateChanged error:', err));
 
       return { success: true, data: dailyState };
     } catch (error) {

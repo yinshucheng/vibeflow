@@ -10,6 +10,7 @@
  */
 
 import { entertainmentService } from './entertainment.service';
+import { mcpEventService } from './mcp-event.service';
 
 // ============================================================================
 // Constants
@@ -101,9 +102,16 @@ async function performDailyReset(): Promise<void> {
       console.error('[DailyResetScheduler] Entertainment reset failed:', entertainmentResult.error);
     }
     
+    // S4.2: Publish daily_state.daily_reset event
+    mcpEventService.publish({
+      type: 'daily_state.daily_reset',
+      userId: 'system', // system-level event, not user-specific
+      payload: { date: todayString },
+    }).catch((err) => console.error('[MCP Event] daily_state.daily_reset publish error:', err));
+
     // Mark reset as complete for today
     state.lastResetDate = todayString;
-    
+
     console.log('[DailyResetScheduler] Daily reset complete');
   } catch (error) {
     console.error('[DailyResetScheduler] Daily reset failed:', error);

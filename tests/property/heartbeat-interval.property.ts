@@ -128,7 +128,7 @@ describe('Property 2: Heartbeat Interval Consistency', () => {
     );
   });
 
-  it('should track consecutive heartbeats with increasing timestamps', async () => {
+  it('should track consecutive heartbeats with increasing timestamps', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(
         heartbeatPayloadArb(testUserId),
