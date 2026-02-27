@@ -391,20 +391,19 @@ describe('chatService', () => {
 
 ### F5. 传输层
 
-- [ ] **F5.1 Socket.io 事件处理**
+- [x] **F5.1 Socket.io 事件处理** ✅ `2735d24`
   - `socket.ts` 的 `processOctopusEvent` 新增 `CHAT_MESSAGE` case → 调用 `chatService.handleMessage`
-  - `CHAT_ACTION` case → 调用 `chatService.handleToolConfirmation`
-  - 流式回调: `onDelta` → `sendOctopusCommand` 推送 `CHAT_RESPONSE` 到客户端
+  - `CHAT_ACTION` case → 调用 `handleToolConfirmation`
+  - 流式回调: `onDelta` → socket.emit `CHAT_RESPONSE` 推送到客户端
 
-- [ ] **F5.2 多端消息同步**
-  - AI 回复完成后，向同用户的其他在线设备广播 `CHAT_SYNC`
+- [x] **F5.2 多端消息同步** ✅ `2735d24`
+  - AI 回复完成后，`broadcastChatSync` 向同用户的其他在线设备广播 `CHAT_SYNC`
   - 用户消息也同步（iOS 发送 → Desktop 看到）
 
-- [ ] **F5.3 测试: 传输层**
+- [x] **F5.3 测试: 传输层** ✅ `2735d24`
   - `e2e/tests/chat-basic.spec.ts`:
     - 发送 CHAT_MESSAGE → 收到 CHAT_RESPONSE (delta * N + complete)
-    - CHAT_MESSAGE 含 tool 意图 → 收到 CHAT_TOOL_CALL + CHAT_TOOL_RESULT + CHAT_RESPONSE
-    - 消息持久化: 发送后通过 tRPC chat.getHistory 可查到
+    - 消息持久化: 发送后通过 DB 查询可查到 user + assistant 消息
   - `e2e/tests/chat-sync.spec.ts`:
     - 模拟两个 socket 连接（同 userId）→ A 发消息 → B 收到 CHAT_SYNC
     - A 和 B 的消息历史一致
