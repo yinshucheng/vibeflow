@@ -9,6 +9,7 @@ import {
 } from './database.fixture';
 import { generateTestEmail, getOrCreateTestUser, TestUser } from './auth.fixture';
 import { UserFactory, ProjectFactory, TaskFactory, GoalFactory } from './factories';
+import { ChatTestHelper } from './chat.fixture';
 
 /**
  * Main fixture export file for E2E tests
@@ -33,6 +34,9 @@ export interface TestFixtures {
   projectFactory: ProjectFactory;
   taskFactory: TaskFactory;
   goalFactory: GoalFactory;
+
+  // Chat
+  chatHelper: ChatTestHelper;
 
   // Auth
   testUser: TestUser;
@@ -91,6 +95,13 @@ export const test = base.extend<TestFixtures>({
   goalFactory: async ({ prisma, tracker }, use) => {
     const factory = new GoalFactory(prisma, tracker);
     await use(factory);
+    // Cleanup is handled by tracker
+  },
+
+  // Chat helper
+  chatHelper: async ({ prisma, tracker }, use) => {
+    const helper = new ChatTestHelper(prisma, tracker);
+    await use(helper);
     // Cleanup is handled by tracker
   },
 
@@ -166,6 +177,9 @@ export {
 // Re-export auth utilities
 export { generateTestEmail, getOrCreateTestUser, setAuthHeader } from './auth.fixture';
 export type { TestUser, AuthFixture } from './auth.fixture';
+
+// Re-export chat fixture
+export { ChatTestHelper } from './chat.fixture';
 
 // Re-export factories
 export {

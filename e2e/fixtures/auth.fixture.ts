@@ -134,6 +134,11 @@ export const authTest = base.extend<AuthFixture>({
 async function cleanupTestUser(prisma: PrismaClient, userId: string): Promise<void> {
   try {
     // Delete in order of dependencies
+    // Chat entities first
+    await prisma.lLMUsageLog.deleteMany({ where: { userId } });
+    await prisma.chatMessage.deleteMany({ where: { conversation: { userId } } });
+    await prisma.conversation.deleteMany({ where: { userId } });
+
     await prisma.activityLog.deleteMany({ where: { userId } });
     await prisma.pomodoro.deleteMany({ where: { userId } });
     await prisma.dailyState.deleteMany({ where: { userId } });

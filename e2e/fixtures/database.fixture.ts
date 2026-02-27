@@ -43,7 +43,12 @@ export async function disconnectPrisma(): Promise<void> {
 export async function cleanupDatabase(prisma: PrismaClient): Promise<void> {
   // Delete in order of dependencies (children first, then parents)
   // This respects foreign key constraints
-  
+
+  // Chat entities first
+  await prisma.lLMUsageLog.deleteMany({});
+  await prisma.chatMessage.deleteMany({});
+  await prisma.conversation.deleteMany({});
+
   await prisma.activityLog.deleteMany({});
   await prisma.pomodoro.deleteMany({});
   await prisma.dailyState.deleteMany({});
@@ -61,6 +66,11 @@ export async function cleanupDatabase(prisma: PrismaClient): Promise<void> {
  */
 export async function cleanupUserData(prisma: PrismaClient, userId: string): Promise<void> {
   // Delete in order of dependencies
+  // Chat entities first
+  await prisma.lLMUsageLog.deleteMany({ where: { userId } });
+  await prisma.chatMessage.deleteMany({ where: { conversation: { userId } } });
+  await prisma.conversation.deleteMany({ where: { userId } });
+
   await prisma.activityLog.deleteMany({ where: { userId } });
   await prisma.pomodoro.deleteMany({ where: { userId } });
   await prisma.dailyState.deleteMany({ where: { userId } });
@@ -97,6 +107,10 @@ export class TestDataTracker {
   private activityLogIds: string[] = [];
   private userSettingsIds: string[] = [];
   private projectGoalIds: string[] = [];
+  // Chat entities
+  private conversationIds: string[] = [];
+  private chatMessageIds: string[] = [];
+  private llmUsageLogIds: string[] = [];
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma;
@@ -138,6 +152,18 @@ export class TestDataTracker {
     this.projectGoalIds.push(id);
   }
 
+  trackConversation(id: string): void {
+    this.conversationIds.push(id);
+  }
+
+  trackChatMessage(id: string): void {
+    this.chatMessageIds.push(id);
+  }
+
+  trackLLMUsageLog(id: string): void {
+    this.llmUsageLogIds.push(id);
+  }
+
   /**
    * Clean up all tracked entities in the correct order
    */
@@ -145,6 +171,19 @@ export class TestDataTracker {
     // For tracked users, clean up ALL their data (not just tracked IDs)
     // This handles data created directly via prisma in tests
     if (this.userIds.length > 0) {
+      // Chat entities first (LLMUsageLog → ChatMessage → Conversation)
+      await this.prisma.lLMUsageLog.deleteMany({
+        where: { userId: { in: this.userIds } },
+      });
+
+      await this.prisma.chatMessage.deleteMany({
+        where: { conversation: { userId: { in: this.userIds } } },
+      });
+
+      await this.prisma.conversation.deleteMany({
+        where: { userId: { in: this.userIds } },
+      });
+
       // Delete all data for tracked users in dependency order
       await this.prisma.activityLog.deleteMany({
         where: { userId: { in: this.userIds } },
@@ -190,6 +229,25 @@ export class TestDataTracker {
       await this.prisma.user.deleteMany({
         where: { id: { in: this.userIds } },
       });
+    }
+
+    // Also clean up any specifically tracked Chat entities
+    if (this.llmUsageLogIds.length > 0) {
+      await this.prisma.lLMUsageLog.deleteMany({
+        where: { id: { in: this.llmUsageLogIds } },
+      }).catch(() => {});
+    }
+
+    if (this.chatMessageIds.length > 0) {
+      await this.prisma.chatMessage.deleteMany({
+        where: { id: { in: this.chatMessageIds } },
+      }).catch(() => {});
+    }
+
+    if (this.conversationIds.length > 0) {
+      await this.prisma.conversation.deleteMany({
+        where: { id: { in: this.conversationIds } },
+      }).catch(() => {});
     }
 
     // Also clean up any specifically tracked entities that might not be user-owned
@@ -251,6 +309,9 @@ export class TestDataTracker {
     this.activityLogIds = [];
     this.userSettingsIds = [];
     this.projectGoalIds = [];
+    this.conversationIds = [];
+    this.chatMessageIds = [];
+    this.llmUsageLogIds = [];
   }
 }
 
