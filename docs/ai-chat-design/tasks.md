@@ -435,16 +435,16 @@ describe('chatService', () => {
 
 ### F7. 可观测性
 
-- [ ] **F7.1 Token 使用记录**
+- [x] **F7.1 Token 使用记录** ✅ `85b1212`
   - `trackUsage(userId, conversationId, messageId, scene, modelId, usage)`:
     - 写入 `LLMUsageLog`
     - 计算 `contextUsagePercent`
   - 每次 `onFinish` 回调中调用
 
-- [ ] **F7.2 会话级统计查询**
+- [x] **F7.2 会话级统计查询** ✅ `85b1212`
   - `getConversationStats(userId, conversationId)`: 累计 tokens / 最新上下文使用率 / 消息数 / 当前模型
 
-- [ ] **F7.3 测试: 可观测性**
+- [x] **F7.3 测试: 可观测性** ✅ `85b1212`
   - `tests/services/chat-observability.test.ts`:
     - `trackUsage`: 写入后 LLMUsageLog 记录存在，字段正确
     - `trackUsage`: contextUsagePercent = inputTokens / contextWindow * 100
