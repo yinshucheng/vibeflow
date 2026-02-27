@@ -16,9 +16,16 @@ vi.mock('@/services/pomodoro.service', () => ({
     complete: vi.fn(),
     abort: vi.fn(),
     interrupt: vi.fn(),
+    record: vi.fn(),
   },
   StartPomodoroSchema: z.object({ taskId: z.string().uuid() }),
   CompletePomodoroSchema: z.object({ id: z.string().uuid() }),
+  RecordPomodoroSchema: z.object({
+    taskId: z.string().uuid().nullable().optional(),
+    duration: z.number().min(10).max(120),
+    completedAt: z.coerce.date(),
+    summary: z.string().max(1000).optional(),
+  }),
 }));
 
 vi.mock('@/services/stats.service', () => ({

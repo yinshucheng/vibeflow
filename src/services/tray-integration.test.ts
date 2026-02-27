@@ -70,7 +70,7 @@ describe('TrayIntegrationService', () => {
       const startTime = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes ago
       const pomodoro = {
         id: 'test-id',
-        taskId: 'task-id',
+        taskId: null,
         duration: 25,
         startTime,
       };
