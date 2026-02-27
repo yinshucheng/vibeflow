@@ -257,23 +257,23 @@ describe('chatService', () => {
 
 > 所有测试任务依赖此模块。在 F1 之后、其他测试之前完成。
 
-- [ ] **F0.1 扩展 TestDataTracker**
+- [x] **F0.1 扩展 TestDataTracker** ✅ `870619b`
   - `e2e/fixtures/database.fixture.ts`: 新增 `trackConversation`, `trackChatMessage`, `trackLLMUsageLog`
   - `cleanup()` 方法增加 Chat 实体清理（LLMUsageLog → ChatMessage → Conversation，在现有清理序列之前）
 
-- [ ] **F0.2 Chat E2E Fixture**
+- [x] **F0.2 Chat E2E Fixture** ✅ `870619b`
   - `e2e/fixtures/chat.fixture.ts`: `ChatTestHelper` class
   - `seedConversation(userId, messageCount)`: 创建测试对话 + 消息，注册到 Tracker
   - `e2e/fixtures/index.ts` 增加 `chatHelper` fixture
 
-- [ ] **F0.3 Vitest Chat 测试辅助**
+- [x] **F0.3 Vitest Chat 测试辅助** ✅ `870619b`
   - `tests/helpers/chat-test-setup.ts`:
     - `setupChatTestUser()`: 创建唯一测试用户（`chat-test-{ts}-{rand}@test.vibeflow.local`）
     - `cleanupChatTestUser()`: 按依赖序删除全部 Chat 数据 + 用户
     - `skipIfNoDb()`: DB 不可用时 graceful skip
   - 验证: 创建用户 → 创建 Conversation + ChatMessage → cleanup → 数据全部消失
 
-- [ ] **F0.4 LLM Mock 工具**
+- [x] **F0.4 LLM Mock 工具** ✅ `870619b`
   - `tests/helpers/llm-mock.ts`:
     - `mockStreamText(response)`: mock Vercel AI SDK `streamText`，返回预设的流式文本响应
     - `mockStreamTextWithToolUse(toolCalls)`: mock 含 tool_use 的响应，验证 tool execute 被调用
