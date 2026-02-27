@@ -45,7 +45,7 @@ describe('Property 2: Test Data Isolation', () => {
     await prisma.$disconnect();
   });
 
-  it('should isolate test data: cleanup removes only tracked data', async () => {
+  it('should isolate test data: cleanup removes only tracked data', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;

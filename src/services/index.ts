@@ -554,6 +554,13 @@ export type {
   PendingToolConfirmation,
 } from './chat-tools.service';
 
+// Chat Observability Service exports (F7)
+export { chatObservabilityService } from './chat-observability.service';
+export type {
+  TrackUsageInput,
+  ConversationTokenStats,
+} from './chat-observability.service';
+
 // Demo Mode Service exports (Requirements: 6.1, 6.2, 6.3, 6.4, 6.7, 6.9, 6.10)
 export { demoModeService } from './demo-mode.service';
 export type {
