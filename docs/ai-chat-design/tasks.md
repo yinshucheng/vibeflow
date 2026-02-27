@@ -282,18 +282,18 @@ describe('chatService', () => {
 
 ### F1. 数据层
 
-- [ ] **F1.1 Prisma Schema**
+- [x] **F1.1 Prisma Schema** ✅ `ad75901`
   - `Conversation` 模型（含 `ConversationType` / `ConversationStatus` 枚举，MVP 只用 `DEFAULT`）
   - `ChatMessage` 模型（role / content / metadata / tokenCount）
   - `LLMUsageLog` 模型（inputTokens / outputTokens / contextLength / contextUsagePercent）
-  - `db:migrate`
+  - `db:push`
 
-- [ ] **F1.2 Octopus 协议类型扩展**
+- [x] **F1.2 Octopus 协议类型扩展** ✅ `ad75901`
   - `src/types/octopus.ts` 新增事件: `CHAT_MESSAGE`, `CHAT_ACTION`
   - 新增命令: `CHAT_RESPONSE`, `CHAT_TOOL_CALL`, `CHAT_TOOL_RESULT`, `CHAT_SYNC`
   - Payload 接口定义: `ChatMessagePayload`, `ChatResponsePayload`, `ChatToolCallPayload`, `ChatToolResultPayload`, `ChatActionPayload`
 
-- [ ] **F1.3 测试: 数据层**
+- [x] **F1.3 测试: 数据层** ✅ `ad75901`
   - `tests/property/chat-message-schema.property.ts`:
     - 任意合法 ChatMessage 字段组合 → 通过 Prisma 写入/读取 round-trip 一致
     - ConversationType 枚举覆盖: DEFAULT / DAILY / TOPIC 均可写入
@@ -303,29 +303,26 @@ describe('chatService', () => {
 
 ### F2. LLM 引擎
 
-- [ ] **F2.1 依赖安装**
-  - `npm install ai @ai-sdk/anthropic @ai-sdk/openai @ai-sdk/google`
+- [x] **F2.1 依赖安装** ✅ `cc4aca9`
+  - `npm install ai @ai-sdk/openai`（Kimi/Qwen/SiliconFlow 通过 OpenAI 兼容接入）
   - `.env` 配置 API Keys
 
-- [ ] **F2.2 模型注册 `llm.config.ts`**
-  - `MODEL_REGISTRY`: Anthropic / OpenAI / Google（Qwen / Kimi 配置预留，暂不验证）
+- [x] **F2.2 模型注册 `llm.config.ts`** ✅ `cc4aca9` `a6827a0`
+  - `MODEL_REGISTRY`: Qwen / Kimi / SiliconFlow（使用 `.chat()` 走 /chat/completions 端点）
   - `MODEL_META`: 各模型上下文窗口 / 最大输出 / provider / displayName
-  - `getModel(modelId)` 函数
+  - `getModel(modelId)` / `getSceneConfig(scene)` 函数，支持环境变量覆盖
 
-- [ ] **F2.3 LLM 调用编排 `llm-adapter.service.ts`**
-  - `callLLM(model, system, messages, tools, onChunk, onFinish)`: 封装 `streamText()` 的统一调用入口
-  - 流式输出 → `onChunk` 回调 → 最终 `onFinish` 回调
+- [x] **F2.3 LLM 调用编排 `llm-adapter.service.ts`** ✅ `cc4aca9`
+  - `callLLM(options)`: 封装 `streamText()` 的统一调用入口（AI SDK v6 API）
+  - `callGenerateText(options)`: 非流式调用
   - 错误处理: Tool Use 不支持时的 fallback
 
-- [ ] **F2.4 测试: LLM 引擎**
-  - `tests/services/llm-adapter.service.test.ts`:
+- [x] **F2.4 测试: LLM 引擎** ✅ `cc4aca9`
+  - `tests/services/llm-adapter.service.test.ts` (22 tests):
     - `getModel()`: 已注册 modelId → 返回 provider 实例；未知 modelId → 抛错
-    - `callLLM()` (mock streamText): 纯文本响应 → onChunk 被调用 N 次 + onFinish 被调用 1 次
-    - `callLLM()` (mock streamText): 含 tool_use 响应 → tool execute 被调用 → tool_result 回传
+    - `callLLM()` (mock streamText): 参数传递、scene 配置、onFinish 回调
     - `callLLM()` error fallback: Tool Use 不支持时 → 降级为无 tools 调用
-  - `tests/property/model-registry.property.ts`:
-    - MODEL_REGISTRY 中每个 key 在 MODEL_META 中都有对应条目
-    - MODEL_META.contextWindow > MODEL_META.maxOutputTokens（不变量）
+    - MODEL_META 不变量: contextWindow > maxOutputTokens，registry/meta 完全对应
 
 ### F3. 会话管理
 
