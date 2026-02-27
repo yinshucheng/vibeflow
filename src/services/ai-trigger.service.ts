@@ -71,11 +71,17 @@ export const DEFAULT_AI_TRIGGER_CONFIG: AITriggerConfig = {
   enabled: true,
   quietHours: { start: '22:00', end: '07:00' },
   triggers: {
+    // S5 state transition triggers
     on_planning_enter: { enabled: true },
     on_rest_enter: { enabled: true },
     on_over_rest_enter: { enabled: true },
     over_rest_escalation: { enabled: true },
     task_stuck: { enabled: true },
+    // S9 cron triggers
+    morning_greeting: { enabled: true },
+    evening_summary: { enabled: true },
+    progress_check: { enabled: false },   // disabled by default
+    midday_check: { enabled: false },     // disabled by default
   },
 };
 
@@ -360,15 +366,20 @@ export const aiTriggerService = {
 
   async _getUserConfig(userId: string): Promise<AITriggerConfig> {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { settings: true },
+      const settings = await prisma.userSettings.findUnique({
+        where: { userId },
+        select: { aiTriggerConfig: true },
       });
-      if (user?.settings && typeof user.settings === 'object') {
-        const settings = user.settings as Record<string, unknown>;
-        if (settings.aiTriggerConfig && typeof settings.aiTriggerConfig === 'object') {
-          return { ...DEFAULT_AI_TRIGGER_CONFIG, ...(settings.aiTriggerConfig as AITriggerConfig) };
-        }
+      if (settings?.aiTriggerConfig && typeof settings.aiTriggerConfig === 'object') {
+        const stored = settings.aiTriggerConfig as unknown as Partial<AITriggerConfig>;
+        return {
+          enabled: stored.enabled ?? DEFAULT_AI_TRIGGER_CONFIG.enabled,
+          quietHours: stored.quietHours ?? DEFAULT_AI_TRIGGER_CONFIG.quietHours,
+          triggers: {
+            ...DEFAULT_AI_TRIGGER_CONFIG.triggers,
+            ...(stored.triggers ?? {}),
+          },
+        };
       }
     } catch {
       // Fall through to defaults

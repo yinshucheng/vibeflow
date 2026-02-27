@@ -11,6 +11,7 @@
 
 import { entertainmentService } from './entertainment.service';
 import { mcpEventService } from './mcp-event.service';
+import { chatArchiveService } from './chat-archive.service';
 
 // ============================================================================
 // Constants
@@ -102,6 +103,28 @@ async function performDailyReset(): Promise<void> {
       console.error('[DailyResetScheduler] Entertainment reset failed:', entertainmentResult.error);
     }
     
+    // S8.1: Archive and rotate all active DEFAULT conversations
+    try {
+      const archiveResult = await chatArchiveService.runDailyArchive();
+      if (archiveResult.success) {
+        console.log(`[DailyResetScheduler] Chat archive: rotated ${archiveResult.data?.archivedCount} conversations`);
+      } else {
+        console.error('[DailyResetScheduler] Chat archive failed:', archiveResult.error);
+      }
+    } catch (err) {
+      console.error('[DailyResetScheduler] Chat archive error:', err);
+    }
+
+    // S8.3: Cleanup old archived messages (30+ days)
+    try {
+      const cleanupResult = await chatArchiveService.cleanupOldMessages(30);
+      if (cleanupResult.success && cleanupResult.data && cleanupResult.data.deletedCount > 0) {
+        console.log(`[DailyResetScheduler] Chat cleanup: deleted ${cleanupResult.data.deletedCount} old messages`);
+      }
+    } catch (err) {
+      console.error('[DailyResetScheduler] Chat cleanup error:', err);
+    }
+
     // S4.2: Publish daily_state.daily_reset event
     mcpEventService.publish({
       type: 'daily_state.daily_reset',

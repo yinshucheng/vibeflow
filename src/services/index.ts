@@ -610,3 +610,13 @@ export {
   handleOverRestEnter,
   handleTaskStuck,
 } from './chat-triggers-state.service';
+
+// Chat Archive Service exports (S8)
+export { chatArchiveService, getYesterdayDateString, getTodayDateString } from './chat-archive.service';
+
+// Chat Cron Triggers Service exports (S9)
+export { chatTriggersCronService, CRON_TRIGGER_DEFINITIONS } from './chat-triggers-cron.service';
+
+// Chat User Config Service exports (S10)
+export { chatUserConfigService } from './chat-user-config.service';
+export type { AIModelConfig } from './chat-user-config.service';

@@ -173,6 +173,10 @@ model UserSettings {
   skipTokenUsed           Int                @default(0)   // Tokens used this week
   skipTokenResetAt        DateTime?                        // Next reset time (Monday 00:00)
 
+  // AI Chat Configuration (S10)
+  aiTriggerConfig         Json               @default("{}") // AITriggerConfig — global toggle, quiet hours, per-trigger on/off
+  aiModelConfig           Json               @default("{}") // AIModelConfig — per-scene model overrides
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Mock prisma before imports — must use vi.hoisted for mock factory references
 const mockPrisma = vi.hoisted(() => ({
   user: { findUnique: vi.fn().mockResolvedValue(null) },
+  userSettings: { findUnique: vi.fn().mockResolvedValue(null) },
   task: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
   pomodoro: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
   dailyState: { findFirst: vi.fn().mockResolvedValue(null) },
@@ -155,11 +156,9 @@ describe('aiTriggerService', () => {
 
   describe('shouldFire', () => {
     it('should return false when global config is disabled', async () => {
-      // Mock user with globally disabled config
-      vi.mocked(mockPrisma.user.findUnique).mockResolvedValueOnce({
-        settings: {
-          aiTriggerConfig: { ...DEFAULT_AI_TRIGGER_CONFIG, enabled: false },
-        },
+      // Mock userSettings with globally disabled config
+      vi.mocked(mockPrisma.userSettings.findUnique).mockResolvedValueOnce({
+        aiTriggerConfig: { ...DEFAULT_AI_TRIGGER_CONFIG, enabled: false },
       } as never);
 
       const result = await aiTriggerService.shouldFire(TEST_USER_ID, testTrigger);
@@ -167,12 +166,10 @@ describe('aiTriggerService', () => {
     });
 
     it('should return false when specific trigger is disabled', async () => {
-      vi.mocked(mockPrisma.user.findUnique).mockResolvedValueOnce({
-        settings: {
-          aiTriggerConfig: {
-            ...DEFAULT_AI_TRIGGER_CONFIG,
-            triggers: { test_trigger: { enabled: false } },
-          },
+      vi.mocked(mockPrisma.userSettings.findUnique).mockResolvedValueOnce({
+        aiTriggerConfig: {
+          ...DEFAULT_AI_TRIGGER_CONFIG,
+          triggers: { test_trigger: { enabled: false } },
         },
       } as never);
 
@@ -224,12 +221,10 @@ describe('aiTriggerService', () => {
 
     it('should return false during quiet hours for non-high priority', async () => {
       // Set quiet hours to include the test time
-      vi.mocked(mockPrisma.user.findUnique).mockResolvedValueOnce({
-        settings: {
-          aiTriggerConfig: {
-            ...DEFAULT_AI_TRIGGER_CONFIG,
-            quietHours: { start: '00:00', end: '23:59' }, // Always quiet
-          },
+      vi.mocked(mockPrisma.userSettings.findUnique).mockResolvedValueOnce({
+        aiTriggerConfig: {
+          ...DEFAULT_AI_TRIGGER_CONFIG,
+          quietHours: { start: '00:00', end: '23:59' }, // Always quiet
         },
       } as never);
 
@@ -238,12 +233,10 @@ describe('aiTriggerService', () => {
     });
 
     it('should return true during quiet hours for high priority', async () => {
-      vi.mocked(mockPrisma.user.findUnique).mockResolvedValueOnce({
-        settings: {
-          aiTriggerConfig: {
-            ...DEFAULT_AI_TRIGGER_CONFIG,
-            quietHours: { start: '00:00', end: '23:59' },
-          },
+      vi.mocked(mockPrisma.userSettings.findUnique).mockResolvedValueOnce({
+        aiTriggerConfig: {
+          ...DEFAULT_AI_TRIGGER_CONFIG,
+          quietHours: { start: '00:00', end: '23:59' },
         },
       } as never);
 
