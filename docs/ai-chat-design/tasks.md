@@ -552,27 +552,27 @@ describe('chatService', () => {
 
 > 依赖: F4 Tool 框架
 
-- [x] **S1.1 任务管理类 Tools (6 个)** ✅ `c76dd7e`
+- [x] **S1.1 任务管理类 Tools (6 个)** ✅ `782e512`
   - `flow_update_task`, `flow_get_task`, `flow_add_subtask`
   - `flow_get_top3`, `flow_set_top3`, `flow_quick_create_inbox_task`
 
-- [x] **S1.2 番茄钟控制类 Tools (4 个)** ✅ `c76dd7e`
+- [x] **S1.2 番茄钟控制类 Tools (4 个)** ✅ `782e512`
   - `flow_switch_task`, `flow_complete_current_task`
   - `flow_start_taskless_pomodoro`, `flow_record_pomodoro`
 
-- [x] **S1.3 批量与规划类 Tools (5 个)** ✅ `c76dd7e`
+- [x] **S1.3 批量与规划类 Tools (5 个)** ✅ `782e512`
   - `flow_get_overdue_tasks`, `flow_get_backlog_tasks`
   - `flow_batch_update_tasks`, `flow_set_plan_date`, `flow_move_task`
 
-- [x] **S1.4 项目管理类 Tools (5 个)** ✅ `c76dd7e`
+- [x] **S1.4 项目管理类 Tools (5 个)** ✅ `782e512`
   - `flow_create_project`, `flow_update_project`, `flow_get_project`
   - `flow_create_project_from_template`, `flow_analyze_task_dependencies`
 
-- [x] **S1.5 其他 Tools (4 个)** ✅ `c76dd7e`
+- [x] **S1.5 其他 Tools (4 个)** ✅ `782e512`
   - `flow_report_blocker`, `flow_delete_task`, `flow_get_task_context`
   - `flow_generate_daily_summary`
 
-- [x] **S1.6 测试: Tool 全量绑定** ✅ `c76dd7e`
+- [x] **S1.6 测试: Tool 全量绑定** ✅ `782e512`
   - `tests/services/chat-tools-full.test.ts`:
     - 每个 Tool: execute 调用对应 service 方法 + userId 注入正确
     - Tool 参数 Zod schema 验证: 合法输入通过，非法输入拒绝
