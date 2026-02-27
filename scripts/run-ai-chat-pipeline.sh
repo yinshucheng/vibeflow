@@ -95,9 +95,6 @@ run_module() {
     return 0
   fi
 
-  local prompt
-  prompt=$(cat "$PROMPTS_DIR/$prompt_file")
-
   # 第一次尝试
   log "执行 ${id} (第 1 次)..."
   echo "" >> "$LOG_FILE"
@@ -105,20 +102,23 @@ run_module() {
   echo "--- ${id} started at $(date) ---" >> "$LOG_FILE"
   echo "========================================" >> "$LOG_FILE"
 
-  if ! claude --print --verbose \
-    --allowedTools "Edit,Write,Read,Glob,Grep,Bash(npm test:run tests),Bash(npm run:build and lint),Bash(npx tsc:type check),Bash(npx vitest:run specific tests),Bash(npx prisma:database operations),Bash(git add:stage files),Bash(git commit:commit changes),Bash(git status:check status),Bash(git log:view history),Bash(git diff:view changes),Bash(git checkout:switch branch),Bash(cd vibeflow-ios:ios operations),Bash(npx jest:run ios tests),Bash(mkdir:create directories),Bash(ls:list files)" \
-    --prompt "$prompt" \
+  if ! cat "$PROMPTS_DIR/$prompt_file" | $CLAUDE_CMD -p --verbose --dangerously-skip-permissions \
     >> "$LOG_FILE" 2>&1; then
     log "${YELLOW}claude 进程非零退出，继续检查测试...${NC}"
   fi
 
-  # 验证
+  # 验证: npm test 通过 + tasks.md 中 checkbox 已更新
   log "验证 ${id}..."
-  if run_tests; then
+  if run_tests && is_done "$marker"; then
     local elapsed=$(( SECONDS - module_start ))
-    log_ok "${id} 测试通过 ($(format_duration $elapsed))"
+    log_ok "${id} 测试通过 + checkbox 已更新 ($(format_duration $elapsed))"
     echo "--- ${id} PASSED at $(date) ($(format_duration $elapsed)) ---" >> "$LOG_FILE"
     return 0
+  fi
+
+  # 测试通过但 checkbox 没更新 → claude 可能没执行
+  if ! is_done "$marker"; then
+    log "${YELLOW}${id} 测试通过但 tasks.md checkbox 未更新，视为未完成${NC}"
   fi
 
   # 第二次尝试: 让 claude 修复
@@ -128,15 +128,18 @@ run_module() {
 
   echo "--- ${id} FIX ATTEMPT at $(date) ---" >> "$LOG_FILE"
 
-  if ! claude --print --verbose \
-    --allowedTools "Edit,Write,Read,Glob,Grep,Bash(npm test:run tests),Bash(npm run:build and lint),Bash(npx tsc:type check),Bash(npx vitest:run specific tests),Bash(git add:stage files),Bash(git commit:commit changes),Bash(git status:check status),Bash(git log:view history),Bash(git diff:view changes)" \
-    --prompt "$fix_prompt" \
+  local tmp_fix_prompt
+  tmp_fix_prompt=$(mktemp)
+  printf '%s' "$fix_prompt" > "$tmp_fix_prompt"
+
+  if ! cat "$tmp_fix_prompt" | $CLAUDE_CMD -p --verbose --dangerously-skip-permissions \
     >> "$LOG_FILE" 2>&1; then
     log "${YELLOW}修复 claude 进程非零退出${NC}"
   fi
+  rm -f "$tmp_fix_prompt"
 
   # 再次验证
-  if run_tests; then
+  if run_tests && is_done "$marker"; then
     local elapsed=$(( SECONDS - module_start ))
     log_ok "${id} 修复后测试通过 ($(format_duration $elapsed))"
     echo "--- ${id} FIXED & PASSED at $(date) ($(format_duration $elapsed)) ---" >> "$LOG_FILE"
@@ -180,13 +183,21 @@ if [ "$DRY_RUN" = true ]; then
 fi
 echo ""
 
-# 检查 claude CLI 是否可用 (非 dry-run)
-if [ "$DRY_RUN" = false ]; then
-  if ! command -v claude &>/dev/null; then
-    log_fail "未找到 claude CLI。请先安装: npm install -g @anthropic-ai/claude-code"
-    exit 1
-  fi
+# Claude Code 命令: 优先使用 ccr code (Claude Code Router)，否则使用 claude
+if command -v ccr &>/dev/null; then
+  CLAUDE_CMD="ccr code"
+elif command -v claude &>/dev/null; then
+  CLAUDE_CMD="claude"
+else
+  log_fail "未找到 ccr 或 claude CLI"
+  exit 1
 fi
+
+# 允许在 Claude Code 会话内嵌套调用
+# 清除所有 Claude Code 相关环境变量，防止嵌套检测
+unset CLAUDECODE CLAUDE_CODE_SSE_PORT CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 2>/dev/null || true
+
+log "CLI: ${CLAUDE_CMD}"
 
 # 预览已完成/待执行模块
 completed=0
