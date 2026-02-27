@@ -45,13 +45,26 @@ npm run db:migrate
 
 ### 3. 启动服务
 
-#### 开发模式 (推荐日常开发)
+#### 开发模式 — 沙箱隔离 (推荐)
+
+```bash
+# 启动开发版 — 独立端口 (3100) + 独立数据库 (vibeflow_dev)
+npm run dev:sandbox
+
+# 访问 http://localhost:3100
+# 稳定版 (port 3000) 继续运行，互不影响
+```
+
+> 首次使用需要创建开发数据库，参见 `docs/development.md` 的「开发/生产环境隔离」章节。
+
+#### 开发模式 — 直接启动 (会占用 3000 端口)
 
 ```bash
 # 启动完整服务 (Next.js + Socket.io + 热更新)
 npm run dev
 
 # 访问 http://localhost:3000
+# 注意：这会与稳定版冲突，建议使用 dev:sandbox
 ```
 
 #### 持久运行模式 (日常使用)
@@ -60,7 +73,7 @@ npm run dev
 # 安装 PM2 (如果尚未安装)
 npm install -g pm2
 
-# 启动所有服务
+# 启动所有服务 (始终从 main 分支构建)
 ./scripts/vibeflow.sh start
 
 # 检查服务状态
@@ -95,9 +108,21 @@ npm install
 EXPO_PUBLIC_SERVER_HOST=$(ipconfig getifaddr en0) npm start
 ```
 
+**连接到不同服务器**:
+
+在 `vibeflow-ios/.env` 中配置（已 gitignore）:
+
+```env
+EXPO_PUBLIC_SERVER_HOST=192.168.1.4
+EXPO_PUBLIC_SERVER_PORT=3100   # 连开发版 (dev:sandbox)
+# EXPO_PUBLIC_SERVER_PORT=3000 # 连稳定版 (vibeflow.sh)
+```
+
+修改后重新运行 `npx expo run:ios --device`。
+
 **网络配置注意事项**:
 - Mac 和 iOS 设备必须在同一局域网
-- 后端服务必须监听 `0.0.0.0:3000`（不是 `localhost`）
+- 后端服务必须监听 `0.0.0.0`（不是 `localhost`）
 - 如果显示错误 IP（如 `198.18.0.1`），可能是 VPN/代理导致，需关闭后重试
 
 ---
@@ -236,12 +261,42 @@ npm install -g pm2
 
 | 命令 | 说明 |
 |------|------|
-| `./scripts/vibeflow.sh start` | 启动所有服务 (后端 + 桌面应用) |
+| `./scripts/vibeflow.sh start` | 启动所有服务（**始终从 main 分支构建**） |
 | `./scripts/vibeflow.sh stop` | 停止所有服务 |
 | `./scripts/vibeflow.sh restart` | 重启所有服务 |
+| `./scripts/vibeflow.sh rollback` | 回滚到最近的稳定版本 |
+| `./scripts/vibeflow.sh rollback stable/20260227-143000` | 回滚到指定 tag |
 | `./scripts/vibeflow.sh status` | 查看服务状态 |
 | `./scripts/vibeflow.sh logs` | 查看后端日志 (默认最后 100 行) |
 | `./scripts/vibeflow.sh logs 50` | 查看最后 50 行日志 |
+| `./scripts/vibeflow.sh pause [m]` | 暂停 Guardian m 分钟 (默认/最大 60) |
+| `./scripts/vibeflow.sh resume` | 恢复 Guardian |
+
+### 稳定版构建机制
+
+`vibeflow.sh start/restart` **始终从 main 分支构建**，无论你当前 checkout 在哪个分支：
+
+1. 自动 `git stash` 当前工作区
+2. `git checkout main` → 编译 → 打 `stable/YYYYMMDD-HHMMSS` tag
+3. `git checkout` 回原分支 → `git stash pop` 恢复工作区
+4. 用编译好的 `dist/` 启动 PM2
+
+这样即使在 feature 分支上运行 `vibeflow restart`，稳定版也不会被未完成的代码污染。
+
+### 回滚
+
+```bash
+# 查看可用的稳定版本
+git tag -l 'stable/*' --sort=-creatordate
+
+# 回滚到最近的稳定版
+./scripts/vibeflow.sh rollback
+
+# 回滚到指定版本
+./scripts/vibeflow.sh rollback stable/20260227-143000
+```
+
+回滚流程：停止服务 → checkout 目标 tag → 重新编译 → PM2 启动 → 恢复到原分支。
 
 ### 环境变量
 
@@ -253,7 +308,7 @@ npm install -g pm2
 ### 示例
 
 ```bash
-# 启动服务
+# 启动服务 (从 main 构建，在任意分支都安全)
 ./scripts/vibeflow.sh start
 
 # 检查状态
@@ -262,8 +317,8 @@ npm install -g pm2
 # 查看日志
 ./scripts/vibeflow.sh logs
 
-# 使用自定义端口
-VIBEFLOW_PORT=3001 ./scripts/vibeflow.sh start
+# 回滚到最近稳定版
+./scripts/vibeflow.sh rollback
 
 # 停止服务
 ./scripts/vibeflow.sh stop
@@ -579,31 +634,29 @@ echo "Backup completed: $BACKUP_DIR"
 
 ### 回滚步骤
 
-如果升级出现问题:
+使用内置的 rollback 命令（推荐）:
 
-1. **停止服务**
+```bash
+# 回滚到最近的稳定版本
+./scripts/vibeflow.sh rollback
+
+# 回滚到指定版本
+./scripts/vibeflow.sh rollback stable/20260227-143000
+
+# 查看可用的稳定版本
+git tag -l 'stable/*' --sort=-creatordate
+```
+
+如果需要同时恢复数据库:
+
+1. **回滚服务**
    ```bash
-   ./scripts/vibeflow.sh stop
+   ./scripts/vibeflow.sh rollback
    ```
 
-2. **回滚代码**
-   ```bash
-   git checkout <previous-commit>
-   ```
-
-3. **恢复数据库**
+2. **恢复数据库**
    ```bash
    psql vibeflow < backup_before_upgrade.sql
-   ```
-
-4. **重新安装依赖**
-   ```bash
-   npm install
-   ```
-
-5. **重启服务**
-   ```bash
-   ./scripts/vibeflow.sh start
    ```
 
 ### 版本兼容性

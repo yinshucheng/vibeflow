@@ -4,6 +4,7 @@
   "description": "AI-Native Output Engine",
   "scripts": {
     "dev": "tsx watch --clear-screen=false server.ts",
+    "dev:sandbox": "dotenv -e .env.dev -- tsx watch --clear-screen=false server.ts",
     "dev:next": "next dev",
     "dev:socket": "tsx watch --clear-screen=false server.ts",
     "dev:mcp": "tsx watch --clear-screen=false src/mcp/run.ts",
@@ -63,6 +64,7 @@
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.1.4",
     "fast-check": "^3.23.2",

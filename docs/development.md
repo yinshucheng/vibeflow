@@ -52,6 +52,76 @@ npm run dev
 
 ---
 
+## 开发/生产环境隔离
+
+VibeFlow 支持稳定版和开发版同时运行，互不干扰。
+
+### 架构
+
+```
+稳定版 (port 3000, db: vibeflow)      ← 日常使用
+  └── PM2 + Guardian 管理
+  └── 桌面端 .app 连 localhost:3000
+  └── iOS 真机连 192.168.1.4:3000
+
+开发版 (port 3100, db: vibeflow_dev)   ← 功能开发
+  └── npm run dev:sandbox 手动启动
+  └── iOS Xcode 调试连 192.168.1.4:3100
+```
+
+### 首次设置
+
+```bash
+# 1. 创建开发数据库
+createdb vibeflow_dev
+
+# 2. 同步 Schema
+DATABASE_URL="postgresql://yinshucheng@localhost:5432/vibeflow_dev?schema=public" npx prisma db push
+
+# 3. (可选) 导入种子数据
+DATABASE_URL="postgresql://yinshucheng@localhost:5432/vibeflow_dev?schema=public" npx tsx scripts/seed-dev.ts
+```
+
+### 日常开发
+
+```bash
+# 启动开发版 — 使用独立端口和数据库，不影响稳定版
+npm run dev:sandbox
+# → 加载 .env.dev → port 3100 + vibeflow_dev 数据库
+# → 访问 http://localhost:3100
+```
+
+开发版配置文件 `.env.dev`（已 gitignore）:
+
+```env
+DATABASE_URL="postgresql://yinshucheng@localhost:5432/vibeflow_dev?schema=public"
+NEXTAUTH_URL="http://localhost:3100"
+PORT=3100
+DEV_MODE="true"
+DEV_USER_EMAIL="dev@vibeflow.local"
+```
+
+### iOS 连接开发版
+
+在 `vibeflow-ios/.env` 中设置（已 gitignore）:
+
+```env
+EXPO_PUBLIC_SERVER_HOST=192.168.1.4
+EXPO_PUBLIC_SERVER_PORT=3100   # 连开发版
+# EXPO_PUBLIC_SERVER_PORT=3000 # 连稳定版
+```
+
+然后 `npx expo run:ios --device`。
+
+### 两版同时运行验证
+
+```bash
+curl localhost:3000/api/health   # 稳定版
+curl localhost:3100/api/health   # 开发版
+```
+
+---
+
 ## 服务架构
 
 ```
@@ -89,7 +159,8 @@ npm run dev
 
 | 命令 | 说明 | 热更新 |
 |------|------|--------|
-| `npm run dev` | 完整服务 (Next.js + Socket.io) | ✅ |
+| `npm run dev:sandbox` | **推荐** — 隔离开发版 (port 3100, db: vibeflow_dev) | ✅ |
+| `npm run dev` | 完整服务 (port 3000, 会与稳定版冲突) | ✅ |
 | `npm run dev:next` | 仅 Next.js (无 Socket.io) | ✅ |
 | `npm run dev:mcp` | MCP Server (AI 集成) | ✅ |
 | `npm run build` | 生产构建 | - |
@@ -99,8 +170,9 @@ npm run dev
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| Web Server | 3000 | Next.js + Socket.io |
-| Socket.io | 3000 | 与 Web Server 共享端口 |
+| 稳定版 (PM2) | 3000 | `vibeflow.sh start` 管理，db: vibeflow |
+| 开发版 (sandbox) | 3100 | `npm run dev:sandbox`，db: vibeflow_dev |
+| 开发版 (legacy) | 3000 | `npm run dev`（会与稳定版冲突） |
 | Prisma Studio | 5555 | 数据库管理界面 |
 
 ---
