@@ -24,6 +24,8 @@ import { overRestService } from '@/services/over-rest.service';
 import { pomodoroService } from '@/services/pomodoro.service';
 import { timeSliceService } from '@/services/time-slice.service';
 import { dailyStateService } from '@/services/daily-state.service';
+import { chatService } from '@/services/chat.service';
+import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -36,6 +38,9 @@ import {
   type ExecuteActionCommand,
   type UpdatePolicyCommand,
   type ShowUICommand,
+  type ChatResponseCommand,
+  type ChatSyncCommand,
+  type ChatToolResultCommand,
   // Schemas for validation
   OctopusEventSchema,
   ActivityLogEventSchema,
@@ -822,6 +827,14 @@ export class VibeFlowSocketServer {
         await this.processUserActionEvent(userId, event);
         break;
 
+      case 'CHAT_MESSAGE':
+        await this.processChatMessageEvent(socket, userId, event);
+        break;
+
+      case 'CHAT_ACTION':
+        await this.processChatActionEvent(socket, userId, event);
+        break;
+
       default:
         console.log(`[Socket.io] Unhandled event type: ${(event as OctopusEvent).eventType}`);
     }
@@ -1166,6 +1179,180 @@ export class VibeFlowSocketServer {
       this.io?.to(userRoom).emit('OCTOPUS_COMMAND', resultCommand as never);
       console.log(`[Socket.io] Sent ACTION_RESULT for ${actionType}: success=${success}, optimisticId=${optimisticId}`);
     }
+  }
+
+  /**
+   * Process CHAT_MESSAGE event (F5.1)
+   * Delegates to chatService.handleMessage with streaming callback.
+   * After completion, broadcasts CHAT_SYNC to other devices (F5.2).
+   */
+  private async processChatMessageEvent(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
+    userId: string,
+    event: OctopusEvent
+  ): Promise<void> {
+    if (event.eventType !== 'CHAT_MESSAGE') return;
+
+    const { payload } = event;
+    const senderSocketId = socket.id;
+    const messageId = crypto.randomUUID();
+
+    // Stream deltas back to the sender via CHAT_RESPONSE commands
+    const onDelta = (delta: string) => {
+      const command: ChatResponseCommand = {
+        commandId: crypto.randomUUID(),
+        commandType: 'CHAT_RESPONSE',
+        targetClient: 'all',
+        priority: 'high',
+        requiresAck: false,
+        createdAt: Date.now(),
+        payload: {
+          conversationId: payload.conversationId || '',
+          messageId,
+          type: 'delta',
+          content: delta,
+        },
+      };
+      socket.emit('OCTOPUS_COMMAND', command);
+    };
+
+    const result = await chatService.handleMessage(userId, payload.content, onDelta);
+
+    if (result.success && result.data) {
+      const { conversationId, assistantMessageId, fullText, userMessageId } = result.data;
+
+      // Send the complete marker to the sender
+      const completeCommand: ChatResponseCommand = {
+        commandId: crypto.randomUUID(),
+        commandType: 'CHAT_RESPONSE',
+        targetClient: 'all',
+        priority: 'high',
+        requiresAck: false,
+        createdAt: Date.now(),
+        payload: {
+          conversationId,
+          messageId: assistantMessageId,
+          type: 'complete',
+          content: fullText,
+        },
+      };
+      socket.emit('OCTOPUS_COMMAND', completeCommand);
+
+      // F5.2: Broadcast CHAT_SYNC to other devices of the same user
+      this.broadcastChatSync(userId, senderSocketId, conversationId, [
+        {
+          id: userMessageId,
+          role: 'user',
+          content: payload.content,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: fullText,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+
+      console.log(`[Socket.io] CHAT_MESSAGE processed for user ${userId}, conv=${conversationId}`);
+    } else {
+      // Send error as a complete response
+      const errorCommand: ChatResponseCommand = {
+        commandId: crypto.randomUUID(),
+        commandType: 'CHAT_RESPONSE',
+        targetClient: 'all',
+        priority: 'high',
+        requiresAck: false,
+        createdAt: Date.now(),
+        payload: {
+          conversationId: payload.conversationId || '',
+          messageId,
+          type: 'complete',
+          content: `Error: ${result.error?.message ?? 'Unknown error'}`,
+        },
+      };
+      socket.emit('OCTOPUS_COMMAND', errorCommand);
+      console.error(`[Socket.io] CHAT_MESSAGE failed for user ${userId}:`, result.error);
+    }
+  }
+
+  /**
+   * Process CHAT_ACTION event (F5.1)
+   * Handles tool confirmation (confirm/cancel) from the client.
+   */
+  private async processChatActionEvent(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
+    userId: string,
+    event: OctopusEvent
+  ): Promise<void> {
+    if (event.eventType !== 'CHAT_ACTION') return;
+
+    const { payload } = event;
+    const result = await handleToolConfirmation(
+      userId,
+      payload.toolCallId,
+      payload.action
+    );
+
+    // Send the tool result back to the sender
+    const resultCommand: ChatToolResultCommand = {
+      commandId: crypto.randomUUID(),
+      commandType: 'CHAT_TOOL_RESULT',
+      targetClient: 'all',
+      priority: 'high',
+      requiresAck: false,
+      createdAt: Date.now(),
+      payload: {
+        conversationId: payload.conversationId,
+        messageId: '',
+        toolCallId: payload.toolCallId,
+        success: result.success,
+        summary: result.success
+          ? (result.data && typeof result.data === 'object' && 'cancelled' in result.data
+              ? 'Action cancelled'
+              : 'Tool executed successfully')
+          : (result.error?.message ?? 'Unknown error'),
+      },
+    };
+    socket.emit('OCTOPUS_COMMAND', resultCommand);
+
+    console.log(`[Socket.io] CHAT_ACTION processed for user ${userId}: ${payload.action} toolCall=${payload.toolCallId}`);
+  }
+
+  /**
+   * Broadcast CHAT_SYNC to all of a user's devices except the sender (F5.2).
+   */
+  private async broadcastChatSync(
+    userId: string,
+    senderSocketId: string,
+    conversationId: string,
+    messages: Array<{ id: string; role: string; content: string; metadata?: Record<string, unknown>; createdAt: string }>
+  ): Promise<void> {
+    if (!this.io) return;
+
+    const userRoom = `user:${userId}`;
+    const sockets = await this.io.in(userRoom).fetchSockets();
+
+    const syncCommand: ChatSyncCommand = {
+      commandId: crypto.randomUUID(),
+      commandType: 'CHAT_SYNC',
+      targetClient: 'all',
+      priority: 'normal',
+      requiresAck: false,
+      createdAt: Date.now(),
+      payload: {
+        conversationId,
+        messages,
+      },
+    };
+
+    for (const s of sockets) {
+      if (s.id !== senderSocketId) {
+        s.emit('OCTOPUS_COMMAND', syncCommand);
+      }
+    }
+
+    console.log(`[Socket.io] CHAT_SYNC broadcast for user ${userId}, conv=${conversationId}, excluding socket ${senderSocketId}`);
   }
 
   /**
