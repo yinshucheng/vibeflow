@@ -600,16 +600,16 @@ describe('chatService', () => {
 
 > 依赖: F4.3 确认框架 + F8.4 UI 骨架
 
-- [ ] **S2.1 确认卡片 UI (iOS)**
+- [x] **S2.1 确认卡片 UI (iOS)** ✅ `COMMIT_HASH`
   - `ChatToolCallCard.tsx`: 操作描述 + 参数预览 + 确认/取消按钮
   - `ChatToolResultCard.tsx`: 执行结果卡片（成功绿 / 失败红）
   - 动画反馈
 
-- [ ] **S2.2 确认规则定义**
-  - 定义哪些 Tool 需要确认: `flow_delete_task`, `flow_batch_update_tasks`, 设置类等
+- [x] **S2.2 确认规则定义** ✅ `COMMIT_HASH`
+  - 定义哪些 Tool 需要确认: `flow_delete_task`, `flow_batch_update_tasks`, `flow_move_task`, `flow_update_project`
   - 其余自动执行
 
-- [ ] **S2.3 测试: 确认机制**
+- [x] **S2.3 测试: 确认机制** ✅ `COMMIT_HASH`
   - `e2e/tests/chat-confirmation.spec.ts`:
     - 触发高风险操作 → 收到 CHAT_TOOL_CALL (requiresConfirmation=true) → 发送 confirm → 工具执行 → 数据变更
     - 触发高风险操作 → 发送 cancel → 工具不执行 → 数据未变更
@@ -632,21 +632,21 @@ describe('chatService', () => {
 
 > 依赖: F1-F7 (服务端基础能力)
 
-- [ ] **S3.1 Web Chat 组件**
+- [x] **S3.1 Web Chat 组件** ✅ `COMMIT_HASH`
   - `src/components/chat/`: ChatFAB, ChatPanel, ChatMessageList, ChatBubble, ChatInput, ChatProvider
   - tRPC `chat.sendMessage` / `chat.getHistory`
   - Socket.io CHAT_RESPONSE 监听
 
-- [ ] **S3.2 tRPC Chat Router**
+- [x] **S3.2 tRPC Chat Router** ✅ `COMMIT_HASH`
   - `src/server/routers/chat.ts`: `sendMessage`, `getHistory`, `getConversationStats`
   - `protectedProcedure`
 
-- [ ] **S3.3 Desktop 增强**
+- [x] **S3.3 Desktop 增强** ✅ `COMMIT_HASH`
   - 全局快捷键 ⌘⇧Space
   - `window.vibeflow.chat.onToggleChat()` preload API
   - Tray 菜单 "AI 对话" 入口
 
-- [ ] **S3.4 测试: Web/Desktop Chat**
+- [x] **S3.4 测试: Web/Desktop Chat** ✅ `COMMIT_HASH`
   - `e2e/tests/chat-web.spec.ts`:
     - tRPC chat.getHistory → 返回消息列表（需认证）
     - tRPC chat.getHistory 无认证 → 401

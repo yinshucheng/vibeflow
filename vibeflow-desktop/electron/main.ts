@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   shell,
   ipcMain,
+  globalShortcut,
 } from 'electron';
 import * as path from 'path';
 
@@ -271,6 +272,11 @@ function createTray(): void {
       // Always show window and navigate to settings (Requirements: 6.6)
       bringToFront();
       mainWindow?.webContents.send('tray:open-settings');
+    },
+    onToggleChat: () => {
+      // S3.3: Toggle AI Chat panel
+      bringToFront();
+      mainWindow?.webContents.send('chat:toggle');
     },
     onQuit: async () => {
       // Use quit prevention for tray quit
@@ -1353,6 +1359,16 @@ app.whenReady().then(async () => {
     });
   }
 
+  // S3.3: Register global shortcut ⌘⇧Space for AI Chat toggle
+  globalShortcut.register('CommandOrControl+Shift+Space', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send('chat:toggle');
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+    mainWindow.focus();
+  });
+
   // macOS: Re-create window when dock icon is clicked
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1363,6 +1379,11 @@ app.whenReady().then(async () => {
   });
 });
 
+
+// Unregister all shortcuts when app quits
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+});
 
 // Quit when all windows are closed (except on macOS)
 app.on('window-all-closed', () => {

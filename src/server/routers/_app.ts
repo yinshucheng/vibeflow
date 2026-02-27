@@ -29,6 +29,7 @@ import { heartbeatRouter } from './heartbeat';
 import { timeSliceRouter } from './time-slice';
 import { restEnforcementRouter } from './rest-enforcement';
 import { healthLimitRouter } from './health-limit';
+import { chatRouter } from './chat';
 
 /**
  * Main application router
@@ -58,6 +59,7 @@ export const appRouter = router({
   timeSlice: timeSliceRouter,
   restEnforcement: restEnforcementRouter,
   healthLimit: healthLimitRouter,
+  chat: chatRouter,
 });
 
 /**

@@ -63,6 +63,8 @@ export interface TrayManagerConfig {
   onViewStatus: () => void;
   /** Called when "Settings" menu item is clicked - should show window and navigate to settings (Requirements: 6.6) */
   onOpenSettings: () => void;
+  /** Called when "AI 对话" menu item is clicked — toggle chat panel (S3.3) */
+  onToggleChat?: () => void;
   onQuit: () => void;
 }
 
@@ -505,6 +507,17 @@ export class TrayManager {
         this.config.onViewStatus();
       },
     });
+
+    // AI Chat (S3.3)
+    if (this.config.onToggleChat) {
+      template.push({
+        label: '💬 AI 对话 (⌘⇧Space)',
+        click: () => {
+          this.config.onShowWindow();
+          this.config.onToggleChat!();
+        },
+      });
+    }
 
     template.push({ type: 'separator' });
 

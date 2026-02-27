@@ -10,6 +10,8 @@ import type {
   ChatMessage,
   PendingToolCall,
   PanelHeight,
+  ChatToolCallPayload,
+  ChatToolResultPayload,
 } from '@/types';
 
 // =============================================================================
@@ -44,6 +46,8 @@ export interface ChatActions {
 
   // Tool call actions
   addPendingToolCall: (toolCall: PendingToolCall) => void;
+  addToolCallMessage: (payload: ChatToolCallPayload) => void;
+  addToolResultMessage: (payload: ChatToolResultPayload) => void;
   confirmToolCall: (toolCallId: string) => void;
   cancelToolCall: (toolCallId: string) => void;
 
@@ -141,6 +145,43 @@ export const useChatStore = create<ChatState & ChatActions>((set) => ({
   addPendingToolCall: (toolCall: PendingToolCall) =>
     set((state) => ({
       pendingToolCalls: [...state.pendingToolCalls, toolCall],
+    })),
+
+  addToolCallMessage: (payload: ChatToolCallPayload) =>
+    set((state) => ({
+      messages: [
+        ...state.messages,
+        {
+          id: payload.toolCallId,
+          role: 'tool_call' as const,
+          content: payload.description || payload.toolName,
+          metadata: {
+            toolCallId: payload.toolCallId,
+            toolName: payload.toolName,
+            parameters: payload.parameters,
+            requiresConfirmation: payload.requiresConfirmation,
+            conversationId: payload.conversationId,
+          },
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    })),
+
+  addToolResultMessage: (payload: ChatToolResultPayload) =>
+    set((state) => ({
+      messages: [
+        ...state.messages,
+        {
+          id: `result-${payload.toolCallId}`,
+          role: 'tool_result' as const,
+          content: payload.summary,
+          metadata: {
+            toolCallId: payload.toolCallId,
+            success: payload.success,
+          },
+          createdAt: new Date().toISOString(),
+        },
+      ],
     })),
 
   confirmToolCall: (toolCallId: string) =>

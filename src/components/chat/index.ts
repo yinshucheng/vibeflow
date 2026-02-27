@@ -1,7 +1,7 @@
+export { ChatProvider, useChatContext } from './ChatProvider';
+export type { ChatMessage, PendingToolCall } from './ChatProvider';
 export { ChatFAB } from './ChatFAB';
 export { ChatPanel } from './ChatPanel';
 export { ChatMessageList } from './ChatMessageList';
 export { ChatBubble } from './ChatBubble';
 export { ChatInput } from './ChatInput';
-export { ChatToolCallCard } from './ChatToolCallCard';
-export { ChatToolResultCard } from './ChatToolResultCard';

@@ -612,6 +612,15 @@ const vibeflowAPI = {
     },
   },
 
+  // AI Chat (S3.3)
+  chat: {
+    onToggleChat: (callback: () => void): (() => void) => {
+      const handler = (_event: IpcRendererEvent) => callback();
+      ipcRenderer.on('chat:toggle', handler);
+      return () => ipcRenderer.removeListener('chat:toggle', handler);
+    },
+  },
+
   // Platform info
   platform: {
     isMac: process.platform === 'darwin',

@@ -774,13 +774,13 @@ export function getChatToolDefinitions(): ChatToolDefinition[] {
     // S1.3 Batch & planning tools (5)
     { name: 'flow_get_overdue_tasks', description: 'Get tasks that are past their plan date', inputSchema: getOverdueTasksSchema, requiresConfirmation: false, execute: executeGetOverdueTasks },
     { name: 'flow_get_backlog_tasks', description: 'Get tasks without a plan date (backlog)', inputSchema: getBacklogTasksSchema, requiresConfirmation: false, execute: executeGetBacklogTasks },
-    { name: 'flow_batch_update_tasks', description: 'Update multiple tasks in a single operation. Supports updating status, priority, and plan date.', inputSchema: batchUpdateTasksSchema, requiresConfirmation: false, execute: executeBatchUpdateTasks },
+    { name: 'flow_batch_update_tasks', description: 'Update multiple tasks in a single operation. Supports updating status, priority, and plan date.', inputSchema: batchUpdateTasksSchema, requiresConfirmation: true, execute: executeBatchUpdateTasks },
     { name: 'flow_set_plan_date', description: 'Set or clear the plan date for a task', inputSchema: setPlanDateSchema, requiresConfirmation: false, execute: executeSetPlanDate },
-    { name: 'flow_move_task', description: 'Move a task to a different project', inputSchema: moveTaskSchema, requiresConfirmation: false, execute: executeMoveTask },
+    { name: 'flow_move_task', description: 'Move a task to a different project', inputSchema: moveTaskSchema, requiresConfirmation: true, execute: executeMoveTask },
 
     // S1.4 Project management tools (5)
     { name: 'flow_create_project', description: 'Create a new project', inputSchema: createProjectSchema, requiresConfirmation: false, execute: executeCreateProject },
-    { name: 'flow_update_project', description: 'Update project properties', inputSchema: updateProjectSchema, requiresConfirmation: false, execute: executeUpdateProject },
+    { name: 'flow_update_project', description: 'Update project properties', inputSchema: updateProjectSchema, requiresConfirmation: true, execute: executeUpdateProject },
     { name: 'flow_get_project', description: 'Get detailed information about a project including tasks and progress', inputSchema: getProjectSchema, requiresConfirmation: false, execute: executeGetProject },
     { name: 'flow_create_project_from_template', description: 'Create a new project with predefined tasks from a template', inputSchema: createProjectFromTemplateSchema, requiresConfirmation: false, execute: executeCreateProjectFromTemplate },
     { name: 'flow_analyze_task_dependencies', description: 'Analyze task dependencies within a project and suggest optimal execution order', inputSchema: analyzeTaskDependenciesSchema, requiresConfirmation: false, execute: executeAnalyzeTaskDependencies },
@@ -949,6 +949,16 @@ export const CHAT_TOOL_SCHEMAS = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// High-risk tools that require user confirmation before execution
+// ---------------------------------------------------------------------------
+
+export const HIGH_RISK_TOOLS: ReadonlySet<string> = new Set(
+  getChatToolDefinitions()
+    .filter((t) => t.requiresConfirmation)
+    .map((t) => t.name)
+);
+
+// ---------------------------------------------------------------------------
 // Singleton export (following the project's service pattern)
 // ---------------------------------------------------------------------------
 
@@ -960,4 +970,5 @@ export const chatToolsService = {
   handleToolConfirmation,
   getPendingConfirmation,
   clearPendingConfirmations,
+  HIGH_RISK_TOOLS,
 };

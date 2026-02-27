@@ -190,6 +190,9 @@ class ChatService {
   private handleToolCall: CommandHandler<ChatToolCallPayload> = (payload) => {
     const store = useChatStore.getState();
 
+    // Add tool call message to the chat for visual feedback
+    store.addToolCallMessage(payload);
+
     if (payload.requiresConfirmation) {
       store.addPendingToolCall({
         toolCallId: payload.toolCallId,
@@ -204,9 +207,9 @@ class ChatService {
     // Low-risk operations execute automatically server-side, we just wait for TOOL_RESULT
   };
 
-  private handleToolResult: CommandHandler<ChatToolResultPayload> = (_payload) => {
-    // Tool result will be included in the next CHAT_RESPONSE from the server
-    // For now, we don't need to handle it separately in the store
+  private handleToolResult: CommandHandler<ChatToolResultPayload> = (payload) => {
+    const store = useChatStore.getState();
+    store.addToolResultMessage(payload);
   };
 
   private handleChatSync: CommandHandler<ChatSyncPayload> = (payload) => {
