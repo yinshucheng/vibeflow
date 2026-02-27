@@ -543,6 +543,14 @@ export type {
   OnDeltaCallback,
 } from './chat.service';
 
+// Chat Tools Service exports (F4)
+export { chatToolsService, createChatTools, getChatToolDefinitions } from './chat-tools.service';
+export type {
+  ChatToolDefinition,
+  ChatToolResult,
+  PendingToolConfirmation,
+} from './chat-tools.service';
+
 // Demo Mode Service exports (Requirements: 6.1, 6.2, 6.3, 6.4, 6.7, 6.9, 6.10)
 export { demoModeService } from './demo-mode.service';
 export type {
