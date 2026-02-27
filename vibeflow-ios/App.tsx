@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TabNavigator } from '@/navigation';
 import { AppProvider } from '@/providers';
+import { ChatFAB, ChatPanel } from '@/components/chat';
 
 export default function App(): React.JSX.Element {
   return (
@@ -13,6 +14,8 @@ export default function App(): React.JSX.Element {
           <TabNavigator />
           <StatusBar style="auto" />
         </NavigationContainer>
+        <ChatFAB />
+        <ChatPanel />
       </AppProvider>
     </SafeAreaProvider>
   );

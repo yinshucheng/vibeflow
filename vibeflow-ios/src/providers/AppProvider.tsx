@@ -11,7 +11,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { syncService, heartbeatService, websocketService } from '@/services';
+import { syncService, heartbeatService, websocketService, chatService } from '@/services';
 import { blockingService } from '@/services/blocking.service';
 import { useAppStore } from '@/store';
 import { DEV_USER_EMAIL } from '@/config/auth';
@@ -38,12 +38,16 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     blockingService.initialize();
     const cleanupBlocking = blockingService.startListening();
 
+    // Initialize chat service (listens for AI chat commands)
+    chatService.initialize();
+
     // Handle app state changes (background/foreground)
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     // Cleanup on unmount
     return () => {
       subscription.remove();
+      chatService.cleanup();
       cleanupBlocking();
       heartbeatService.stop();
       syncService.cleanup();

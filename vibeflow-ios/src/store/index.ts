@@ -19,3 +19,14 @@ export {
   type AppState,
   type AppActions,
 } from './app.store';
+
+export {
+  useChatStore,
+  useChatPanelOpen,
+  useChatMessages,
+  useChatStreaming,
+  usePendingToolCalls,
+  generateUUID,
+  type ChatState,
+  type ChatActions,
+} from './chat.store';

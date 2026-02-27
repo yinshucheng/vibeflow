@@ -37,3 +37,7 @@ export {
   CACHE_EXPIRY_MS,
   type CacheService,
 } from './cache.service';
+
+export {
+  chatService,
+} from './chat.service';

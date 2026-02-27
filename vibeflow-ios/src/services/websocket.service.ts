@@ -21,8 +21,10 @@ import type {
   UpdatePolicyCommand,
   ActionResultCommand,
   OctopusEvent,
+  OctopusCommand,
   UserActionEvent,
   UserActionType,
+  CommandType,
 } from '@/types';
 
 // =============================================================================
@@ -42,6 +44,8 @@ type PolicyUpdateHandler = (command: UpdatePolicyCommand) => void;
 type ActionResultHandler = (command: ActionResultCommand) => void;
 type ConnectionHandler = () => void;
 type StatusChangeHandler = (status: ConnectionStatus) => void;
+
+type GenericCommandHandler = (payload: unknown) => void;
 
 // =============================================================================
 // RECONNECTION LOGIC
@@ -83,6 +87,7 @@ class WebSocketService {
   private disconnectHandlers: ConnectionHandler[] = [];
   private reconnectHandlers: ConnectionHandler[] = [];
   private statusChangeHandlers: StatusChangeHandler[] = [];
+  private commandHandlers: Map<string, GenericCommandHandler[]> = new Map();
 
   // Configuration
   private config: Required<WebSocketServiceConfig> = {
@@ -278,6 +283,24 @@ class WebSocketService {
     };
   }
 
+  /**
+   * Subscribe to a specific command type by name.
+   * Used for chat commands (CHAT_RESPONSE, CHAT_TOOL_CALL, etc.)
+   */
+  onCommand<T>(commandType: string, handler: (payload: T) => void): () => void {
+    const handlers = this.commandHandlers.get(commandType) || [];
+    handlers.push(handler as GenericCommandHandler);
+    this.commandHandlers.set(commandType, handlers);
+
+    return () => {
+      const current = this.commandHandlers.get(commandType) || [];
+      this.commandHandlers.set(
+        commandType,
+        current.filter((h) => h !== (handler as GenericCommandHandler))
+      );
+    };
+  }
+
   // ===========================================================================
   // PRIVATE METHODS
   // ===========================================================================
@@ -318,7 +341,7 @@ class WebSocketService {
     });
 
     // Listen for Octopus commands
-    this.socket.on('OCTOPUS_COMMAND', (command: SyncStateCommand | UpdatePolicyCommand) => {
+    this.socket.on('OCTOPUS_COMMAND', (command: OctopusCommand) => {
       console.log('[WebSocket] Received OCTOPUS_COMMAND:', command.commandType);
       this.handleCommand(command);
     });
@@ -335,7 +358,7 @@ class WebSocketService {
     });
   }
 
-  private handleCommand(command: SyncStateCommand | UpdatePolicyCommand | ActionResultCommand): void {
+  private handleCommand(command: OctopusCommand): void {
     switch (command.commandType) {
       case 'SYNC_STATE':
         this.syncStateHandlers.forEach((handler) =>
@@ -353,6 +376,15 @@ class WebSocketService {
           handler(command as ActionResultCommand)
         );
         break;
+      default: {
+        // Dispatch to generic command handlers (used by chat service etc.)
+        const handlers = this.commandHandlers.get(command.commandType);
+        if (handlers && handlers.length > 0) {
+          const payload = (command as OctopusCommand & { payload: unknown }).payload;
+          handlers.forEach((handler) => handler(payload));
+        }
+        break;
+      }
     }
   }
 

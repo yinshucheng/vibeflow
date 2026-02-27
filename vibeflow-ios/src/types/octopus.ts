@@ -22,7 +22,9 @@ export type EventType =
   | 'TAB_SWITCH'
   | 'BROWSER_FOCUS'
   | 'ENTERTAINMENT_MODE'
-  | 'WORK_START';
+  | 'WORK_START'
+  | 'CHAT_MESSAGE'
+  | 'CHAT_ACTION';
 
 export type ClientType = 'web' | 'desktop' | 'browser_ext' | 'mobile';
 
@@ -31,7 +33,11 @@ export type CommandType =
   | 'EXECUTE_ACTION'
   | 'UPDATE_POLICY'
   | 'SHOW_UI'
-  | 'ACTION_RESULT';
+  | 'ACTION_RESULT'
+  | 'CHAT_RESPONSE'
+  | 'CHAT_TOOL_CALL'
+  | 'CHAT_TOOL_RESULT'
+  | 'CHAT_SYNC';
 
 export type ActionType =
   | 'CLOSE_APP'
@@ -287,6 +293,64 @@ export interface ActionResultCommand extends BaseCommand {
 // UNION TYPES
 // =============================================================================
 
-export type OctopusEvent = HeartbeatEvent | UserActionEvent;
+// =============================================================================
+// CHAT EVENT TYPES (iOS → Vibe Brain)
+// =============================================================================
 
-export type OctopusCommand = SyncStateCommand | UpdatePolicyCommand | ActionResultCommand;
+import type {
+  ChatMessagePayload,
+  ChatActionPayload,
+  ChatResponsePayload,
+  ChatToolCallPayload,
+  ChatToolResultPayload,
+  ChatSyncPayload,
+} from './chat';
+
+export interface ChatMessageEvent extends BaseEvent {
+  eventType: 'CHAT_MESSAGE';
+  payload: ChatMessagePayload;
+}
+
+export interface ChatActionEvent extends BaseEvent {
+  eventType: 'CHAT_ACTION';
+  payload: ChatActionPayload;
+}
+
+// =============================================================================
+// CHAT COMMAND TYPES (Vibe Brain → iOS)
+// =============================================================================
+
+export interface ChatResponseCommand extends BaseCommand {
+  commandType: 'CHAT_RESPONSE';
+  payload: ChatResponsePayload;
+}
+
+export interface ChatToolCallCommand extends BaseCommand {
+  commandType: 'CHAT_TOOL_CALL';
+  payload: ChatToolCallPayload;
+}
+
+export interface ChatToolResultCommand extends BaseCommand {
+  commandType: 'CHAT_TOOL_RESULT';
+  payload: ChatToolResultPayload;
+}
+
+export interface ChatSyncCommand extends BaseCommand {
+  commandType: 'CHAT_SYNC';
+  payload: ChatSyncPayload;
+}
+
+// =============================================================================
+// UNION TYPES
+// =============================================================================
+
+export type OctopusEvent = HeartbeatEvent | UserActionEvent | ChatMessageEvent | ChatActionEvent;
+
+export type OctopusCommand =
+  | SyncStateCommand
+  | UpdatePolicyCommand
+  | ActionResultCommand
+  | ChatResponseCommand
+  | ChatToolCallCommand
+  | ChatToolResultCommand
+  | ChatSyncCommand;

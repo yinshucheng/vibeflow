@@ -8,7 +8,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**/*.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**', '**/.claude/worktrees/**', '**/tests/helpers/**'],
+    exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**', '**/.claude/worktrees/**', '**/tests/helpers/**', '**/vibeflow-ios/**', '**/vibeflow-desktop/**', '**/vibeflow-extension/**'],
   },
   resolve: {
     alias: {
