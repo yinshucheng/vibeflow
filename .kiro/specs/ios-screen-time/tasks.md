@@ -171,10 +171,10 @@
 - [ ] 7.5 `[HUMAN]` 真机验证：注册短时间调度（如 2 分钟后）→ 杀 App → 阻断自动生效
 
 ### Task 8: 睡眠调度集成 `[AI]`
-- [ ] 8.1 修改 `src/services/screen-time.service.ts` — 实现 `registerSleepSchedule(startTime, endTime)` / `clearSleepSchedule()`
+- [x] 8.1 修改 `src/services/screen-time.service.ts` — 实现 `registerSleepSchedule(startTime, endTime)` / `clearSleepSchedule()` `c7704bc`
   - 解析 "HH:mm" 格式为 hour/minute
   - 调用 native `registerSleepSchedule(h, m, h, m)` / `clearSleepSchedule()`
-- [ ] 8.2 修改 `src/services/blocking.service.ts` — `startListening()` 中添加 sleepTime 监听：
+- [x] 8.2 修改 `src/services/blocking.service.ts` — `startListening()` 中添加 sleepTime 监听： `c7704bc`
   - `policy.sleepTime` 变化时 → `screenTimeService.registerSleepSchedule(start, end)`
   - sleepTime disabled → `screenTimeService.clearSleepSchedule()`
   - 跟踪 `prevSleepStart` / `prevSleepEnd` 避免重复注册
