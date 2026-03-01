@@ -158,16 +158,16 @@
   4. Language: Swift, Deployment Target: iOS 16.0
   5. Signing & Capabilities → App Groups → `group.app.vibeflow.shared`
   6. Signing & Capabilities → Family Controls
-- [ ] 7.2 `[AI]` 实现 `DeviceActivityMonitorExtension.swift`:
+- [x] 7.2 `[AI]` 实现 `DeviceActivityMonitorExtension.swift`: `007ec88`
   - `intervalDidStart()` — 读取 AppGroupManager distraction + work selection → `.specific(_, except:)` 激活 shield
   - `intervalDidEnd()` — 清除 shield + 清除 blockingReason
   - 读取失败时回退 `.all()`
   - 注意：Extension 无法使用 AppGroupManager.swift（不在同一 target），需要在 Extension 内部直接读 UserDefaults，或将 AppGroupManager 加到 Extension 的 Compile Sources 中
-- [ ] 7.3 `[AI]` 修改 `ScreenTimeModule.swift` — 实现 `registerSleepSchedule()` / `clearSleepSchedule()`
+- [x] 7.3 `[AI]` 修改 `ScreenTimeModule.swift` — 实现 `registerSleepSchedule()` / `clearSleepSchedule()` `007ec88`
   - 创建 `DeviceActivitySchedule`（含 DateComponents interval）
   - `DeviceActivityCenter().startMonitoring(.sleepSchedule, during: schedule)`
   - 先 `stopMonitoring(.sleepSchedule)` 再重新注册（避免冲突）
-- [ ] 7.4 `[AI]` 修改 `modules/screen-time/index.ts` — 添加 sleep schedule 函数（mock 已在 Task 3 中完成）
+- [x] 7.4 `[AI]` 修改 `modules/screen-time/index.ts` — 添加 sleep schedule 函数（mock 已在 Task 3 中完成） `007ec88`
 - [ ] 7.5 `[HUMAN]` 真机验证：注册短时间调度（如 2 分钟后）→ 杀 App → 阻断自动生效
 
 ### Task 8: 睡眠调度集成 `[AI]`
