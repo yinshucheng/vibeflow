@@ -191,11 +191,11 @@
 ## Phase 2d: 集成完善
 
 ### Task 9: StatusScreen 阻断信息展示 `[AI]`
-- [ ] 9.1 修改 `src/screens/StatusScreen.tsx` — Banner 展示增强：
+- [x] 9.1 修改 `src/screens/StatusScreen.tsx` — Banner 展示增强： `dcb00f2`
   - "专注模式 — {appCount} 个分心应用已阻断，剩余 {minutes} 分钟"
   - "睡眠时段 — {appCount} 个分心应用已阻断，{endTime} 解锁"
   - "超时休息 — {appCount} 个分心应用已阻断"
-- [ ] 9.2 从 store 获取 selectionSummary 用于显示 appCount
+- [x] 9.2 从 store 获取 selectionSummary 用于显示 appCount `dcb00f2`
 
 ### Task 10: 错误处理和边界情况 `[AI]`
 - [ ] 10.1 授权被撤销时的处理：`evaluateBlockingState` 中检测 → 更新 UI → 停止阻断
