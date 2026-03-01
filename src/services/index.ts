@@ -536,11 +536,13 @@ export type {
   TokenUsage,
 } from './llm-adapter.service';
 
-// Chat Service exports (F3)
-export { chatService, conversationLocks, acquireLock } from './chat.service';
+// Chat Service exports (F3 + S11.2)
+export { chatService, conversationLocks, acquireLock, SearchMessagesSchema } from './chat.service';
 export type {
   HandleMessageResult,
   OnDeltaCallback,
+  SearchMessagesInput,
+  SearchMessagesResult,
 } from './chat.service';
 
 // Chat Context Service exports (F6)

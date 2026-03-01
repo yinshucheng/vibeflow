@@ -13,7 +13,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
-import { chatService } from '@/services/chat.service';
+import { chatService, SearchMessagesSchema } from '@/services/chat.service';
 import { chatObservabilityService } from '@/services/chat-observability.service';
 
 export const chatRouter = router({
@@ -200,6 +200,27 @@ export const chatRouter = router({
               ? 'NOT_FOUND'
               : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to switch conversation',
+        });
+      }
+
+      return result.data;
+    }),
+
+  /**
+   * S11.2: Full-text search across the user's chat messages.
+   */
+  search: protectedProcedure
+    .input(SearchMessagesSchema)
+    .query(async ({ ctx, input }) => {
+      const result = await chatService.searchMessages(
+        ctx.user.userId,
+        input
+      );
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to search messages',
         });
       }
 

@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { llmAdapterService } from '@/services/llm-adapter.service';
 import type { Conversation, ChatMessage } from '@prisma/client';
 import type { ModelMessage } from 'ai';
@@ -22,6 +23,28 @@ interface HandleMessageResult {
   userMessageId: string;
   assistantMessageId: string;
   fullText: string;
+}
+
+// ===== Search Types =====
+
+export const SearchMessagesSchema = z.object({
+  query: z.string().min(1).max(500),
+  limit: z.number().int().min(1).max(100).optional().default(20),
+  offset: z.number().int().min(0).optional().default(0),
+  conversationId: z.string().uuid().optional(),
+  dateRange: z
+    .object({
+      from: z.coerce.date(),
+      to: z.coerce.date(),
+    })
+    .optional(),
+});
+
+type SearchMessagesInput = z.infer<typeof SearchMessagesSchema>;
+
+interface SearchMessagesResult {
+  messages: (ChatMessage & { conversationTitle: string | null })[];
+  total: number;
 }
 
 // ===== Conversation Locks =====
@@ -283,6 +306,73 @@ export const chatService = {
   },
 
   /**
+   * S11.2: Full-text search across user's chat messages.
+   * Supports filtering by conversationId and dateRange.
+   * Verifies userId ownership via conversation join.
+   */
+  async searchMessages(
+    userId: string,
+    input: SearchMessagesInput
+  ): Promise<ServiceResult<SearchMessagesResult>> {
+    try {
+      const { query, limit, offset, conversationId, dateRange } = input;
+
+      // Build the where clause — always filter by userId via conversation relation
+      const where: Prisma.ChatMessageWhereInput = {
+        content: { contains: query, mode: 'insensitive' as Prisma.QueryMode },
+        conversation: {
+          userId,
+          ...(conversationId ? { id: conversationId } : {}),
+        },
+        ...(dateRange
+          ? {
+              createdAt: {
+                gte: dateRange.from,
+                lte: dateRange.to,
+              },
+            }
+          : {}),
+      };
+
+      // Execute count and search in parallel
+      const [total, messages] = await Promise.all([
+        prisma.chatMessage.count({ where }),
+        prisma.chatMessage.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: offset,
+          take: limit,
+          include: {
+            conversation: {
+              select: { title: true },
+            },
+          },
+        }),
+      ]);
+
+      // Flatten the conversation title into the result
+      const result = messages.map((msg) => ({
+        ...msg,
+        conversationTitle: msg.conversation.title,
+        conversation: undefined as never,
+      }));
+
+      return {
+        success: true,
+        data: { messages: result, total },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: `Failed to search messages: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      };
+    }
+  },
+
+  /**
    * F3.2: Main message handling flow.
    *
    * 1. Get/create conversation
@@ -444,4 +534,4 @@ export const chatService = {
 
 // Export for testing
 export { conversationLocks, acquireLock };
-export type { HandleMessageResult, OnDeltaCallback };
+export type { HandleMessageResult, OnDeltaCallback, SearchMessagesInput, SearchMessagesResult };

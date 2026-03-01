@@ -401,7 +401,7 @@ npx playwright test e2e/tests/ --project=chromium
 
 ---
 
-- [ ] **D2** S11.2 对话搜索
+- [x] **D2** S11.2 对话搜索
 
 **目标**: 全文搜索归档对话内容
 
