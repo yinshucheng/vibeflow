@@ -179,6 +179,110 @@ export const chatService = {
   },
 
   /**
+   * S11.1: Create a TOPIC conversation (cross-day, not archived by daily reset).
+   */
+  async createTopicConversation(
+    userId: string,
+    title: string
+  ): Promise<ServiceResult<Conversation>> {
+    try {
+      if (!title || title.trim().length === 0) {
+        return {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Title is required' },
+        };
+      }
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          userId,
+          type: 'TOPIC',
+          status: 'ACTIVE',
+          title: title.trim(),
+        },
+      });
+
+      return { success: true, data: conversation };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: `Failed to create topic conversation: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      };
+    }
+  },
+
+  /**
+   * S11.1: List all TOPIC conversations for a user.
+   */
+  async listTopicConversations(
+    userId: string
+  ): Promise<ServiceResult<Conversation[]>> {
+    try {
+      const conversations = await prisma.conversation.findMany({
+        where: {
+          userId,
+          type: 'TOPIC',
+          status: 'ACTIVE',
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      return { success: true, data: conversations };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: `Failed to list topic conversations: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      };
+    }
+  },
+
+  /**
+   * S11.1: Switch active conversation for a user.
+   * Verifies userId ownership before allowing the switch.
+   * Returns the target conversation.
+   */
+  async switchConversation(
+    userId: string,
+    conversationId: string
+  ): Promise<ServiceResult<Conversation>> {
+    try {
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          userId,
+          status: 'ACTIVE',
+        },
+      });
+
+      if (!conversation) {
+        return {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Conversation not found or access denied',
+          },
+        };
+      }
+
+      return { success: true, data: conversation };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: `Failed to switch conversation: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      };
+    }
+  },
+
+  /**
    * F3.2: Main message handling flow.
    *
    * 1. Get/create conversation

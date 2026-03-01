@@ -119,6 +119,7 @@ export const chatArchiveService = {
   /**
    * S8.1 — Run daily archive for all users with active DEFAULT conversations.
    * Called from dailyResetSchedulerService at 04:00 AM.
+   * Note: TOPIC conversations are excluded — they persist across daily resets (S11.1).
    */
   async runDailyArchive(): Promise<ServiceResult<{ archivedCount: number }>> {
     try {

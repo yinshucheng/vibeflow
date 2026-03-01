@@ -133,4 +133,76 @@ export const chatRouter = router({
 
       return result.data;
     }),
+
+  /**
+   * S11.1: Create a TOPIC conversation (cross-day, not archived by daily reset).
+   */
+  createTopic: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().min(1).max(200),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const result = await chatService.createTopicConversation(
+        ctx.user.userId,
+        input.title
+      );
+
+      if (!result.success) {
+        throw new TRPCError({
+          code:
+            result.error?.code === 'VALIDATION_ERROR'
+              ? 'BAD_REQUEST'
+              : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to create topic',
+        });
+      }
+
+      return result.data;
+    }),
+
+  /**
+   * S11.1: List all active TOPIC conversations for the current user.
+   */
+  listTopics: protectedProcedure.query(async ({ ctx }) => {
+    const result = await chatService.listTopicConversations(ctx.user.userId);
+
+    if (!result.success) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: result.error?.message ?? 'Failed to list topics',
+      });
+    }
+
+    return result.data;
+  }),
+
+  /**
+   * S11.1: Switch to a different conversation (DEFAULT or TOPIC).
+   */
+  switchConversation: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const result = await chatService.switchConversation(
+        ctx.user.userId,
+        input.conversationId
+      );
+
+      if (!result.success) {
+        throw new TRPCError({
+          code:
+            result.error?.code === 'NOT_FOUND'
+              ? 'NOT_FOUND'
+              : 'INTERNAL_SERVER_ERROR',
+          message: result.error?.message ?? 'Failed to switch conversation',
+        });
+      }
+
+      return result.data;
+    }),
 });

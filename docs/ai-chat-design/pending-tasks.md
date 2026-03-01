@@ -387,7 +387,7 @@ npx playwright test e2e/tests/ --project=chromium
 
 > 每个可作为独立 claude code session。优先级由业务决定。
 
-- [ ] **D1** S11.1 Topic Mode 会话
+- [x] **D1** S11.1 Topic Mode 会话
 
 **目标**: 支持手动创建跨天专题会话（不在 daily archive 时归档）
 
