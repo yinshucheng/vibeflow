@@ -18,7 +18,7 @@
 | PART B 维护 | ✅ B1 已完成 |
 | E2E 测试 | ⚠️ 待 E2E 验证（代码已修复） |
 | QA 人工验收 | ⚠️ C1 完成 (10 项), C2 完成 (36 项) |
-| S11 高级能力 | ❌ 7 项未开始 |
+| S11 高级能力 | ⚠️ D1-D4 完成, 3 项未开始 |
 
 ---
 
@@ -427,7 +427,7 @@ npx playwright test e2e/tests/ --project=chromium
 
 ---
 
-- [ ] **D4** S11.6 国产 LLM 验证
+- [x] **D4** S11.6 国产 LLM 验证
 
 **目标**: 端到端验证 Qwen / Kimi 的 Tool Use + 流式输出
 
