@@ -87,9 +87,22 @@ export type AuthorizationStatus =
 
 export type BlockingReason = 'focus' | 'over_rest' | 'sleep';
 
+export interface SelectionSummary {
+  appCount: number;
+  categoryCount: number;
+  hasSelection: boolean;
+}
+
+export interface SleepScheduleConfig {
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+}
+
 export interface BlockingState {
   isActive: boolean;
-  blockedApps: BlockedApp[];
+  selectionSummary: SelectionSummary | null;
   pomodoroId: string | null;
   activatedAt: number | null;
   reason: BlockingReason | null;

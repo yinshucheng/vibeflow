@@ -9,24 +9,14 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ScreenTimeNative from '../../modules/screen-time';
-import type { BlockedApp, BlockingState, BlockingReason, AuthorizationStatus } from '@/types';
+import type { SelectionSummary } from '../../modules/screen-time';
+import type { BlockingState, BlockingReason, AuthorizationStatus } from '@/types';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
 
 const BLOCKING_STATE_KEY = '@vibeflow/blocking_state';
-
-/**
- * Default apps to block during focus sessions
- */
-export const DEFAULT_BLOCKED_APPS: BlockedApp[] = [
-  { bundleId: 'com.tencent.xin', name: '微信' },
-  { bundleId: 'com.sina.weibo', name: '微博' },
-  { bundleId: 'com.ss.iphone.ugc.Aweme', name: '抖音' },
-  { bundleId: 'com.xingin.discover', name: '小红书' },
-  { bundleId: 'tv.danmaku.bilianime', name: 'B站' },
-];
 
 // =============================================================================
 // MOCK BRIDGE (for simulator / development)
@@ -46,13 +36,13 @@ class MockScreenTimeBridge {
     return this.authorized;
   }
 
-  async enableBlocking(): Promise<void> {
+  async enableBlocking(useSelection: boolean): Promise<void> {
     if (this.authorized !== 'authorized') {
       console.warn('[MockScreenTime] Cannot enable blocking - not authorized');
       return;
     }
     this.blocking = true;
-    console.log('[MockScreenTime] Blocking enabled (category-based)');
+    console.log(`[MockScreenTime] Blocking enabled (useSelection=${useSelection})`);
   }
 
   async disableBlocking(): Promise<void> {
@@ -62,6 +52,25 @@ class MockScreenTimeBridge {
 
   async isBlockingEnabled(): Promise<boolean> {
     return this.blocking;
+  }
+
+  async getSelectionSummary(_type: 'distraction' | 'work'): Promise<SelectionSummary> {
+    return { appCount: 0, categoryCount: 0, hasSelection: false };
+  }
+
+  async setBlockingReason(reason: string): Promise<void> {
+    console.log(`[MockScreenTime] Blocking reason set: ${reason}`);
+  }
+
+  async registerSleepSchedule(
+    startHour: number, startMinute: number,
+    endHour: number, endMinute: number
+  ): Promise<void> {
+    console.log(`[MockScreenTime] Sleep schedule registered: ${startHour}:${startMinute}-${endHour}:${endMinute}`);
+  }
+
+  async clearSleepSchedule(): Promise<void> {
+    console.log('[MockScreenTime] Sleep schedule cleared');
   }
 }
 
@@ -86,10 +95,13 @@ export interface ScreenTimeService {
   initialize(): Promise<void>;
   requestAuthorization(): Promise<AuthorizationStatus>;
   getAuthorizationStatus(): Promise<AuthorizationStatus>;
-  enableBlocking(apps: BlockedApp[], pomodoroId: string, reason: BlockingReason): Promise<void>;
+  enableBlocking(reason: BlockingReason): Promise<void>;
   disableBlocking(): Promise<void>;
   isBlockingActive(): Promise<boolean>;
   getBlockingState(): Promise<BlockingState | null>;
+  getSelectionSummary(type: 'distraction' | 'work'): Promise<SelectionSummary>;
+  registerSleepSchedule(startTime: string, endTime: string): Promise<void>;
+  clearSleepSchedule(): Promise<void>;
   persistBlockingState(state: BlockingState): Promise<void>;
   loadBlockingState(): Promise<BlockingState | null>;
   clearBlockingState(): Promise<void>;
@@ -116,11 +128,11 @@ function createScreenTimeService(): ScreenTimeService {
     return mockBridge!.getAuthorizationStatus();
   }
 
-  async function bridgeEnableBlocking(): Promise<void> {
+  async function bridgeEnableBlocking(useSelection: boolean): Promise<void> {
     if (useNative) {
-      return ScreenTimeNative.enableBlocking();
+      return ScreenTimeNative.enableBlocking(useSelection);
     }
-    return mockBridge!.enableBlocking();
+    return mockBridge!.enableBlocking(useSelection);
   }
 
   async function bridgeDisableBlocking(): Promise<void> {
@@ -137,6 +149,48 @@ function createScreenTimeService(): ScreenTimeService {
     return mockBridge!.isBlockingEnabled();
   }
 
+  async function bridgeGetSelectionSummary(type: 'distraction' | 'work'): Promise<SelectionSummary> {
+    if (useNative) {
+      return ScreenTimeNative.getSelectionSummary(type);
+    }
+    return mockBridge!.getSelectionSummary(type);
+  }
+
+  async function bridgeSetBlockingReason(reason: string): Promise<void> {
+    if (useNative) {
+      return ScreenTimeNative.setBlockingReason(reason);
+    }
+    return mockBridge!.setBlockingReason(reason);
+  }
+
+  async function bridgeRegisterSleepSchedule(
+    startHour: number, startMinute: number,
+    endHour: number, endMinute: number
+  ): Promise<void> {
+    if (useNative) {
+      return ScreenTimeNative.registerSleepSchedule(startHour, startMinute, endHour, endMinute);
+    }
+    return mockBridge!.registerSleepSchedule(startHour, startMinute, endHour, endMinute);
+  }
+
+  async function bridgeClearSleepSchedule(): Promise<void> {
+    if (useNative) {
+      return ScreenTimeNative.clearSleepSchedule();
+    }
+    return mockBridge!.clearSleepSchedule();
+  }
+
+  /**
+   * Parse "HH:mm" time string to hour/minute components
+   */
+  function parseTime(time: string): { hour: number; minute: number } {
+    const [hourStr, minuteStr] = time.split(':');
+    return {
+      hour: parseInt(hourStr, 10),
+      minute: parseInt(minuteStr, 10),
+    };
+  }
+
   return {
     async initialize(): Promise<void> {
       const persistedState = await this.loadBlockingState();
@@ -144,7 +198,8 @@ function createScreenTimeService(): ScreenTimeService {
       if (persistedState && persistedState.isActive) {
         const status = await bridgeGetAuthStatus();
         if (status === 'authorized') {
-          await bridgeEnableBlocking();
+          const summary = await bridgeGetSelectionSummary('distraction');
+          await bridgeEnableBlocking(summary.hasSelection);
           currentState = persistedState;
           console.log('[ScreenTimeService] Restored blocking state from persistence');
         } else {
@@ -161,7 +216,7 @@ function createScreenTimeService(): ScreenTimeService {
       return bridgeGetAuthStatus();
     },
 
-    async enableBlocking(apps: BlockedApp[], pomodoroId: string, reason: BlockingReason): Promise<void> {
+    async enableBlocking(reason: BlockingReason): Promise<void> {
       const status = await bridgeGetAuthStatus();
 
       if (status !== 'authorized') {
@@ -169,13 +224,15 @@ function createScreenTimeService(): ScreenTimeService {
         return;
       }
 
-      // Phase 1: category-based blocking via native module
-      await bridgeEnableBlocking();
+      // Check if user has configured distraction app selection
+      const summary = await bridgeGetSelectionSummary('distraction');
+      await bridgeEnableBlocking(summary.hasSelection);
+      await bridgeSetBlockingReason(reason);
 
       currentState = {
         isActive: true,
-        blockedApps: apps,
-        pomodoroId,
+        selectionSummary: summary,
+        pomodoroId: null,
         activatedAt: Date.now(),
         reason,
       };
@@ -188,7 +245,7 @@ function createScreenTimeService(): ScreenTimeService {
 
       currentState = {
         isActive: false,
-        blockedApps: [],
+        selectionSummary: null,
         pomodoroId: null,
         activatedAt: null,
         reason: null,
@@ -205,6 +262,22 @@ function createScreenTimeService(): ScreenTimeService {
       return currentState;
     },
 
+    async getSelectionSummary(type: 'distraction' | 'work'): Promise<SelectionSummary> {
+      return bridgeGetSelectionSummary(type);
+    },
+
+    async registerSleepSchedule(startTime: string, endTime: string): Promise<void> {
+      const start = parseTime(startTime);
+      const end = parseTime(endTime);
+      await bridgeRegisterSleepSchedule(start.hour, start.minute, end.hour, end.minute);
+      console.log(`[ScreenTimeService] Sleep schedule registered: ${startTime}-${endTime}`);
+    },
+
+    async clearSleepSchedule(): Promise<void> {
+      await bridgeClearSleepSchedule();
+      console.log('[ScreenTimeService] Sleep schedule cleared');
+    },
+
     async persistBlockingState(state: BlockingState): Promise<void> {
       try {
         await AsyncStorage.setItem(BLOCKING_STATE_KEY, JSON.stringify(state));
@@ -217,7 +290,18 @@ function createScreenTimeService(): ScreenTimeService {
       try {
         const json = await AsyncStorage.getItem(BLOCKING_STATE_KEY);
         if (!json) return null;
-        return JSON.parse(json) as BlockingState;
+        const parsed = JSON.parse(json);
+        // Migrate old format: blockedApps → selectionSummary
+        if ('blockedApps' in parsed && !('selectionSummary' in parsed)) {
+          return {
+            isActive: parsed.isActive,
+            selectionSummary: null,
+            pomodoroId: parsed.pomodoroId,
+            activatedAt: parsed.activatedAt,
+            reason: parsed.reason,
+          };
+        }
+        return parsed as BlockingState;
       } catch (error) {
         console.error('[ScreenTimeService] Failed to load blocking state:', error);
         return null;

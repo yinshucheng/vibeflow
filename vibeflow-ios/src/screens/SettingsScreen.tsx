@@ -90,34 +90,6 @@ function Row({ label, value, isLast = false }: RowProps): React.JSX.Element {
 }
 
 // =============================================================================
-// BLOCKED APP ROW
-// =============================================================================
-
-interface BlockedAppRowProps {
-  name: string;
-  bundleId: string;
-  isLast?: boolean;
-}
-
-function BlockedAppRow({ name, bundleId, isLast = false }: BlockedAppRowProps): React.JSX.Element {
-  const theme = useTheme();
-
-  return (
-    <View
-      style={[
-        styles.row,
-        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
-      ]}
-    >
-      <View>
-        <Text style={[styles.rowLabel, { color: theme.colors.text }]}>{name}</Text>
-        <Text style={[styles.bundleId, { color: theme.colors.textMuted }]}>{bundleId}</Text>
-      </View>
-    </View>
-  );
-}
-
-// =============================================================================
 // AUTHORIZATION STATUS BADGE
 // =============================================================================
 
@@ -152,7 +124,7 @@ export function SettingsScreen(): React.JSX.Element {
   const theme = useTheme();
   const connectionStatus = useConnectionStatus();
   const { userEmail } = useUserInfo();
-  const { blockedApps, isBlockingActive, blockingReason } = useBlockingState();
+  const { selectionSummary, isBlockingActive, blockingReason } = useBlockingState();
   const policy = usePolicy();
   const [authStatus, setAuthStatus] = useState<AuthorizationStatus>('notDetermined');
 
@@ -254,21 +226,17 @@ export function SettingsScreen(): React.JSX.Element {
           </Section>
         )}
 
-        {/* Blocked Apps Section */}
-        <Section title="屏蔽应用列表">
-          {blockedApps.length > 0 ? (
-            blockedApps.map((app, index) => (
-              <BlockedAppRow
-                key={app.bundleId}
-                name={app.name}
-                bundleId={app.bundleId}
-                isLast={index === blockedApps.length - 1}
-              />
-            ))
+        {/* Blocking Selection Section */}
+        <Section title="分心应用选择">
+          {selectionSummary && selectionSummary.hasSelection ? (
+            <>
+              <Row label="应用数量" value={`${selectionSummary.appCount} 个`} />
+              <Row label="品类数量" value={`${selectionSummary.categoryCount} 个`} isLast />
+            </>
           ) : (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
-                暂无屏蔽应用
+                未配置分心应用（阻断时将屏蔽所有应用）
               </Text>
             </View>
           )}
@@ -329,10 +297,6 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     fontSize: 16,
-  },
-  bundleId: {
-    fontSize: 12,
-    marginTop: 2,
   },
   badge: {
     paddingHorizontal: 10,

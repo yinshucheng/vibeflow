@@ -18,12 +18,18 @@ interface ScreenTimeNativeModule {
   // Phase 1 (retained)
   requestAuthorization(): Promise<string>;
   getAuthorizationStatus(): Promise<string>;
-  enableBlocking(): Promise<void>;
+  enableBlocking(useSelection: boolean): Promise<void>;
   disableBlocking(): Promise<void>;
   isBlockingEnabled(): Promise<boolean>;
   // Phase 2 (new)
   presentActivityPicker(type: 'distraction' | 'work'): Promise<SelectionSummary>;
   getSelectionSummary(type: 'distraction' | 'work'): Promise<SelectionSummary>;
+  setBlockingReason(reason: string): Promise<void>;
+  registerSleepSchedule(
+    startHour: number, startMinute: number,
+    endHour: number, endMinute: number
+  ): Promise<void>;
+  clearSleepSchedule(): Promise<void>;
 }
 
 let nativeModule: ScreenTimeNativeModule | null = null;
@@ -50,12 +56,12 @@ export async function getAuthorizationStatus(): Promise<string> {
   return nativeModule.getAuthorizationStatus();
 }
 
-export async function enableBlocking(): Promise<void> {
+export async function enableBlocking(useSelection: boolean): Promise<void> {
   if (!nativeModule) {
-    console.log('[ScreenTime] Mock: enableBlocking called');
+    console.log(`[ScreenTime] Mock: enableBlocking(useSelection=${useSelection}) called`);
     return;
   }
-  return nativeModule.enableBlocking();
+  return nativeModule.enableBlocking(useSelection);
 }
 
 export async function disableBlocking(): Promise<void> {
@@ -84,4 +90,31 @@ export async function getSelectionSummary(type: 'distraction' | 'work'): Promise
     return EMPTY_SUMMARY;
   }
   return nativeModule.getSelectionSummary(type);
+}
+
+export async function setBlockingReason(reason: string): Promise<void> {
+  if (!nativeModule) {
+    console.log(`[ScreenTime] Mock: setBlockingReason(${reason}) called`);
+    return;
+  }
+  return nativeModule.setBlockingReason(reason);
+}
+
+export async function registerSleepSchedule(
+  startHour: number, startMinute: number,
+  endHour: number, endMinute: number
+): Promise<void> {
+  if (!nativeModule) {
+    console.log(`[ScreenTime] Mock: registerSleepSchedule(${startHour}:${startMinute}-${endHour}:${endMinute}) called`);
+    return;
+  }
+  return nativeModule.registerSleepSchedule(startHour, startMinute, endHour, endMinute);
+}
+
+export async function clearSleepSchedule(): Promise<void> {
+  if (!nativeModule) {
+    console.log('[ScreenTime] Mock: clearSleepSchedule called');
+    return;
+  }
+  return nativeModule.clearSleepSchedule();
 }

@@ -1,3 +1,4 @@
+import DeviceActivity
 import ExpoModulesCore
 import FamilyControls
 import ManagedSettings
@@ -40,11 +41,10 @@ public class ScreenTimeModule: Module {
       }
     }
 
-    AsyncFunction("enableBlocking") { (promise: Promise) in
+    AsyncFunction("enableBlocking") { (useSelection: Bool, promise: Promise) in
       if #available(iOS 16.0, *) {
-        // Phase 1: Block all app categories.
-        // ActivityCategoryToken is opaque — specific category selection
-        // requires FamilyActivityPicker (Phase 2).
+        // Phase 2a: useSelection parameter accepted but still uses .all()
+        // Phase 2b will switch to token-based blocking when useSelection=true
         self.store.shield.applicationCategories = .all()
         promise.resolve(nil)
       } else {
@@ -164,6 +164,61 @@ public class ScreenTimeModule: Module {
           "categoryCount": 0,
           "hasSelection": false,
         ] as [String: Any])
+      }
+    }
+
+    // MARK: - Phase 2: Blocking Reason
+
+    AsyncFunction("setBlockingReason") { (reason: String, promise: Promise) in
+      if #available(iOS 16.0, *) {
+        AppGroupManager.shared.saveBlockingReason(reason)
+        promise.resolve(nil)
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    // MARK: - Phase 2: Sleep Schedule
+
+    AsyncFunction("registerSleepSchedule") {
+      (startHour: Int, startMinute: Int, endHour: Int, endMinute: Int, promise: Promise) in
+      if #available(iOS 16.0, *) {
+        // Save to App Group for extensions to read
+        AppGroupManager.shared.saveSleepSchedule(
+          startHour: startHour, startMinute: startMinute,
+          endHour: endHour, endMinute: endMinute
+        )
+
+        let start = DateComponents(hour: startHour, minute: startMinute)
+        let end = DateComponents(hour: endHour, minute: endMinute)
+        let schedule = DeviceActivitySchedule(
+          intervalStart: start,
+          intervalEnd: end,
+          repeats: true
+        )
+
+        let center = DeviceActivityCenter()
+        // Stop existing schedule first to avoid conflicts
+        center.stopMonitoring([.init("sleepSchedule")])
+        do {
+          try center.startMonitoring(.init("sleepSchedule"), during: schedule)
+          promise.resolve(nil)
+        } catch {
+          promise.reject("SCHEDULE_ERROR", "Failed to register sleep schedule: \(error.localizedDescription)")
+        }
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("clearSleepSchedule") { (promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([.init("sleepSchedule")])
+        AppGroupManager.shared.clearSleepSchedule()
+        promise.resolve(nil)
+      } else {
+        promise.resolve(nil)
       }
     }
   }
