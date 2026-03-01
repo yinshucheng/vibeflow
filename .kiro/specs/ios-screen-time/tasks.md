@@ -198,10 +198,10 @@
 - [x] 9.2 从 store 获取 selectionSummary 用于显示 appCount `dcb00f2`
 
 ### Task 10: 错误处理和边界情况 `[AI]`
-- [ ] 10.1 授权被撤销时的处理：`evaluateBlockingState` 中检测 → 更新 UI → 停止阻断
-- [ ] 10.2 App Group 读取失败时的 fallback：Native 层 catch 后走 `.all()` 兜底
-- [ ] 10.3 DeviceActivity 调度注册失败时的 fallback（记日志，不 crash）
-- [ ] 10.4 阻断中修改选择被禁止的逻辑：SettingsScreen 检查 `isBlockingActive` → disable 按钮
+- [x] 10.1 授权被撤销时的处理：`evaluateBlockingState` 中检测 → 更新 UI → 停止阻断 `44706cf`
+- [x] 10.2 App Group 读取失败时的 fallback：Native 层 catch 后走 `.all()` 兜底 `44706cf`
+- [x] 10.3 DeviceActivity 调度注册失败时的 fallback（记日志，不 crash） `44706cf`
+- [x] 10.4 阻断中修改选择被禁止的逻辑：SettingsScreen 检查 `isBlockingActive` → disable 按钮 `44706cf`
 
 ### Task 11: 测试 `[AI]` + `[HUMAN]`
 - [ ] 11.1 `[AI]` 单元测试：`evaluateBlockingReason()` 各状态组合
