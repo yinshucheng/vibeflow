@@ -130,6 +130,13 @@ describe('aiTriggerService', () => {
     // Re-init to ensure builtin triggers are registered
     aiTriggerService._triggers.clear();
     aiTriggerService.init();
+
+    // Reset specific mocks to clear mockResolvedValueOnce queues, then re-set defaults
+    vi.mocked(mockPrisma.userSettings.findUnique).mockReset().mockResolvedValue(null as never);
+    vi.mocked(dailyStateService.getCurrentState).mockReset().mockResolvedValue({
+      success: true,
+      data: 'planning' as never,
+    });
   });
 
   // =====================================================================
@@ -186,7 +193,10 @@ describe('aiTriggerService', () => {
     });
 
     it('should return true when cooldown has expired', async () => {
-      const now = Date.now();
+      // Use a daytime timestamp to avoid quiet hours (default 22:00-07:00)
+      const daytime = new Date();
+      daytime.setHours(10, 0, 0, 0);
+      const now = daytime.getTime();
       aiTriggerService._updateCooldown(TEST_USER_ID, testTrigger.id, now - 61_000); // 61s ago
 
       const result = await aiTriggerService.shouldFire(TEST_USER_ID, testTrigger, { now });
@@ -247,7 +257,10 @@ describe('aiTriggerService', () => {
     it('should return true when all conditions are met', async () => {
       // Default mocks: user has no settings (defaults apply),
       // state is 'planning', no cooldown
-      const result = await aiTriggerService.shouldFire(TEST_USER_ID, testTrigger);
+      // Use a daytime timestamp to avoid quiet hours (default 22:00-07:00)
+      const daytime = new Date();
+      daytime.setHours(10, 0, 0, 0);
+      const result = await aiTriggerService.shouldFire(TEST_USER_ID, testTrigger, { now: daytime.getTime() });
       expect(result).toBe(true);
     });
   });

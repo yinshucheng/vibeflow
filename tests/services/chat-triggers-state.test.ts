@@ -113,6 +113,15 @@ describe('Chat State Transition Triggers (S5)', () => {
     registerProactiveBroadcaster((userId, command) => {
       broadcastedCommands.push({ userId, command });
     });
+
+    // Default: no quiet hours (avoids time-of-day dependency in tests)
+    mockPrismaClient.userSettings.findUnique.mockResolvedValue({
+      aiTriggerConfig: {
+        enabled: true,
+        quietHours: null,
+        triggers: {},
+      },
+    });
   });
 
   // =====================================================================

@@ -21,6 +21,18 @@ const prisma = new PrismaClient();
 let testUserId: string;
 let dbAvailable = false;
 
+// Helper to compute "today" with the 4 AM daily reset boundary
+// (mirrors getTodayDate() in daily-state.service.ts)
+function getServiceTodayDate(): Date {
+  const now = new Date();
+  const today = new Date(now);
+  if (now.getHours() < 4) {
+    today.setDate(today.getDate() - 1);
+  }
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
 // Helper to check database connectivity
 async function checkDatabaseConnection(): Promise<boolean> {
   try {
@@ -264,10 +276,9 @@ describe('Property 12: MCP Resource Schema Consistency', () => {
         // Generate random system states
         fc.constantFrom('LOCKED', 'PLANNING', 'FOCUS', 'REST'),
         async (systemState) => {
-          // Set up daily state
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
+          // Set up daily state (use 4AM boundary to match service logic)
+          const today = getServiceTodayDate();
+
           await prisma.dailyState.upsert({
             where: {
               userId_date: {
@@ -527,10 +538,12 @@ describe('Property 12: MCP Resource Schema Consistency', () => {
             },
           });
           
-          // Create tasks with today's plan date
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
+          // Create tasks with today's plan date (calendar date for taskService)
+          const calendarToday = new Date();
+          calendarToday.setHours(0, 0, 0, 0);
+          // Service "today" uses 4AM boundary for dailyState
+          const serviceToday = getServiceTodayDate();
+
           const createdTaskIds: string[] = [];
           for (let i = 0; i < taskCount; i++) {
             const task = await prisma.task.create({
@@ -538,7 +551,7 @@ describe('Property 12: MCP Resource Schema Consistency', () => {
                 title: `Task ${i + 1}`,
                 priority: ['P1', 'P2', 'P3'][i % 3] as Priority,
                 status: 'TODO' as TaskStatus,
-                planDate: today,
+                planDate: calendarToday,
                 sortOrder: i,
                 projectId: project.id,
                 userId: testUserId,
@@ -546,16 +559,16 @@ describe('Property 12: MCP Resource Schema Consistency', () => {
             });
             createdTaskIds.push(task.id);
           }
-          
+
           // Select top3 tasks (up to available tasks)
           const actualTop3Count = Math.min(top3Count, taskCount);
           const top3TaskIds = createdTaskIds.slice(0, actualTop3Count);
-          
-          // Create daily state with top3
+
+          // Create daily state with top3 (use service date for 4AM boundary)
           await prisma.dailyState.create({
             data: {
               userId: testUserId,
-              date: today,
+              date: serviceToday,
               systemState: 'PLANNING',
               top3TaskIds,
               pomodoroCount: 0,

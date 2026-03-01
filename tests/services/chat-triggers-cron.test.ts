@@ -111,6 +111,15 @@ describe('Chat Cron Triggers (S9)', () => {
 
     // Default: user in LOCKED state (for morning_greeting)
     mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+
+    // Default: no quiet hours (avoids time-of-day dependency in tests)
+    mockPrismaClient.userSettings.findUnique.mockResolvedValue({
+      aiTriggerConfig: {
+        enabled: true,
+        quietHours: null,
+        triggers: {},
+      },
+    });
   });
 
   // =====================================================================
@@ -229,6 +238,7 @@ describe('Chat Cron Triggers (S9)', () => {
       mockPrismaClient.userSettings.findUnique.mockResolvedValue({
         aiTriggerConfig: {
           enabled: true,
+          quietHours: null,
           triggers: { progress_check: { enabled: true } },
         },
       });
@@ -262,6 +272,7 @@ describe('Chat Cron Triggers (S9)', () => {
       mockPrismaClient.userSettings.findUnique.mockResolvedValue({
         aiTriggerConfig: {
           enabled: true,
+          quietHours: null,
           triggers: { midday_check: { enabled: true } },
         },
       });

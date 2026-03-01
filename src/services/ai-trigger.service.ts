@@ -374,7 +374,8 @@ export const aiTriggerService = {
         const stored = settings.aiTriggerConfig as unknown as Partial<AITriggerConfig>;
         return {
           enabled: stored.enabled ?? DEFAULT_AI_TRIGGER_CONFIG.enabled,
-          quietHours: stored.quietHours ?? DEFAULT_AI_TRIGGER_CONFIG.quietHours,
+          // Use 'in' check so explicit null/undefined disables quiet hours
+          quietHours: 'quietHours' in stored ? stored.quietHours : DEFAULT_AI_TRIGGER_CONFIG.quietHours,
           triggers: {
             ...DEFAULT_AI_TRIGGER_CONFIG.triggers,
             ...(stored.triggers ?? {}),
