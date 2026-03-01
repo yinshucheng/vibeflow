@@ -90,14 +90,14 @@
 - [ ] 3.7 `[HUMAN]` 真机验证：所有新 native 函数调用正常，阻断流程不 break（仍为 `.all()`）
 
 ### Task 4: Settings 页面交互 `[AI]`
-- [ ] 4.1 改造 `src/screens/SettingsScreen.tsx`:
+- [x] 4.1 改造 `src/screens/SettingsScreen.tsx`: `01c15d7`
   - 添加"分心应用"行：显示 summary（如"5 个应用, 1 个品类"），点击调用 `presentActivityPicker('distraction')`
   - 添加"工作应用（始终允许）"行：显示 summary，点击调用 `presentActivityPicker('work')`
   - 阻断中时两行 disabled（灰色 + "阻断期间不可修改"提示）
   - 未授权时其他选项灰色，突出显示授权按钮
   - 移除底部"所有设置均为只读"的提示（不再只读）
-- [ ] 4.2 添加首次设置引导卡片（onboarding card）— 授权状态为 `notDetermined` 时显示
-- [ ] 4.3 App 启动时（AppProvider）调用 `getSelectionSummary` 初始化 store 中的 summary
+- [x] 4.2 添加首次设置引导卡片（onboarding card）— 授权状态为 `notDetermined` 时显示 `01c15d7`
+- [x] 4.3 App 启动时（AppProvider）调用 `getSelectionSummary` 初始化 store 中的 summary `01c15d7`
 - [ ] 4.4 `[HUMAN]` 真机验证：完整设置流程 — 授权 → 选择分心应用 → 查看 summary → 重启 App → summary 仍在
 
 **Phase 2a 验收标准：**
