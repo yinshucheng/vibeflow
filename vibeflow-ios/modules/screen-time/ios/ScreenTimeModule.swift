@@ -43,9 +43,27 @@ public class ScreenTimeModule: Module {
 
     AsyncFunction("enableBlocking") { (useSelection: Bool, promise: Promise) in
       if #available(iOS 16.0, *) {
-        // Phase 2a: useSelection parameter accepted but still uses .all()
-        // Phase 2b will switch to token-based blocking when useSelection=true
-        self.store.shield.applicationCategories = .all()
+        if useSelection,
+           let distractionSelection = AppGroupManager.shared.loadDistractionSelection(),
+           !distractionSelection.applicationTokens.isEmpty || !distractionSelection.categoryTokens.isEmpty
+        {
+          let workSelection = AppGroupManager.shared.loadWorkAppsSelection()
+          let workApps = workSelection?.applicationTokens ?? Set()
+
+          // App tokens: direct set subtraction
+          self.store.shield.applications = distractionSelection.applicationTokens.subtracting(workApps)
+
+          // Category tokens: must use .specific(_, except:) because opaque tokens
+          // prevent determining if a category contains a specific app
+          self.store.shield.applicationCategories = .specific(
+            distractionSelection.categoryTokens,
+            except: workApps
+          )
+        } else {
+          // Fallback: block all categories (Phase 1 behavior)
+          self.store.shield.applications = nil
+          self.store.shield.applicationCategories = .all()
+        }
         promise.resolve(nil)
       } else {
         promise.resolve(nil)
@@ -54,6 +72,7 @@ public class ScreenTimeModule: Module {
 
     AsyncFunction("disableBlocking") { (promise: Promise) in
       if #available(iOS 16.0, *) {
+        self.store.shield.applications = nil
         self.store.shield.applicationCategories = nil
         promise.resolve(nil)
       } else {
@@ -63,7 +82,7 @@ public class ScreenTimeModule: Module {
 
     AsyncFunction("isBlockingEnabled") { (promise: Promise) in
       if #available(iOS 16.0, *) {
-        let enabled = self.store.shield.applicationCategories != nil
+        let enabled = self.store.shield.applications != nil || self.store.shield.applicationCategories != nil
         promise.resolve(enabled)
       } else {
         promise.resolve(false)
