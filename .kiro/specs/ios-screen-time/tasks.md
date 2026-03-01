@@ -222,31 +222,18 @@
 >
 > **前提**：Phase 2c Task 6.1/7.1 中已在 Xcode 手动创建好 Extension 并验证功能正常。本 Task 是把手动步骤自动化。
 
-- [ ] 12.1 `[AI]` 将 Extension 源码抽离到模板目录：
-  ```
-  vibeflow-ios/extensions/
-  ├── ShieldConfigurationExtension/
-  │   ├── VibeFlowShieldConfigurationDataSource.swift
-  │   ├── Info.plist
-  │   └── ShieldConfigurationExtension.entitlements
-  └── DeviceActivityMonitorExtension/
-      ├── DeviceActivityMonitorExtension.swift
-      ├── Info.plist
-      └── DeviceActivityMonitorExtension.entitlements
-  ```
-- [ ] 12.2 `[AI]` 调研 `@bacons/apple-targets`（或同类插件）是否支持 `shield-configuration` 和 `device-activity-monitor` extension types
-  - 如果支持 → 12.3a
-  - 如果不支持 → 12.3b
-- [ ] 12.3a `[AI]`（插件支持时）在 `app.json` 中配置 `@bacons/apple-targets`，指向 `extensions/` 模板目录
-- [ ] 12.3b `[AI]`（插件不支持时）编写自定义 Config Plugin `plugins/withScreenTimeExtensions.js`：
-  - 使用 `@expo/config-plugins` 的 `withXcodeProject` hook
-  - 自动向 `.pbxproj` 注入两个 Extension targets（PBXNativeTarget, PBXBuildPhase, PBXFileReference）
-  - 复制 `extensions/` 中的源码到 `ios/` 对应位置
+- [x] 12.1 `[AI]` 将 Extension 源码抽离到模板目录（迁移至 `targets/` 目录） `b95493f`
+- [x] 12.2 `[AI]` 调研 `@bacons/apple-targets`：v4.0.6 支持 `shield-config` + `device-activity-monitor`，但与 Expo SDK 54 不兼容（缺少 `@expo/prebuild-config` 模块）→ 12.3b `b95493f`
+- [x] 12.3b `[AI]` 编写自定义 Config Plugin `plugins/withScreenTimeExtensions.js` `b95493f`
+  - 使用 `withDangerousMod` 复制 Swift 源码 + Info.plist + entitlements 到 `ios/`
+  - 使用 `withXcodeProject` + `xcode` 包的 `addTarget('app_extension')` 注入 PBXNativeTarget
+  - 通过 `addBuildPhase('PBXSourcesBuildPhase')` 添加源文件编译
+  - 系统框架通过 Swift `import` 自动链接（避免 CocoaPods 一致性问题）
   - 为每个 target 配置 App Group + Family Controls entitlements
-  - 设置 Deployment Target = 16.0, Swift 5.9
-- [ ] 12.4 `[AI]` 验证 `npx expo prebuild --clean && xcodebuild` 能成功编译（含 Extension targets）
-- [ ] 12.5 `[AI]` 从 `.gitignore` 中确认 `ios/` 目录被忽略（回归 CNG 标准流程）
-- [ ] 12.6 `[AI]` 更新 CLAUDE.md — 说明 Extension 通过 Config Plugin 自动生成，不需要手动 Xcode 操作
+  - 设置 Deployment Target = 16.0, Swift 5.0
+- [x] 12.4 `[AI]` 验证 `npx expo prebuild --clean && xcodebuild` 能成功编译（Debug + Release） `b95493f`
+- [x] 12.5 `[AI]` 确认 `ios/` 目录在 `.gitignore` 中（回归 CNG 标准流程） `b95493f`
+- [x] 12.6 `[AI]` 更新 CLAUDE.md — 说明 Extension 通过 Config Plugin 自动生成，不需要手动 Xcode 操作 `b95493f`
 
 > **回退方案**：如果 12.3a/12.3b 在合理时间内无法完成，回退到手动方案：提交 `ios/` 到 Git + CLAUDE.md 警告禁止 `prebuild --clean`。功能不受影响，只是构建流程需要额外注意。
 
