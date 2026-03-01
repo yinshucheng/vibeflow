@@ -114,7 +114,7 @@
 > Service 层已在 Phase 2a Task 3 中改造完毕。Phase 2b 只需修改 Native 层的 `enableBlocking(useSelection: true)` 实现——从 `.all()` 切换为读取 App Group 中的 token。
 
 ### Task 5: Native 精细阻断实现 `[AI]`
-- [ ] 5.1 修改 `ScreenTimeModule.swift` — `enableBlocking(useSelection: true)` 实现：
+- [x] 5.1 修改 `ScreenTimeModule.swift` — `enableBlocking(useSelection: true)` 实现：`4d88e33`
   - 从 AppGroupManager 读取 distraction selection
   - 从 AppGroupManager 读取 work selection
   - **App 集合：** `store.shield.applications = distractionApps.subtracting(workApps)`
