@@ -1,5 +1,6 @@
 import DeviceActivity
 import FamilyControls
+import Foundation
 import ManagedSettings
 
 /// DeviceActivityMonitor extension for offline sleep schedule enforcement.
