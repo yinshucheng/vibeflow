@@ -13,6 +13,7 @@ import React, { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { syncService, heartbeatService, websocketService } from '@/services';
 import { blockingService } from '@/services/blocking.service';
+import { screenTimeService } from '@/services/screen-time.service';
 import { useAppStore } from '@/store';
 import { DEV_USER_EMAIL } from '@/config/auth';
 
@@ -23,6 +24,7 @@ interface AppProviderProps {
 export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const setUserInfo = useAppStore((state) => state.setUserInfo);
+  const setSelectionSummary = useAppStore((state) => state.setSelectionSummary);
 
   useEffect(() => {
     // Set default user info for MVP
@@ -38,6 +40,20 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     blockingService.initialize();
     const cleanupBlocking = blockingService.startListening();
 
+    // Initialize selection summary from native module (App Group)
+    const loadSelectionSummary = async () => {
+      try {
+        const status = await screenTimeService.getAuthorizationStatus();
+        if (status === 'authorized') {
+          const summary = await screenTimeService.getSelectionSummary('distraction');
+          setSelectionSummary(summary);
+        }
+      } catch (error) {
+        console.warn('[AppProvider] Failed to load selection summary:', error);
+      }
+    };
+    loadSelectionSummary();
+
     // Handle app state changes (background/foreground)
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
@@ -48,7 +64,7 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
       heartbeatService.stop();
       syncService.cleanup();
     };
-  }, [setUserInfo]);
+  }, [setUserInfo, setSelectionSummary]);
 
   /**
    * Handle app state changes.
