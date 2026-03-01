@@ -9,6 +9,9 @@ import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000';
 
+/** Auto-incrementing sequence number for events */
+let _seq = 0;
+
 /** Connect a Socket.io client authenticated as a given email */
 export function connectSocket(email: string): ClientSocket {
   return ioClient(BASE_URL, {
@@ -17,20 +20,39 @@ export function connectSocket(email: string): ClientSocket {
   });
 }
 
-/** Wait for socket connection (resolves on connect, rejects on timeout/error) */
+/**
+ * Wait for socket connection AND server-side readiness.
+ *
+ * The server's `handleConnection` is async — it registers OCTOPUS_EVENT
+ * handlers only after sending initial policies and state snapshot.
+ * Events emitted before that are silently dropped.
+ *
+ * We wait for the SYNC_STATE command (emitted just before
+ * `registerEventHandlers`) then add a small buffer to let the server
+ * finish registering handlers.
+ */
 export function waitForConnect(socket: ClientSocket): Promise<void> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(
       () => reject(new Error('Socket connect timeout')),
-      10000
+      15000
     );
-    socket.on('connect', () => {
-      clearTimeout(timeout);
-      resolve();
-    });
+
     socket.on('connect_error', (err) => {
       clearTimeout(timeout);
       reject(err);
+    });
+
+    // Wait for SYNC_STATE — the last command before registerEventHandlers
+    socket.on('OCTOPUS_COMMAND', function onCmd(cmd: { commandType: string }) {
+      if (cmd.commandType === 'SYNC_STATE') {
+        socket.off('OCTOPUS_COMMAND', onCmd);
+        // Small buffer for server to finish registerEventHandlers()
+        setTimeout(() => {
+          clearTimeout(timeout);
+          resolve();
+        }, 200);
+      }
     });
   });
 }
@@ -105,14 +127,42 @@ export function sendChatMessage(
   content: string,
   conversationId: string = ''
 ): void {
-  socket.emit('OCTOPUS_EVENT', {
-    eventType: 'CHAT_MESSAGE',
+  const event = {
+    eventId: crypto.randomUUID(),
+    eventType: 'CHAT_MESSAGE' as const,
+    userId: '',
+    clientId: `e2e-test-${socket.id ?? 'no-id'}`,
+    clientType: 'mobile' as const,
     timestamp: Date.now(),
-    clientType: 'mobile',
+    sequenceNumber: _seq++,
     payload: {
       conversationId,
       messageId: crypto.randomUUID(),
       content,
+    },
+  };
+  socket.emit('OCTOPUS_EVENT', event);
+}
+
+/** Send a CHAT_ACTION event (confirm/cancel) via the socket */
+export function sendChatAction(
+  socket: ClientSocket,
+  conversationId: string,
+  toolCallId: string,
+  action: 'confirm' | 'cancel'
+): void {
+  socket.emit('OCTOPUS_EVENT', {
+    eventId: crypto.randomUUID(),
+    eventType: 'CHAT_ACTION',
+    userId: '',
+    clientId: `e2e-test-${socket.id}`,
+    clientType: 'mobile',
+    timestamp: Date.now(),
+    sequenceNumber: _seq++,
+    payload: {
+      conversationId,
+      toolCallId,
+      action,
     },
   });
 }

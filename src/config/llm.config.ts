@@ -36,6 +36,7 @@ const MODEL_REGISTRY = {
 
   // SiliconFlow — 使用 .chat() 走 /chat/completions 端点
   'sf-deepseek-v3': () => siliconflow.chat('deepseek-ai/DeepSeek-V3'),
+  'sf-deepseek-v3.2': () => siliconflow.chat('deepseek-ai/DeepSeek-V3'),
   'sf-deepseek-r1': () => siliconflow.chat('deepseek-ai/DeepSeek-R1'),
   'sf-qwen-72b': () => siliconflow.chat('Qwen/Qwen2.5-72B-Instruct'),
   'sf-qwen-32b': () => siliconflow.chat('Qwen/Qwen2.5-32B-Instruct'),
@@ -102,6 +103,12 @@ const MODEL_META: Record<ModelId, {
     maxOutputTokens: 8192,
     provider: 'siliconflow',
     displayName: 'DeepSeek V3 (SiliconFlow)',
+  },
+  'sf-deepseek-v3.2': {
+    contextWindow: 65536,
+    maxOutputTokens: 8192,
+    provider: 'siliconflow',
+    displayName: 'DeepSeek V3.2 (SiliconFlow)',
   },
   'sf-deepseek-r1': {
     contextWindow: 65536,

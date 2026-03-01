@@ -5,6 +5,7 @@ import {
   collectCommands,
   collectAnyCommands,
   sendChatMessage,
+  sendChatAction,
 } from '../helpers/socket-test-utils';
 
 /**
@@ -83,16 +84,12 @@ test.describe('Chat Confirmation Mechanism (S2)', () => {
         30000
       );
 
-      socket.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_ACTION',
-        timestamp: Date.now(),
-        clientType: 'mobile',
-        payload: {
-          conversationId: deleteToolCall!.conversationId,
-          toolCallId: deleteToolCall!.toolCallId,
-          action: 'confirm',
-        },
-      });
+      sendChatAction(
+        socket,
+        deleteToolCall!.conversationId,
+        deleteToolCall!.toolCallId,
+        'confirm'
+      );
 
       const results = await resultPromise;
       const result = results.find(
@@ -167,16 +164,12 @@ test.describe('Chat Confirmation Mechanism (S2)', () => {
         30000
       );
 
-      socket.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_ACTION',
-        timestamp: Date.now(),
-        clientType: 'mobile',
-        payload: {
-          conversationId: deleteToolCall.conversationId,
-          toolCallId: deleteToolCall.toolCallId,
-          action: 'cancel',
-        },
-      });
+      sendChatAction(
+        socket,
+        deleteToolCall.conversationId,
+        deleteToolCall.toolCallId,
+        'cancel'
+      );
 
       const results = await resultPromise;
       const result = results.find(
