@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { llmAdapterService } from '@/services/llm-adapter.service';
 import type { Conversation, ChatMessage } from '@prisma/client';
 import type { ModelMessage } from 'ai';
+import type { ChatAttachment } from '@/types/octopus';
 
 // ===== Types =====
 
@@ -382,10 +383,80 @@ export const chatService = {
    * 5. Persist user message + AI reply
    * 6. Record token usage
    */
+  /**
+   * Resolve attachment references to contextual text for LLM injection.
+   * Fetches entity details from DB to ensure security (never trust client data).
+   */
+  async resolveAttachmentContext(
+    userId: string,
+    attachments: ChatAttachment[]
+  ): Promise<string[]> {
+    const contextParts: string[] = [];
+
+    for (const attachment of attachments) {
+      try {
+        switch (attachment.type) {
+          case 'task': {
+            const task = await prisma.task.findFirst({
+              where: { id: attachment.id, project: { userId } },
+              include: { project: { select: { title: true } } },
+            });
+            if (task) {
+              contextParts.push(
+                `[Referenced Task] "${task.title}" (${task.priority}, ${task.status})` +
+                (task.estimatedMinutes ? ` ~${task.estimatedMinutes}min` : '') +
+                (task.project ? ` | Project: ${task.project.title}` : '')
+              );
+            }
+            break;
+          }
+          case 'project': {
+            const project = await prisma.project.findFirst({
+              where: { id: attachment.id, userId },
+              include: {
+                tasks: { take: 10, orderBy: { createdAt: 'desc' }, select: { title: true, status: true, priority: true } },
+              },
+            });
+            if (project) {
+              const taskSummary = project.tasks
+                .map((t) => `  - ${t.title} (${t.priority}, ${t.status})`)
+                .join('\n');
+              contextParts.push(
+                `[Referenced Project] "${project.title}"` +
+                (project.deliverable ? ` — Deliverable: ${project.deliverable}` : '') +
+                (taskSummary ? `\nTasks:\n${taskSummary}` : '')
+              );
+            }
+            break;
+          }
+          case 'pomodoro': {
+            const pomodoro = await prisma.pomodoro.findFirst({
+              where: { id: attachment.id, userId },
+              include: { task: { select: { title: true } } },
+            });
+            if (pomodoro) {
+              contextParts.push(
+                `[Referenced Pomodoro] ${pomodoro.duration}min session (${pomodoro.status})` +
+                (pomodoro.task ? ` for task "${pomodoro.task.title}"` : '') +
+                (pomodoro.summary ? ` — Summary: ${pomodoro.summary}` : '')
+              );
+            }
+            break;
+          }
+        }
+      } catch (error) {
+        console.warn(`[chat.service] Failed to resolve attachment ${attachment.type}:${attachment.id}:`, error);
+      }
+    }
+
+    return contextParts;
+  },
+
   async handleMessage(
     userId: string,
     content: string,
-    onDelta?: OnDeltaCallback
+    onDelta?: OnDeltaCallback,
+    attachments?: ChatAttachment[]
   ): Promise<ServiceResult<HandleMessageResult>> {
     // 1. Get or create conversation
     const convResult = await chatService.getOrCreateDefaultConversation(userId);
@@ -413,6 +484,19 @@ export const chatService = {
         ? historyResult.data
         : [];
 
+      // Resolve attachment context from DB (security: never trust client-sent data)
+      let attachmentContext = '';
+      if (attachments && attachments.length > 0) {
+        const contextParts = await chatService.resolveAttachmentContext(userId, attachments);
+        if (contextParts.length > 0) {
+          attachmentContext = '\n\n--- Attached Context ---\n' + contextParts.join('\n\n');
+        }
+      }
+
+      const userContent = attachmentContext
+        ? content + attachmentContext
+        : content;
+
       const llmMessages: ModelMessage[] = [
         // Convert history to LLM format
         ...historyMessages
@@ -421,15 +505,16 @@ export const chatService = {
             role: m.role as 'user' | 'assistant',
             content: m.content,
           })),
-        // Add the new user message
-        { role: 'user' as const, content },
+        // Add the new user message (with attachment context appended)
+        { role: 'user' as const, content: userContent },
       ];
 
-      // 4. Persist user message
+      // 4. Persist user message (with attachment metadata if present)
       const userMsgResult = await chatService.persistMessage(
         conversation.id,
         'user',
-        content
+        content,
+        attachments && attachments.length > 0 ? { attachments } : undefined
       );
       if (!userMsgResult.success || !userMsgResult.data) {
         return {

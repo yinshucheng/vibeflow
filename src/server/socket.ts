@@ -1216,7 +1216,7 @@ export class VibeFlowSocketServer {
       socket.emit('OCTOPUS_COMMAND', command);
     };
 
-    const result = await chatService.handleMessage(userId, payload.content, onDelta);
+    const result = await chatService.handleMessage(userId, payload.content, onDelta, payload.attachments);
 
     if (result.success && result.data) {
       const { conversationId, assistantMessageId, fullText, userMessageId } = result.data;

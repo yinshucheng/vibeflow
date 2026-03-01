@@ -414,7 +414,7 @@ npx playwright test e2e/tests/ --project=chromium
 
 ---
 
-- [ ] **D3** S11.3 Attachment 引用
+- [x] **D3** S11.3 Attachment 引用
 
 **目标**: 任务长按 → "问 AI" → 携带任务上下文发送到 Chat
 

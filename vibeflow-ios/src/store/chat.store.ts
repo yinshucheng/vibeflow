@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import type {
   ChatMessage,
+  ChatAttachment,
   PendingToolCall,
   PanelHeight,
   ChatToolCallPayload,
@@ -40,6 +41,7 @@ export interface ChatActions {
 
   // Message actions
   sendMessage: (content: string) => void;
+  sendMessageWithAttachments: (content: string, attachments: ChatAttachment[]) => void;
   appendStreamDelta: (delta: string) => void;
   finalizeStreamMessage: (messageId: string, content: string) => void;
   setMessages: (messages: ChatMessage[]) => void;
@@ -116,6 +118,23 @@ export const useChatStore = create<ChatState & ChatActions>((set) => ({
 
     set((state) => ({
       messages: [...state.messages, userMessage],
+      isStreaming: true,
+      streamingContent: '',
+    }));
+  },
+
+  sendMessageWithAttachments: (content: string, attachments: ChatAttachment[]) => {
+    const userMessage: ChatMessage = {
+      id: generateUUID(),
+      role: 'user',
+      content,
+      metadata: { attachments },
+      createdAt: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      messages: [...state.messages, userMessage],
+      isPanelOpen: true,
       isStreaming: true,
       streamingContent: '',
     }));

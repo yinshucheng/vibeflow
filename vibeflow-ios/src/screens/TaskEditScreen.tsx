@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Action
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '@/store/app.store';
 import { actionService } from '@/services/action.service';
+import { chatService } from '@/services/chat.service';
+import { useChatStore } from '@/store/chat.store';
 import { useTheme } from '@/theme';
 
 interface Props {
@@ -34,6 +36,14 @@ export function TaskEditScreen({ taskId, onClose }: Props): React.JSX.Element {
     setSaving(true);
     await actionService.updateTask(taskId, { title: title.trim(), priority });
     setSaving(false);
+    onClose();
+  };
+
+  const handleAskAI = () => {
+    const attachment = { type: 'task' as const, id: taskId, title: task.title };
+    const store = useChatStore.getState();
+    store.sendMessageWithAttachments(`帮我分析一下这个任务`, [attachment]);
+    chatService.sendMessage(`帮我分析一下这个任务`, [attachment]);
     onClose();
   };
 
@@ -72,6 +82,10 @@ export function TaskEditScreen({ taskId, onClose }: Props): React.JSX.Element {
         <TouchableOpacity style={[styles.picker, { borderColor: theme.colors.border }]} onPress={showPriorityPicker}>
           <Text style={{ color: theme.colors.text }}>{priority}</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.askAIButton, { backgroundColor: theme.colors.primary }]} onPress={handleAskAI}>
+          <Text style={styles.askAIText}>问 AI</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -85,4 +99,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, marginBottom: 8, marginTop: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 16 },
   picker: { borderWidth: 1, borderRadius: 8, padding: 12 },
+  askAIButton: { marginTop: 24, borderRadius: 8, padding: 14, alignItems: 'center' },
+  askAIText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
