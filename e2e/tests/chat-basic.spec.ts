@@ -1,5 +1,10 @@
 import { test, expect } from '../fixtures';
-import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
+import {
+  connectSocket,
+  waitForConnect,
+  collectCommands,
+  sendChatMessage,
+} from '../helpers/socket-test-utils';
 
 /**
  * Chat Basic E2E Tests (F5.3)
@@ -7,76 +12,19 @@ import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
  * Tests the end-to-end flow of sending CHAT_MESSAGE events and
  * receiving CHAT_RESPONSE commands via Socket.io.
  *
- * - Send CHAT_MESSAGE → receive CHAT_RESPONSE (delta * N + complete)
+ * - Send CHAT_MESSAGE -> receive CHAT_RESPONSE (delta * N + complete)
  * - Message persistence: after sending, tRPC chat.getHistory returns the messages
  */
 
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000';
-
-/** Helper: connect a Socket.io client authenticated as a given email */
-function connectSocket(email: string): ClientSocket {
-  return ioClient(BASE_URL, {
-    transports: ['websocket'],
-    auth: { email },
-  });
-}
-
-/** Helper: wait for connection */
-function waitForConnect(socket: ClientSocket): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Socket connect timeout')), 10000);
-    socket.on('connect', () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-    socket.on('connect_error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-  });
-}
-
-/**
- * Collect OCTOPUS_COMMAND events matching a given commandType.
- * Returns a promise that resolves when predicate returns true or times out.
- */
-function collectCommands<T>(
-  socket: ClientSocket,
-  commandType: string,
-  predicate: (collected: T[]) => boolean,
-  timeoutMs: number = 30000
-): Promise<T[]> {
-  return new Promise((resolve, reject) => {
-    const collected: T[] = [];
-    const timeout = setTimeout(() => {
-      socket.off('OCTOPUS_COMMAND', handler);
-      reject(new Error(`Timeout waiting for ${commandType}: collected ${collected.length} so far`));
-    }, timeoutMs);
-
-    function handler(command: { commandType: string; payload: T }) {
-      if (command.commandType === commandType) {
-        collected.push(command.payload);
-        if (predicate(collected)) {
-          clearTimeout(timeout);
-          socket.off('OCTOPUS_COMMAND', handler);
-          resolve(collected);
-        }
-      }
-    }
-
-    socket.on('OCTOPUS_COMMAND', handler);
-  });
-}
-
 test.describe('Chat Basic (F5)', () => {
-  test('send CHAT_MESSAGE → receive CHAT_RESPONSE delta + complete', async ({
+  test('send CHAT_MESSAGE -> receive CHAT_RESPONSE delta + complete', async ({
     testUser,
   }) => {
     const socket = connectSocket(testUser.email);
     try {
       await waitForConnect(socket);
 
-      // Set up collector for CHAT_RESPONSE — wait until we get a 'complete' message
+      // Set up collector for CHAT_RESPONSE -- wait until we get a 'complete' message
       const responsePromise = collectCommands<{
         conversationId: string;
         messageId: string;
@@ -90,16 +38,7 @@ test.describe('Chat Basic (F5)', () => {
       );
 
       // Send a chat message
-      socket.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_MESSAGE',
-        timestamp: Date.now(),
-        clientType: 'mobile',
-        payload: {
-          conversationId: '',
-          messageId: crypto.randomUUID(),
-          content: 'Hello, this is a test message',
-        },
-      });
+      sendChatMessage(socket, 'Hello, this is a test message');
 
       const responses = await responsePromise;
 
@@ -143,16 +82,7 @@ test.describe('Chat Basic (F5)', () => {
         30000
       );
 
-      socket.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_MESSAGE',
-        timestamp: Date.now(),
-        clientType: 'mobile',
-        payload: {
-          conversationId: '',
-          messageId: crypto.randomUUID(),
-          content: 'persistence test message',
-        },
-      });
+      sendChatMessage(socket, 'persistence test message');
 
       const responses = await responsePromise;
       const complete = responses.find((r) => r.type === 'complete')!;

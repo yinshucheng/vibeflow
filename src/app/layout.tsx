@@ -3,6 +3,7 @@ import { SessionProvider } from '@/components/providers/session-provider';
 import { TRPCProvider } from '@/components/providers/trpc-provider';
 import { TraySyncProvider } from '@/components/providers/tray-sync-provider';
 import { SidebarProvider } from '@/contexts/sidebar-context';
+import { ChatProvider, ChatFAB, ChatPanel } from '@/components/chat';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -21,7 +22,13 @@ export default function RootLayout({
         <SessionProvider>
           <TRPCProvider>
             <TraySyncProvider>
-              <SidebarProvider>{children}</SidebarProvider>
+              <SidebarProvider>
+                <ChatProvider>
+                  {children}
+                  <ChatFAB />
+                  <ChatPanel />
+                </ChatProvider>
+              </SidebarProvider>
             </TraySyncProvider>
           </TRPCProvider>
         </SessionProvider>

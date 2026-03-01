@@ -16,7 +16,7 @@ export function ChatFAB() {
 
   return (
     <button
-      className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-notion-accent-blue text-white shadow-notion-md transition-transform hover:scale-105 active:scale-95"
+      className="fixed bottom-20 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-notion-accent-blue text-white shadow-notion-md transition-transform hover:scale-105 active:scale-95 md:bottom-6"
       onClick={openPanel}
       aria-label="打开 AI 对话"
       data-testid="chat-fab"

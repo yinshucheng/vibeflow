@@ -1,102 +1,20 @@
 import { test, expect } from '../fixtures';
-import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
+import {
+  connectSocket,
+  waitForConnect,
+  collectCommands,
+  collectAnyCommands,
+  sendChatMessage,
+} from '../helpers/socket-test-utils';
 
 /**
  * Chat Confirmation E2E Tests (S2.3)
  *
  * Tests the high-risk operation confirmation mechanism:
- * - High-risk tool → CHAT_TOOL_CALL with requiresConfirmation=true → confirm → execute
- * - High-risk tool → cancel → tool not executed
- * - Low-risk tool → auto-execute (no confirmation needed)
+ * - High-risk tool -> CHAT_TOOL_CALL with requiresConfirmation=true -> confirm -> execute
+ * - High-risk tool -> cancel -> tool not executed
+ * - Low-risk tool -> auto-execute (no confirmation needed)
  */
-
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000';
-
-function connectSocket(email: string): ClientSocket {
-  return ioClient(BASE_URL, {
-    transports: ['websocket'],
-    auth: { email },
-  });
-}
-
-function waitForConnect(socket: ClientSocket): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error('Socket connect timeout')),
-      10000
-    );
-    socket.on('connect', () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-    socket.on('connect_error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-  });
-}
-
-/**
- * Collect OCTOPUS_COMMAND events matching a given commandType.
- */
-function collectCommands<T>(
-  socket: ClientSocket,
-  commandType: string,
-  predicate: (collected: T[]) => boolean,
-  timeoutMs: number = 30000
-): Promise<T[]> {
-  return new Promise((resolve, reject) => {
-    const collected: T[] = [];
-    const timeout = setTimeout(() => {
-      socket.off('OCTOPUS_COMMAND', handler);
-      reject(
-        new Error(
-          `Timeout waiting for ${commandType}: collected ${collected.length} so far`
-        )
-      );
-    }, timeoutMs);
-
-    function handler(command: { commandType: string; payload: T }) {
-      if (command.commandType === commandType) {
-        collected.push(command.payload);
-        if (predicate(collected)) {
-          clearTimeout(timeout);
-          socket.off('OCTOPUS_COMMAND', handler);
-          resolve(collected);
-        }
-      }
-    }
-
-    socket.on('OCTOPUS_COMMAND', handler);
-  });
-}
-
-/**
- * Collect any OCTOPUS_COMMAND events within a time window.
- */
-function collectAnyCommands(
-  socket: ClientSocket,
-  commandType: string,
-  waitMs: number = 5000
-): Promise<unknown[]> {
-  return new Promise((resolve) => {
-    const collected: unknown[] = [];
-    const timeout = setTimeout(() => {
-      socket.off('OCTOPUS_COMMAND', handler);
-      resolve(collected);
-    }, waitMs);
-
-    function handler(command: { commandType: string; payload: unknown }) {
-      if (command.commandType === commandType) {
-        collected.push(command.payload);
-      }
-    }
-
-    socket.on('OCTOPUS_COMMAND', handler);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    void timeout;
-  });
-}
 
 test.describe('Chat Confirmation Mechanism (S2)', () => {
   test('high-risk tool (flow_delete_task) requires confirmation', async ({
@@ -142,16 +60,7 @@ test.describe('Chat Confirmation Mechanism (S2)', () => {
       );
 
       // Send a message asking to delete the task
-      socket.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_MESSAGE',
-        timestamp: Date.now(),
-        clientType: 'mobile',
-        payload: {
-          conversationId: '',
-          messageId: crypto.randomUUID(),
-          content: `删除任务 ${taskToDelete.id}`,
-        },
-      });
+      sendChatMessage(socket, `删除任务 ${taskToDelete.id}`);
 
       const toolCalls = await toolCallPromise;
       const deleteToolCall = toolCalls.find(
@@ -238,16 +147,7 @@ test.describe('Chat Confirmation Mechanism (S2)', () => {
         30000
       );
 
-      socket.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_MESSAGE',
-        timestamp: Date.now(),
-        clientType: 'mobile',
-        payload: {
-          conversationId: '',
-          messageId: crypto.randomUUID(),
-          content: `删除任务 ${taskToKeep.id}`,
-        },
-      });
+      sendChatMessage(socket, `删除任务 ${taskToKeep.id}`);
 
       const toolCalls = await toolCallPromise;
       const deleteToolCall = toolCalls.find(
@@ -343,16 +243,7 @@ test.describe('Chat Confirmation Mechanism (S2)', () => {
         30000
       );
 
-      socket.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_MESSAGE',
-        timestamp: Date.now(),
-        clientType: 'mobile',
-        payload: {
-          conversationId: '',
-          messageId: crypto.randomUUID(),
-          content: `查看任务 ${taskToRead.id} 的详情`,
-        },
-      });
+      sendChatMessage(socket, `查看任务 ${taskToRead.id} 的详情`);
 
       // Wait for the complete response
       const responses = await responsePromise;

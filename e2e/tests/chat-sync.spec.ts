@@ -1,67 +1,21 @@
 import { test, expect } from '../fixtures';
-import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
+import {
+  connectSocket,
+  waitForConnect,
+  collectCommands,
+  sendChatMessage,
+} from '../helpers/socket-test-utils';
 
 /**
  * Chat Sync E2E Tests (F5.3)
  *
  * Tests multi-device message synchronisation:
- * - Two sockets for the same user → A sends message → B receives CHAT_SYNC
+ * - Two sockets for the same user -> A sends message -> B receives CHAT_SYNC
  * - A and B's message history is consistent
  */
 
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000';
-
-function connectSocket(email: string): ClientSocket {
-  return ioClient(BASE_URL, {
-    transports: ['websocket'],
-    auth: { email },
-  });
-}
-
-function waitForConnect(socket: ClientSocket): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Socket connect timeout')), 10000);
-    socket.on('connect', () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-    socket.on('connect_error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-  });
-}
-
-function collectCommands<T>(
-  socket: ClientSocket,
-  commandType: string,
-  predicate: (collected: T[]) => boolean,
-  timeoutMs: number = 30000
-): Promise<T[]> {
-  return new Promise((resolve, reject) => {
-    const collected: T[] = [];
-    const timeout = setTimeout(() => {
-      socket.off('OCTOPUS_COMMAND', handler);
-      reject(new Error(`Timeout waiting for ${commandType}: collected ${collected.length} so far`));
-    }, timeoutMs);
-
-    function handler(command: { commandType: string; payload: T }) {
-      if (command.commandType === commandType) {
-        collected.push(command.payload);
-        if (predicate(collected)) {
-          clearTimeout(timeout);
-          socket.off('OCTOPUS_COMMAND', handler);
-          resolve(collected);
-        }
-      }
-    }
-
-    socket.on('OCTOPUS_COMMAND', handler);
-  });
-}
-
 test.describe('Chat Sync (F5.2)', () => {
-  test('device A sends message → device B receives CHAT_SYNC', async ({
+  test('device A sends message -> device B receives CHAT_SYNC', async ({
     testUser,
   }) => {
     // Connect two sockets for the same user (simulating two devices)
@@ -104,16 +58,7 @@ test.describe('Chat Sync (F5.2)', () => {
       );
 
       // Device A sends a chat message
-      socketA.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_MESSAGE',
-        timestamp: Date.now(),
-        clientType: 'mobile',
-        payload: {
-          conversationId: '',
-          messageId: crypto.randomUUID(),
-          content: 'sync test from device A',
-        },
-      });
+      sendChatMessage(socketA, 'sync test from device A');
 
       // Wait for both
       const [syncResults, aResponses] = await Promise.all([
@@ -185,16 +130,7 @@ test.describe('Chat Sync (F5.2)', () => {
         30000
       );
 
-      socketA.emit('OCTOPUS_EVENT', {
-        eventType: 'CHAT_MESSAGE',
-        timestamp: Date.now(),
-        clientType: 'desktop',
-        payload: {
-          conversationId: '',
-          messageId: crypto.randomUUID(),
-          content: 'history consistency test',
-        },
-      });
+      sendChatMessage(socketA, 'history consistency test');
 
       const [syncResults] = await Promise.all([syncPromise, responsePromise]);
 
