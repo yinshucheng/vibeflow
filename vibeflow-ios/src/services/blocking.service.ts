@@ -14,6 +14,7 @@
 
 import { useAppStore } from '@/store/app.store';
 import { screenTimeService } from './screen-time.service';
+import { evaluateBlockingReason } from '@/utils/blocking-reason';
 import type { BlockingReason, AuthorizationStatus } from '@/types';
 
 // =============================================================================
@@ -38,33 +39,12 @@ function createBlockingService(): BlockingService {
   let unsubscribe: (() => void) | null = null;
 
   /**
-   * Evaluate blocking state from all signals.
-   * Priority: focus > over_rest > sleep
-   * Returns the reason to block, or null if no blocking needed.
+   * Evaluate blocking reason from current store state.
+   * Delegates to the pure function in utils/blocking-reason.ts.
    */
-  function evaluateBlockingReason(): BlockingReason | null {
+  function getBlockingReason(): BlockingReason | null {
     const { activePomodoro, policy } = useAppStore.getState();
-
-    // 1. Active pomodoro — focus blocking
-    if (activePomodoro && activePomodoro.status === 'active') {
-      return 'focus';
-    }
-
-    // 2. Over rest — server says user exceeded rest time
-    if (policy?.overRest?.isOverRest) {
-      return 'over_rest';
-    }
-
-    // 3. Sleep time — within sleep window, enabled, not snoozed
-    if (
-      policy?.sleepTime?.enabled &&
-      policy.sleepTime.isCurrentlyActive &&
-      !policy.sleepTime.isSnoozed
-    ) {
-      return 'sleep';
-    }
-
-    return null;
+    return evaluateBlockingReason({ activePomodoro, policy });
   }
 
   /**
@@ -97,7 +77,7 @@ function createBlockingService(): BlockingService {
       useAppStore.getState().setScreenTimeAuthorized(true);
     }
 
-    const reason = evaluateBlockingReason();
+    const reason = getBlockingReason();
     const { isBlockingActive, blockingReason } = useAppStore.getState();
 
     if (reason !== null) {
@@ -225,7 +205,7 @@ function createBlockingService(): BlockingService {
     },
 
     async enableBlocking(): Promise<void> {
-      const reason = evaluateBlockingReason() ?? 'focus';
+      const reason = getBlockingReason() ?? 'focus';
       await screenTimeService.enableBlocking(reason);
       useAppStore.getState().setBlockingActive(true);
       useAppStore.getState().setBlockingReason(reason);
