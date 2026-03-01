@@ -204,10 +204,10 @@
 - [x] 10.4 阻断中修改选择被禁止的逻辑：SettingsScreen 检查 `isBlockingActive` → disable 按钮 `44706cf`
 
 ### Task 11: 测试 `[AI]` + `[HUMAN]`
-- [ ] 11.1 `[AI]` 单元测试：`evaluateBlockingReason()` 各状态组合
-- [ ] 11.2 `[AI]` 单元测试：`enableBlocking(reason)` 参数传递正确性（mock native 验证调用参数）
-- [ ] 11.3 `[AI]` 单元测试：SelectionSummary 处理逻辑（hasSelection true/false → useSelection 参数）
-- [ ] 11.4 `[AI]` 属性测试（fast-check）：阻断原因优先级在任意组合下正确
+- [x] 11.1 `[AI]` 单元测试：`evaluateBlockingReason()` 各状态组合 `f9a456c`
+- [x] 11.2 `[AI]` 单元测试：`enableBlocking(reason)` 参数传递正确性（mock native 验证调用参数） `f9a456c`
+- [x] 11.3 `[AI]` 单元测试：SelectionSummary 处理逻辑（hasSelection true/false → useSelection 参数） `f9a456c`
+- [x] 11.4 `[AI]` 属性测试（fast-check）：阻断原因优先级在任意组合下正确 `f9a456c`
 - [ ] 11.5 `[HUMAN]` 真机集成测试 checklist:
   - 完整流程：授权 → 选择 → 番茄钟 → 阻断 → 结束 → 解除
   - 离线睡眠：注册 → 杀 App → 等时间 → 阻断生效
