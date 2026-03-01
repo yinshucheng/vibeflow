@@ -247,16 +247,30 @@ export function SettingsScreen(): React.JSX.Element {
   // Load authorization status and work summary on mount
   useEffect(() => {
     const loadInitialData = async (): Promise<void> => {
-      const status = await blockingService.getAuthorizationStatus();
-      setAuthStatus(status);
+      try {
+        const status = await blockingService.getAuthorizationStatus();
+        setAuthStatus(status);
 
-      if (status === 'authorized') {
-        const work = await screenTimeService.getSelectionSummary('work');
-        setWorkSummary(work);
+        if (status === 'authorized') {
+          const work = await screenTimeService.getSelectionSummary('work');
+          setWorkSummary(work);
+        }
+      } catch (error) {
+        console.error('[SettingsScreen] Failed to load initial data:', error);
       }
     };
     loadInitialData();
   }, []);
+
+  // React to store's screenTimeAuthorized changes (e.g., authorization revoked externally)
+  const storeAuthorized = useAppStore((state) => state.screenTimeAuthorized);
+  useEffect(() => {
+    if (!storeAuthorized && authStatus === 'authorized') {
+      setAuthStatus('denied');
+    } else if (storeAuthorized && authStatus !== 'authorized') {
+      setAuthStatus('authorized');
+    }
+  }, [storeAuthorized, authStatus]);
 
   const handleRequestAuthorization = useCallback(async () => {
     setAuthLoading(true);

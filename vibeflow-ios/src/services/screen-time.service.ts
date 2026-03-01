@@ -267,15 +267,23 @@ function createScreenTimeService(): ScreenTimeService {
     },
 
     async registerSleepSchedule(startTime: string, endTime: string): Promise<void> {
-      const start = parseTime(startTime);
-      const end = parseTime(endTime);
-      await bridgeRegisterSleepSchedule(start.hour, start.minute, end.hour, end.minute);
-      console.log(`[ScreenTimeService] Sleep schedule registered: ${startTime}-${endTime}`);
+      try {
+        const start = parseTime(startTime);
+        const end = parseTime(endTime);
+        await bridgeRegisterSleepSchedule(start.hour, start.minute, end.hour, end.minute);
+        console.log(`[ScreenTimeService] Sleep schedule registered: ${startTime}-${endTime}`);
+      } catch (error) {
+        console.error('[ScreenTimeService] Failed to register sleep schedule:', error);
+      }
     },
 
     async clearSleepSchedule(): Promise<void> {
-      await bridgeClearSleepSchedule();
-      console.log('[ScreenTimeService] Sleep schedule cleared');
+      try {
+        await bridgeClearSleepSchedule();
+        console.log('[ScreenTimeService] Sleep schedule cleared');
+      } catch (error) {
+        console.error('[ScreenTimeService] Failed to clear sleep schedule:', error);
+      }
     },
 
     async persistBlockingState(state: BlockingState): Promise<void> {

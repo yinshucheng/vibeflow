@@ -4,6 +4,7 @@ import FamilyControls
 import ManagedSettings
 import SwiftUI
 import UIKit
+import os.log
 
 /// Expo native module for iOS Screen Time integration.
 /// Uses FamilyControls authorization and ManagedSettings category-based blocking.
@@ -13,6 +14,7 @@ import UIKit
 /// Phase 2 will add FamilyActivityPicker for fine-grained app/category selection.
 public class ScreenTimeModule: Module {
   private let store = ManagedSettingsStore()
+  private let logger = Logger(subsystem: "app.vibeflow", category: "ScreenTimeModule")
 
   public func definition() -> ModuleDefinition {
     Name("ScreenTime")
@@ -59,10 +61,12 @@ public class ScreenTimeModule: Module {
             distractionSelection.categoryTokens,
             except: workApps
           )
+          self.logger.info("Blocking enabled with selection: \(distractionSelection.applicationTokens.count) apps, \(distractionSelection.categoryTokens.count) categories")
         } else {
           // Fallback: block all categories (Phase 1 behavior)
           self.store.shield.applications = nil
           self.store.shield.applicationCategories = .all()
+          self.logger.warning("Blocking enabled with .all() fallback (useSelection=\(useSelection), selection missing or empty)")
         }
         promise.resolve(nil)
       } else {
@@ -221,8 +225,10 @@ public class ScreenTimeModule: Module {
         center.stopMonitoring([.init("sleepSchedule")])
         do {
           try center.startMonitoring(.init("sleepSchedule"), during: schedule)
+          self.logger.info("Sleep schedule registered: \(startHour):\(startMinute)-\(endHour):\(endMinute)")
           promise.resolve(nil)
         } catch {
+          self.logger.error("Failed to register sleep schedule: \(error.localizedDescription)")
           promise.reject("SCHEDULE_ERROR", "Failed to register sleep schedule: \(error.localizedDescription)")
         }
       } else {

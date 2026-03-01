@@ -73,7 +73,28 @@ function createBlockingService(): BlockingService {
   async function evaluateBlockingState(): Promise<void> {
     const status = await screenTimeService.getAuthorizationStatus();
     if (status !== 'authorized') {
+      // Authorization revoked or not granted — disable blocking and update UI
+      const { isBlockingActive, screenTimeAuthorized } = useAppStore.getState();
+      if (isBlockingActive) {
+        try {
+          await screenTimeService.disableBlocking();
+        } catch (error) {
+          console.warn('[BlockingService] Failed to disable blocking after auth revocation:', error);
+        }
+        useAppStore.getState().setBlockingActive(false);
+        useAppStore.getState().setBlockingReason(null);
+        console.log('[BlockingService] Blocking disabled due to authorization status:', status);
+      }
+      if (screenTimeAuthorized) {
+        useAppStore.getState().setScreenTimeAuthorized(false);
+        console.log('[BlockingService] Screen Time authorization revoked');
+      }
       return;
+    }
+
+    // Ensure store reflects authorized state
+    if (!useAppStore.getState().screenTimeAuthorized) {
+      useAppStore.getState().setScreenTimeAuthorized(true);
     }
 
     const reason = evaluateBlockingReason();
@@ -157,10 +178,14 @@ function createBlockingService(): BlockingService {
 
           if (curSleepEnabled && curSleepStart && curSleepEnd && !curSleepActive) {
             // Register sleep schedule for offline enforcement
-            screenTimeService.registerSleepSchedule(curSleepStart, curSleepEnd);
+            screenTimeService.registerSleepSchedule(curSleepStart, curSleepEnd).catch((error) => {
+              console.warn('[BlockingService] Failed to register sleep schedule:', error);
+            });
           } else if (!curSleepEnabled) {
             // Clear sleep schedule
-            screenTimeService.clearSleepSchedule();
+            screenTimeService.clearSleepSchedule().catch((error) => {
+              console.warn('[BlockingService] Failed to clear sleep schedule:', error);
+            });
           }
         }
 

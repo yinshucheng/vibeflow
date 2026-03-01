@@ -1,5 +1,6 @@
 import Foundation
 import FamilyControls
+import os.log
 
 /// Manages shared data between the main app and extensions via App Group UserDefaults.
 /// All Screen Time related data (selections, blocking reason, sleep schedule) is stored here.
@@ -8,6 +9,7 @@ public final class AppGroupManager {
     static let shared = AppGroupManager()
 
     private let appGroupId = "group.app.vibeflow.shared"
+    private let logger = Logger(subsystem: "app.vibeflow", category: "AppGroup")
 
     // MARK: - UserDefaults Keys
 
@@ -18,7 +20,11 @@ public final class AppGroupManager {
     private let sleepScheduleKey = "sleepSchedule"
 
     private var defaults: UserDefaults? {
-        UserDefaults(suiteName: appGroupId)
+        let ud = UserDefaults(suiteName: appGroupId)
+        if ud == nil {
+            logger.error("Failed to create UserDefaults for App Group: \(self.appGroupId)")
+        }
+        return ud
     }
 
     private init() {}
@@ -26,25 +32,45 @@ public final class AppGroupManager {
     // MARK: - Distraction Selection
 
     func saveDistractionSelection(_ selection: FamilyActivitySelection) {
-        guard let data = try? JSONEncoder().encode(selection) else { return }
+        guard let data = try? JSONEncoder().encode(selection) else {
+            logger.error("Failed to encode distraction selection")
+            return
+        }
         defaults?.set(data, forKey: selectionKey)
     }
 
     func loadDistractionSelection() -> FamilyActivitySelection? {
-        guard let data = defaults?.data(forKey: selectionKey) else { return nil }
-        return try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
+        guard let data = defaults?.data(forKey: selectionKey) else {
+            logger.info("No distraction selection data found in App Group")
+            return nil
+        }
+        guard let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else {
+            logger.error("Failed to decode distraction selection from App Group")
+            return nil
+        }
+        return selection
     }
 
     // MARK: - Work Apps Selection
 
     func saveWorkAppsSelection(_ selection: FamilyActivitySelection) {
-        guard let data = try? JSONEncoder().encode(selection) else { return }
+        guard let data = try? JSONEncoder().encode(selection) else {
+            logger.error("Failed to encode work apps selection")
+            return
+        }
         defaults?.set(data, forKey: workAppsKey)
     }
 
     func loadWorkAppsSelection() -> FamilyActivitySelection? {
-        guard let data = defaults?.data(forKey: workAppsKey) else { return nil }
-        return try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
+        guard let data = defaults?.data(forKey: workAppsKey) else {
+            logger.info("No work apps selection data found in App Group")
+            return nil
+        }
+        guard let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else {
+            logger.error("Failed to decode work apps selection from App Group")
+            return nil
+        }
+        return selection
     }
 
     // MARK: - Blocking Reason
@@ -82,19 +108,27 @@ public final class AppGroupManager {
             "endHour": endHour,
             "endMinute": endMinute,
         ]
-        if let data = try? JSONEncoder().encode(schedule) {
-            defaults?.set(data, forKey: sleepScheduleKey)
+        guard let data = try? JSONEncoder().encode(schedule) else {
+            logger.error("Failed to encode sleep schedule")
+            return
         }
+        defaults?.set(data, forKey: sleepScheduleKey)
     }
 
     func readSleepSchedule() -> (startHour: Int, startMinute: Int, endHour: Int, endMinute: Int)? {
-        guard let data = defaults?.data(forKey: sleepScheduleKey),
-              let schedule = try? JSONDecoder().decode([String: Int].self, from: data),
+        guard let data = defaults?.data(forKey: sleepScheduleKey) else {
+            logger.info("No sleep schedule data found in App Group")
+            return nil
+        }
+        guard let schedule = try? JSONDecoder().decode([String: Int].self, from: data),
               let startHour = schedule["startHour"],
               let startMinute = schedule["startMinute"],
               let endHour = schedule["endHour"],
               let endMinute = schedule["endMinute"]
-        else { return nil }
+        else {
+            logger.error("Failed to decode sleep schedule from App Group")
+            return nil
+        }
         return (startHour, startMinute, endHour, endMinute)
     }
 
