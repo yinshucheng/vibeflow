@@ -141,13 +141,13 @@
   5. Signing & Capabilities → + Capability → App Groups → 添加 `group.app.vibeflow.shared`
   6. Signing & Capabilities → + Capability → Family Controls
   7. 确认 Extension 与主 App 使用同一 Team
-- [ ] 6.2 `[AI]` 实现 `VibeFlowShieldConfigurationDataSource.swift`（覆盖 Xcode 模板生成的文件）:
+- [x] 6.2 `[AI]` 实现 `VibeFlowShieldConfigurationDataSource.swift`（覆盖 Xcode 模板生成的文件）: `f23d60d`
   - 从 App Group 读取 blockingReason
   - focus: "专注中" / "番茄钟进行中" / "打开 VibeFlow"
   - over_rest: "休息超时" / "请返回工作" / "打开 VibeFlow"
   - sleep: "睡眠时间" / "明天 {endTime} 解锁" / "我知道了"
   - default fallback: "VibeFlow" / "应用已阻断"
-- [ ] 6.3 `[AI]` 配置 Shield 视觉样式（深色背景、白色文字、VibeFlow 品牌色按钮）
+- [x] 6.3 `[AI]` 配置 Shield 视觉样式（深色背景、白色文字、VibeFlow 品牌色按钮） `f23d60d`
 - [ ] 6.4 `[HUMAN]` 真机验证：不同 reason 下 Shield 显示正确内容
 
 ### Task 7: DeviceActivityMonitor Extension
