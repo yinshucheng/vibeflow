@@ -7,7 +7,7 @@
  * Requirements: 4.1, 9.1, 9.4
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -23,12 +23,14 @@ import { TaskEditScreen } from '@/screens/TaskEditScreen';
 import {
   useConnectionStatus,
   useDailyState,
+  useActivePomodoro,
   useLastSyncTime,
   useBlockingState,
   usePolicy,
 } from '@/store/app.store';
+import { calculateRemainingTime } from '@/utils/pomodoro-calculator';
 import { useTheme } from '@/theme';
-import type { BlockingReason } from '@/types';
+import type { BlockingReason, SelectionSummary } from '@/types';
 
 // =============================================================================
 // DAILY STATE INDICATOR
@@ -114,17 +116,61 @@ function LastSyncTime(): React.JSX.Element | null {
 // STATE INFO BANNER
 // =============================================================================
 
-const BLOCKING_REASON_CONFIG: Record<BlockingReason, { label: string; icon: string }> = {
-  focus: { label: '专注模式 — 娱乐应用已阻断', icon: '🎯' },
-  over_rest: { label: '超时休息 — 娱乐应用已阻断', icon: '⏰' },
-  sleep: { label: '睡眠时段 — 娱乐应用已阻断', icon: '🌙' },
+const BLOCKING_REASON_ICON: Record<BlockingReason, string> = {
+  focus: '🎯',
+  over_rest: '⏰',
+  sleep: '🌙',
 };
+
+function getBlockingLabel(
+  reason: BlockingReason,
+  selectionSummary: SelectionSummary | null,
+  remainingMinutes: number | null,
+  sleepEndTime: string | null,
+): string {
+  const appPart = selectionSummary?.hasSelection
+    ? `${selectionSummary.appCount + selectionSummary.categoryCount} 个分心应用已阻断`
+    : '娱乐应用已阻断';
+
+  switch (reason) {
+    case 'focus': {
+      const timePart = remainingMinutes !== null && remainingMinutes > 0
+        ? `，剩余 ${remainingMinutes} 分钟`
+        : '';
+      return `专注模式 — ${appPart}${timePart}`;
+    }
+    case 'sleep': {
+      const timePart = sleepEndTime ? `，${sleepEndTime} 解锁` : '';
+      return `睡眠时段 — ${appPart}${timePart}`;
+    }
+    case 'over_rest':
+      return `超时休息 — ${appPart}`;
+  }
+}
 
 function StateInfoBanner(): React.JSX.Element | null {
   const theme = useTheme();
   const dailyState = useDailyState();
-  const { isBlockingActive, blockingReason } = useBlockingState();
+  const { isBlockingActive, blockingReason, selectionSummary } = useBlockingState();
   const policy = usePolicy();
+  const activePomodoro = useActivePomodoro();
+  const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
+
+  // Update remaining minutes every 30s when focus blocking is active
+  useEffect(() => {
+    if (!activePomodoro || blockingReason !== 'focus') {
+      setRemainingMinutes(null);
+      return;
+    }
+
+    const update = () => {
+      const secs = calculateRemainingTime(activePomodoro);
+      setRemainingMinutes(Math.ceil(secs / 60));
+    };
+    update();
+    const interval = setInterval(update, 30_000);
+    return () => clearInterval(interval);
+  }, [activePomodoro, blockingReason]);
 
   // Determine current time period
   const getTimePeriodLabel = (): string | null => {
@@ -141,6 +187,8 @@ function StateInfoBanner(): React.JSX.Element | null {
     if (state === 'PLANNING') return '计划时间';
     return null;
   };
+
+  const sleepEndTime = policy?.sleepTime?.enabled ? policy.sleepTime.endTime : null;
 
   const timePeriod = getTimePeriodLabel();
   const showBanner = isBlockingActive || timePeriod;
@@ -164,7 +212,7 @@ function StateInfoBanner(): React.JSX.Element | null {
                       blockingReason === 'sleep' ? '#6366F1' + '30' :
                       theme.colors.warning + '30',
         }}>
-          <Text style={{ fontSize: 20 }}>{BLOCKING_REASON_CONFIG[blockingReason].icon}</Text>
+          <Text style={{ fontSize: 20 }}>{BLOCKING_REASON_ICON[blockingReason]}</Text>
           <Text style={{
             fontSize: 14,
             fontWeight: '600',
@@ -173,7 +221,7 @@ function StateInfoBanner(): React.JSX.Element | null {
                   theme.colors.warning,
             flex: 1,
           }}>
-            {BLOCKING_REASON_CONFIG[blockingReason].label}
+            {getBlockingLabel(blockingReason, selectionSummary, remainingMinutes, sleepEndTime)}
           </Text>
         </View>
       )}
