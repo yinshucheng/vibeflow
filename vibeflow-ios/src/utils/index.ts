@@ -11,6 +11,10 @@ export {
 } from './client-id';
 
 export {
+  evaluateBlockingReason,
+} from './blocking-reason';
+
+export {
   getTodayString,
   isToday,
   filterTodayTasks,

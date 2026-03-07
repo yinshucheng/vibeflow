@@ -35,9 +35,45 @@ vibeflow-ios/
 │   ├── components/   # 可复用组件
 │   ├── services/     # API 和 Socket 服务
 │   └── stores/       # 状态管理
+├── modules/screen-time/  # Expo Native Module (FamilyControls/ManagedSettings)
+├── targets/              # App Extension 源码模板 (prebuild 时自动注入)
+│   ├── shield-config/    # ShieldConfigurationExtension
+│   └── device-activity-monitor/  # DeviceActivityMonitorExtension
+├── plugins/              # Expo Config Plugins
+│   ├── withFamilyControls.js       # 主 App entitlements
+│   └── withScreenTimeExtensions.js # Extension targets 自动注入
 ├── app.json          # Expo 配置
 └── package.json
 ```
+
+## iOS App Extensions (Screen Time)
+
+Extension targets 通过 Config Plugin (`plugins/withScreenTimeExtensions.js`) 在 `npx expo prebuild` 时自动注入到 Xcode 项目中，**不需要手动 Xcode 操作**。
+
+### 工作原理
+
+1. Extension 源码存放在 `targets/` 目录（提交到 Git）
+2. `npx expo prebuild` 时，Config Plugin 会：
+   - 复制 Swift 源码 + Info.plist + entitlements 到 `ios/` 目录
+   - 向 `.pbxproj` 注入两个 Extension targets
+   - 配置正确的 build settings、framework 链接、App Group 等
+3. `ios/` 目录在 `.gitignore` 中（CNG 标准流程）
+
+### 常用命令
+
+```bash
+# 重新生成 ios/ 目录（含 Extension targets）
+npx expo prebuild --clean --platform ios
+
+# 编译验证（不签名）
+cd ios && xcodebuild -workspace vibeflowios.xcworkspace -scheme vibeflowios -configuration Debug -sdk iphoneos -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO build
+```
+
+### 注意事项
+
+- 修改 Extension 源码后需要重新 `prebuild`
+- Extension 与主 App 通过 App Group (`group.app.vibeflow.shared`) 共享数据
+- 系统框架（ManagedSettings, DeviceActivity 等）通过 Swift `import` 自动链接
 
 ## Development Rules
 

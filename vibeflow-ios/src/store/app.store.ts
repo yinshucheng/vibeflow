@@ -15,8 +15,8 @@ import type {
   ActivePomodoroData,
   TaskData,
   PolicyData,
-  BlockedApp,
   BlockingReason,
+  SelectionSummary,
   SyncStateCommand,
   UpdatePolicyCommand,
   FullState,
@@ -63,7 +63,7 @@ export interface AppState {
 
   // Blocking state
   isBlockingActive: boolean;
-  blockedApps: BlockedApp[];
+  selectionSummary: SelectionSummary | null;
   screenTimeAuthorized: boolean;
   blockingReason: BlockingReason | null;
 
@@ -88,7 +88,7 @@ export interface AppActions {
 
   // Blocking state
   setBlockingActive: (active: boolean) => void;
-  setBlockedApps: (apps: BlockedApp[]) => void;
+  setSelectionSummary: (summary: SelectionSummary | null) => void;
   setScreenTimeAuthorized: (authorized: boolean) => void;
   setBlockingReason: (reason: BlockingReason | null) => void;
 
@@ -123,7 +123,7 @@ const initialState: AppState = {
   todayTasks: [],
   policy: null,
   isBlockingActive: false,
-  blockedApps: [],
+  selectionSummary: null,
   screenTimeAuthorized: false,
   blockingReason: null,
   stateVersion: 0,
@@ -405,7 +405,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
     set({
       policy: mappedPolicy,
-      blockedApps: mappedPolicy.distractionApps,
     });
   },
 
@@ -417,8 +416,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set({ isBlockingActive: active });
   },
 
-  setBlockedApps: (apps: BlockedApp[]) => {
-    set({ blockedApps: apps });
+  setSelectionSummary: (summary: SelectionSummary | null) => {
+    set({ selectionSummary: summary });
   },
 
   setScreenTimeAuthorized: (authorized: boolean) => {
@@ -638,7 +637,7 @@ export const useTodayTasks = () =>
 export const useBlockingState = () =>
   useAppStore(useShallow((state) => ({
     isBlockingActive: state.isBlockingActive,
-    blockedApps: state.blockedApps,
+    selectionSummary: state.selectionSummary,
     blockingReason: state.blockingReason,
   })));
 
