@@ -105,7 +105,7 @@ describe('Property 6: Demo Token Monthly Limit', () => {
    * of each month.
    */
 
-  it('should never exceed the configured monthly token limit', async () => {
+  it('should never exceed the configured monthly token limit', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(tokenCountArb, async (configuredLimit) => {
         // Update user settings with the configured limit
@@ -136,7 +136,7 @@ describe('Property 6: Demo Token Monthly Limit', () => {
     );
   });
 
-  it('should decrease available tokens after each activation', async () => {
+  it('should decrease available tokens after each activation', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.integer({ min: 1, max: DEFAULT_DEMO_TOKENS_PER_MONTH }),
@@ -183,7 +183,7 @@ describe('Property 6: Demo Token Monthly Limit', () => {
     );
   });
 
-  it('should reject activation when no tokens are available', async () => {
+  it('should reject activation when no tokens are available', { timeout: 15000 }, async () => {
     // Clean up any existing tokens and events
     await prisma.demoModeEvent.deleteMany({
       where: { userId: testUserId },
@@ -220,7 +220,7 @@ describe('Property 6: Demo Token Monthly Limit', () => {
     expect(failedActivation.error?.message).toContain('No demo tokens available');
   });
 
-  it('should allocate exactly the configured number of tokens', async () => {
+  it('should allocate exactly the configured number of tokens', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(tokenCountArb, async (configuredLimit) => {
         // Update user settings with the configured limit

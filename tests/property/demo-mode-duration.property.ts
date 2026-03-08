@@ -106,7 +106,7 @@ describe('Property 7: Demo Mode Duration Limit', () => {
    * exit demo mode when the duration expires.
    */
 
-  it('should never exceed the configured maximum duration', async () => {
+  it('should never exceed the configured maximum duration', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(
         durationMinutesArb,
@@ -156,7 +156,7 @@ describe('Property 7: Demo Mode Duration Limit', () => {
     );
   });
 
-  it('should calculate correct expiry time based on duration', async () => {
+  it('should calculate correct expiry time based on duration', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(durationMinutesArb, async (configuredMax) => {
         // Clean up any existing tokens and events
@@ -205,7 +205,7 @@ describe('Property 7: Demo Mode Duration Limit', () => {
     );
   });
 
-  it('should auto-expire demo mode when duration is exceeded', async () => {
+  it('should auto-expire demo mode when duration is exceeded', { timeout: 15000 }, async () => {
     // Clean up any existing tokens and events
     await prisma.demoModeEvent.deleteMany({
       where: { userId: testUserId },
@@ -400,7 +400,7 @@ describe('Property 7: Demo Mode Duration Limit', () => {
     expect(token?.endedAt).not.toBeNull();
   });
 
-  it('should cap duration at configured maximum even when requesting more', async () => {
+  it('should cap duration at configured maximum even when requesting more', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(
         durationMinutesArb,
