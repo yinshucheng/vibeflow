@@ -144,9 +144,12 @@ function getDeadlineProximity(planDate: Date | null): 'urgent' | 'soon' | 'norma
  * Calculate goal alignment score for a task
  * Returns 0-1 based on whether the task's project is linked to active goals
  */
-async function calculateGoalAlignment(projectId: string): Promise<number> {
+async function calculateGoalAlignment(projectId: string, userId?: string): Promise<number> {
   const projectGoals = await prisma.projectGoal.findMany({
-    where: { projectId },
+    where: {
+      projectId,
+      ...(userId ? { goal: { userId } } : {}),
+    },
     include: {
       goal: {
         select: { status: true },
@@ -295,7 +298,7 @@ export const smartSuggestionService = {
       
       // Build suggestions with scores
       const suggestionsPromises = tasks.map(async (task) => {
-        const goalAlignment = await calculateGoalAlignment(task.projectId);
+        const goalAlignment = await calculateGoalAlignment(task.projectId, userId);
         const isTop3 = top3TaskIds.includes(task.id);
         const deadlineProximity = getDeadlineProximity(task.planDate);
         

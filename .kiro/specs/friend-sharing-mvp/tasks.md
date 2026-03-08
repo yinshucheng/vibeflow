@@ -60,10 +60,10 @@
 
 ### 3.1 Service 审计
 
-- [ ] **3.1.1** 审计所有 `src/services/*.service.ts` 中的 Prisma 操作，确保每个 findMany/findFirst/findUnique/update/delete/count/aggregate 包含 `userId` 过滤条件（直接或通过关联链路），在下方记录审计结果 `[unit]`
-- [ ] **3.1.2** 修复审计中发现的缺失 `userId` 过滤的查询 `[unit]`
-- [ ] **3.1.3** 审计 Socket.io 广播——确认 `socketBroadcastService` 只向当前用户的 room 发送消息 `[unit]`
-- [ ] **3.1.4** 审计 tRPC context——确认 `ctx.user.userId` 只来自 authenticated session，不能被客户端请求参数覆盖 `[unit]`
+- [x] **3.1.1** 审计所有 `src/services/*.service.ts` 中的 Prisma 操作，确保每个 findMany/findFirst/findUnique/update/delete/count/aggregate 包含 `userId` 过滤条件（直接或通过关联链路），在下方记录审计结果 `[unit]`
+- [x] **3.1.2** 修复审计中发现的缺失 `userId` 过滤的查询 `[unit]`
+- [x] **3.1.3** 审计 Socket.io 广播——确认 `socketBroadcastService` 只向当前用户的 room 发送消息 `[unit]`
+- [x] **3.1.4** 审计 tRPC context——确认 `ctx.user.userId` 只来自 authenticated session，不能被客户端请求参数覆盖 `[unit]`
 
 ### 3.2 跨用户隔离测试
 
@@ -75,40 +75,70 @@
 
 ### 3.3 审计结果记录
 
-<!-- 审计完成后在此记录每个 service 的状态 -->
+<!-- 审计完成，结果如下 -->
 ```text
-待审计 service 列表：
-[ ] activity-aggregate.service.ts
-[ ] activity-log.service.ts
-[ ] ai-chat.service.ts
-[ ] airlock.service.ts
-[ ] auth.service.ts
-[ ] blocker.service.ts
-[ ] browser-sentinel.service.ts
-[ ] client-policy.service.ts
-[ ] client-registry.service.ts
-[ ] daily-entertainment-state.service.ts
-[ ] daily-review.service.ts
-[ ] daily-state.service.ts
-[ ] data-access-log.service.ts
-[ ] entertainment-mode.service.ts
-[ ] focus-session.service.ts
-[ ] goal.service.ts
-[ ] mcp-audit.service.ts
-[ ] mcp-event.service.ts
-[ ] pomodoro.service.ts
-[ ] project.service.ts
-[ ] rest-exemption.service.ts
-[ ] settings-modification-log.service.ts
-[ ] skip-token.service.ts
-[ ] sleep-exemption.service.ts
-[ ] socket-broadcast.service.ts
-[ ] suggestion.service.ts
-[ ] task.service.ts
-[ ] timeline.service.ts
-[ ] user-settings.service.ts
-[ ] user.service.ts
-[ ] work-start.service.ts
+审计结果（61 service files）：
+
+✅ PASS（用户面方法均含 userId 过滤）：
+  activity-aggregation.service.ts, activity-log.service.ts, auth.service.ts,
+  blocker-resolver.service.ts, policy-distribution.service.ts, review.service.ts,
+  settings-modification-log.service.ts, skip-token.service.ts, sleep-time.service.ts,
+  efficiency-analysis.service.ts, progress-calculation.service.ts, over-rest.service.ts,
+  task-decomposer.service.ts, progress-analyzer.service.ts, demo-mode.service.ts,
+  bypass-detection.service.ts, goal.service.ts, stats.service.ts, rest-enforcement.service.ts,
+  health-limit.service.ts, ai-trigger.service.ts, grace-period.service.ts,
+  timeline.service.ts, user.service.ts, work-start.service.ts, chat-user-config.service.ts,
+  nl-parser.service.ts, screen-time-exemption.service.ts, context-provider.service.ts,
+  chat-context.service.ts, chat-observability.service.ts, chat-triggers-cron.service.ts,
+  early-warning.service.ts, data-access-audit.service.ts, focus-session.service.ts,
+  mcp-audit.service.ts, entertainment.service.ts
+
+N/A（无 Prisma 调用或纯客户端服务）：
+  settings-lock.service.ts, idle.service.ts, notification.service.ts,
+  tray-integration.service.ts, chat-intent.service.ts, llm-adapter.service.ts,
+  daily-reset-scheduler.service.ts, socket-broadcast.service.ts
+
+❌ 已修复（defense-in-depth 补充 userId 过滤）：
+  task.service.ts — aggregate/updateMany/findMany 补充 userId (4 处)
+  pomodoro.service.ts — completeTaskInPomodoro 的 task.update 补充 userId
+  daily-state.service.ts — completeAirlock 的 task.updateMany 补充 userId
+  project.service.ts — update 中 goalIds 添加所有权验证
+  chat.service.ts — persistMessage 添加 userId 参数和会话所有权验证
+  mcp-event.service.ts — unsubscribe 添加 userId 所有权验证，getSubscriptions 添加 userId 过滤
+  client-registry.service.ts — updateMetadata/markDisconnected/getClientById/updateLastSeen 添加 userId 验证
+  command-queue.service.ts — markDelivered/markAcknowledged/getCommandById/requeueCommand 添加 userId 验证
+  time-slice.service.ts — 所有方法添加 userId 参数和 pomodoro 所有权验证
+  chat-tools.service.ts — executeSetTop3 和 executeGetProject 补充 userId
+  chat-triggers-state.service.ts — handleTaskStuck 的 task 查询补充 userId
+  chat-summary.service.ts — getOrCreateSummary 添加 userId 参数和会话所有权验证
+  smart-suggestion.service.ts — calculateGoalAlignment 添加 userId 过滤
+
+  time-slice router (src/server/routers/time-slice.ts) — 所有端点传递 ctx.user.userId
+  clients router (src/server/routers/clients.ts) — getClient 端点传递 ctx.user.userId
+
+系统级方法（intentional cross-user ops, cron/scheduler only）：
+  auth.service.ts — cleanupExpiredTokens
+  entertainment.service.ts — resetDailyQuotas, checkAndEndExpiredSessions
+  focus-session.service.ts — checkExpiredSessions
+  pomodoro-scheduler.service.ts — checkExpiredPomodoros
+  heartbeat.service.ts — detectOfflineClients
+  client-registry.service.ts — markStaleClientsOffline
+  command-queue.service.ts — cleanupExpired, deleteOldAcknowledged, deleteOldExpired
+  chat-archive.service.ts — runDailyArchive, cleanupOldMessages
+  demo-mode.service.ts — processExpiredDemoModes
+  data-access-audit.service.ts — cleanupOldLogs
+  mcp-audit.service.ts — cleanupOldLogs
+
+Socket.io 广播审计: ✅ PASS
+  - 所有 broadcast 方法使用 `io.to(user:${userId})` 定向发送
+  - 无全局 broadcast (io.emit)
+  - socket 连接时自动 join user room
+  - octopus event 验证 event.userId === socket.data.userId
+
+tRPC Context 审计: ✅ PASS
+  - ctx.user 仅来自 NextAuth JWT / dev mode header / API token
+  - 无 router 从 input 接收 userId
+  - protectedProcedure 强制校验 ctx.user 存在
 ```
 
 ---

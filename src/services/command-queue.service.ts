@@ -232,13 +232,13 @@ export const commandQueueService = {
    * 
    * Updates the command status to 'delivered' and records the delivery time.
    */
-  async markDelivered(commandId: string): Promise<ServiceResult<void>> {
+  async markDelivered(commandId: string, userId?: string): Promise<ServiceResult<void>> {
     try {
       const command = await prisma.commandQueue.findUnique({
         where: { commandId },
       });
 
-      if (!command) {
+      if (!command || (userId && command.userId !== userId)) {
         return {
           success: false,
           error: {
@@ -284,13 +284,13 @@ export const commandQueueService = {
    * 
    * Updates the command status to 'acknowledged' and records the acknowledgment time.
    */
-  async markAcknowledged(commandId: string): Promise<ServiceResult<void>> {
+  async markAcknowledged(commandId: string, userId?: string): Promise<ServiceResult<void>> {
     try {
       const command = await prisma.commandQueue.findUnique({
         where: { commandId },
       });
 
-      if (!command) {
+      if (!command || (userId && command.userId !== userId)) {
         return {
           success: false,
           error: {
@@ -453,13 +453,13 @@ export const commandQueueService = {
   /**
    * Get command by ID
    */
-  async getCommandById(commandId: string): Promise<ServiceResult<QueuedCommand | null>> {
+  async getCommandById(commandId: string, userId?: string): Promise<ServiceResult<QueuedCommand | null>> {
     try {
       const command = await prisma.commandQueue.findUnique({
         where: { commandId },
       });
 
-      if (!command) {
+      if (!command || (userId && command.userId !== userId)) {
         return { success: true, data: null };
       }
 
@@ -542,13 +542,13 @@ export const commandQueueService = {
    * 
    * Moves a delivered command back to pending status for retry.
    */
-  async requeueCommand(commandId: string): Promise<ServiceResult<void>> {
+  async requeueCommand(commandId: string, userId?: string): Promise<ServiceResult<void>> {
     try {
       const command = await prisma.commandQueue.findUnique({
         where: { commandId },
       });
 
-      if (!command) {
+      if (!command || (userId && command.userId !== userId)) {
         return {
           success: false,
           error: {

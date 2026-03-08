@@ -129,9 +129,23 @@ export const chatService = {
     conversationId: string,
     role: string,
     content: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
+    userId?: string
   ): Promise<ServiceResult<ChatMessage>> {
     try {
+      // Verify conversation ownership if userId provided
+      if (userId) {
+        const conversation = await prisma.conversation.findFirst({
+          where: { id: conversationId, userId },
+        });
+        if (!conversation) {
+          return {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Conversation not found' },
+          };
+        }
+      }
+
       const message = await prisma.chatMessage.create({
         data: {
           conversationId,

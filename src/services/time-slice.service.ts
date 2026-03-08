@@ -17,9 +17,20 @@ export const timeSliceService = {
    */
   async startSlice(
     pomodoroId: string,
-    taskId: string | null
+    taskId: string | null,
+    userId?: string
   ): Promise<ServiceResult<TaskTimeSlice>> {
     try {
+      // Verify pomodoro ownership if userId provided
+      if (userId) {
+        const pomodoro = await prisma.pomodoro.findFirst({
+          where: { id: pomodoroId, userId },
+        });
+        if (!pomodoro) {
+          return { success: false, error: { code: 'NOT_FOUND', message: 'Pomodoro not found' } };
+        }
+      }
+
       // Check for recent slice of same task to merge
       if (taskId) {
         const recentSlice = await prisma.taskTimeSlice.findFirst({
@@ -61,10 +72,17 @@ export const timeSliceService = {
    * End the current time slice
    * Marks as fragment if duration < 30s
    */
-  async endSlice(sliceId: string): Promise<ServiceResult<TaskTimeSlice>> {
+  async endSlice(sliceId: string, userId?: string): Promise<ServiceResult<TaskTimeSlice>> {
     try {
-      const slice = await prisma.taskTimeSlice.findUnique({ where: { id: sliceId } });
+      const slice = await prisma.taskTimeSlice.findUnique({
+        where: { id: sliceId },
+        include: { pomodoro: { select: { userId: true } } },
+      });
       if (!slice) {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'Slice not found' } };
+      }
+      // Verify ownership if userId provided
+      if (userId && slice.pomodoro.userId !== userId) {
         return { success: false, error: { code: 'NOT_FOUND', message: 'Slice not found' } };
       }
       if (slice.endTime) {
@@ -94,9 +112,20 @@ export const timeSliceService = {
   async switchTask(
     pomodoroId: string,
     currentSliceId: string | null,
-    newTaskId: string | null
+    newTaskId: string | null,
+    userId?: string
   ): Promise<ServiceResult<TaskTimeSlice>> {
     try {
+      // Verify pomodoro ownership if userId provided
+      if (userId) {
+        const pomodoro = await prisma.pomodoro.findFirst({
+          where: { id: pomodoroId, userId },
+        });
+        if (!pomodoro) {
+          return { success: false, error: { code: 'NOT_FOUND', message: 'Pomodoro not found' } };
+        }
+      }
+
       // End current slice if exists
       if (currentSliceId) {
         await this.endSlice(currentSliceId);
@@ -121,8 +150,18 @@ export const timeSliceService = {
   /**
    * Get all slices for a pomodoro
    */
-  async getByPomodoro(pomodoroId: string): Promise<ServiceResult<TaskTimeSlice[]>> {
+  async getByPomodoro(pomodoroId: string, userId?: string): Promise<ServiceResult<TaskTimeSlice[]>> {
     try {
+      // Verify pomodoro ownership if userId provided
+      if (userId) {
+        const pomodoro = await prisma.pomodoro.findFirst({
+          where: { id: pomodoroId, userId },
+        });
+        if (!pomodoro) {
+          return { success: false, error: { code: 'NOT_FOUND', message: 'Pomodoro not found' } };
+        }
+      }
+
       const slices = await prisma.taskTimeSlice.findMany({
         where: { pomodoroId },
         orderBy: { startTime: 'asc' },
@@ -143,9 +182,21 @@ export const timeSliceService = {
    */
   async updateSlice(
     sliceId: string,
-    data: { taskId?: string | null }
+    data: { taskId?: string | null },
+    userId?: string
   ): Promise<ServiceResult<TaskTimeSlice>> {
     try {
+      // Verify ownership if userId provided
+      if (userId) {
+        const slice = await prisma.taskTimeSlice.findUnique({
+          where: { id: sliceId },
+          include: { pomodoro: { select: { userId: true } } },
+        });
+        if (!slice || slice.pomodoro.userId !== userId) {
+          return { success: false, error: { code: 'NOT_FOUND', message: 'Slice not found' } };
+        }
+      }
+
       const updated = await prisma.taskTimeSlice.update({
         where: { id: sliceId },
         data,

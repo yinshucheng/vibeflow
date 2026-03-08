@@ -109,6 +109,7 @@ export const taskService = {
         where: {
           projectId: validated.projectId,
           parentId: validated.parentId || null,
+          userId,
         },
         _max: { sortOrder: true },
       });
@@ -271,6 +272,7 @@ export const taskService = {
         await prisma.task.updateMany({
           where: {
             parentId: id,
+            userId,
             status: { not: 'DONE' },
           },
           data: { status: 'DONE' },
@@ -450,6 +452,7 @@ export const taskService = {
         where: {
           projectId,
           parentId: null,
+          userId,
         },
         include: {
           subTasks: {
@@ -843,6 +846,7 @@ export const taskService = {
       const result = await prisma.pomodoro.aggregate({
         where: {
           taskId,
+          userId,
           status: 'COMPLETED',
         },
         _sum: {

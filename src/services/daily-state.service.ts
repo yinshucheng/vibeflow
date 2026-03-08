@@ -336,6 +336,7 @@ export const dailyStateService = {
         await prisma.task.updateMany({
           where: {
             id: { in: validated.top3TaskIds },
+            userId,
           },
           data: {
             planDate: today,

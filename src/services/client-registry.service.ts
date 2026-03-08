@@ -143,7 +143,8 @@ export const clientRegistryService = {
    */
   async updateMetadata(
     clientId: string,
-    metadata: Partial<ClientMetadata>
+    metadata: Partial<ClientMetadata>,
+    userId?: string
   ): Promise<ServiceResult<RegisteredClient>> {
     try {
       const validated = ClientMetadataUpdateSchema.parse(metadata);
@@ -153,6 +154,17 @@ export const clientRegistryService = {
       });
 
       if (!client) {
+        return {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: `Client with id ${clientId} not found`,
+          },
+        };
+      }
+
+      // Verify ownership if userId provided
+      if (userId && client.userId !== userId) {
         return {
           success: false,
           error: {
@@ -223,13 +235,24 @@ export const clientRegistryService = {
    * 
    * Updates the client status to offline and records the last seen time.
    */
-  async markDisconnected(clientId: string): Promise<ServiceResult<void>> {
+  async markDisconnected(clientId: string, userId?: string): Promise<ServiceResult<void>> {
     try {
       const client = await prisma.clientRegistry.findUnique({
         where: { clientId },
       });
 
       if (!client) {
+        return {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: `Client with id ${clientId} not found`,
+          },
+        };
+      }
+
+      // Verify ownership if userId provided
+      if (userId && client.userId !== userId) {
         return {
           success: false,
           error: {
@@ -437,13 +460,18 @@ export const clientRegistryService = {
   /**
    * Get client by ID
    */
-  async getClientById(clientId: string): Promise<ServiceResult<RegisteredClient | null>> {
+  async getClientById(clientId: string, userId?: string): Promise<ServiceResult<RegisteredClient | null>> {
     try {
       const client = await prisma.clientRegistry.findUnique({
         where: { clientId },
       });
 
       if (!client) {
+        return { success: true, data: null };
+      }
+
+      // Verify ownership if userId provided
+      if (userId && client.userId !== userId) {
         return { success: true, data: null };
       }
 
@@ -473,8 +501,16 @@ export const clientRegistryService = {
    * Updates the lastSeenAt timestamp for a client.
    * Called when receiving heartbeat events.
    */
-  async updateLastSeen(clientId: string): Promise<ServiceResult<void>> {
+  async updateLastSeen(clientId: string, userId?: string): Promise<ServiceResult<void>> {
     try {
+      // Verify ownership if userId provided
+      if (userId) {
+        const client = await prisma.clientRegistry.findUnique({ where: { clientId } });
+        if (!client || client.userId !== userId) {
+          return { success: false, error: { code: 'NOT_FOUND', message: 'Client not found' } };
+        }
+      }
+
       await prisma.clientRegistry.update({
         where: { clientId },
         data: {

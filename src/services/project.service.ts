@@ -126,6 +126,23 @@ export const projectService = {
 
       // Handle goal updates if provided
       if (validated.goalIds !== undefined) {
+        // Verify all goalIds belong to the user
+        if (validated.goalIds.length > 0) {
+          const ownedGoals = await prisma.goal.findMany({
+            where: { id: { in: validated.goalIds }, userId },
+            select: { id: true },
+          });
+          if (ownedGoals.length !== validated.goalIds.length) {
+            return {
+              success: false,
+              error: {
+                code: 'VALIDATION_ERROR',
+                message: 'One or more goals not found or do not belong to user',
+              },
+            };
+          }
+        }
+
         // Delete existing goal associations
         await prisma.projectGoal.deleteMany({
           where: { projectId: id },
