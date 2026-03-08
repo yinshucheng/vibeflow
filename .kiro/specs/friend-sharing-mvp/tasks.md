@@ -158,9 +158,9 @@ tRPC Context 审计: ✅ PASS
 
 ### 4.3 Desktop 客户端认证
 
-- [ ] **4.3.1** 新增 `vibeflow-desktop/electron/modules/auth-manager.ts` — 管理 auth 状态：token 存储（electron-store）、验证（GET `/api/auth/token`）、登录窗口管理（BrowserWindow 加载 Web `/login`）、监听登录成功后获取 token（通过 `POST /api/auth/token` 使用 cookie） `[unit]`
-- [ ] **4.3.2** 修改 `vibeflow-desktop/electron/main.ts` — 启动时调用 auth-manager 检查认证状态，未登录则打开 LoginWindow，登录后再初始化主流程 `[unit]`
-- [ ] **4.3.3** 修改 `vibeflow-desktop/electron/modules/connection-manager.ts` — Socket.io auth payload 从 `{ email: 'dev@vibeflow.local' }` 改为 `{ token: 'vf_xxx' }`（从 auth-manager 获取） `[unit]`
+- [x] **4.3.1** 新增 `vibeflow-desktop/electron/modules/auth-manager.ts` — 管理 auth 状态：token 存储（electron-store）、验证（GET `/api/auth/token`）、登录窗口管理（BrowserWindow 加载 Web `/login`）、监听登录成功后获取 token（通过 `POST /api/auth/token` 使用 cookie） `[unit]` <!-- 62db17b -->
+- [x] **4.3.2** 修改 `vibeflow-desktop/electron/main.ts` — 启动时调用 auth-manager 检查认证状态，未登录则打开 LoginWindow，登录后再初始化主流程 `[unit]` <!-- 62db17b -->
+- [x] **4.3.3** 修改 `vibeflow-desktop/electron/modules/connection-manager.ts` — Socket.io auth payload 从 `{ email: 'dev@vibeflow.local' }` 改为 `{ token: 'vf_xxx' }`（从 auth-manager 获取） `[unit]` <!-- 62db17b -->
 
 ### 4.4 Browser Extension 适配
 
