@@ -12,9 +12,17 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { httpBatchLink } from '@trpc/client';
+import { TRPCClientError } from '@trpc/client';
 import superjson from 'superjson';
 import { trpc } from '@/lib/trpc';
 import { OfflineSyncProvider } from './offline-sync-provider';
+
+function isUnauthorizedError(error: unknown): boolean {
+  return (
+    error instanceof TRPCClientError &&
+    error.data?.code === 'UNAUTHORIZED'
+  );
+}
 
 function getBaseUrl() {
   if (typeof window !== 'undefined') {
@@ -33,6 +41,17 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 5 * 1000, // 5 seconds
             refetchOnWindowFocus: false,
+            retry: (failureCount, error) => {
+              if (isUnauthorizedError(error)) return false;
+              return failureCount < 3;
+            },
+          },
+          mutations: {
+            onError: (error) => {
+              if (isUnauthorizedError(error)) {
+                window.location.href = '/login';
+              }
+            },
           },
         },
       })
