@@ -51,8 +51,8 @@
 
 ### 2.1 迁移脚本
 
-- [ ] **2.1.1** 新增 `scripts/migrate-dev-account.ts` — 迁移脚本：接受 `--password` 必填参数和 `--email` 可选参数，查找 `dev@vibeflow.local` 账号，更新 password（bcrypt hash）和可选的 email，输出数据完整性统计（projects/tasks/goals/pomodoros/dailyStates 计数） `[intg]`
-- [ ] **2.1.2** 迁移脚本幂等性测试：重复运行只覆盖密码，不创建重复数据；账号不存在时安全退出 `[intg]`
+- [x] **2.1.1** 新增 `scripts/migrate-dev-account.ts` — 迁移脚本：接受 `--password` 必填参数和 `--email` 可选参数，查找 `dev@vibeflow.local` 账号，更新 password（bcrypt hash）和可选的 email，输出数据完整性统计（projects/tasks/goals/pomodoros/dailyStates 计数） `[intg]` <!-- 6216190 -->
+- [x] **2.1.2** 迁移脚本幂等性测试：重复运行只覆盖密码，不创建重复数据；账号不存在时安全退出 `[intg]` <!-- 6216190 -->
 
 ---
 
