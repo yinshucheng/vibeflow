@@ -60,10 +60,10 @@
 
 ### 3.1 Service 审计
 
-- [x] **3.1.1** 审计所有 `src/services/*.service.ts` 中的 Prisma 操作，确保每个 findMany/findFirst/findUnique/update/delete/count/aggregate 包含 `userId` 过滤条件（直接或通过关联链路），在下方记录审计结果 `[unit]`
-- [x] **3.1.2** 修复审计中发现的缺失 `userId` 过滤的查询 `[unit]`
-- [x] **3.1.3** 审计 Socket.io 广播——确认 `socketBroadcastService` 只向当前用户的 room 发送消息 `[unit]`
-- [x] **3.1.4** 审计 tRPC context——确认 `ctx.user.userId` 只来自 authenticated session，不能被客户端请求参数覆盖 `[unit]`
+- [x] **3.1.1** 审计所有 `src/services/*.service.ts` 中的 Prisma 操作，确保每个 findMany/findFirst/findUnique/update/delete/count/aggregate 包含 `userId` 过滤条件（直接或通过关联链路），在下方记录审计结果 `[unit]` <!-- ed7a467 -->
+- [x] **3.1.2** 修复审计中发现的缺失 `userId` 过滤的查询 `[unit]` <!-- ed7a467 -->
+- [x] **3.1.3** 审计 Socket.io 广播——确认 `socketBroadcastService` 只向当前用户的 room 发送消息 `[unit]` <!-- ed7a467 -->
+- [x] **3.1.4** 审计 tRPC context——确认 `ctx.user.userId` 只来自 authenticated session，不能被客户端请求参数覆盖 `[unit]` <!-- ed7a467 -->
 
 ### 3.2 跨用户隔离测试
 
