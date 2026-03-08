@@ -22,6 +22,7 @@ vi.mock('ai', () => {
     streamText: vi.fn(),
     generateText: vi.fn(),
     stepCountIs: vi.fn((n: number) => ({ type: 'stepCount', count: n })),
+    tool: vi.fn((def: Record<string, unknown>) => def),
   };
 });
 
@@ -243,9 +244,10 @@ describe('chatService.handleMessage with attachments', () => {
       expect(result.data?.fullText).toBe('Hello there!');
 
       // Verify no attachment context was injected
+      // Note: handleMessage prepends a time prefix like "[2026/3/9 12:00]\n" to the LLM message
       const callArgs = mockedStreamText.mock.calls[0][0];
       const lastMessage = callArgs.messages[callArgs.messages.length - 1];
-      expect(lastMessage.content).toBe('Hello');
+      expect(lastMessage.content).toContain('Hello');
       expect(lastMessage.content).not.toContain('[Referenced');
     }));
 
