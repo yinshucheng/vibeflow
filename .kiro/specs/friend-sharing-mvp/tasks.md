@@ -24,17 +24,17 @@
 
 ### 1.3 前端页面
 
-- [ ] **1.3.1** 新增 `src/app/(auth)/layout.tsx` — Auth 布局：独立的 html/body，居中布局，不包含侧边栏和主应用 Provider `[e2e]`
-- [ ] **1.3.2** 新增 `src/app/(auth)/login/page.tsx` — 登录页面：email + password 表单，调用 `signIn('credentials', { redirect: false })`，成功后 `router.push(callbackUrl || '/')`，失败显示通用错误，loading 状态防重复提交 `[e2e]`
-- [ ] **1.3.3** 登录页面 DEV_MODE 区域：当 `NEXT_PUBLIC_DEV_MODE=true` 时，渲染"开发者快速登录"区域，输入任意 email 直接调用 `signIn('credentials', { email, devMode: true })` `[e2e]`
-- [ ] **1.3.4** 新增 `src/app/(auth)/register/page.tsx` — 注册页面：email + password + confirmPassword 表单，前端 Zod 验证（email 格式、密码 >= 8 字符、两次一致），POST `/api/auth/register`，成功后自动 `signIn` 登录 `[e2e]`
-- [ ] **1.3.5** 登录/注册页面互相链接："没有账号？去注册" 和 "已有账号？去登录" `[e2e]`
+- [x] **1.3.1** 新增 `src/app/(auth)/layout.tsx` — Auth 布局：独立的 html/body，居中布局，不包含侧边栏和主应用 Provider `[e2e]` <!-- 0c2a176 -->
+- [x] **1.3.2** 新增 `src/app/(auth)/login/page.tsx` — 登录页面：email + password 表单，调用 `signIn('credentials', { redirect: false })`，成功后 `router.push(callbackUrl || '/')`，失败显示通用错误，loading 状态防重复提交 `[e2e]` <!-- 0c2a176 -->
+- [x] **1.3.3** 登录页面 DEV_MODE 区域：当 `NEXT_PUBLIC_DEV_MODE=true` 时，渲染"开发者快速登录"区域，输入任意 email 直接调用 `signIn('credentials', { email, devMode: true })` `[e2e]` <!-- 0c2a176 -->
+- [x] **1.3.4** 新增 `src/app/(auth)/register/page.tsx` — 注册页面：email + password + confirmPassword 表单，前端 Zod 验证（email 格式、密码 >= 8 字符、两次一致），POST `/api/auth/register`，成功后自动 `signIn` 登录 `[e2e]` <!-- 0c2a176 -->
+- [x] **1.3.5** 登录/注册页面互相链接："没有账号？去注册" 和 "已有账号？去登录" `[e2e]` <!-- 0c2a176 -->
 
 ### 1.4 路由守卫 + 全局错误处理
 
-- [ ] **1.4.1** 新增 `src/middleware.ts` — Next.js middleware：公开路径（`/login`, `/register`, `/api/auth`, `/api/health`）放行；DEV_MODE=true 全部放行；其余路径检查 NextAuth JWT token，无效时重定向到 `/login?callbackUrl=xxx` `[e2e]`
-- [ ] **1.4.2** 修改 `src/components/providers/trpc-provider.tsx` — 全局 UNAUTHORIZED 处理：QueryClient 的 query retry 跳过 UNAUTHORIZED，mutation onError 收到 UNAUTHORIZED 时 `window.location.href = '/login'` `[e2e]`
-- [ ] **1.4.3** 添加 `NEXT_PUBLIC_DEV_MODE` 环境变量到 `.env.example`，在 `next.config.js` 中暴露给客户端（如未配置） `[unit]`
+- [x] **1.4.1** 新增 `src/middleware.ts` — Next.js middleware：公开路径（`/login`, `/register`, `/api/auth`, `/api/health`）放行；DEV_MODE=true 全部放行；其余路径检查 NextAuth JWT token，无效时重定向到 `/login?callbackUrl=xxx` `[e2e]` <!-- 0c2a176 -->
+- [x] **1.4.2** 修改 `src/components/providers/trpc-provider.tsx` — 全局 UNAUTHORIZED 处理：QueryClient 的 query retry 跳过 UNAUTHORIZED，mutation onError 收到 UNAUTHORIZED 时 `window.location.href = '/login'` `[e2e]` <!-- 0c2a176 -->
+- [x] **1.4.3** 添加 `NEXT_PUBLIC_DEV_MODE` 环境变量到 `.env.example`，在 `next.config.js` 中暴露给客户端（如未配置） `[unit]` <!-- 0c2a176 -->
 
 ### 1.5 Checkpoint: Web 端 E2E
 
