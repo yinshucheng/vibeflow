@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import type { ChatMessage } from '@/types';
 
 // =============================================================================
@@ -58,7 +58,7 @@ export function ChatBubble({ message }: ChatBubbleProps): React.JSX.Element {
           </View>
         )}
         <View style={[styles.bubble, styles.proactiveBubble]}>
-          <Text style={[styles.text, styles.proactiveText]}>
+          <Text selectable style={[styles.text, styles.proactiveText]}>
             {message.content}
           </Text>
         </View>
@@ -72,7 +72,7 @@ export function ChatBubble({ message }: ChatBubbleProps): React.JSX.Element {
       testID={`chat-bubble-${message.role}`}
     >
       <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-        <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]}>
+        <Text selectable style={[styles.text, isUser ? styles.userText : styles.assistantText]}>
           {message.content}
         </Text>
       </View>

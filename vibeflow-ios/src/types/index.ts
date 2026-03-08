@@ -51,12 +51,18 @@ export interface OverRestPolicyData {
   overRestMinutes: number;
 }
 
+export interface TemporaryUnblockData {
+  active: boolean;
+  endTime: number; // Unix timestamp ms
+}
+
 export interface PolicyData {
   version: number;
   distractionApps: BlockedApp[];
   updatedAt: number;
   sleepTime?: SleepTimePolicyData;
   overRest?: OverRestPolicyData;
+  temporaryUnblock?: TemporaryUnblockData;
 }
 
 export interface BlockedApp {

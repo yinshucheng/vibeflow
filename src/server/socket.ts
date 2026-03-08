@@ -867,6 +867,10 @@ export class VibeFlowSocketServer {
         await this.processChatActionEvent(socket, userId, event);
         break;
 
+      case 'CHAT_HISTORY_REQUEST':
+        await this.processChatHistoryRequest(socket, userId);
+        break;
+
       default:
         console.log(`[Socket.io] Unhandled event type: ${(event as OctopusEvent).eventType}`);
     }
@@ -1270,21 +1274,22 @@ export class VibeFlowSocketServer {
       };
       socket.emit('OCTOPUS_COMMAND', completeCommand);
 
-      // F5.2: Broadcast CHAT_SYNC to other devices of the same user
-      this.broadcastChatSync(userId, senderSocketId, conversationId, [
-        {
-          id: userMessageId,
-          role: 'user',
-          content: payload.content,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: assistantMessageId,
-          role: 'assistant',
-          content: fullText,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+      // F5.2: Broadcast CHAT_SYNC with full history to other devices
+      // (sending only delta would wipe their existing messages)
+      const fullHistory = await chatService.getHistory(userId, conversationId, 50);
+      const syncMessages = fullHistory.success && fullHistory.data
+        ? fullHistory.data.map(m => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            metadata: m.metadata as Record<string, unknown> | undefined,
+            createdAt: m.createdAt.toISOString(),
+          }))
+        : [
+            { id: userMessageId, role: 'user', content: payload.content, createdAt: new Date().toISOString() },
+            { id: assistantMessageId, role: 'assistant', content: fullText, createdAt: new Date().toISOString() },
+          ];
+      this.broadcastChatSync(userId, senderSocketId, conversationId, syncMessages);
 
       console.log(`[Socket.io] CHAT_MESSAGE processed for user ${userId}, conv=${conversationId}`);
     } else {
@@ -1349,6 +1354,46 @@ export class VibeFlowSocketServer {
     socket.emit('OCTOPUS_COMMAND', resultCommand);
 
     console.log(`[Socket.io] CHAT_ACTION processed for user ${userId}: ${payload.action} toolCall=${payload.toolCallId}`);
+  }
+
+  /**
+   * Process CHAT_HISTORY_REQUEST — client requests full chat history.
+   * Responds with a CHAT_SYNC containing full conversation history.
+   */
+  private async processChatHistoryRequest(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
+    userId: string
+  ): Promise<void> {
+    try {
+      const convResult = await chatService.getOrCreateDefaultConversation(userId);
+      if (!convResult.success || !convResult.data) return;
+
+      const historyResult = await chatService.getHistory(userId, convResult.data.id, 50);
+      if (!historyResult.success || !historyResult.data) return;
+
+      const syncCommand: ChatSyncCommand = {
+        commandId: crypto.randomUUID(),
+        commandType: 'CHAT_SYNC',
+        targetClient: 'all',
+        priority: 'normal',
+        requiresAck: false,
+        createdAt: Date.now(),
+        payload: {
+          conversationId: convResult.data.id,
+          messages: historyResult.data.map(m => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            metadata: m.metadata as Record<string, unknown> | undefined,
+            createdAt: m.createdAt.toISOString(),
+          })),
+        },
+      };
+      socket.emit('OCTOPUS_COMMAND', syncCommand);
+      console.log(`[Socket.io] CHAT_HISTORY_REQUEST served for user ${userId}, ${historyResult.data.length} messages`);
+    } catch (err) {
+      console.error(`[Socket.io] Failed to process CHAT_HISTORY_REQUEST:`, err);
+    }
   }
 
   /**

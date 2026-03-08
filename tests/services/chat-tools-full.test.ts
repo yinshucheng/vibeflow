@@ -62,6 +62,16 @@ vi.mock('../../src/services/efficiency-analysis.service', () => ({
   },
 }));
 
+vi.mock('../../src/services/screen-time-exemption.service', () => ({
+  screenTimeExemptionService: { requestTemporaryUnblock: vi.fn(), getActiveExemption: vi.fn(), getRemainingUnblocks: vi.fn() },
+}));
+vi.mock('../../src/services/sleep-time.service', () => ({
+  sleepTimeService: { isInSleepTime: vi.fn() },
+}));
+vi.mock('../../src/services/over-rest.service', () => ({
+  overRestService: { checkOverRestStatus: vi.fn() },
+}));
+
 vi.mock('../../src/lib/prisma', () => ({
   default: {
     task: {
@@ -135,7 +145,7 @@ beforeEach(() => {
 describe('getChatToolDefinitions — full registry', () => {
   it('should return 27 tool definitions', () => {
     const defs = getChatToolDefinitions();
-    expect(defs).toHaveLength(27);
+    expect(defs).toHaveLength(28);
   });
 
   it('each definition should have name, description, inputSchema, execute, requiresConfirmation', () => {
@@ -150,9 +160,9 @@ describe('getChatToolDefinitions — full registry', () => {
 });
 
 describe('createChatTools — full ToolSet', () => {
-  it('should return a ToolSet with all 27 tools', () => {
+  it('should return a ToolSet with all 28 tools', () => {
     const toolSet = createChatTools(TEST_USER_ID);
-    expect(Object.keys(toolSet)).toHaveLength(27);
+    expect(Object.keys(toolSet)).toHaveLength(28);
   });
 
   it('each tool should have execute function', () => {

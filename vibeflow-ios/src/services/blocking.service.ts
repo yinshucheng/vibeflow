@@ -37,6 +37,7 @@ export interface BlockingService {
 
 function createBlockingService(): BlockingService {
   let unsubscribe: (() => void) | null = null;
+  let tempUnblockExpiryTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Evaluate blocking reason from current store state.
@@ -125,6 +126,8 @@ function createBlockingService(): BlockingService {
       let prevSleepEnabled = useAppStore.getState().policy?.sleepTime?.enabled ?? false;
       let prevSleepStart = useAppStore.getState().policy?.sleepTime?.startTime ?? '';
       let prevSleepEnd = useAppStore.getState().policy?.sleepTime?.endTime ?? '';
+      let prevTempUnblockActive = useAppStore.getState().policy?.temporaryUnblock?.active ?? false;
+      let prevTempUnblockEndTime = useAppStore.getState().policy?.temporaryUnblock?.endTime ?? 0;
 
       unsubscribe = useAppStore.subscribe((state) => {
         const curPomodoroId = state.activePomodoro?.id ?? null;
@@ -135,15 +138,22 @@ function createBlockingService(): BlockingService {
         const curSleepEnabled = state.policy?.sleepTime?.enabled ?? false;
         const curSleepStart = state.policy?.sleepTime?.startTime ?? '';
         const curSleepEnd = state.policy?.sleepTime?.endTime ?? '';
+        const curTempUnblockActive = state.policy?.temporaryUnblock?.active ?? false;
+        const curTempUnblockEndTime = state.policy?.temporaryUnblock?.endTime ?? 0;
 
         const pomodoroChanged =
           prevPomodoroId !== curPomodoroId ||
           prevPomodoroStatus !== curPomodoroStatus;
 
+        const tempUnblockChanged =
+          prevTempUnblockActive !== curTempUnblockActive ||
+          prevTempUnblockEndTime !== curTempUnblockEndTime;
+
         const policyChanged =
           prevPolicyVersion !== curPolicyVersion ||
           prevSleepActive !== curSleepActive ||
-          prevOverRest !== curOverRest;
+          prevOverRest !== curOverRest ||
+          tempUnblockChanged;
 
         // Sleep schedule changed — register/clear offline schedule
         const sleepScheduleChanged =
@@ -169,6 +179,28 @@ function createBlockingService(): BlockingService {
           }
         }
 
+        // Schedule auto-reevaluation when temporary unblock expires
+        if (tempUnblockChanged) {
+          prevTempUnblockActive = curTempUnblockActive;
+          prevTempUnblockEndTime = curTempUnblockEndTime;
+
+          // Clear previous expiry timer
+          if (tempUnblockExpiryTimer) {
+            clearTimeout(tempUnblockExpiryTimer);
+            tempUnblockExpiryTimer = null;
+          }
+
+          // If active unblock, schedule reevaluation at expiry (+500ms buffer)
+          if (curTempUnblockActive && curTempUnblockEndTime > Date.now()) {
+            const delay = curTempUnblockEndTime - Date.now() + 500;
+            tempUnblockExpiryTimer = setTimeout(() => {
+              tempUnblockExpiryTimer = null;
+              console.log('[BlockingService] Temporary unblock expired, re-evaluating');
+              evaluateBlockingState();
+            }, delay);
+          }
+        }
+
         if (pomodoroChanged || policyChanged) {
           prevPomodoroId = curPomodoroId;
           prevPomodoroStatus = curPomodoroStatus;
@@ -186,6 +218,10 @@ function createBlockingService(): BlockingService {
         if (unsubscribe) {
           unsubscribe();
           unsubscribe = null;
+        }
+        if (tempUnblockExpiryTimer) {
+          clearTimeout(tempUnblockExpiryTimer);
+          tempUnblockExpiryTimer = null;
         }
       };
     },

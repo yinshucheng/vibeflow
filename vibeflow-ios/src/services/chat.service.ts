@@ -68,6 +68,23 @@ class ChatService {
   // ===========================================================================
 
   /**
+   * Request chat history refresh from server.
+   * Sends a CHAT_HISTORY_REQUEST event; server responds with CHAT_SYNC.
+   */
+  requestHistorySync(): void {
+    websocketService.sendEvent({
+      eventId: generateUUID(),
+      eventType: 'CHAT_HISTORY_REQUEST',
+      userId: '',
+      clientId: 'ios-app',
+      clientType: 'mobile',
+      timestamp: Date.now(),
+      sequenceNumber: 0,
+      payload: {},
+    });
+  }
+
+  /**
    * Send a chat message to the server.
    */
   sendMessage(content: string, attachments?: ChatAttachment[]): void {

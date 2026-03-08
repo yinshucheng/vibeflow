@@ -56,6 +56,9 @@ model User {
   // AI Chat relations
   conversations            Conversation[]
   llmUsageLogs             LLMUsageLog[]
+
+  // Screen Time Temporary Unblock
+  screenTimeExemptions     ScreenTimeExemption[]
 }
 
 model UserSettings {
@@ -176,6 +179,10 @@ model UserSettings {
   // AI Chat Configuration (S10)
   aiTriggerConfig         Json               @default("{}") // AITriggerConfig — global toggle, quiet hours, per-trigger on/off
   aiModelConfig           Json               @default("{}") // AIModelConfig — per-scene model overrides
+
+  // Temporary Unblock settings
+  tempUnblockDailyLimit  Int @default(3)   // max per day (1-10)
+  tempUnblockMaxDuration Int @default(15)  // max minutes per unblock (1-30)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -616,6 +623,24 @@ model RestExemption {
 
   @@index([userId, grantedAt])
   @@index([pomodoroId])
+}
+
+// Screen Time Temporary Unblock model
+// Records temporary unblock exemptions granted via AI chat
+model ScreenTimeExemption {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blockingReason  String    // 'focus' | 'over_rest' | 'sleep'
+  reasonText      String    // user-provided reason for unblocking
+  duration        Int       // unblock duration in minutes
+  grantedAt       DateTime  @default(now())
+  expiresAt       DateTime  // grantedAt + duration
+  revokedAt       DateTime? // early revocation time (reserved)
+
+  @@index([userId])
+  @@index([userId, grantedAt])
+  @@index([userId, expiresAt])
 }
 
 // Daily Entertainment State model for tracking entertainment quota usage (Requirements 8.1, 8.7)

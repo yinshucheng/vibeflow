@@ -21,6 +21,10 @@ import { activityLogService } from './activity-log.service';
 import { efficiencyAnalysisService } from './efficiency-analysis.service';
 import { dailyStateService } from './daily-state.service';
 import { broadcastStateChange } from './socket-broadcast.service';
+import { screenTimeExemptionService } from './screen-time-exemption.service';
+import { pomodoroService as pomodoroServiceDirect } from './pomodoro.service';
+import { sleepTimeService } from './sleep-time.service';
+import { overRestService } from './over-rest.service';
 import prisma from '../lib/prisma';
 
 // ---------------------------------------------------------------------------
@@ -746,6 +750,110 @@ async function executeGenerateDailySummary(userId: string, params: Record<string
 }
 
 // ---------------------------------------------------------------------------
+// Temporary Unblock Tool (Screen Time)
+// ---------------------------------------------------------------------------
+
+const requestTemporaryUnblockSchema = z.object({
+  reason_text: z.string().min(1).max(500).describe("用户说明的临时解锁理由"),
+  duration: z.number().int().min(1).max(15).describe("解锁时长（分钟，1-15）。用户指定则用用户的值；未指定则根据理由智能判断：快速操作3-5分钟，短通话5-8分钟，较长操作10-15分钟"),
+});
+
+async function executeRequestTemporaryUnblock(
+  userId: string,
+  params: Record<string, unknown>
+): Promise<ChatToolResult> {
+  try {
+    const { reason_text, duration } = requestTemporaryUnblockSchema.parse(params);
+
+    // Determine current blocking reason
+    let blockingReason: 'focus' | 'over_rest' | 'sleep' | null = null;
+
+    // Check active pomodoro (focus)
+    const pomResult = await pomodoroServiceDirect.getCurrent(userId);
+    if (pomResult.success && pomResult.data) {
+      blockingReason = 'focus';
+    }
+
+    // Check over rest
+    if (!blockingReason) {
+      const overRestResult = await overRestService.checkOverRestStatus(userId);
+      if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
+        blockingReason = 'over_rest';
+      }
+    }
+
+    // Check sleep time
+    if (!blockingReason) {
+      const sleepResult = await sleepTimeService.isInSleepTime(userId);
+      if (sleepResult.success && sleepResult.data) {
+        blockingReason = 'sleep';
+      }
+    }
+
+    if (!blockingReason) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: '当前没有活跃的 Screen Time 阻断，无需解锁' },
+      };
+    }
+
+    const result = await screenTimeExemptionService.requestTemporaryUnblock(userId, {
+      reasonText: reason_text,
+      duration,
+      blockingReason,
+    });
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    // Gather today's unblock stats for AI to relay to user
+    const remainingResult = await screenTimeExemptionService.getRemainingUnblocks(userId);
+    const historyResult = await screenTimeExemptionService.getExemptionHistory(userId, 1);
+
+    const todayExemptions = historyResult.success && historyResult.data ? historyResult.data : [];
+    const todayTotalMinutes = todayExemptions.reduce((sum, e) => sum + e.duration, 0);
+    const todayCount = todayExemptions.length;
+    const remaining = remainingResult.success && remainingResult.data ? remainingResult.data.remaining : 0;
+    const limit = remainingResult.success && remainingResult.data ? remainingResult.data.limit : 3;
+
+    // Map blocking reason to user-friendly label
+    const reasonLabels: Record<string, string> = {
+      focus: '番茄钟专注中',
+      over_rest: '休息超时',
+      sleep: '睡眠时间',
+    };
+
+    return {
+      success: true,
+      data: {
+        message: `临时解锁已生效，${result.data!.duration} 分钟后自动恢复阻断`,
+        blockingReason: result.data!.blockingReason,
+        blockingReasonLabel: reasonLabels[result.data!.blockingReason] ?? result.data!.blockingReason,
+        duration: result.data!.duration,
+        expiresAt: result.data!.expiresAt.toISOString(),
+        todayStats: {
+          unblockCount: todayCount,
+          totalMinutes: todayTotalMinutes,
+          remainingUnblocks: remaining,
+          dailyLimit: limit,
+          reasons: todayExemptions.map(e => ({
+            reason: e.reasonText,
+            duration: e.duration,
+            time: e.grantedAt.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          })),
+        },
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to request temporary unblock' },
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Tool Registry — the single source of truth for Chat-available tools
 // ---------------------------------------------------------------------------
 
@@ -794,6 +902,9 @@ export function getChatToolDefinitions(): ChatToolDefinition[] {
     { name: 'flow_delete_task', description: 'Delete or archive a task (soft delete by default)', inputSchema: deleteTaskSchema, requiresConfirmation: true, execute: executeDeleteTask },
     { name: 'flow_get_task_context', description: 'Get detailed context about a specific task including its project and related documents', inputSchema: getTaskContextSchema, requiresConfirmation: false, execute: executeGetTaskContext },
     { name: 'flow_generate_daily_summary', description: 'Generate a comprehensive summary of daily work including completed tasks, pomodoro stats, and suggestions', inputSchema: generateDailySummarySchema, requiresConfirmation: false, execute: executeGenerateDailySummary },
+
+    // Screen Time temporary unblock
+    { name: 'flow_request_temporary_unblock', description: '临时解除 Screen Time 应用屏蔽。用户提供理由，时长由你根据理由智能决定（用户指定时长则尊重）。每天限 3 次，每次最长 15 分钟。', inputSchema: requestTemporaryUnblockSchema, requiresConfirmation: true, execute: executeRequestTemporaryUnblock },
   ];
 }
 
@@ -951,6 +1062,7 @@ export const CHAT_TOOL_SCHEMAS = {
   flow_delete_task: deleteTaskSchema,
   flow_get_task_context: getTaskContextSchema,
   flow_generate_daily_summary: generateDailySummarySchema,
+  flow_request_temporary_unblock: requestTemporaryUnblockSchema,
 } as const;
 
 // ---------------------------------------------------------------------------

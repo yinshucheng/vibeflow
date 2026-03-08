@@ -11,6 +11,9 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { dailyStateService } from './daily-state.service';
 import { pomodoroService } from './pomodoro.service';
+import { screenTimeExemptionService } from './screen-time-exemption.service';
+import { sleepTimeService } from './sleep-time.service';
+import { overRestService } from './over-rest.service';
 
 // Service result type
 export interface ServiceResult<T> {
@@ -90,6 +93,16 @@ export interface AIContext {
   // Today's progress
   todayProgress: TodayProgressContext;
   
+  // Screen Time blocking context
+  screenTimeBlocking?: {
+    isBlocked: boolean;
+    blockingReason: string | null;
+    hasActiveUnblock: boolean;
+    unblockExpiresAt?: string;
+    remainingUnblocks: number;
+    dailyUnblockLimit: number;
+  };
+
   // Timestamp for context freshness
   generatedAt: Date;
 }
@@ -165,9 +178,49 @@ export const contextProviderService = {
 
       // Get today's progress
       const progressResult = await this.getTodayProgress(userId);
-      const todayProgress = progressResult.success && progressResult.data 
-        ? progressResult.data 
+      const todayProgress = progressResult.success && progressResult.data
+        ? progressResult.data
         : { completedPomodoros: 0, targetPomodoros: 8, completedTasks: 0, totalTasks: 0 };
+
+      // Get Screen Time blocking context
+      let screenTimeBlocking: AIContext['screenTimeBlocking'];
+      try {
+        // Determine current blocking reason
+        let blockingReason: string | null = null;
+        if (pomodoroStatus?.isActive) {
+          blockingReason = 'focus';
+        } else {
+          const overRestResult = await overRestService.checkOverRestStatus(userId);
+          if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
+            blockingReason = 'over_rest';
+          } else {
+            const sleepResult = await sleepTimeService.isInSleepTime(userId);
+            if (sleepResult.success && sleepResult.data) {
+              blockingReason = 'sleep';
+            }
+          }
+        }
+
+        const activeResult = await screenTimeExemptionService.getActiveExemption(userId);
+        const remainingResult = await screenTimeExemptionService.getRemainingUnblocks(userId);
+
+        screenTimeBlocking = {
+          isBlocked: blockingReason !== null,
+          blockingReason,
+          hasActiveUnblock: !!(activeResult.success && activeResult.data?.active),
+          unblockExpiresAt: activeResult.success && activeResult.data?.active
+            ? activeResult.data.expiresAt.toISOString()
+            : undefined,
+          remainingUnblocks: remainingResult.success && remainingResult.data
+            ? remainingResult.data.remaining
+            : 0,
+          dailyUnblockLimit: remainingResult.success && remainingResult.data
+            ? remainingResult.data.limit
+            : 3,
+        };
+      } catch {
+        // Non-critical — don't fail the whole context
+      }
 
       return {
         success: true,
@@ -179,6 +232,7 @@ export const contextProviderService = {
           pomodoroStatus,
           systemState,
           todayProgress,
+          screenTimeBlocking,
           generatedAt: new Date(),
         },
       };
@@ -594,6 +648,18 @@ export const contextProviderService = {
       for (const activity of recentItems) {
         sections.push(`- [${activity.type}] ${activity.description} (${this.formatTime(activity.timestamp)})`);
       }
+      sections.push('');
+    }
+
+    // Screen Time blocking section
+    if (context.screenTimeBlocking) {
+      const st = context.screenTimeBlocking;
+      sections.push('## Screen Time');
+      sections.push(`- **Blocked**: ${st.isBlocked ? `Yes (${st.blockingReason})` : 'No'}`);
+      if (st.hasActiveUnblock) {
+        sections.push(`- **Temporary Unblock**: Active (expires ${st.unblockExpiresAt})`);
+      }
+      sections.push(`- **Remaining Unblocks Today**: ${st.remainingUnblocks}/${st.dailyUnblockLimit}`);
       sections.push('');
     }
 

@@ -5,7 +5,7 @@
  * Supports half-screen and full-screen modes.
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import { useChatStore } from '@/store/chat.store';
+import { chatService } from '@/services/chat.service';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatInput } from './ChatInput';
 
@@ -37,6 +38,19 @@ export function ChatPanel(): React.JSX.Element {
   const panelHeight = useChatStore((state) => state.panelHeight);
   const closePanel = useChatStore((state) => state.closePanel);
   const togglePanelHeight = useChatStore((state) => state.togglePanelHeight);
+  const hasMessages = useChatStore((state) => state.messages.length > 0);
+  const prevOpenRef = useRef(false);
+
+  // Request history sync when panel opens (ensures messages are up-to-date)
+  useEffect(() => {
+    if (isPanelOpen && !prevOpenRef.current) {
+      // Panel just opened — request fresh history if store is empty
+      if (!hasMessages) {
+        chatService.requestHistorySync();
+      }
+    }
+    prevOpenRef.current = isPanelOpen;
+  }, [isPanelOpen, hasMessages]);
 
   if (!isPanelOpen) {
     return <></>;
@@ -86,8 +100,9 @@ export function ChatPanel(): React.JSX.Element {
           {/* Message list */}
           <ChatMessageList />
 
-          {/* Input */}
+          {/* Input + safe area bottom padding */}
           <ChatInput />
+          <View style={styles.safeBottom} />
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -140,6 +155,9 @@ const styles = StyleSheet.create({
   headerButtonText: {
     fontSize: 18,
     color: '#666666',
+  },
+  safeBottom: {
+    height: 34, // iPhone home indicator area
   },
 });
 

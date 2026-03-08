@@ -20,11 +20,19 @@ export interface BlockingReasonInput {
 
 /**
  * Evaluate blocking reason from app state signals.
- * Priority: focus > over_rest > sleep
+ * Priority: temporaryUnblock (override) > focus > over_rest > sleep
  * Returns the reason to block, or null if no blocking needed.
  */
 export function evaluateBlockingReason(input: BlockingReasonInput): BlockingReason | null {
   const { activePomodoro, policy } = input;
+
+  // 0. Temporary unblock — overrides ALL blocking reasons
+  if (
+    policy?.temporaryUnblock?.active &&
+    Date.now() < policy.temporaryUnblock.endTime
+  ) {
+    return null;
+  }
 
   // 1. Active pomodoro — focus blocking (HIGHEST PRIORITY)
   if (activePomodoro && activePomodoro.status === 'active') {

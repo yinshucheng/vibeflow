@@ -401,6 +401,12 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
             overRestMinutes: policy.overRest.overRestMinutes,
           }
         : undefined,
+      temporaryUnblock: policy.temporaryUnblock
+        ? {
+            active: policy.temporaryUnblock.active,
+            endTime: policy.temporaryUnblock.endTime,
+          }
+        : undefined,
     };
 
     set({

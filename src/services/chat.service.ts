@@ -2,6 +2,8 @@ import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { llmAdapterService } from '@/services/llm-adapter.service';
+import { chatContextService } from '@/services/chat-context.service';
+import { createChatTools } from '@/services/chat-tools.service';
 import type { Conversation, ChatMessage } from '@prisma/client';
 import type { ModelMessage } from 'ai';
 import type { ChatAttachment } from '@/types/octopus';
@@ -497,6 +499,10 @@ export const chatService = {
         ? content + attachmentContext
         : content;
 
+      // Inject current time into user message (changes every turn, not suitable for system prompt)
+      const now = new Date();
+      const timePrefix = `[${now.toLocaleDateString('zh-CN')} ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}]\n`;
+
       const llmMessages: ModelMessage[] = [
         // Convert history to LLM format
         ...historyMessages
@@ -505,8 +511,8 @@ export const chatService = {
             role: m.role as 'user' | 'assistant',
             content: m.content,
           })),
-        // Add the new user message (with attachment context appended)
-        { role: 'user' as const, content: userContent },
+        // Add the new user message with time prefix (with attachment context appended)
+        { role: 'user' as const, content: timePrefix + userContent },
       ];
 
       // 4. Persist user message (with attachment metadata if present)
@@ -526,13 +532,23 @@ export const chatService = {
         };
       }
 
-      // 5. Call LLM (streaming)
+      // 5. Build system prompt with dynamic context
+      const systemResult = await chatContextService.buildSystemPrompt(userId);
+      const system = systemResult.success ? systemResult.data : undefined;
+
+      // 6. Call LLM (streaming)
       let fullText = '';
       let tokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 
+      // Build tools for the LLM (userId injected via closure)
+      const tools = createChatTools(userId);
+
       const result = await llmAdapterService.callLLM({
         scene: 'chat:default',
+        system,
         messages: llmMessages,
+        tools,
+        maxSteps: 3,
         onFinish: (finishResult) => {
           fullText = finishResult.text;
           tokenUsage = finishResult.usage;

@@ -53,6 +53,16 @@ vi.mock('../../src/services/efficiency-analysis.service', () => ({
   efficiencyAnalysisService: { getHistoricalAnalysis: vi.fn() },
 }));
 
+vi.mock('../../src/services/screen-time-exemption.service', () => ({
+  screenTimeExemptionService: { requestTemporaryUnblock: vi.fn(), getActiveExemption: vi.fn(), getRemainingUnblocks: vi.fn() },
+}));
+vi.mock('../../src/services/sleep-time.service', () => ({
+  sleepTimeService: { isInSleepTime: vi.fn() },
+}));
+vi.mock('../../src/services/over-rest.service', () => ({
+  overRestService: { checkOverRestStatus: vi.fn() },
+}));
+
 vi.mock('../../src/lib/prisma', () => ({
   default: {
     task: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(), create: vi.fn(), delete: vi.fn(), count: vi.fn() },
@@ -92,9 +102,9 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('getChatToolDefinitions', () => {
-  it('should return 27 tool definitions (3 original + 24 from S1)', () => {
+  it('should return 28 tool definitions (3 original + 24 from S1 + 1 screen time)', () => {
     const defs = getChatToolDefinitions();
-    expect(defs).toHaveLength(27);
+    expect(defs).toHaveLength(28);
     const names = defs.map((d) => d.name);
     expect(names).toContain('flow_complete_task');
     expect(names).toContain('flow_create_task_from_nl');
@@ -114,9 +124,9 @@ describe('getChatToolDefinitions', () => {
 });
 
 describe('createChatTools', () => {
-  it('should return a ToolSet with all 27 tools', () => {
+  it('should return a ToolSet with all 28 tools', () => {
     const toolSet = createChatTools(TEST_USER_ID);
-    expect(Object.keys(toolSet)).toHaveLength(27);
+    expect(Object.keys(toolSet)).toHaveLength(28);
     expect(toolSet).toHaveProperty('flow_complete_task');
     expect(toolSet).toHaveProperty('flow_create_task_from_nl');
     expect(toolSet).toHaveProperty('flow_start_pomodoro');

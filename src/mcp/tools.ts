@@ -54,6 +54,8 @@ export const TOOLS = {
   SET_TOP3: 'flow_set_top3',
   // Record pomodoro retroactively
   RECORD_POMODORO: 'flow_record_pomodoro',
+  // Screen Time temporary unblock
+  REQUEST_TEMPORARY_UNBLOCK: 'flow_request_temporary_unblock',
 } as const;
 
 /**
@@ -644,6 +646,18 @@ export function registerTools() {
           required: ['duration', 'completed_at'],
         },
       },
+      {
+        name: TOOLS.REQUEST_TEMPORARY_UNBLOCK,
+        description: '临时解除 Screen Time 应用屏蔽。用户必须提供理由和时长。每天限 3 次，每次最长 15 分钟。',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            reason_text: { type: 'string', description: '用户说明的临时解锁理由' },
+            duration: { type: 'number', description: '请求的解锁时长（分钟，1-15）' },
+          },
+          required: ['reason_text', 'duration'],
+        },
+      },
     ],
   };
 }
@@ -750,6 +764,37 @@ export async function handleToolCall(
       case TOOLS.RECORD_POMODORO:
         result = await recordPomodoro(args as unknown as RecordPomodoroMCPInput, context);
         break;
+      case TOOLS.REQUEST_TEMPORARY_UNBLOCK: {
+        const { screenTimeExemptionService } = await import('../services/screen-time-exemption.service');
+        const { pomodoroService: pomSvc } = await import('../services/pomodoro.service');
+        const { sleepTimeService: sleepSvc } = await import('../services/sleep-time.service');
+        const { overRestService: orSvc } = await import('../services/over-rest.service');
+
+        // Determine blocking reason
+        let blockingReason: 'focus' | 'over_rest' | 'sleep' | null = null;
+        const pomResult = await pomSvc.getCurrent(context.userId);
+        if (pomResult.success && pomResult.data) blockingReason = 'focus';
+        if (!blockingReason) {
+          const orResult = await orSvc.checkOverRestStatus(context.userId);
+          if (orResult.success && orResult.data?.isOverRest && orResult.data?.shouldTriggerActions) blockingReason = 'over_rest';
+        }
+        if (!blockingReason) {
+          const sleepResult = await sleepSvc.isInSleepTime(context.userId);
+          if (sleepResult.success && sleepResult.data) blockingReason = 'sleep';
+        }
+
+        if (!blockingReason) {
+          result = { success: false, error: { code: 'VALIDATION_ERROR', message: '当前没有活跃的 Screen Time 阻断' } };
+        } else {
+          const input = args as { reason_text: string; duration: number };
+          result = await screenTimeExemptionService.requestTemporaryUnblock(context.userId, {
+            reasonText: input.reason_text,
+            duration: input.duration,
+            blockingReason,
+          });
+        }
+        break;
+      }
       default:
         success = false;
         result = {

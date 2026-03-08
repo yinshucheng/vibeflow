@@ -13,6 +13,7 @@ import { PolicySchema } from '@/types/octopus';
 import { focusSessionService } from '@/services/focus-session.service';
 import { sleepTimeService, type SleepEnforcementApp } from '@/services/sleep-time.service';
 import { overRestService } from '@/services/over-rest.service';
+import { screenTimeExemptionService } from '@/services/screen-time-exemption.service';
 
 // Service result type
 export interface ServiceResult<T> {
@@ -272,6 +273,16 @@ export const policyDistributionService = {
         }
       }
 
+      // Check for active temporary unblock
+      let temporaryUnblock: { active: boolean; endTime: number } | undefined;
+      const exemptionResult = await screenTimeExemptionService.getActiveExemption(userId);
+      if (exemptionResult.success && exemptionResult.data?.active) {
+        temporaryUnblock = {
+          active: true,
+          endTime: exemptionResult.data.expiresAt.getTime(),
+        };
+      }
+
       // Build the policy object
       const policy: Policy = {
         version: newVersion,
@@ -292,6 +303,8 @@ export const policyDistributionService = {
         ...(sleepTime && { sleepTime }),
         // Include over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
         ...(overRest && { overRest }),
+        // Include temporary unblock if active
+        ...(temporaryUnblock && { temporaryUnblock }),
       };
 
       // Validate the policy

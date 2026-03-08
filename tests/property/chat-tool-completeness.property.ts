@@ -30,6 +30,15 @@ vi.mock('../../src/services/activity-log.service', () => ({
 vi.mock('../../src/services/efficiency-analysis.service', () => ({
   efficiencyAnalysisService: { getHistoricalAnalysis: vi.fn() },
 }));
+vi.mock('../../src/services/screen-time-exemption.service', () => ({
+  screenTimeExemptionService: { requestTemporaryUnblock: vi.fn(), getActiveExemption: vi.fn(), getRemainingUnblocks: vi.fn() },
+}));
+vi.mock('../../src/services/sleep-time.service', () => ({
+  sleepTimeService: { isInSleepTime: vi.fn() },
+}));
+vi.mock('../../src/services/over-rest.service', () => ({
+  overRestService: { checkOverRestStatus: vi.fn() },
+}));
 vi.mock('../../src/lib/prisma', () => ({
   default: {
     task: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(), create: vi.fn(), delete: vi.fn(), count: vi.fn() },

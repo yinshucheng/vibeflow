@@ -622,3 +622,12 @@ export { chatTriggersCronService, CRON_TRIGGER_DEFINITIONS } from './chat-trigge
 // Chat User Config Service exports (S10)
 export { chatUserConfigService } from './chat-user-config.service';
 export type { AIModelConfig } from './chat-user-config.service';
+
+// Screen Time Exemption Service exports (Temporary Unblock via AI Chat)
+export { screenTimeExemptionService } from './screen-time-exemption.service';
+export type {
+  ActiveExemption,
+  RequestTemporaryUnblockInput,
+  ServiceResult as ScreenTimeExemptionServiceResult,
+} from './screen-time-exemption.service';
+export { RequestTemporaryUnblockSchema } from './screen-time-exemption.service';

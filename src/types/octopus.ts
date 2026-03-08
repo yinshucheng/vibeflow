@@ -27,7 +27,8 @@ export type EventType =
   | 'ENTERTAINMENT_MODE'
   | 'WORK_START'
   | 'CHAT_MESSAGE'
-  | 'CHAT_ACTION';
+  | 'CHAT_ACTION'
+  | 'CHAT_HISTORY_REQUEST';
 
 /**
  * Client types for identifying the source/target of events and commands
@@ -470,6 +471,11 @@ export interface ChatActionEvent extends BaseEvent {
   payload: ChatActionPayload;
 }
 
+export interface ChatHistoryRequestEvent extends BaseEvent {
+  eventType: 'CHAT_HISTORY_REQUEST';
+  payload: Record<string, never>;
+}
+
 /**
  * Union type for all event types
  */
@@ -485,7 +491,8 @@ export type OctopusEvent =
   | EntertainmentModeEvent
   | WorkStartEvent
   | ChatMessageEvent
-  | ChatActionEvent;
+  | ChatActionEvent
+  | ChatHistoryRequestEvent;
 
 
 // =============================================================================
@@ -884,6 +891,8 @@ export interface Policy {
   sleepTime?: SleepTimePolicy;
   /** Over rest configuration (optional) */
   overRest?: OverRestPolicy;
+  /** Temporary unblock configuration (optional) */
+  temporaryUnblock?: { active: boolean; endTime: number };
 }
 
 // =============================================================================
@@ -1292,6 +1301,11 @@ export const ChatActionEventSchema = BaseEventSchema.extend({
   payload: ChatActionPayloadSchema,
 });
 
+export const ChatHistoryRequestEventSchema = BaseEventSchema.extend({
+  eventType: z.literal('CHAT_HISTORY_REQUEST'),
+  payload: z.object({}).passthrough(),
+});
+
 // Union schema for all events
 export const OctopusEventSchema = z.discriminatedUnion('eventType', [
   ActivityLogEventSchema,
@@ -1306,6 +1320,7 @@ export const OctopusEventSchema = z.discriminatedUnion('eventType', [
   WorkStartEventSchema,
   ChatMessageEventSchema,
   ChatActionEventSchema,
+  ChatHistoryRequestEventSchema,
 ]);
 
 // =============================================================================
@@ -1474,6 +1489,12 @@ export const OverRestPolicySchema = z.object({
   bringToFront: z.boolean(),
 });
 
+// Temporary unblock policy schema
+export const TemporaryUnblockPolicySchema = z.object({
+  active: z.boolean(),
+  endTime: z.number().int().positive(),
+});
+
 // Policy schema
 export const PolicySchema = z.object({
   version: z.number().int().positive(),
@@ -1487,6 +1508,7 @@ export const PolicySchema = z.object({
   adhocFocusSession: AdhocFocusSessionSchema.optional(),
   sleepTime: SleepTimePolicySchema.optional(),
   overRest: OverRestPolicySchema.optional(),
+  temporaryUnblock: TemporaryUnblockPolicySchema.optional(),
 });
 
 // Update policy payload schema

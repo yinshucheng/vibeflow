@@ -48,17 +48,23 @@ const BLOCKING_REASON_LABELS: Record<BlockingReason, string> = {
 
 interface SectionProps {
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
 }
 
-function Section({ title, children }: SectionProps): React.JSX.Element {
+function Section({ title, subtitle, children }: SectionProps): React.JSX.Element {
   const theme = useTheme();
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>
+      <Text style={[styles.sectionTitle, !subtitle && { marginBottom: 8 }, { color: theme.colors.textMuted }]}>
         {title}
       </Text>
+      {subtitle && (
+        <Text style={[styles.sectionSubtitle, { color: theme.colors.textMuted }]}>
+          {subtitle}
+        </Text>
+      )}
       <View style={[styles.sectionContent, { backgroundColor: theme.colors.card }]}>
         {children}
       </View>
@@ -221,11 +227,11 @@ function OnboardingCard({ onRequestAuth, loading }: OnboardingCardProps): React.
 // =============================================================================
 
 function formatSelectionSummary(summary: SelectionSummary | null): string {
-  if (!summary || !summary.hasSelection) return '未配置';
+  if (!summary || !summary.hasSelection) return '点击选择';
   const parts: string[] = [];
   if (summary.appCount > 0) parts.push(`${summary.appCount} 个应用`);
   if (summary.categoryCount > 0) parts.push(`${summary.categoryCount} 个品类`);
-  return parts.length > 0 ? parts.join(', ') : '未配置';
+  return parts.length > 0 ? parts.join(' + ') : '点击选择';
 }
 
 // =============================================================================
@@ -350,8 +356,8 @@ export function SettingsScreen(): React.JSX.Element {
   };
 
   const isAuthorized = authStatus === 'authorized';
-  const appSelectionDisabled = !isAuthorized || isBlockingActive;
-  const appSelectionHint = isBlockingActive ? '阻断期间不可修改' : !isAuthorized ? '请先授权' : undefined;
+  const appSelectionDisabled = !isAuthorized || (isBlockingActive && !__DEV__);
+  const appSelectionHint = isBlockingActive && !__DEV__ ? '阻断期间不可修改' : !isAuthorized ? '请先授权' : undefined;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -392,7 +398,10 @@ export function SettingsScreen(): React.JSX.Element {
         </Section>
 
         {/* App Selection Section */}
-        <Section title="应用选择">
+        <Section
+          title="应用管理"
+          subtitle="专注时段会屏蔽「分心应用」，保留「工作应用」。建议将社交、短视频、游戏类加入分心列表。"
+        >
           <TappableRow
             label="分心应用"
             value={formatSelectionSummary(selectionSummary)}
@@ -402,7 +411,7 @@ export function SettingsScreen(): React.JSX.Element {
             loading={pickerLoading === 'distraction'}
           />
           <TappableRow
-            label="工作应用（始终允许）"
+            label="工作应用"
             value={formatSelectionSummary(workSummary)}
             onPress={handleSelectWorkApps}
             disabled={appSelectionDisabled}
@@ -475,6 +484,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     textTransform: 'uppercase',
+    marginBottom: 4,
+    marginLeft: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
     marginBottom: 8,
     marginLeft: 4,
   },
