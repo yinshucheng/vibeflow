@@ -147,10 +147,10 @@ tRPC Context 审计: ✅ PASS
 
 ### 4.1 iOS 客户端认证
 
-- [ ] **4.1.1** 重写 `vibeflow-ios/src/config/auth.ts` — 从 hardcoded email 改为 token-based：提供 `login(email, password)`（POST `/api/auth/token`）、`register(email, password)`（POST `/api/auth/register` → `/api/auth/token`）、`logout()`（DELETE `/api/auth/token` + 清除 SecureStore）、`getToken()`（从 SecureStore 读取）、`getAuthHeaders()`（返回 `Authorization: Bearer vf_xxx`） `[unit]`
-- [ ] **4.1.2** 新增 `vibeflow-ios/src/screens/LoginScreen.tsx` — 登录/注册 UI：email + password 表单，登录/注册切换，调用 auth.ts 的 login/register 函数，成功后导航到主界面 `[unit]`
-- [ ] **4.1.3** 修改 `vibeflow-ios/src/providers/AppProvider.tsx` — 加入 auth 状态管理：启动时检查 SecureStore 中的 token 有效性（GET `/api/auth/token`），无效则渲染 LoginScreen 而非主界面 `[unit]`
-- [ ] **4.1.4** 修改 `vibeflow-ios/src/services/websocket.service.ts` — Socket.io auth payload 从 `{ email }` 改为 `{ token: 'vf_xxx' }` `[unit]`
+- [x] **4.1.1** 重写 `vibeflow-ios/src/config/auth.ts` — 从 hardcoded email 改为 token-based：提供 `login(email, password)`（POST `/api/auth/token`）、`register(email, password)`（POST `/api/auth/register` → `/api/auth/token`）、`logout()`（DELETE `/api/auth/token` + 清除 SecureStore）、`getToken()`（从 SecureStore 读取）、`getAuthHeaders()`（返回 `Authorization: Bearer vf_xxx`） `[unit]` <!-- 33258ae -->
+- [x] **4.1.2** 新增 `vibeflow-ios/src/screens/LoginScreen.tsx` — 登录/注册 UI：email + password 表单，登录/注册切换，调用 auth.ts 的 login/register 函数，成功后导航到主界面 `[unit]` <!-- 33258ae -->
+- [x] **4.1.3** 修改 `vibeflow-ios/src/providers/AppProvider.tsx` — 加入 auth 状态管理：启动时检查 SecureStore 中的 token 有效性（GET `/api/auth/token`），无效则渲染 LoginScreen 而非主界面 `[unit]` <!-- 33258ae -->
+- [x] **4.1.4** 修改 `vibeflow-ios/src/services/websocket.service.ts` — Socket.io auth payload 从 `{ email }` 改为 `{ token: 'vf_xxx' }` `[unit]` <!-- 33258ae -->
 
 ### 4.2 iOS 分发配置（代码部分）
 
