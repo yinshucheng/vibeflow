@@ -404,3 +404,32 @@ body {
   padding: 6px 12px;
   font-size: 11px;
 }
+
+/* Auth Expired Banner */
+.auth-expired-banner {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.auth-expired-banner p {
+  font-size: 13px;
+  color: #fca5a5;
+  margin-bottom: 8px;
+}
+
+.auth-expired-banner .btn {
+  width: auto;
+  padding: 6px 16px;
+  font-size: 12px;
+}
+
+/* Login hint text */
+.login-hint {
+  font-size: 11px;
+  color: #a1a1aa;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}

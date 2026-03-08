@@ -654,7 +654,6 @@ export type ClientMessage =
 // Extension storage structure
 export interface ExtensionStorage {
   serverUrl: string;
-  userEmail: string;
   isConnected: boolean;
   policyCache: PolicyCache;
   pendingActivityLogs: ActivityLog[];
@@ -666,7 +665,6 @@ export interface ExtensionStorage {
 export interface ConnectionStatus {
   connected: boolean;
   serverUrl: string;
-  userEmail: string;
   systemState: SystemState;
   pomodoroCount: number;
   dailyCap: number;

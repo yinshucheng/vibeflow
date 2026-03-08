@@ -15,7 +15,6 @@ let dailyCap = 8;
 
 // Default connection settings (Requirements: 4.1, 4.2, 4.7, 4.8)
 const DEFAULT_SERVER_URL = 'http://localhost:3000';
-const DEFAULT_USER_EMAIL = 'dev@vibeflow.local';
 
 // Reconnection state (Requirements: 4.3, 4.4)
 let reconnectAttempts = 0;
@@ -50,25 +49,24 @@ chrome.runtime.onStartup.addListener(async () => {
  */
 async function initializeDefaultConnection(): Promise<void> {
   try {
-    const result = await chrome.storage.local.get(['serverUrl', 'userEmail', 'hasInitialized']);
-    
+    const result = await chrome.storage.local.get(['serverUrl', 'hasInitialized']);
+
     // If already initialized, use stored settings
     if (result.hasInitialized) {
       await loadStoredConnection();
       return;
     }
-    
+
     // First time install - set default values and connect
     console.log('[ServiceWorker] First install - setting up default connection');
     await chrome.storage.local.set({
       serverUrl: DEFAULT_SERVER_URL,
-      userEmail: DEFAULT_USER_EMAIL,
       isConnected: false,
       hasInitialized: true,
     });
-    
-    // Auto-connect with default settings
-    connect(DEFAULT_SERVER_URL, DEFAULT_USER_EMAIL);
+
+    // Auto-connect with default settings (auth via browser cookie)
+    connect(DEFAULT_SERVER_URL);
   } catch (error) {
     console.error('[ServiceWorker] Failed to initialize default connection:', error);
   }
@@ -77,21 +75,20 @@ async function initializeDefaultConnection(): Promise<void> {
 // Load stored connection settings and reconnect
 async function loadStoredConnection(): Promise<void> {
   try {
-    const result = await chrome.storage.local.get(['serverUrl', 'userEmail', 'isConnected', 'hasInitialized']);
-    
+    const result = await chrome.storage.local.get(['serverUrl', 'isConnected', 'hasInitialized']);
+
     // If not initialized yet, initialize with defaults
     if (!result.hasInitialized) {
       await initializeDefaultConnection();
       return;
     }
-    
+
     // Use stored settings or defaults
     const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
-    const userEmail = result.userEmail || DEFAULT_USER_EMAIL;
-    
+
     // Always try to reconnect on browser startup (Requirements: 4.3)
     console.log('[ServiceWorker] Reconnecting to server...');
-    connect(serverUrl, userEmail);
+    connect(serverUrl);
   } catch (error) {
     console.error('[ServiceWorker] Failed to load stored connection:', error);
   }
@@ -174,7 +171,12 @@ const wsHandlers: WebSocketEventHandler = {
 
   onError: (error) => {
     console.error('[ServiceWorker] WebSocket error:', error);
-    broadcastToPopup({ type: 'ERROR', payload: { message: error.message } });
+    // Detect authentication errors and show auth expired banner
+    if (error.name === 'AuthError') {
+      broadcastToPopup({ type: 'AUTH_EXPIRED', payload: { message: '会话已过期，请在网页端重新登录' } });
+    } else {
+      broadcastToPopup({ type: 'ERROR', payload: { message: error.message } });
+    }
   },
 
   // Entertainment quota sync handler (Requirements: 5.11, 8.7)
@@ -203,7 +205,8 @@ const wsHandlers: WebSocketEventHandler = {
 };
 
 // Connect to VibeFlow server
-function connect(serverUrl: string, userEmail: string): void {
+// Auth is handled via browser cookie (NextAuth session), no email needed
+function connect(serverUrl: string): void {
   // Clear any pending reconnect timer
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -215,11 +218,11 @@ function connect(serverUrl: string, userEmail: string): void {
     wsClient.disconnect();
   }
 
-  wsClient = new VibeFlowWebSocket(serverUrl, userEmail, wsHandlers);
+  wsClient = new VibeFlowWebSocket(serverUrl, wsHandlers);
   wsClient.connect();
 
   // Store connection settings
-  chrome.storage.local.set({ serverUrl, userEmail });
+  chrome.storage.local.set({ serverUrl });
 
   // Set up activity tracker callbacks for sending events via WebSocket
   activityTracker.setSyncCallback(async (logs: ActivityLog[]) => {
@@ -339,12 +342,11 @@ function scheduleReconnect(): void {
   console.log(`[ServiceWorker] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
   
   reconnectTimer = setTimeout(async () => {
-    const result = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+    const result = await chrome.storage.local.get(['serverUrl']);
     const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
-    const userEmail = result.userEmail || DEFAULT_USER_EMAIL;
-    
+
     console.log('[ServiceWorker] Attempting reconnect...');
-    connect(serverUrl, userEmail);
+    connect(serverUrl);
   }, delay);
 }
 
@@ -375,20 +377,26 @@ function disconnect(): void {
  */
 async function syncEntertainmentQuotaFromServer(): Promise<void> {
   try {
-    // Get server URL and user email from storage
-    const result = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+    // Get server URL from storage
+    const result = await chrome.storage.local.get(['serverUrl']);
     const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
-    const userEmail = result.userEmail || DEFAULT_USER_EMAIL;
-    
+
     // Fetch entertainment status from server via HTTP API
+    // Auth is handled via browser cookie (NextAuth session)
     const response = await fetch(`${serverUrl}/api/trpc/entertainment.getStatus`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-Dev-User-Email': userEmail,
       },
+      credentials: 'include',
     });
-    
+
+    if (response.status === 401) {
+      console.warn('[ServiceWorker] Authentication expired, please log in on the web');
+      broadcastToPopup({ type: 'AUTH_EXPIRED', payload: { message: '会话已过期，请在网页端重新登录' } });
+      return;
+    }
+
     if (!response.ok) {
       console.warn('[ServiceWorker] Failed to fetch entertainment status from server:', response.status);
       return;
@@ -433,25 +441,31 @@ async function syncEntertainmentQuotaFromServer(): Promise<void> {
  */
 async function syncEntertainmentQuotaToServer(): Promise<void> {
   try {
-    // Get server URL and user email from storage
-    const result = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+    // Get server URL from storage
+    const result = await chrome.storage.local.get(['serverUrl']);
     const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
-    const userEmail = result.userEmail || DEFAULT_USER_EMAIL;
-    
+
     const usedMinutes = entertainmentManager.getQuotaUsageForSync();
-    
+
     // Update quota usage on server via HTTP API
+    // Auth is handled via browser cookie (NextAuth session)
     const response = await fetch(`${serverUrl}/api/trpc/entertainment.updateQuotaUsage`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Dev-User-Email': userEmail,
       },
+      credentials: 'include',
       body: JSON.stringify({
         json: { usedMinutes },
       }),
     });
-    
+
+    if (response.status === 401) {
+      console.warn('[ServiceWorker] Authentication expired, please log in on the web');
+      broadcastToPopup({ type: 'AUTH_EXPIRED', payload: { message: '会话已过期，请在网页端重新登录' } });
+      return;
+    }
+
     if (!response.ok) {
       console.warn('[ServiceWorker] Failed to sync entertainment quota to server:', response.status);
       return;
@@ -1051,8 +1065,8 @@ async function handleMessage(
 ): Promise<unknown> {
   switch (message.type) {
     case 'CONNECT':
-      const { serverUrl, userEmail } = message.payload as { serverUrl: string; userEmail: string };
-      connect(serverUrl, userEmail);
+      const { serverUrl: connectUrl } = message.payload as { serverUrl: string };
+      connect(connectUrl);
       return { success: true };
 
     case 'DISCONNECT':
@@ -1069,18 +1083,16 @@ async function handleMessage(
         currentPomodoroId,
         // Additional connection info (Requirements: 4.5, 4.6)
         serverUrl: (await chrome.storage.local.get(['serverUrl'])).serverUrl || DEFAULT_SERVER_URL,
-        userEmail: (await chrome.storage.local.get(['userEmail'])).userEmail || DEFAULT_USER_EMAIL,
         reconnectAttempts,
         maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
       };
 
     case 'GET_CONNECTION_INFO':
       // Get detailed connection info (Requirements: 4.5)
-      const connInfo = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+      const connInfo = await chrome.storage.local.get(['serverUrl']);
       return {
         connected: isConnected,
         serverUrl: connInfo.serverUrl || DEFAULT_SERVER_URL,
-        userEmail: connInfo.userEmail || DEFAULT_USER_EMAIL,
         reconnectAttempts,
         maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
         isReconnecting: reconnectTimer !== null,
@@ -1089,10 +1101,9 @@ async function handleMessage(
     case 'MANUAL_RECONNECT':
       // Manual reconnect request (Requirements: 4.6)
       reconnectAttempts = 0; // Reset attempts for manual reconnect
-      const reconnectInfo = await chrome.storage.local.get(['serverUrl', 'userEmail']);
+      const reconnectInfo = await chrome.storage.local.get(['serverUrl']);
       const reconnectServerUrl = reconnectInfo.serverUrl || DEFAULT_SERVER_URL;
-      const reconnectUserEmail = reconnectInfo.userEmail || DEFAULT_USER_EMAIL;
-      connect(reconnectServerUrl, reconnectUserEmail);
+      connect(reconnectServerUrl);
       return { success: true };
 
     case 'GET_TAB_ID':
