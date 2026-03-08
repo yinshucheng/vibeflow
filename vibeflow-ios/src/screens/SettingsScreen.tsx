@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -27,6 +28,8 @@ import {
 } from '@/store/app.store';
 import { blockingService } from '@/services/blocking.service';
 import { screenTimeService } from '@/services/screen-time.service';
+import { serverConfigService } from '@/services/server-config.service';
+import { websocketService } from '@/services/websocket.service';
 import { useTheme } from '@/theme';
 import type { AuthorizationStatus, BlockingReason, SelectionSummary } from '@/types';
 
@@ -250,6 +253,11 @@ export function SettingsScreen(): React.JSX.Element {
   const [workSummary, setWorkSummary] = useState<SelectionSummary | null>(null);
   const [pickerLoading, setPickerLoading] = useState<'distraction' | 'work' | null>(null);
 
+  // Server URL editing
+  const [serverUrl, setServerUrl] = useState(serverConfigService.getServerUrlSync());
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
+  const [editUrlText, setEditUrlText] = useState('');
+
   // Load authorization status and work summary on mount
   useEffect(() => {
     const loadInitialData = async (): Promise<void> => {
@@ -341,6 +349,41 @@ export function SettingsScreen(): React.JSX.Element {
     } finally {
       setPickerLoading(null);
     }
+  }, []);
+
+  const handleEditServerUrl = useCallback(() => {
+    setEditUrlText(serverUrl);
+    setIsEditingUrl(true);
+  }, [serverUrl]);
+
+  const handleSaveServerUrl = useCallback(async () => {
+    const trimmed = editUrlText.trim();
+    if (!trimmed) {
+      // Reset to default
+      await serverConfigService.setServerUrl(null);
+      setServerUrl(serverConfigService.getServerUrlSync());
+    } else if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      Alert.alert('格式错误', '请输入完整地址，如 http://39.105.213.147:7080');
+      return;
+    } else {
+      await serverConfigService.setServerUrl(trimmed);
+      setServerUrl(trimmed);
+    }
+    setIsEditingUrl(false);
+
+    // Reconnect to new server
+    websocketService.disconnect();
+    setTimeout(() => websocketService.connect(), 500);
+  }, [editUrlText]);
+
+  const handleResetServerUrl = useCallback(async () => {
+    await serverConfigService.setServerUrl(null);
+    const defaultUrl = serverConfigService.getServerUrlSync();
+    setServerUrl(defaultUrl);
+    setIsEditingUrl(false);
+
+    websocketService.disconnect();
+    setTimeout(() => websocketService.connect(), 500);
   }, []);
 
   const connectionStatusText = {
@@ -452,10 +495,55 @@ export function SettingsScreen(): React.JSX.Element {
           </Section>
         )}
 
+        {/* Server Connection Section */}
+        <Section title="服务器连接">
+          {isEditingUrl ? (
+            <View style={styles.urlEditContainer}>
+              <TextInput
+                style={[styles.urlInput, { color: theme.colors.text, borderColor: theme.colors.border }]}
+                value={editUrlText}
+                onChangeText={setEditUrlText}
+                placeholder="http://39.105.213.147:7080"
+                placeholderTextColor={theme.colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                autoFocus
+              />
+              <View style={styles.urlButtonRow}>
+                <TouchableOpacity
+                  style={[styles.urlButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={handleSaveServerUrl}
+                >
+                  <Text style={styles.urlButtonText}>保存并重连</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.urlButton, { backgroundColor: theme.colors.textMuted }]}
+                  onPress={handleResetServerUrl}
+                >
+                  <Text style={styles.urlButtonText}>恢复默认</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.urlButton, { backgroundColor: 'transparent' }]}
+                  onPress={() => setIsEditingUrl(false)}
+                >
+                  <Text style={[styles.urlButtonText, { color: theme.colors.textSecondary }]}>取消</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TappableRow
+              label="服务器地址"
+              value={serverUrl}
+              onPress={handleEditServerUrl}
+            />
+          )}
+          <Row label="连接状态" value={connectionStatusText[connectionStatus]} isLast />
+        </Section>
+
         {/* App Info Section */}
         <Section title="应用信息">
-          <Row label="版本" value={APP_VERSION} />
-          <Row label="连接状态" value={connectionStatusText[connectionStatus]} isLast />
+          <Row label="版本" value={APP_VERSION} isLast />
         </Section>
 
         {/* Bottom spacing */}
@@ -542,6 +630,33 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
+  },
+  // Server URL editing
+  urlEditContainer: {
+    padding: 12,
+  },
+  urlInput: {
+    fontSize: 14,
+    fontFamily: 'Menlo',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  urlButtonRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  urlButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  urlButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Onboarding card
   onboardingCard: {

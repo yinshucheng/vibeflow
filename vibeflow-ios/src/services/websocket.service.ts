@@ -10,11 +10,11 @@
 
 import { io, Socket } from 'socket.io-client';
 import {
-  WEBSOCKET_URL,
   RECONNECT_INITIAL_DELAY_MS,
   RECONNECT_MAX_DELAY_MS,
 } from '@/config';
 import { getSocketAuthPayload } from '@/config/auth';
+import { serverConfigService } from './server-config.service';
 import { useAppStore } from '@/store';
 import type {
   SyncStateCommand,
@@ -91,7 +91,7 @@ class WebSocketService {
 
   // Configuration
   private config: Required<WebSocketServiceConfig> = {
-    url: WEBSOCKET_URL,
+    url: serverConfigService.getServerUrlSync(),
     initialDelay: RECONNECT_INITIAL_DELAY_MS,
     maxDelay: RECONNECT_MAX_DELAY_MS,
   };
@@ -103,6 +103,9 @@ class WebSocketService {
     if (this.socket?.connected) {
       return;
     }
+
+    // Always refresh URL from serverConfigService
+    this.config.url = serverConfigService.getServerUrlSync();
 
     if (config) {
       this.config = { ...this.config, ...config };
