@@ -164,13 +164,13 @@ tRPC Context 审计: ✅ PASS
 
 ### 4.4 Browser Extension 适配
 
-- [ ] **4.4.1** 修改 `vibeflow-extension/src/background/service-worker.ts` — 去掉 `DEFAULT_USER_EMAIL` 和 email-based auth，Socket.io 连接不传 auth payload（依赖浏览器 cookie） `[unit]`
-- [ ] **4.4.2** 修改 Extension popup — session 过期时（API 返回 401）显示"请在网页端重新登录"提示 `[unit]`
+- [x] **4.4.1** 修改 `vibeflow-extension/src/background/service-worker.ts` — 去掉 `DEFAULT_USER_EMAIL` 和 email-based auth，Socket.io 连接不传 auth payload（依赖浏览器 cookie） `[unit]` <!-- 3ad3915 -->
+- [x] **4.4.2** 修改 Extension popup — session 过期时（API 返回 401）显示"请在网页端重新登录"提示 `[unit]` <!-- 3ad3915 -->
 
 ### 4.5 安装文档
 
-- [ ] **4.5.1** 新增 `docs/install-ios.md` — 安装文档：如何获取 UDID、如何添加设备到 provisioning profile、如何安装 IPA `[unit]`
-- [ ] **4.5.2** 新增 `docs/install-desktop.md` — 安装文档：DMG 下载地址、手动绕过 Gatekeeper 的步骤（如无签名）、服务器地址配置 `[unit]`
+- [x] **4.5.1** 新增 `docs/install-ios.md` — 安装文档：如何获取 UDID、如何添加设备到 provisioning profile、如何安装 IPA `[unit]` <!-- 3ad3915 -->
+- [x] **4.5.2** 新增 `docs/install-desktop.md` — 安装文档：DMG 下载地址、手动绕过 Gatekeeper 的步骤（如无签名）、服务器地址配置 `[unit]` <!-- 3ad3915 -->
 
 ---
 
