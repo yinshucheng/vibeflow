@@ -117,6 +117,8 @@ interface ConnectionState {
   policyVersion: number | null;
   /** Event sequence number */
   sequenceNumber: number;
+  /** Auth token for API token authentication */
+  authToken: string | null;
 }
 
 // Certificate information (Requirements: 9.5, 9.6)
@@ -223,6 +225,7 @@ class ConnectionManager {
       userId: null,
       policyVersion: null,
       sequenceNumber: 0,
+      authToken: null,
     };
   }
 
@@ -350,6 +353,14 @@ class ConnectionManager {
    */
   setUserId(userId: string): void {
     this.state.userId = userId;
+  }
+
+  /**
+   * Set auth token for API token authentication.
+   * When set, Socket.io auth payload uses token instead of email.
+   */
+  setAuthToken(token: string): void {
+    this.state.authToken = token;
   }
 
   /**
@@ -549,18 +560,26 @@ class ConnectionManager {
     try {
       const serverUrl = this.getSecureUrl(this.config.serverUrl);
 
+      // Build auth payload — use token when available, fall back to email for dev mode
+      const auth: Record<string, string | undefined> = {
+        clientType: 'desktop',
+        userId: this.state.userId ?? undefined,
+      };
+
+      if (this.state.authToken) {
+        auth.token = this.state.authToken;
+      } else {
+        // Fallback for dev mode where token may not be set
+        auth.email = 'dev@vibeflow.local';
+      }
+
       // Create Socket.io connection with autoConnect: false to avoid race condition
       this.socket = io(serverUrl, {
         transports: ['websocket', 'polling'],
         reconnection: false, // We handle reconnection ourselves
         timeout: 10000,
         autoConnect: false, // Don't connect until handlers are set up
-        auth: {
-          clientType: 'desktop',
-          userId: this.state.userId,
-          // For dev mode authentication - server uses email to identify user
-          email: 'dev@vibeflow.local',
-        },
+        auth,
       });
 
       // Set up socket event handlers BEFORE connecting

@@ -272,6 +272,17 @@ export {
   type SyncHandler,
 } from './offline-event-queue';
 
+// Auth Manager Module
+export {
+  AuthManager,
+  getAuthManager,
+  initializeAuthManager,
+  resetAuthManager,
+  type AuthState,
+  type AuthChangeHandler,
+  type AuthManagerConfig,
+} from './auth-manager';
+
 // Configuration
 export {
   PRESET_DISTRACTION_APPS,

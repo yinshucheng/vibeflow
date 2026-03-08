@@ -29,6 +29,7 @@ import {
   setupQuitPreventionIpc,
   isDevelopmentMode,
 } from './modules/quit-prevention';
+import { initializeAuthManager, getAuthManager } from './modules/auth-manager';
 import {
   getModeDetector,
   detectAppMode,
@@ -912,6 +913,35 @@ function setupIpcHandlers(): void {
   ipcMain.handle('mode:canQuitFreely', () => {
     return modeDetector.canQuitFreely();
   });
+
+  // Auth Manager IPC handlers
+  ipcMain.handle('auth:getState', () => {
+    try {
+      return getAuthManager().getState();
+    } catch {
+      return { isAuthenticated: false, token: null, userId: null, email: null };
+    }
+  });
+
+  ipcMain.handle('auth:login', async () => {
+    try {
+      const authManager = getAuthManager();
+      const success = await authManager.openLoginWindow();
+      return { success };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('auth:logout', async () => {
+    try {
+      const authManager = getAuthManager();
+      await authManager.logout();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
 }
 
 // App lifecycle
@@ -971,6 +1001,37 @@ app.whenReady().then(async () => {
   if (mainWindow) {
     connectionManager.setMainWindow(mainWindow);
   }
+
+  // Initialize auth manager and authenticate before connecting
+  const authManager = initializeAuthManager({ serverUrl: config.serverUrl });
+  let isAuthenticated = false;
+
+  if (authManager.getToken()) {
+    // Validate the stored token
+    console.log('[Main] Validating stored auth token…');
+    isAuthenticated = await authManager.validateToken();
+  }
+
+  if (!isAuthenticated) {
+    // No valid token — open login window
+    console.log('[Main] No valid token, opening login window…');
+    isAuthenticated = await authManager.openLoginWindow();
+  }
+
+  if (isAuthenticated) {
+    // Provide token and userId to connection manager
+    const authState = authManager.getState();
+    if (authState.userId) {
+      connectionManager.setUserId(authState.userId);
+    }
+    if (authState.token) {
+      connectionManager.setAuthToken(authState.token);
+    }
+    console.log('[Main] Authenticated as:', authState.email);
+  } else {
+    console.warn('[Main] User did not authenticate, connection may fail');
+  }
+
   // Start connection monitoring
   connectionManager.connect();
 

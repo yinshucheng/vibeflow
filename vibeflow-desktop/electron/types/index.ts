@@ -673,6 +673,12 @@ export const IPC_CHANNELS = {
   POLICY_CACHE_GET_DISTRACTION_APPS: 'policyCache:getDistractionApps',
   POLICY_CACHE_GET_SKIP_TOKEN_CONFIG: 'policyCache:getSkipTokenConfig',
 
+  // Auth Manager
+  AUTH_GET_STATE: 'auth:getState',
+  AUTH_LOGIN: 'auth:login',
+  AUTH_LOGOUT: 'auth:logout',
+  AUTH_ON_CHANGE: 'auth:onChange',
+
   // Offline Event Queue (Requirements: 9.3, 9.6)
   OFFLINE_QUEUE_GET_STATE: 'offlineQueue:getState',
   OFFLINE_QUEUE_GET_QUEUE: 'offlineQueue:getQueue',
