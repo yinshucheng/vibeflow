@@ -76,11 +76,17 @@ export function initializeSocket(options?: {
     return socket;
   }
 
+  // In dev mode, read email from localStorage if not explicitly provided
+  let email = options?.email;
+  if (!email && typeof window !== 'undefined') {
+    email = localStorage.getItem('dev-user-email') || undefined;
+  }
+
   const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || '';
-  
+
   socket = io(socketUrl, {
     auth: {
-      email: options?.email,
+      email,
       token: options?.token,
     },
     transports: ['websocket', 'polling'],

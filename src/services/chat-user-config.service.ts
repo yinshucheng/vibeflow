@@ -213,7 +213,7 @@ export const chatUserConfigService = {
    */
   getAvailableModels(): Array<{ id: string; displayName: string }> {
     // Import MODEL_META dynamically to avoid circular deps
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line
     const { MODEL_META } = require('@/config/llm.config');
     return Object.entries(MODEL_META).map(([id, meta]) => ({
       id,

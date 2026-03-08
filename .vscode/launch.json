@@ -56,6 +56,16 @@
       }
     },
     {
+      "name": "📱 iOS: Build & Run (Device)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "./scripts/run-device.sh",
+      "cwd": "${workspaceFolder}/vibeflow-ios",
+      "env": {
+        "EXPO_PUBLIC_SERVER_PORT": "3000"
+      }
+    },
+    {
       "name": "🧪 Vitest: Run Tests",
       "type": "node-terminal",
       "request": "launch",

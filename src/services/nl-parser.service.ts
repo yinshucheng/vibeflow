@@ -610,15 +610,23 @@ export const nlParserService = {
           : parsed.estimatedMinutes,
       };
 
-      // Validate required fields
+      // Auto-create Inbox project if no project specified (BUG-5)
       if (!finalData.projectId) {
-        return {
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Project ID is required. Please select a project.',
-          },
-        };
+        let project = await prisma.project.findFirst({
+          where: { userId, status: 'ACTIVE' },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (!project) {
+          project = await prisma.project.create({
+            data: {
+              title: 'Inbox',
+              deliverable: 'Default inbox for quick tasks',
+              userId,
+              status: 'ACTIVE',
+            },
+          });
+        }
+        finalData.projectId = project.id;
       }
 
       // Create the task using taskService

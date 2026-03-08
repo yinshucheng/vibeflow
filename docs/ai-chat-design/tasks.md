@@ -326,12 +326,12 @@ describe('chatService', () => {
 
 ### F3. 会话管理
 
-- [ ] **F3.1 会话核心 `chat.service.ts`**
+- [x] **F3.1 会话核心 `chat.service.ts`** ✅ `c6e1f13`
   - `getOrCreateDefaultConversation(userId)`: 每用户一个活跃 DEFAULT 会话
   - `persistMessage(conversationId, role, content, metadata?)`: 消息写入 DB
   - `getHistory(userId, conversationId, limit?)`: 查询历史（含 userId 所有权验证）
 
-- [ ] **F3.2 消息处理主流程**
+- [x] **F3.2 消息处理主流程** ✅ `c6e1f13`
   - `handleMessage(userId, content, onDelta)`: 完整链路
     1. 获取/创建会话
     2. 并发锁（同一 conversationId 互斥）
@@ -340,11 +340,11 @@ describe('chatService', () => {
     5. 持久化用户消息 + AI 回复
     6. 记录 token 使用
 
-- [ ] **F3.3 并发锁**
+- [x] **F3.3 并发锁** ✅ `c6e1f13`
   - `conversationLocks` Map，防止同一会话并发 LLM 调用导致上下文错乱
   - 前一请求未完成时，后续请求排队等待
 
-- [ ] **F3.4 测试: 会话管理**
+- [x] **F3.4 测试: 会话管理** ✅ `c6e1f13`
   - `tests/services/chat.service.test.ts`:
     - `getOrCreateDefaultConversation`: 首次调用 → 创建；重复调用 → 返回同一个
     - `getOrCreateDefaultConversation`: 不同 userId → 不同 Conversation
@@ -361,24 +361,24 @@ describe('chatService', () => {
 
 ### F4. Tool 框架
 
-- [ ] **F4.1 Tool 注册机制**
+- [x] **F4.1 Tool 注册机制** ✅ `47625ed`
   - 统一的 Tool 注册函数：将 MCP Tool 定义（Zod schema）转为 Vercel AI SDK `tool()` 格式
   - userId 注入模式：Tool execute 闭包中从服务端上下文获取 userId，不信任 AI 传入
   - Tool 结果格式标准化
 
-- [ ] **F4.2 首批 Tool 实现（验证链路用）**
+- [x] **F4.2 首批 Tool 实现（验证链路用）** ✅ `47625ed`
   - 先绑定 3 个最基础的工具，跑通完整 Tool Use 链路：
     - `flow_complete_task`: 最简单的状态变更
     - `flow_create_task_from_nl`: 涉及自然语言解析
     - `flow_start_pomodoro`: 涉及状态机转换
   - 验证: 用户说 "帮我创建一个任务" → LLM 调用 tool → 执行 → 结果返回 → AI 总结
 
-- [ ] **F4.3 Tool 确认机制框架**
+- [x] **F4.3 Tool 确认机制框架** ✅ `47625ed`
   - `requiresConfirmation` 标记（低风险自动执行，高风险需确认）
   - `CHAT_TOOL_CALL` 推送确认请求
   - `handleToolConfirmation(userId, conversationId, toolCallId, action)`
 
-- [ ] **F4.4 测试: Tool 框架**
+- [x] **F4.4 测试: Tool 框架** ✅ `47625ed`
   - `tests/services/chat-tools.test.ts`:
     - Tool 注册: Zod schema → tool() 格式，parameters 正确
     - Tool execute: userId 从闭包注入，不从 AI 参数读取
@@ -966,12 +966,12 @@ describe('chatService', () => {
 
 ### S11. 高级能力（按需）
 
-- [ ] **S11.1 Topic Mode 会话**: 手动创建跨天专题会话 + 切换列表
-- [ ] **S11.2 对话搜索**: 全文搜索归档内容
-- [ ] **S11.3 Attachment 引用**: 任务长按 → "问 AI" → 携带上下文
+- [x] **S11.1 Topic Mode 会话**: 手动创建跨天专题会话 + 切换列表 ✅ `674b752`
+- [x] **S11.2 对话搜索**: 全文搜索归档内容 ✅ `ee0240d`
+- [x] **S11.3 Attachment 引用**: 任务长按 → "问 AI" → 携带上下文 ✅ `18dd648`
 - [ ] **S11.4 Skill Registry**: Skill 接口 + 5 个核心 Skill + 意图 → Skill 路由
 - [ ] **S11.5 外部 MCP Server 接入**: 日历 / Notion / GitHub 集成
-- [ ] **S11.6 国产 LLM 验证**: Qwen / Kimi 端到端 Tool Use + 流式测试
+- [x] **S11.6 国产 LLM 验证**: Qwen / Kimi 端到端 Tool Use + 流式测试 ✅ `a7b85c9`
 - [ ] **S11.7 数据分析面板**: 管理后台 token 统计 + 上下文使用率分析
 
 S11 各项的测试随实现同步规划。

@@ -19,6 +19,8 @@ import { projectService } from './project.service';
 import { timeSliceService } from './time-slice.service';
 import { activityLogService } from './activity-log.service';
 import { efficiencyAnalysisService } from './efficiency-analysis.service';
+import { dailyStateService } from './daily-state.service';
+import { broadcastStateChange } from './socket-broadcast.service';
 import prisma from '../lib/prisma';
 
 // ---------------------------------------------------------------------------
@@ -248,6 +250,8 @@ async function executeStartPomodoro(userId: string, params: Record<string, unkno
   if (!result.success) {
     return { success: false, error: result.error ?? { code: 'INTERNAL_ERROR', message: 'Failed to start pomodoro' } };
   }
+  // Transition to FOCUS state and broadcast SYNC_STATE to all devices (BUG-4)
+  await dailyStateService.updateSystemState(userId, 'focus');
   return { success: true, data: { id: result.data?.id, taskId: result.data?.taskId, duration: result.data?.duration, startTime: result.data?.startTime, status: result.data?.status } };
 }
 
@@ -807,13 +811,14 @@ export function createChatTools(userId: string): ToolSet {
   const toolSet: ToolSet = {};
 
   for (const def of defs) {
+    // eslint-disable-next-line
     toolSet[def.name] = tool({
       description: def.description,
       inputSchema: def.inputSchema,
       execute: async (params: Record<string, unknown>) => {
         return def.execute(userId, params);
       },
-    });
+    } as any);
   }
 
   return toolSet;

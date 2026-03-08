@@ -17,6 +17,29 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ message, pendingToolCall, onConfirm, onCancel }: ChatBubbleProps) {
+  // System messages: day divider, etc.
+  if (message.role === 'system') {
+    try {
+      const parsed = JSON.parse(message.content);
+      if (parsed.type === 'day_divider' && parsed.date) {
+        const d = new Date(parsed.date + 'T00:00:00');
+        const formatted = isNaN(d.getTime())
+          ? parsed.date
+          : d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+        return (
+          <div className="flex items-center gap-3 px-4 py-2" data-testid="chat-day-divider">
+            <div className="h-px flex-1 bg-notion-border" />
+            <span className="shrink-0 text-xs text-notion-text-tertiary">{formatted}</span>
+            <div className="h-px flex-1 bg-notion-border" />
+          </div>
+        );
+      }
+    } catch {
+      // Not JSON — render as plain system message
+    }
+    return null; // Hide other system messages
+  }
+
   if (message.role === 'tool_call') {
     const meta = message.metadata as {
       toolName?: string;

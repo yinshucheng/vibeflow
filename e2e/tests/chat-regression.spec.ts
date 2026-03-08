@@ -51,8 +51,7 @@ test.describe('Chat Regression', () => {
     }
   });
 
-  // TODO: Server does not push CHAT_SYNC on connect — needs implementation
-  test.fixme('BUG-3: cold-start connection receives CHAT_SYNC with history', async ({
+  test('BUG-3: cold-start connection receives CHAT_SYNC with history', async ({
     testUser,
     chatHelper,
   }) => {
@@ -86,39 +85,22 @@ test.describe('Chat Regression', () => {
     }
   });
 
-  // TODO: Tool-triggered state changes should broadcast SYNC_STATE — needs implementation
-  test.fixme('BUG-4: tool-triggered pomodoro broadcasts SYNC_STATE to other device', async ({
+  test('BUG-4: tool-triggered pomodoro broadcasts SYNC_STATE to other device', async ({
     testUser,
     prisma,
+    projectFactory,
   }) => {
-    // Ensure user has a project + task for the pomodoro
-    let project = await prisma.project.findFirst({
-      where: { userId: testUser.id, status: 'ACTIVE' },
+    // Create project + task for the pomodoro
+    const project = await projectFactory.create(testUser.id, { title: 'Regression Test Project' });
+    const task = await prisma.task.create({
+      data: {
+        title: 'Regression pomodoro task',
+        projectId: project.id,
+        userId: testUser.id,
+        priority: 'P2',
+        status: 'TODO',
+      },
     });
-    if (!project) {
-      project = await prisma.project.create({
-        data: {
-          title: 'Regression Test Project',
-          deliverable: 'Test',
-          userId: testUser.id,
-        },
-      });
-    }
-
-    let task = await prisma.task.findFirst({
-      where: { userId: testUser.id, projectId: project.id, status: 'TODO' },
-    });
-    if (!task) {
-      task = await prisma.task.create({
-        data: {
-          title: 'Regression pomodoro task',
-          projectId: project.id,
-          userId: testUser.id,
-          priority: 'P2',
-          status: 'TODO',
-        },
-      });
-    }
 
     const socketA = connectSocket(testUser.email);
     const socketB = connectSocket(testUser.email);
@@ -156,8 +138,7 @@ test.describe('Chat Regression', () => {
     }
   });
 
-  // TODO: Chat task creation should auto-create Inbox project — needs implementation
-  test.fixme('BUG-5: user with no projects — task creation auto-creates Inbox', async ({
+  test('BUG-5: user with no projects — task creation auto-creates Inbox', async ({
     testUser,
     prisma,
   }) => {

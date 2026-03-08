@@ -21,15 +21,10 @@ test.describe('Chat Confirmation Mechanism (S2)', () => {
   test('high-risk tool (flow_delete_task) requires confirmation', async ({
     testUser,
     prisma,
+    projectFactory,
   }) => {
-    // Create a task to potentially delete
-    const project = await prisma.project.findFirst({
-      where: { userId: testUser.id },
-    });
-    if (!project) {
-      test.skip();
-      return;
-    }
+    // Create a project and task for the test user
+    const project = await projectFactory.create(testUser.id);
 
     const taskToDelete = await prisma.task.create({
       data: {
@@ -109,14 +104,10 @@ test.describe('Chat Confirmation Mechanism (S2)', () => {
   test('high-risk tool cancel prevents execution', async ({
     testUser,
     prisma,
+    projectFactory,
   }) => {
-    const project = await prisma.project.findFirst({
-      where: { userId: testUser.id },
-    });
-    if (!project) {
-      test.skip();
-      return;
-    }
+    // Create a project for the test user
+    const project = await projectFactory.create(testUser.id);
 
     const taskToKeep = await prisma.task.create({
       data: {
@@ -195,14 +186,10 @@ test.describe('Chat Confirmation Mechanism (S2)', () => {
   test('low-risk tool (flow_get_task) auto-executes without confirmation', async ({
     testUser,
     prisma,
+    projectFactory,
   }) => {
-    const project = await prisma.project.findFirst({
-      where: { userId: testUser.id },
-    });
-    if (!project) {
-      test.skip();
-      return;
-    }
+    // Create a project for the test user
+    const project = await projectFactory.create(testUser.id);
 
     const taskToRead = await prisma.task.create({
       data: {

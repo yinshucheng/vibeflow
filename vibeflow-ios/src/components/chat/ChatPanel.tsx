@@ -13,6 +13,8 @@ import {
   StyleSheet,
   Dimensions,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useChatStore } from '@/store/chat.store';
 import { ChatMessageList } from './ChatMessageList';
@@ -50,7 +52,10 @@ export function ChatPanel(): React.JSX.Element {
       onRequestClose={closePanel}
       testID="chat-panel-modal"
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <TouchableOpacity style={styles.backdrop} onPress={closePanel} activeOpacity={1} />
         <View style={[styles.panel, { height }]} testID="chat-panel">
           {/* Header */}
@@ -84,7 +89,7 @@ export function ChatPanel(): React.JSX.Element {
           {/* Input */}
           <ChatInput />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

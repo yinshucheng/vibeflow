@@ -96,6 +96,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [pendingToolCalls, setPendingToolCalls] = useState<PendingToolCall[]>([]);
   const [contextUsage, setContextUsage] = useState<ContextUsageInfo | null>(null);
   const listenerAttached = useRef(false);
+  const streamingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Attach Socket.io listeners for OCTOPUS_COMMAND events
   useEffect(() => {
@@ -127,6 +128,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             ]);
             setIsStreaming(false);
             setStreamingContent('');
+            // Clear safety timeout
+            if (streamingTimeoutRef.current) {
+              clearTimeout(streamingTimeoutRef.current);
+              streamingTimeoutRef.current = null;
+            }
           }
           break;
         }
@@ -191,10 +197,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         case 'CHAT_SYNC': {
           const p = command.payload as { messages: ChatMessage[] };
           setMessages(p.messages);
+          // Reset streaming state — CHAT_SYNC means server has re-synced history,
+          // any in-flight streaming is stale.
+          setIsStreaming(false);
+          setStreamingContent('');
           break;
         }
         case 'CHAT_STATS': {
-          const p = command.payload as ContextUsageInfo;
+          const p = command.payload as unknown as ContextUsageInfo;
           setContextUsage(p);
           break;
         }
@@ -231,6 +241,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setMessages((prev) => [...prev, userMsg]);
     setIsStreaming(true);
     setStreamingContent('');
+
+    // Safety timeout: reset isStreaming if complete event never arrives (30s)
+    if (streamingTimeoutRef.current) clearTimeout(streamingTimeoutRef.current);
+    streamingTimeoutRef.current = setTimeout(() => {
+      setIsStreaming((current) => {
+        if (current) {
+          console.warn('[ChatProvider] Streaming timeout — forcing reset');
+          setStreamingContent('');
+        }
+        return false;
+      });
+    }, 30_000);
 
     // Socket types don't include OCTOPUS_EVENT — cast to untyped
     (socket as unknown as { emit: (event: string, data: unknown) => void }).emit(

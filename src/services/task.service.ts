@@ -930,13 +930,21 @@ export const taskService = {
    */
   async quickCreateInboxTask(userId: string, title: string): Promise<ServiceResult<Task>> {
     try {
-      const project = await prisma.project.findFirst({
+      let project = await prisma.project.findFirst({
         where: { userId, status: 'ACTIVE' },
         orderBy: { createdAt: 'asc' },
       });
 
       if (!project) {
-        return { success: false, error: { code: 'NOT_FOUND', message: 'No active project found' } };
+        // Auto-create Inbox project for users with no active projects (BUG-5)
+        project = await prisma.project.create({
+          data: {
+            title: 'Inbox',
+            deliverable: 'Default inbox for quick tasks',
+            userId,
+            status: 'ACTIVE',
+          },
+        });
       }
 
       return this.create(userId, { title, projectId: project.id, priority: 'P2' });

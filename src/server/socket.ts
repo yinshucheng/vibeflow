@@ -554,6 +554,38 @@ export class VibeFlowSocketServer {
     // Register event handlers
     this.registerEventHandlers(socket);
 
+    // Send cold-start CHAT_SYNC if user has an active conversation with history (BUG-3)
+    try {
+      const convResult = await chatService.getOrCreateDefaultConversation(userId);
+      if (convResult.success && convResult.data) {
+        const historyResult = await chatService.getHistory(userId, convResult.data.id, 50);
+        if (historyResult.success && historyResult.data && historyResult.data.length > 0) {
+          const syncCommand: ChatSyncCommand = {
+            commandId: crypto.randomUUID(),
+            commandType: 'CHAT_SYNC',
+            targetClient: 'all',
+            priority: 'normal',
+            requiresAck: false,
+            createdAt: Date.now(),
+            payload: {
+              conversationId: convResult.data.id,
+              messages: historyResult.data.map((m) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                metadata: m.metadata as Record<string, unknown> | undefined,
+                createdAt: m.createdAt.toISOString(),
+              })),
+            },
+          };
+          socket.emit('OCTOPUS_COMMAND', syncCommand);
+          console.log(`[Socket.io] Cold-start CHAT_SYNC sent to ${socket.id} for user ${email}, ${historyResult.data.length} messages`);
+        }
+      }
+    } catch (err) {
+      console.error(`[Socket.io] Failed to send cold-start CHAT_SYNC:`, err);
+    }
+
     // Handle disconnection (Requirements: 9.4)
     socket.on('disconnect', async (reason) => {
       console.log(`[Socket.io] Client disconnected: ${socket.id} (reason: ${reason})`);

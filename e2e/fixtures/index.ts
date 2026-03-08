@@ -117,18 +117,25 @@ export const test = base.extend<TestFixtures>({
     // Cleanup is handled by tracker
   },
 
-  // Authenticated page with dev auth header
+  // Authenticated page with dev auth header + localStorage for socket auth
   authenticatedPage: async ({ browser, testUser }, use) => {
     const context = await browser.newContext({
       extraHTTPHeaders: {
         'X-Dev-User-Email': testUser.email,
       },
     });
-    
+
     const page = await context.newPage();
-    
+
+    // Set localStorage before the app loads so socket-client reads the email
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    await page.goto(baseUrl);
+    await page.evaluate((email) => {
+      localStorage.setItem('dev-user-email', email);
+    }, testUser.email);
+
     await use(page);
-    
+
     await page.close();
     await context.close();
   },

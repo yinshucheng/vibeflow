@@ -73,8 +73,7 @@ test.describe('Chat UI (Browser)', () => {
     await expect(fab).toBeVisible();
   });
 
-  // TODO: Browser socket auth requires full session flow — X-Dev-User-Email only covers HTTP
-  test.fixme('sending a message shows user bubble and receives assistant reply', async ({
+  test('sending a message shows user bubble and receives assistant reply', async ({
     authenticatedPage,
   }) => {
     await authenticatedPage.goto('/');

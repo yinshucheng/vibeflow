@@ -169,7 +169,7 @@ class WebSocketService {
       return;
     }
 
-    this.socket.emit('octopus:event', event);
+    this.socket.emit('OCTOPUS_EVENT', event);
   }
 
   /**
