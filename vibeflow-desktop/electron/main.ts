@@ -303,9 +303,14 @@ function createTray(): void {
   console.log('[Main] System tray created and ready for state updates');
 }
 
-// Update tray menu state
+// Update tray menu state (full rebuild: menu + tooltip + title)
 function updateTrayMenu(state: Partial<TrayMenuState>): void {
   trayManager?.updateState(state);
+}
+
+// Lightweight tray update: only title text, no menu rebuild (for high-frequency timer ticks)
+function updateTrayTitleOnly(state: Partial<TrayMenuState>): void {
+  trayManager?.updateTitleOnly(state);
 }
 
 // Helper function to get current tray state
@@ -327,9 +332,22 @@ function startPomodoroCountdown(startTime: number, durationMs: number, taskTitle
     taskTitle,
   };
 
-  // Update immediately
-  updatePomodoroCountdown();
-  // Update every second
+  // Full menu rebuild on pomodoro start (sets pomodoroActive, task, state)
+  const elapsed = Date.now() - startTime;
+  const remainingMs = Math.max(0, durationMs - elapsed);
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+  updateTrayMenu({
+    pomodoroActive: true,
+    pomodoroTimeRemaining: timeStr,
+    currentTask: taskTitle,
+    systemState: 'FOCUS',
+  });
+
+  // Subsequent ticks only update title text (lightweight, no menu rebuild)
   pomodoroCountdown.timerId = setInterval(updatePomodoroCountdown, 1000);
   console.log('[Main] Pomodoro countdown started:', { startTime, durationMs, taskTitle });
 }
@@ -345,11 +363,11 @@ function updatePomodoroCountdown(): void {
   const seconds = remainingSeconds % 60;
   const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-  updateTrayMenu({
-    pomodoroActive: true,
+  // Use lightweight title-only update for timer ticks (every 1s).
+  // Full menu rebuild is expensive on macOS (triggers GPU compositing).
+  // The full menu was already built when the pomodoro started.
+  updateTrayTitleOnly({
     pomodoroTimeRemaining: timeStr,
-    currentTask: pomodoroCountdown.taskTitle,
-    systemState: 'FOCUS',
   });
 
   // Timer complete - stop countdown (notification handled by EXECUTE event from server)

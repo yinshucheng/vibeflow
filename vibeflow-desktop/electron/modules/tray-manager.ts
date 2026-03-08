@@ -261,6 +261,16 @@ export class TrayManager {
   }
 
   /**
+   * Lightweight update: only update tray title text without rebuilding menu/tooltip.
+   * Use this for high-frequency updates like Pomodoro countdown ticks (every 1s).
+   * Menu rebuild is expensive on macOS (GPU compositing), so avoid it for timer ticks.
+   */
+  updateTitleOnly(state: Partial<TrayMenuState>): void {
+    this.menuState = { ...this.menuState, ...state };
+    this.updateTrayTitle();
+  }
+
+  /**
    * Get current menu state
    */
   getState(): TrayMenuState {
