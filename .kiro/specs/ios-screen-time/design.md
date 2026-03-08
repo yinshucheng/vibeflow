@@ -770,3 +770,59 @@ vibeflow-ios/extensions/        ← 模板源码，提交到 Git
 4. **Phase 2d**: 全功能上线，移除 Phase 1 兜底代码（保留作为最终 fallback）
 
 每个子阶段在真机上验证后再进入下一阶段。
+
+---
+
+## Phase 3: 临时解锁 (via AI Chat)
+
+### 概述
+
+用户在被 Screen Time 阻断时（focus/over_rest/sleep），可通过 AI 对话请求临时解锁。设计上有摩擦但不过度限制：AI 引导说明理由和时长 → 确认卡片二次确认 → 记录入库。通过次数限制（3 次/天）+ 时长限制（15 分钟）防止滥用。
+
+### 数据模型
+
+```
+ScreenTimeExemption {
+  id, userId, blockingReason, reasonText, duration,
+  grantedAt, expiresAt, revokedAt?
+}
+
+UserSettings += {
+  tempUnblockDailyLimit: Int (default 3, range 1-10)
+  tempUnblockMaxDuration: Int (default 15, range 1-30)
+}
+```
+
+### 数据流
+
+```
+iOS Chat → "帮我解锁 5 分钟"
+  → AI 确认理由 → flow_request_temporary_unblock (requiresConfirmation=true)
+  → 确认卡片 → 用户点确认
+  → screenTimeExemptionService.requestTemporaryUnblock()
+    → DB: 创建 ScreenTimeExemption
+    → setTimeout: N 分钟后重推 policy
+    → 立即 broadcastPolicyUpdate()
+      → compilePolicy() → temporaryUnblock: { active: true, endTime }
+  → iOS 收到 UPDATE_POLICY → store 更新
+  → evaluateBlockingReason() 返回 null (临时解锁优先级最高)
+  → screenTimeService.disableBlocking() → 应用解锁
+
+... N 分钟后 ...
+
+Server setTimeout fires → broadcastPolicyUpdate()
+  → compilePolicy() → exemption 已过期 → 无 temporaryUnblock
+  → iOS evaluateBlockingReason() 正常评估 → 重新阻断
+```
+
+### Policy 扩展
+
+`Policy.temporaryUnblock?: { active: boolean; endTime: number }` — 仅在有活跃 exemption 时附带。iOS 端 `evaluateBlockingReason()` 在所有阻断检查之前先检查此字段，若 active 且未过期则返回 null（不阻断）。
+
+### 防滥用机制
+
+- 每日次数限制：默认 3 次，可在 UserSettings 调整（1-10）
+- 单次时长限制：请求 duration 被 clamp 到 min(requested, tempUnblockMaxDuration)
+- 不可叠加：已有活跃 exemption 时拒绝新请求
+- 服务重启恢复：`restoreActiveTimers()` 扫描未过期 exemption 重建定时器
+- iOS 端双保险：`blocking.service.ts` 设置本地 setTimeout 在 endTime+500ms 时重评估

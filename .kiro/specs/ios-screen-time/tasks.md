@@ -20,10 +20,10 @@
 ## Phase 0: 前置准备（一次性）
 
 ### Task 0: Apple Developer Portal + Xcode 配置
-- [ ] 0.1 `[HUMAN]` 在 Apple Developer Portal → Identifiers → App Groups 中注册 `group.app.vibeflow.shared`
-- [ ] 0.2 `[HUMAN]` 确认主 App 的 Provisioning Profile 包含 Family Controls + App Groups capability
-- [ ] 0.3 `[HUMAN]` 在 Xcode 中打开项目，确认 Signing & Capabilities 页面能正常选择 Team
-- [ ] 0.4 `[HUMAN]` 确认有物理 iOS 设备（模拟器不支持 FamilyControls）且设备已在"设置 → 屏幕使用时间"中开启
+- [x] 0.1 `[HUMAN]` 在 Apple Developer Portal → Identifiers → App Groups 中注册 `group.app.vibeflow.shared` ✅ 2026-03-08
+- [x] 0.2 `[HUMAN]` 确认主 App 的 Provisioning Profile 包含 Family Controls + App Groups capability ✅ 2026-03-08
+- [x] 0.3 `[HUMAN]` 在 Xcode 中打开项目，确认 Signing & Capabilities 页面能正常选择 Team ✅ 2026-03-08
+- [x] 0.4 `[HUMAN]` 确认有物理 iOS 设备（模拟器不支持 FamilyControls）且设备已在"设置 → 屏幕使用时间"中开启 ✅ 2026-03-08
 
 > **为什么需要 Phase 0：** FamilyControls 是受限 capability，需要 Apple 批准。如果 Provisioning Profile 没配好，后续所有真机验证都跑不通。先确认这些外部依赖就绪。
 
@@ -45,7 +45,7 @@
 - [x] 1.2 修改 `plugins/withFamilyControls.js` — 添加 App Group entitlement (`group.app.vibeflow.shared`) `d128d5d`
 - [x] 1.3 修改 `ios/vibeflowios/vibeflowios.entitlements` — 添加 `com.apple.security.application-groups` `d128d5d`
 - [x] 1.4 修改 `ScreenTime.podspec` — 添加 `DeviceActivity` framework 依赖 `d128d5d`
-- [ ] 1.5 `[HUMAN]` 真机验证：App Group UserDefaults 读写正常
+- [x] 1.5 `[HUMAN]` 真机验证：App Group UserDefaults 读写正常 ✅ 2026-03-08 — 番茄钟启动后阻断生效，说明 App Group 读写正常
 
 ### Task 2: FamilyActivityPicker 模态弹出 `[AI]`
 - [x] 2.1 创建 `modules/screen-time/ios/ActivityPickerSheet.swift`: `a8eaa8f`
@@ -60,7 +60,7 @@
   - 用户"完成"后保存到 AppGroupManager，dismiss，resolve SelectionSummary
 - [x] 2.3 在 `modules/screen-time/index.ts` 中添加 `presentActivityPicker` 函数声明 + mock 实现 `a8eaa8f`
   - Mock 返回 `{ appCount: 0, categoryCount: 0, hasSelection: false }`
-- [ ] 2.4 `[HUMAN]` 真机验证：Picker 弹出、选择后 summary 正确返回、App 重启后 selection 仍在
+- [x] 2.4 `[HUMAN]` 真机验证：Picker 弹出、选择后 summary 正确返回、App 重启后 selection 仍在 ✅ 2026-03-08
 
 ### Task 3: Native Module 接口扩展 + Service 链路一起改 `[AI]`
 
@@ -87,7 +87,7 @@
   - 移除 `getBlockedApps()` 中的 bundleId 逻辑
   - Store 更新使用 `selectionSummary` 替代 `blockedApps`
 - [x] 3.6 修改 `src/store/app.store.ts` — `blockedApps` → `selectionSummary`，相关 actions 和 selectors 同步更新 `c7704bc`
-- [ ] 3.7 `[HUMAN]` 真机验证：所有新 native 函数调用正常，阻断流程不 break（仍为 `.all()`）
+- [x] 3.7 `[HUMAN]` 真机验证：所有新 native 函数调用正常，阻断流程不 break ✅ 2026-03-08 — 阻断已从 .all() 切换为 token-based
 
 ### Task 4: Settings 页面交互 `[AI]`
 - [x] 4.1 改造 `src/screens/SettingsScreen.tsx`: `01c15d7`
@@ -98,7 +98,7 @@
   - 移除底部"所有设置均为只读"的提示（不再只读）
 - [x] 4.2 添加首次设置引导卡片（onboarding card）— 授权状态为 `notDetermined` 时显示 `01c15d7`
 - [x] 4.3 App 启动时（AppProvider）调用 `getSelectionSummary` 初始化 store 中的 summary `01c15d7`
-- [ ] 4.4 `[HUMAN]` 真机验证：完整设置流程 — 授权 → 选择分心应用 → 查看 summary → 重启 App → summary 仍在
+- [x] 4.4 `[HUMAN]` 真机验证：完整设置流程 — 授权 → 选择分心应用 → 查看 summary → 重启 App → summary 仍在 ✅ 2026-03-08
 
 **Phase 2a 验收标准：**
 - 用户能在 Settings 中选择分心应用和工作应用
@@ -119,8 +119,8 @@
   - 从 AppGroupManager 读取 work selection
   - **App 集合：** `store.shield.applications = distractionApps.subtracting(workApps)`
   - **品类集合（关键）：** `store.shield.applicationCategories = .specific(distractionCategories, except: workApps)` — 必须用 `except` 参数，因为 opaque token 无法判断品类是否包含特定 App
-- [ ] 5.2 `[HUMAN]` 真机验证：选择 3 个 App → 启动番茄钟 → 只有选中的被 Shield，其他正常
-- [ ] 5.3 `[HUMAN]` 真机验证：选择"社交"品类 + 设置"微信"为工作 App → 阻断 → 微信可用、其他社交 App 被阻断
+- [x] 5.2 `[HUMAN]` 真机验证：选择 3 个 App → 启动番茄钟 → 只有选中的被 Shield，其他正常 ✅ 2026-03-08 — 用户确认"确实在真的屏蔽了无关应用"
+- [ ] 5.3 `[HUMAN]` 真机验证：选择"社交"品类 + 设置"微信"为工作 App → 阻断 → 微信可用、其他社交 App 被阻断 — 待验证品类 + 白名单交叉场景
 
 **Phase 2b 验收标准：**
 - 阻断只影响用户选择的分心应用
@@ -209,12 +209,12 @@
 - [x] 11.3 `[AI]` 单元测试：SelectionSummary 处理逻辑（hasSelection true/false → useSelection 参数） `f9a456c`
 - [x] 11.4 `[AI]` 属性测试（fast-check）：阻断原因优先级在任意组合下正确 `f9a456c`
 - [ ] 11.5 `[HUMAN]` 真机集成测试 checklist:
-  - 完整流程：授权 → 选择 → 番茄钟 → 阻断 → 结束 → 解除
-  - 离线睡眠：注册 → 杀 App → 等时间 → 阻断生效
-  - 断网保持：阻断中 → 飞行模式 → 阻断不解除
-  - 重启保持：阻断中 → App 重启 → 阻断恢复
-  - 白名单：工作 App 始终可用
-  - 品类 + 白名单交叉：选"社交"品类 + "微信"工作 App → 微信可用
+  - [x] 完整流程：授权 → 选择 → 番茄钟 → 阻断 → 结束 → 解除 ✅ 2026-03-08
+  - [ ] 离线睡眠：注册 → 杀 App → 等时间 → 阻断生效
+  - [ ] 断网保持：阻断中 → 飞行模式 → 阻断不解除
+  - [ ] 重启保持：阻断中 → App 重启 → 阻断恢复
+  - [ ] 白名单：工作 App 始终可用
+  - [ ] 品类 + 白名单交叉：选"社交"品类 + "微信"工作 App → 微信可用
 
 ### Task 12: Extension 自动化构建（Config Plugin） `[AI]`
 
@@ -260,3 +260,53 @@
 | 11.5 | 最终集成测试 | 30 min |
 
 **你需要介入约 6-8 次，全部是真机验证或一次性配置。如果 Task 12 的 Config Plugin 方案成功，Phase 2c 的 Task 6.1/7.1（手动创建 Extension）在后续构建中也不再需要。**
+
+---
+
+## Phase 3: 临时解锁 (via AI Chat)
+
+通过 AI 对话触发临时解除 Screen Time 阻断。限制：3 次/天，每次最长 15 分钟。
+
+### Task 13: Prisma Schema — ScreenTimeExemption model + UserSettings 字段
+- [x] 13.1 `[AI]` 新增 `ScreenTimeExemption` model（id, userId, blockingReason, reasonText, duration, grantedAt, expiresAt, revokedAt）
+- [x] 13.2 `[AI]` `User` model 新增 `screenTimeExemptions` relation
+- [x] 13.3 `[AI]` `UserSettings` 新增 `tempUnblockDailyLimit` (default 3) + `tempUnblockMaxDuration` (default 15)
+- [x] 13.4 `[AI]` `npm run db:generate && npm run db:push` 通过
+
+### Task 14: Server Service — screen-time-exemption.service.ts
+- [x] 14.1 `[AI]` 新建 `src/services/screen-time-exemption.service.ts`
+- [x] 14.2 `[AI]` 实现 `getActiveExemption(userId)` — 查 DB 是否有未过期 exemption
+- [x] 14.3 `[AI]` 实现 `getRemainingUnblocks(userId)` — 统计今天已用次数 vs 限制
+- [x] 14.4 `[AI]` 实现 `requestTemporaryUnblock(userId, input)` — 创建记录 + 定时器 + policy 推送
+- [x] 14.5 `[AI]` 实现 `revokeTemporaryUnblock(userId)` — 提前撤销
+- [x] 14.6 `[AI]` 实现 `restoreActiveTimers()` — 服务重启恢复定时器
+- [x] 14.7 `[AI]` Export from `src/services/index.ts`
+
+### Task 15: Policy 类型扩展 + 编译集成
+- [x] 15.1 `[AI]` `src/types/octopus.ts` — Policy interface 添加 `temporaryUnblock?`
+- [x] 15.2 `[AI]` `src/types/octopus.ts` — 新增 `TemporaryUnblockPolicySchema` + PolicySchema 集成
+- [x] 15.3 `[AI]` `src/services/policy-distribution.service.ts` — compilePolicy 中查询 active exemption
+
+### Task 16: Chat Tool — flow_request_temporary_unblock
+- [x] 16.1 `[AI]` `src/services/chat-tools.service.ts` — 新增 schema + execute 函数
+- [x] 16.2 `[AI]` 注册到 `getChatToolDefinitions()` + `CHAT_TOOL_SCHEMAS`
+- [x] 16.3 `[AI]` 同步注册到 MCP `src/mcp/tools.ts`
+- [x] 16.4 `[AI]` 更新相关测试中的 tool count（27 → 28）
+
+### Task 17: System Prompt + Context 集成
+- [x] 17.1 `[AI]` `src/services/chat-context.service.ts` — SYSTEM_PROMPT_TEMPLATE 追加临时解锁引导
+- [x] 17.2 `[AI]` `src/services/context-provider.service.ts` — AIContext 新增 screenTimeBlocking
+- [x] 17.3 `[AI]` serializeToMarkdown 新增 Screen Time section
+
+### Task 18: iOS 类型 + 阻断评估
+- [x] 18.1 `[AI]` `vibeflow-ios/src/types/index.ts` — 新增 TemporaryUnblockData + PolicyData 集成
+- [x] 18.2 `[AI]` `vibeflow-ios/src/utils/blocking-reason.ts` — 临时解锁检查（最高优先级 override）
+- [x] 18.3 `[AI]` `vibeflow-ios/src/store/app.store.ts` — handlePolicyUpdate 映射 temporaryUnblock
+- [x] 18.4 `[AI]` `vibeflow-ios/src/services/blocking.service.ts` — 订阅 temporaryUnblock 变化 + 到期自动重评估
+
+### Task 19: 验证
+- [x] 19.1 `[AI]` TypeScript 编译通过（`npx tsc --noEmit`）
+- [x] 19.2 `[AI]` Chat tool 测试通过（76 tests）
+- [x] 19.3 `[AI]` iOS 测试通过（93 tests）
+- [x] 19.4 `[AI]` ESLint 通过
+- [ ] 19.5 `[HUMAN]` 真机验收：AI chat → 解锁 → 自动重锁 → 次数限制

@@ -150,6 +150,13 @@ Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access l
 
 `server.ts` — custom HTTP server that boots Next.js + Socket.io + pomodoro scheduler. Graceful shutdown on SIGTERM/SIGINT. Hot reload via tsx watch (SIGUSR2).
 
+## Auto-Start Services for Verification
+
+代码修改后需要验证时（如真机测试），自动启动相关服务，除非用户明确说"我自己启动"：
+- **iOS 验证**: `cd vibeflow-ios && EXPO_PUBLIC_SERVER_HOST=$(ipconfig getifaddr en0) npx expo start --port 8081`
+- **Web/Backend 验证**: `npm run dev`
+- 启动前先检查端口是否已占用，已占用则先 kill 再启动
+
 ## Development Principles
 
 - 整体架构按照DDD方式构建，不做过度抽象
