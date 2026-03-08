@@ -154,7 +154,7 @@ tRPC Context 审计: ✅ PASS
 
 ### 4.2 iOS 分发配置（代码部分）
 
-- [ ] **4.2.1** 新增 `vibeflow-ios/eas.json` — 配置 `development`、`preview`（完整版含 Family Controls）、`preview-lite`（精简版无 Screen Time）三个 build profile `[unit]`
+- [x] **4.2.1** 新增 `vibeflow-ios/eas.json` — 配置 `development`、`preview`（完整版含 Family Controls）、`preview-lite`（精简版无 Screen Time）三个 build profile `[unit]` <!-- fb5b467 -->
 
 ### 4.3 Desktop 客户端认证
 
