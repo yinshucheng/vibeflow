@@ -11,6 +11,7 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { z } from 'zod';
+import { getToken } from 'next-auth/jwt';
 import prisma from '@/lib/prisma';
 import { userService } from '@/services/user.service';
 import { authService } from '@/services/auth.service';
@@ -423,6 +424,34 @@ export class VibeFlowSocketServer {
             capabilities: capabilities || [],
           },
         };
+      }
+    }
+
+    // NextAuth cookie authentication (for Web and Browser Extension)
+    if (!userService.isDevModeEnabled()) {
+      try {
+        const jwtToken = await getToken({
+          req: socket.request as Parameters<typeof getToken>[0]['req'],
+          secret: process.env.NEXTAUTH_SECRET,
+        });
+        if (jwtToken?.id && jwtToken?.email) {
+          console.log(`[Socket.io] Authenticated via NextAuth cookie: ${jwtToken.email}`);
+          return {
+            success: true,
+            data: {
+              userId: jwtToken.id as string,
+              email: jwtToken.email as string,
+              isDevMode: false,
+              connectedAt: Date.now(),
+              clientType: clientType as ClientType || 'web',
+              clientVersion: clientVersion || '1.0.0',
+              platform: platform || 'unknown',
+              capabilities: capabilities || [],
+            },
+          };
+        }
+      } catch {
+        // Cookie parsing failed, fall through to API token auth
       }
     }
 

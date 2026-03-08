@@ -8,6 +8,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
+import { getToken } from 'next-auth/jwt';
 import { userService, type UserContext } from '@/services/user.service';
 
 /**
@@ -30,9 +31,30 @@ export async function createContext(opts: {
     headers[key] = value;
   });
 
-  // Get user from dev mode or session
-  const userResult = await userService.getCurrentUser({ headers });
-  
+  // Parse NextAuth JWT token from cookies (production mode)
+  let session: { user: { id: string; email: string } } | null = null;
+  if (!userService.isDevModeEnabled()) {
+    try {
+      const token = await getToken({
+        req: { headers: opts.headers } as Parameters<typeof getToken>[0]['req'],
+        secret: process.env.NEXTAUTH_SECRET,
+      });
+      if (token?.id && token?.email) {
+        session = {
+          user: {
+            id: token.id as string,
+            email: token.email as string,
+          },
+        };
+      }
+    } catch {
+      // Token parsing failed, continue without session
+    }
+  }
+
+  // Get user from dev mode, session, or API token
+  const userResult = await userService.getCurrentUser({ headers, session });
+
   return {
     user: userResult.success ? userResult.data ?? null : null,
     headers,

@@ -179,13 +179,18 @@ export const userService = {
   /**
    * Get current user from context
    * In dev mode, extracts from header or uses default
+   * In production, uses NextAuth session or API token
    */
-  async getCurrentUser(ctx: { headers?: Record<string, string | undefined> }): Promise<ServiceResult<UserContext>> {
+  async getCurrentUser(ctx: {
+    headers?: Record<string, string | undefined>;
+    session?: { user: { id: string; email: string } } | null;
+  }): Promise<ServiceResult<UserContext>> {
     try {
+      // 1. DEV_MODE path (existing behavior)
       if (devModeConfig.enabled) {
         const email = ctx.headers?.['x-dev-user-email'] || devModeConfig.defaultUserEmail;
         const result = await this.getOrCreateDevUser(email);
-        
+
         if (!result.success || !result.data) {
           return {
             success: false,
@@ -203,7 +208,42 @@ export const userService = {
         };
       }
 
-      // Production mode - would integrate with NextAuth session
+      // 2. Production mode: use passed-in session (from NextAuth getServerSession / getToken)
+      if (ctx.session?.user) {
+        return {
+          success: true,
+          data: {
+            userId: ctx.session.user.id,
+            email: ctx.session.user.email,
+            isDevMode: false,
+          },
+        };
+      }
+
+      // 3. API Token authentication (iOS/Desktop)
+      const authHeader = ctx.headers?.['authorization'];
+      if (authHeader?.startsWith('Bearer vf_')) {
+        const token = authHeader.slice(7); // "Bearer ".length = 7
+        const { authService } = await import('@/services/auth.service');
+        const result = await authService.validateToken(token);
+        if (result.success && result.data?.valid && result.data.userId) {
+          const user = await prisma.user.findUnique({
+            where: { id: result.data.userId },
+            select: { id: true, email: true },
+          });
+          if (user) {
+            return {
+              success: true,
+              data: {
+                userId: user.id,
+                email: user.email,
+                isDevMode: false,
+              },
+            };
+          }
+        }
+      }
+
       return {
         success: false,
         error: {
