@@ -67,11 +67,11 @@
 
 ### 3.2 跨用户隔离测试
 
-- [ ] **3.2.1** 新增 `e2e/tests/data-isolation.spec.ts`——注册两个用户，测试：用户 A 创建 task 后用户 B 列表为空且直接访问返回 404 `[e2e]`
-- [ ] **3.2.2** 补充测试：projects 隔离（用户 A 的 project 用户 B 不可见） `[e2e]`
-- [ ] **3.2.3** 补充测试：goals 隔离 `[e2e]`
-- [ ] **3.2.4** 补充测试：pomodoros 隔离 `[e2e]`
-- [ ] **3.2.5** 补充测试：settings 隔离（用户 A 修改 settings 不影响用户 B） `[e2e]`
+- [x] **3.2.1** 新增 `e2e/tests/data-isolation.spec.ts`——注册两个用户，测试：用户 A 创建 task 后用户 B 列表为空且直接访问返回 404 `[e2e]` <!-- d65cba8 -->
+- [x] **3.2.2** 补充测试：projects 隔离（用户 A 的 project 用户 B 不可见） `[e2e]` <!-- d65cba8 -->
+- [x] **3.2.3** 补充测试：goals 隔离 `[e2e]` <!-- d65cba8 -->
+- [x] **3.2.4** 补充测试：pomodoros 隔离 `[e2e]` <!-- d65cba8 -->
+- [x] **3.2.5** 补充测试：settings 隔离（用户 A 修改 settings 不影响用户 B） `[e2e]` <!-- d65cba8 -->
 
 ### 3.3 审计结果记录
 
