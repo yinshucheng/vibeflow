@@ -6,6 +6,20 @@ import SwiftUI
 import UIKit
 import os.log
 
+/// Helper class to detect when the picker sheet is dismissed interactively (swipe down).
+@available(iOS 16.0, *)
+private class PickerDismissDelegate: NSObject, UIAdaptivePresentationControllerDelegate {
+  let onDismiss: () -> Void
+
+  init(onDismiss: @escaping () -> Void) {
+    self.onDismiss = onDismiss
+  }
+
+  func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    onDismiss()
+  }
+}
+
 /// Expo native module for iOS Screen Time integration.
 /// Uses FamilyControls authorization and ManagedSettings category-based blocking.
 ///
@@ -15,6 +29,9 @@ import os.log
 public class ScreenTimeModule: Module {
   private let store = ManagedSettingsStore()
   private let logger = Logger(subsystem: "app.vibeflow", category: "ScreenTimeModule")
+
+  /// Strong reference to dismiss delegate to prevent deallocation.
+  private var dismissDelegate: NSObject?
 
   public func definition() -> ModuleDefinition {
     Name("ScreenTime")
@@ -45,6 +62,10 @@ public class ScreenTimeModule: Module {
 
     AsyncFunction("enableBlocking") { (useSelection: Bool, promise: Promise) in
       if #available(iOS 16.0, *) {
+        var mode = "unknown"
+        var appCount = 0
+        var catCount = 0
+
         if useSelection,
            let distractionSelection = AppGroupManager.shared.loadDistractionSelection(),
            !distractionSelection.applicationTokens.isEmpty || !distractionSelection.categoryTokens.isEmpty
@@ -52,23 +73,39 @@ public class ScreenTimeModule: Module {
           let workSelection = AppGroupManager.shared.loadWorkAppsSelection()
           let workApps = workSelection?.applicationTokens ?? Set()
 
-          // App tokens: direct set subtraction
-          self.store.shield.applications = distractionSelection.applicationTokens.subtracting(workApps)
+          var appsToBlock = distractionSelection.applicationTokens.subtracting(workApps)
 
-          // Category tokens: must use .specific(_, except:) because opaque tokens
-          // prevent determining if a category contains a specific app
+          // iOS limits shield.applications to 50 tokens.
+          // If over limit, truncate and rely on category-level blocking for the rest.
+          if appsToBlock.count > 50 {
+            self.logger.warning("App tokens (\(appsToBlock.count)) exceed iOS limit of 50, truncating")
+            appsToBlock = Set(appsToBlock.prefix(50))
+          }
+
+          self.store.shield.applications = appsToBlock.isEmpty ? nil : appsToBlock
           self.store.shield.applicationCategories = .specific(
             distractionSelection.categoryTokens,
             except: workApps
           )
-          self.logger.info("Blocking enabled with selection: \(distractionSelection.applicationTokens.count) apps, \(distractionSelection.categoryTokens.count) categories")
+          mode = "selection"
+          appCount = appsToBlock.count
+          catCount = distractionSelection.categoryTokens.count
         } else {
-          // Fallback: block all categories (Phase 1 behavior)
           self.store.shield.applications = nil
           self.store.shield.applicationCategories = .all()
-          self.logger.warning("Blocking enabled with .all() fallback (useSelection=\(useSelection), selection missing or empty)")
+          mode = "all"
         }
-        promise.resolve(nil)
+
+        let appsSet = self.store.shield.applications != nil
+        let catsSet = self.store.shield.applicationCategories != nil
+        let result: [String: Any] = [
+          "mode": mode,
+          "appCount": appCount,
+          "catCount": catCount,
+          "shieldAppsSet": appsSet,
+          "shieldCatsSet": catsSet,
+        ]
+        promise.resolve(result)
       } else {
         promise.resolve(nil)
       }
@@ -125,15 +162,23 @@ public class ScreenTimeModule: Module {
           let model = ActivitySelectionModel(selection: initial)
           let title = type == "work" ? "工作应用" : "分心应用"
 
+          // Track whether promise has been resolved to avoid double-resolve
+          var resolved = false
+
           let pickerView = ActivityPickerSheet(
             model: model,
             title: title,
             onDone: { finalSelection in
+              guard !resolved else { return }
+              resolved = true
+
               if type == "work" {
                 appGroup.saveWorkAppsSelection(finalSelection)
               } else {
                 appGroup.saveDistractionSelection(finalSelection)
               }
+
+              // Dismiss the hosting controller (not topVC which may have changed)
               topVC.dismiss(animated: true) {
                 let summary: [String: Any] = [
                   "appCount": finalSelection.applicationTokens.count,
@@ -147,6 +192,31 @@ public class ScreenTimeModule: Module {
           )
 
           let hostingController = UIHostingController(rootView: pickerView)
+
+          // Handle interactive dismiss (user swipes down to close)
+          let delegate = PickerDismissDelegate {
+            guard !resolved else { return }
+            resolved = true
+
+            // Read current saved selection as the result
+            let sel: FamilyActivitySelection?
+            if type == "work" {
+              sel = appGroup.loadWorkAppsSelection()
+            } else {
+              sel = appGroup.loadDistractionSelection()
+            }
+            let summary: [String: Any] = [
+              "appCount": sel?.applicationTokens.count ?? 0,
+              "categoryCount": sel?.categoryTokens.count ?? 0,
+              "hasSelection": (sel?.applicationTokens.isEmpty == false)
+                || (sel?.categoryTokens.isEmpty == false),
+            ]
+            promise.resolve(summary)
+            self.dismissDelegate = nil
+          }
+          self.dismissDelegate = delegate
+          hostingController.presentationController?.delegate = delegate
+
           topVC.present(hostingController, animated: true)
         }
       } else {

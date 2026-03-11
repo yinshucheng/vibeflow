@@ -128,7 +128,8 @@ function createScreenTimeService(): ScreenTimeService {
     return mockBridge!.getAuthorizationStatus();
   }
 
-  async function bridgeEnableBlocking(useSelection: boolean): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function bridgeEnableBlocking(useSelection: boolean): Promise<any> {
     if (useNative) {
       return ScreenTimeNative.enableBlocking(useSelection);
     }
@@ -194,15 +195,20 @@ function createScreenTimeService(): ScreenTimeService {
   return {
     async initialize(): Promise<void> {
       const persistedState = await this.loadBlockingState();
+      console.log('[ScreenTimeService] Persisted state:', persistedState ? `active=${persistedState.isActive}, reason=${persistedState.reason}` : 'none');
 
       if (persistedState && persistedState.isActive) {
         const status = await bridgeGetAuthStatus();
+        console.log('[ScreenTimeService] Auth status:', status);
         if (status === 'authorized') {
           const summary = await bridgeGetSelectionSummary('distraction');
-          await bridgeEnableBlocking(summary.hasSelection);
+          console.log('[ScreenTimeService] Selection summary:', JSON.stringify(summary));
+          const nativeResult = await bridgeEnableBlocking(summary.hasSelection);
+          console.log('[ScreenTimeService] enableBlocking result:', JSON.stringify(nativeResult));
           currentState = persistedState;
           console.log('[ScreenTimeService] Restored blocking state from persistence');
         } else {
+          console.log('[ScreenTimeService] Not authorized, clearing blocking state');
           await this.clearBlockingState();
         }
       }

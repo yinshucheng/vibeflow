@@ -78,8 +78,17 @@ function createBlockingService(): BlockingService {
       useAppStore.getState().setScreenTimeAuthorized(true);
     }
 
+    // If policy hasn't synced yet, preserve current blocking state to avoid
+    // flashing unblock→reblock on cold start. We'll re-evaluate once policy arrives.
+    const { policy } = useAppStore.getState();
+    if (!policy) {
+      console.log('[BlockingService] Policy not yet synced, preserving current state');
+      return;
+    }
+
     const reason = getBlockingReason();
     const { isBlockingActive, blockingReason } = useAppStore.getState();
+    console.log('[BlockingService] Evaluating: reason=' + reason + ', isBlockingActive=' + isBlockingActive + ', blockingReason=' + blockingReason);
 
     if (reason !== null) {
       // Should be blocking

@@ -7,7 +7,7 @@
  * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -53,14 +53,18 @@ interface SectionProps {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  onTitlePress?: () => void;
 }
 
-function Section({ title, subtitle, children }: SectionProps): React.JSX.Element {
+function Section({ title, subtitle, children, onTitlePress }: SectionProps): React.JSX.Element {
   const theme = useTheme();
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, !subtitle && { marginBottom: 8 }, { color: theme.colors.textMuted }]}>
+      <Text
+        style={[styles.sectionTitle, !subtitle && { marginBottom: 8 }, { color: theme.colors.textMuted }]}
+        onPress={onTitlePress}
+      >
         {title}
       </Text>
       {subtitle && (
@@ -131,6 +135,7 @@ function TappableRow({
       style={[
         styles.row,
         !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
+        disabled && { opacity: 0.45 },
       ]}
       onPress={onPress}
       disabled={disabled}
@@ -141,7 +146,7 @@ function TappableRow({
           {label}
         </Text>
         {disabled && disabledHint && (
-          <Text style={[styles.disabledHint, { color: theme.colors.textMuted }]}>
+          <Text style={[styles.disabledHint, { color: theme.colors.warning }]}>
             {disabledHint}
           </Text>
         )}
@@ -253,10 +258,36 @@ export function SettingsScreen(): React.JSX.Element {
   const [workSummary, setWorkSummary] = useState<SelectionSummary | null>(null);
   const [pickerLoading, setPickerLoading] = useState<'distraction' | 'work' | null>(null);
 
+  // Debug override: tap "应用管理" section title 5 times to temporarily unlock editing
+  const [debugUnlocked, setDebugUnlocked] = useState(false);
+  const debugTapCount = useRef(0);
+  const debugTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleDebugTap = useCallback(() => {
+    debugTapCount.current += 1;
+    if (debugTapTimer.current) clearTimeout(debugTapTimer.current);
+    if (debugTapCount.current >= 5) {
+      debugTapCount.current = 0;
+      setDebugUnlocked((prev) => {
+        const next = !prev;
+        Alert.alert(next ? '调试模式' : '已恢复', next ? '应用选择已临时解锁' : '已恢复正常限制');
+        return next;
+      });
+    } else {
+      debugTapTimer.current = setTimeout(() => { debugTapCount.current = 0; }, 2000);
+    }
+  }, []);
+
   // Server URL editing
   const [serverUrl, setServerUrl] = useState(serverConfigService.getServerUrlSync());
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [editUrlText, setEditUrlText] = useState('');
+
+  // Preset server URLs for quick switching
+  const SERVER_PRESETS = [
+    { label: '公网 (frp)', url: 'http://39.105.213.147:7080' },
+    { label: '本地开发', url: `http://${process.env.EXPO_PUBLIC_SERVER_HOST || '172.20.10.4'}:3000` },
+    { label: '自定义...', url: '__custom__' },
+  ];
 
   // Load authorization status and work summary on mount
   useEffect(() => {
@@ -315,12 +346,18 @@ export function SettingsScreen(): React.JSX.Element {
   const handleSelectDistractionApps = useCallback(async () => {
     setPickerLoading('distraction');
     try {
-      // presentActivityPicker is on the native module, call through the module
+      console.log('[Settings] Calling presentActivityPicker(distraction)...');
       const { presentActivityPicker } = await import('../../modules/screen-time');
       const result = await presentActivityPicker('distraction');
+      console.log('[Settings] Picker result:', JSON.stringify(result));
       setSelectionSummary(result);
-    } catch {
-      // User may have cancelled the picker — just reload current state
+      // If currently blocking, re-apply with updated selection immediately
+      if (isBlockingActive && blockingReason) {
+        await blockingService.enableBlocking();
+        console.log('[Settings] Re-applied blocking with updated distraction selection');
+      }
+    } catch (error) {
+      console.warn('[Settings] Picker error:', error);
       try {
         const current = await screenTimeService.getSelectionSummary('distraction');
         setSelectionSummary(current);
@@ -330,7 +367,7 @@ export function SettingsScreen(): React.JSX.Element {
     } finally {
       setPickerLoading(null);
     }
-  }, [setSelectionSummary]);
+  }, [setSelectionSummary, isBlockingActive, blockingReason]);
 
   const handleSelectWorkApps = useCallback(async () => {
     setPickerLoading('work');
@@ -338,8 +375,12 @@ export function SettingsScreen(): React.JSX.Element {
       const { presentActivityPicker } = await import('../../modules/screen-time');
       const result = await presentActivityPicker('work');
       setWorkSummary(result);
+      // If currently blocking, re-apply with updated work exclusion list
+      if (isBlockingActive && blockingReason) {
+        await blockingService.enableBlocking();
+        console.log('[Settings] Re-applied blocking with updated work selection');
+      }
     } catch {
-      // User may have cancelled — reload current state
       try {
         const current = await screenTimeService.getSelectionSummary('work');
         setWorkSummary(current);
@@ -349,42 +390,39 @@ export function SettingsScreen(): React.JSX.Element {
     } finally {
       setPickerLoading(null);
     }
-  }, []);
+  }, [isBlockingActive, blockingReason]);
 
-  const handleEditServerUrl = useCallback(() => {
-    setEditUrlText(serverUrl);
-    setIsEditingUrl(true);
-  }, [serverUrl]);
-
-  const handleSaveServerUrl = useCallback(async () => {
-    const trimmed = editUrlText.trim();
-    if (!trimmed) {
-      // Reset to default
-      await serverConfigService.setServerUrl(null);
-      setServerUrl(serverConfigService.getServerUrlSync());
-    } else if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-      Alert.alert('格式错误', '请输入完整地址，如 http://39.105.213.147:7080');
+  const handleSelectPreset = useCallback(async (url: string) => {
+    if (url === '__custom__') {
+      setEditUrlText(serverUrl);
+      setIsEditingUrl(true);
       return;
-    } else {
-      await serverConfigService.setServerUrl(trimmed);
-      setServerUrl(trimmed);
     }
-    setIsEditingUrl(false);
+    await serverConfigService.setServerUrl(url);
+    setServerUrl(url);
 
     // Reconnect to new server
     websocketService.disconnect();
     setTimeout(() => websocketService.connect(), 500);
-  }, [editUrlText]);
+  }, [serverUrl]);
 
-  const handleResetServerUrl = useCallback(async () => {
-    await serverConfigService.setServerUrl(null);
-    const defaultUrl = serverConfigService.getServerUrlSync();
-    setServerUrl(defaultUrl);
+  const handleSaveCustomUrl = useCallback(async () => {
+    const trimmed = editUrlText.trim();
+    if (!trimmed) {
+      Alert.alert('格式错误', '请输入完整地址');
+      return;
+    }
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      Alert.alert('格式错误', '请输入完整地址，如 http://39.105.213.147:7080');
+      return;
+    }
+    await serverConfigService.setServerUrl(trimmed);
+    setServerUrl(trimmed);
     setIsEditingUrl(false);
 
     websocketService.disconnect();
     setTimeout(() => websocketService.connect(), 500);
-  }, []);
+  }, [editUrlText]);
 
   const connectionStatusText = {
     connected: '已连接',
@@ -399,8 +437,8 @@ export function SettingsScreen(): React.JSX.Element {
   };
 
   const isAuthorized = authStatus === 'authorized';
-  const appSelectionDisabled = !isAuthorized || (isBlockingActive && !__DEV__);
-  const appSelectionHint = isBlockingActive && !__DEV__ ? '阻断期间不可修改' : !isAuthorized ? '请先授权' : undefined;
+  const appSelectionDisabled = !debugUnlocked && (!isAuthorized || isBlockingActive);
+  const appSelectionHint = debugUnlocked ? '调试模式 - 已解锁' : isBlockingActive ? '阻断期间不可修改' : !isAuthorized ? '请先授权' : undefined;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -444,6 +482,7 @@ export function SettingsScreen(): React.JSX.Element {
         <Section
           title="应用管理"
           subtitle="专注时段会屏蔽「分心应用」，保留「工作应用」。建议将社交、短视频、游戏类加入分心列表。"
+          onTitlePress={handleDebugTap}
         >
           <TappableRow
             label="分心应用"
@@ -497,13 +536,46 @@ export function SettingsScreen(): React.JSX.Element {
 
         {/* Server Connection Section */}
         <Section title="服务器连接">
-          {isEditingUrl ? (
+          {/* Preset selector chips */}
+          <View style={styles.presetContainer}>
+            {SERVER_PRESETS.map((preset) => {
+              const isActive = preset.url !== '__custom__' && serverUrl === preset.url;
+              const isCustomActive = preset.url === '__custom__'
+                && !SERVER_PRESETS.some((p) => p.url !== '__custom__' && p.url === serverUrl);
+              const selected = isActive || isCustomActive;
+              return (
+                <TouchableOpacity
+                  key={preset.label}
+                  style={[
+                    styles.presetChip,
+                    {
+                      backgroundColor: selected ? theme.colors.primary : theme.colors.background,
+                      borderColor: selected ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => handleSelectPreset(preset.url)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.presetChipText,
+                      { color: selected ? '#FFFFFF' : theme.colors.text },
+                    ]}
+                  >
+                    {preset.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {/* Custom URL input (shown when editing) */}
+          {isEditingUrl && (
             <View style={styles.urlEditContainer}>
               <TextInput
                 style={[styles.urlInput, { color: theme.colors.text, borderColor: theme.colors.border }]}
                 value={editUrlText}
                 onChangeText={setEditUrlText}
-                placeholder="http://39.105.213.147:7080"
+                placeholder="http://192.168.1.4:3000"
                 placeholderTextColor={theme.colors.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -513,15 +585,9 @@ export function SettingsScreen(): React.JSX.Element {
               <View style={styles.urlButtonRow}>
                 <TouchableOpacity
                   style={[styles.urlButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={handleSaveServerUrl}
+                  onPress={handleSaveCustomUrl}
                 >
                   <Text style={styles.urlButtonText}>保存并重连</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.urlButton, { backgroundColor: theme.colors.textMuted }]}
-                  onPress={handleResetServerUrl}
-                >
-                  <Text style={styles.urlButtonText}>恢复默认</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.urlButton, { backgroundColor: 'transparent' }]}
@@ -531,13 +597,9 @@ export function SettingsScreen(): React.JSX.Element {
                 </TouchableOpacity>
               </View>
             </View>
-          ) : (
-            <TappableRow
-              label="服务器地址"
-              value={serverUrl}
-              onPress={handleEditServerUrl}
-            />
           )}
+          {/* Current server URL display */}
+          <Row label="当前地址" value={serverUrl} />
           <Row label="连接状态" value={connectionStatusText[connectionStatus]} isLast />
         </Section>
 
@@ -630,6 +692,23 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
+  },
+  // Server URL presets
+  presetContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 12,
+    gap: 8,
+  },
+  presetChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  presetChipText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   // Server URL editing
   urlEditContainer: {
