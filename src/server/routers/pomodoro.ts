@@ -258,9 +258,9 @@ export const pomodoroRouter = router({
       
       // Send WebSocket event to Browser Sentinel (Requirement 4.6)
       if (result.data) {
-        const pomodoroData = result.data as { 
-          id: string; 
-          taskId: string; 
+        const pomodoroData = result.data as {
+          id: string;
+          taskId: string;
           duration: number;
           task?: { title: string };
         };
@@ -275,7 +275,10 @@ export const pomodoroRouter = router({
           },
         });
       }
-      
+
+      // Broadcast full state so all clients receive activePomodoro = null
+      await socketServer.broadcastFullState(ctx.user.userId);
+
       return result.data;
     }),
 
@@ -302,10 +305,13 @@ export const pomodoroRouter = router({
 
       // Update system state back to PLANNING
       await dailyStateService.updateSystemState(ctx.user.userId, 'planning');
-      
+
       // Broadcast policy update to update over rest status on desktop
       await broadcastPolicyUpdate(ctx.user.userId);
-      
+
+      // Broadcast full state so all clients receive activePomodoro = null
+      await socketServer.broadcastFullState(ctx.user.userId);
+
       return result.data;
     }),
 
@@ -343,6 +349,9 @@ export const pomodoroRouter = router({
 
       // Broadcast policy update to update over rest status on desktop
       await broadcastPolicyUpdate(ctx.user.userId);
+
+      // Broadcast full state so all clients receive activePomodoro = null
+      await socketServer.broadcastFullState(ctx.user.userId);
 
       return result.data;
     }),
