@@ -92,10 +92,22 @@ async function initialize(): Promise<void> {
   } else {
     // Show connection info section even when disconnected (Requirements: 4.5)
     showLoginSection();
-    
-    // If reconnecting, show reconnect status
+
+    // If reconnecting (including auto-reconnect after service worker wake-up),
+    // show reconnecting status instead of the full login form
     if (connInfo.isReconnecting) {
       showReconnectingStatus(connInfo);
+    } else if (connInfo.serverUrl && connInfo.serverUrl !== '') {
+      // Service worker just woke up and triggered ensureConnected() —
+      // the connect() call is in progress but reconnectTimer hasn't been set yet.
+      // Wait briefly then re-check status.
+      setTimeout(async () => {
+        const retryStatus = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }) as ExtendedConnectionStatus;
+        if (retryStatus.connected) {
+          showStatusSection(retryStatus);
+          await refreshEntertainmentStatus();
+        }
+      }, 2000);
     }
   }
 

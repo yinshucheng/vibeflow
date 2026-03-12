@@ -22,6 +22,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY = 2000; // 2 seconds
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let isManualDisconnect = false; // Flag to prevent reconnect on intentional disconnect
+let isEnsureConnectInProgress = false; // Guard for ensureConnected
 
 // Activity tracking state
 const activeTabTracking: Map<number, { url: string; title: string; startTime: number }> = new Map();
@@ -91,6 +92,41 @@ async function loadStoredConnection(): Promise<void> {
     connect(serverUrl);
   } catch (error) {
     console.error('[ServiceWorker] Failed to load stored connection:', error);
+  }
+}
+
+/**
+ * Ensure WebSocket is connected when service worker wakes up.
+ * MV3 service workers are terminated after ~30s of inactivity,
+ * losing all in-memory state (wsClient, isConnected, etc.).
+ * This function detects that situation and auto-reconnects.
+ */
+async function ensureConnected(): Promise<void> {
+  // Already connected or reconnect in progress
+  if (isConnected || isEnsureConnectInProgress || reconnectTimer !== null) {
+    return;
+  }
+
+  // Check if wsClient exists and is actually connected
+  if (wsClient?.isConnected()) {
+    isConnected = true;
+    return;
+  }
+
+  isEnsureConnectInProgress = true;
+  try {
+    const result = await chrome.storage.local.get(['serverUrl', 'hasInitialized']);
+
+    // Only auto-reconnect if user has previously configured a connection
+    if (result.hasInitialized && result.serverUrl) {
+      console.log('[ServiceWorker] Service worker woke up, auto-reconnecting...');
+      reconnectAttempts = 0;
+      connect(result.serverUrl);
+    }
+  } catch (error) {
+    console.error('[ServiceWorker] ensureConnected failed:', error);
+  } finally {
+    isEnsureConnectInProgress = false;
   }
 }
 
@@ -1074,6 +1110,8 @@ async function handleMessage(
       return { success: true };
 
     case 'GET_STATUS':
+      // Auto-reconnect if service worker was terminated and restarted (MV3 lifecycle)
+      await ensureConnected();
       return {
         connected: isConnected,
         systemState: policyCache.getState(),
@@ -1088,6 +1126,8 @@ async function handleMessage(
       };
 
     case 'GET_CONNECTION_INFO':
+      // Auto-reconnect if service worker was terminated and restarted (MV3 lifecycle)
+      await ensureConnected();
       // Get detailed connection info (Requirements: 4.5)
       const connInfo = await chrome.storage.local.get(['serverUrl']);
       return {
