@@ -6,7 +6,7 @@
  * On success, parent (AppProvider) detects auth state change and navigates to main.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,10 +17,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { login, register } from '@/config/auth';
+import { serverConfigService } from '@/services/server-config.service';
 import { useTheme } from '@/theme';
+
+const SERVER_PRESETS = [
+  { label: '公网', url: 'http://39.105.213.147:7080' },
+  { label: '本地', url: `http://${process.env.EXPO_PUBLIC_SERVER_HOST || '172.20.10.4'}:3000` },
+] as const;
 
 interface LoginScreenProps {
   onAuthSuccess: (user: { id: string; email: string }) => void;
@@ -37,6 +44,29 @@ export function LoginScreen({ onAuthSuccess }: LoginScreenProps): React.JSX.Elem
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serverUrl, setServerUrl] = useState(serverConfigService.getServerUrlSync());
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [customUrlText, setCustomUrlText] = useState('');
+  const [editingCustomUrl, setEditingCustomUrl] = useState(false);
+
+  const handleServerPreset = useCallback(async (url: string) => {
+    await serverConfigService.setServerUrl(url);
+    setServerUrl(url);
+    setEditingCustomUrl(false);
+    setError(null);
+  }, []);
+
+  const handleSaveCustomUrl = useCallback(async () => {
+    const trimmed = customUrlText.trim();
+    if (!trimmed || (!trimmed.startsWith('http://') && !trimmed.startsWith('https://'))) {
+      Alert.alert('格式错误', '请输入完整地址，如 http://192.168.1.4:3000');
+      return;
+    }
+    await serverConfigService.setServerUrl(trimmed);
+    setServerUrl(trimmed);
+    setEditingCustomUrl(false);
+    setError(null);
+  }, [customUrlText]);
 
   const validate = (): string | null => {
     if (!email.trim()) return 'Please enter your email';
@@ -74,8 +104,9 @@ export function LoginScreen({ onAuthSuccess }: LoginScreenProps): React.JSX.Elem
       } else {
         setError(result.error || (mode === 'login' ? 'Login failed' : 'Registration failed'));
       }
-    } catch {
-      setError('Network error. Please check your connection.');
+    } catch (err) {
+      const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      setError(`Network error: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -182,6 +213,80 @@ export function LoginScreen({ onAuthSuccess }: LoginScreenProps): React.JSX.Elem
               {mode === 'login' ? 'Register' : 'Sign In'}
             </Text>
           </TouchableOpacity>
+
+          {/* Server Config — collapsible */}
+          <TouchableOpacity
+            onPress={() => setShowServerConfig(!showServerConfig)}
+            style={styles.serverToggle}
+          >
+            <Text style={[styles.serverToggleText, { color: colors.textMuted }]}>
+              {showServerConfig ? '▼' : '▶'} 服务器: {serverUrl}
+            </Text>
+          </TouchableOpacity>
+          {showServerConfig && (
+            <View style={[styles.serverConfig, { borderColor: colors.border }]}>
+              <View style={styles.serverPresetRow}>
+                {SERVER_PRESETS.map((preset) => {
+                  const selected = serverUrl === preset.url;
+                  return (
+                    <TouchableOpacity
+                      key={preset.label}
+                      style={[
+                        styles.serverChip,
+                        {
+                          backgroundColor: selected ? colors.primary : 'transparent',
+                          borderColor: selected ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => handleServerPreset(preset.url)}
+                    >
+                      <Text style={[styles.serverChipText, { color: selected ? '#FFFFFF' : colors.text }]}>
+                        {preset.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  style={[
+                    styles.serverChip,
+                    {
+                      backgroundColor: editingCustomUrl ? colors.primary : 'transparent',
+                      borderColor: editingCustomUrl ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    setCustomUrlText(serverUrl);
+                    setEditingCustomUrl(true);
+                  }}
+                >
+                  <Text style={[styles.serverChipText, { color: editingCustomUrl ? '#FFFFFF' : colors.text }]}>
+                    自定义
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {editingCustomUrl && (
+                <View style={styles.customUrlRow}>
+                  <TextInput
+                    style={[styles.customUrlInput, { borderColor: colors.border, color: colors.text }]}
+                    value={customUrlText}
+                    onChangeText={setCustomUrlText}
+                    placeholder="http://192.168.1.4:3000"
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                    autoFocus
+                  />
+                  <TouchableOpacity
+                    style={[styles.customUrlSave, { backgroundColor: colors.primary }]}
+                    onPress={handleSaveCustomUrl}
+                  >
+                    <Text style={styles.customUrlSaveText}>确定</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -270,6 +375,59 @@ const styles = StyleSheet.create({
   },
   toggleLink: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  serverToggle: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  serverToggleText: {
+    fontSize: 12,
+  },
+  serverConfig: {
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  serverPresetRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  serverChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  serverChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  customUrlRow: {
+    flexDirection: 'row',
+    marginTop: 10,
+    gap: 8,
+  },
+  customUrlInput: {
+    flex: 1,
+    height: 36,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    fontFamily: 'Menlo',
+  },
+  customUrlSave: {
+    paddingHorizontal: 14,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+  },
+  customUrlSaveText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '600',
   },
 });

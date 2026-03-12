@@ -23,6 +23,7 @@ class ServerConfigService {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
+        console.log('[ServerConfig] Using stored URL:', stored);
         this.cachedUrl = stored;
         return stored;
       }
@@ -30,6 +31,7 @@ class ServerConfigService {
       console.error('[ServerConfig] Failed to read stored URL:', error);
     }
 
+    console.log('[ServerConfig] Using default URL:', SERVER_URL);
     this.cachedUrl = SERVER_URL;
     return SERVER_URL;
   }

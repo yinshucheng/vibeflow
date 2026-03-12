@@ -3,7 +3,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 const IS_LITE = process.env.EXCLUDE_SCREEN_TIME === 'true';
 
 export default ({ config }: ConfigContext): ExpoConfig => {
-  const plugins: ExpoConfig['plugins'] = ['expo-secure-store'];
+  const plugins: ExpoConfig['plugins'] = ['expo-secure-store', './plugins/withAllowHTTP'];
 
   if (!IS_LITE) {
     plugins.push('./plugins/withFamilyControls');

@@ -16,7 +16,7 @@ import { serverConfigService } from '@/services/server-config.service';
 import { blockingService } from '@/services/blocking.service';
 import { screenTimeService } from '@/services/screen-time.service';
 import { useAppStore } from '@/store';
-import { getToken, verifyToken, logout, refreshCachedToken } from '@/config/auth';
+import { getToken, verifyToken, logout, refreshCachedToken, setCachedEmail } from '@/config/auth';
 import { LoginScreen } from '@/screens/LoginScreen';
 
 interface AppProviderProps {
@@ -36,7 +36,9 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
 
   // Pre-load server URL from AsyncStorage
   useEffect(() => {
-    serverConfigService.getServerUrl().then(() => setServerReady(true));
+    serverConfigService.getServerUrl()
+      .catch((err) => console.error('[AppProvider] Server URL load failed, using default:', err))
+      .finally(() => setServerReady(true));
   }, []);
 
   // Check auth state once server URL is ready
@@ -55,6 +57,7 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
 
       const result = await verifyToken(token);
       if (result.success && result.user) {
+        setCachedEmail(result.user.email);
         setAuthUser(result.user);
         setAuthStatus('authenticated');
       } else {
@@ -79,7 +82,9 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     heartbeatService.start({ userId: authUser.id });
 
     // Initialize blocking service (restores persisted state, starts listening)
-    blockingService.initialize();
+    blockingService.initialize().catch((err) =>
+      console.error('[AppProvider] Blocking service init failed:', err)
+    );
     const cleanupBlocking = blockingService.startListening();
 
     // Initialize chat service (listens for AI chat commands)
@@ -121,13 +126,10 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
       appStateRef.current.match(/inactive|background/) &&
       nextAppState === 'active'
     ) {
-      // App came to foreground
-      console.log('App came to foreground');
-
-      // Reconnect if disconnected
-      if (!websocketService.isConnected()) {
-        websocketService.connect();
-      }
+      // App came to foreground — force reconnect to avoid stale/zombie connections
+      console.log('App came to foreground — forcing reconnect');
+      websocketService.disconnect();
+      websocketService.connect();
 
       // Resume heartbeat
       heartbeatService.start();
@@ -147,6 +149,7 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
    */
   const handleAuthSuccess = useCallback(async (user: { id: string; email: string }) => {
     await refreshCachedToken();
+    setCachedEmail(user.email);
     setAuthUser(user);
     setAuthStatus('authenticated');
   }, []);
@@ -162,6 +165,7 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     // Clear auth
     await logout();
     await refreshCachedToken();
+    setCachedEmail(null);
 
     // Clear store
     clearState();
@@ -174,8 +178,8 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
   // Loading state
   if (!serverReady || authStatus === 'checking') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }

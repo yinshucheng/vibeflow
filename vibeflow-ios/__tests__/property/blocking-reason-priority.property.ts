@@ -51,12 +51,25 @@ const sleepStateArb = fc.record({
 });
 
 /**
+ * Generator for temporaryUnblock state.
+ * endTime is relative to "now" — can be in the past or future.
+ */
+const temporaryUnblockArb: fc.Arbitrary<{ active: boolean; endTime: number } | undefined> = fc.oneof(
+  fc.constant(undefined),
+  fc.record({
+    active: fc.boolean(),
+    endTime: fc.integer({ min: -300_000, max: 300_000 }).map((offset) => Date.now() + offset),
+  })
+);
+
+/**
  * Build a BlockingReasonInput from individual signal generators
  */
 function buildInput(
   pomodoro: ActivePomodoroData | null,
   overRestActive: boolean,
-  sleepState: { enabled: boolean; isCurrentlyActive: boolean; isSnoozed: boolean }
+  sleepState: { enabled: boolean; isCurrentlyActive: boolean; isSnoozed: boolean },
+  temporaryUnblock?: { active: boolean; endTime: number }
 ): BlockingReasonInput {
   const policy: PolicyData = {
     version: 1,
@@ -73,6 +86,7 @@ function buildInput(
       isCurrentlyActive: sleepState.isCurrentlyActive,
       isSnoozed: sleepState.isSnoozed,
     },
+    temporaryUnblock,
   };
 
   return { activePomodoro: pomodoro, policy };
@@ -84,8 +98,14 @@ function buildInput(
 function expectedReason(
   pomodoro: ActivePomodoroData | null,
   overRestActive: boolean,
-  sleepState: { enabled: boolean; isCurrentlyActive: boolean; isSnoozed: boolean }
+  sleepState: { enabled: boolean; isCurrentlyActive: boolean; isSnoozed: boolean },
+  temporaryUnblock?: { active: boolean; endTime: number }
 ): BlockingReason | null {
+  // Priority 0: temporaryUnblock — overrides ALL blocking reasons
+  if (temporaryUnblock?.active && Date.now() < temporaryUnblock.endTime) {
+    return null;
+  }
+
   // Priority 1: focus — active pomodoro with status 'active'
   if (pomodoro && pomodoro.status === 'active') {
     return 'focus';
@@ -115,10 +135,11 @@ describe('Property: Blocking Reason Priority', () => {
         activePomodoroArb,
         overRestActiveArb,
         sleepStateArb,
-        (pomodoro, overRestActive, sleepState) => {
-          const input = buildInput(pomodoro, overRestActive, sleepState);
+        temporaryUnblockArb,
+        (pomodoro, overRestActive, sleepState, tempUnblock) => {
+          const input = buildInput(pomodoro, overRestActive, sleepState, tempUnblock);
           const actual = evaluateBlockingReason(input);
-          const expected = expectedReason(pomodoro, overRestActive, sleepState);
+          const expected = expectedReason(pomodoro, overRestActive, sleepState, tempUnblock);
           return actual === expected;
         }
       ),
@@ -255,8 +276,9 @@ describe('Property: Blocking Reason Priority', () => {
         activePomodoroArb,
         overRestActiveArb,
         sleepStateArb,
-        (pomodoro, overRestActive, sleepState) => {
-          const input = buildInput(pomodoro, overRestActive, sleepState);
+        temporaryUnblockArb,
+        (pomodoro, overRestActive, sleepState, tempUnblock) => {
+          const input = buildInput(pomodoro, overRestActive, sleepState, tempUnblock);
           const result = evaluateBlockingReason(input);
           return (
             result === 'focus' ||
@@ -264,6 +286,67 @@ describe('Property: Blocking Reason Priority', () => {
             result === 'sleep' ||
             result === null
           );
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('active temporaryUnblock with future endTime should always return null regardless of other conditions', () => {
+    fc.assert(
+      fc.property(
+        activePomodoroArb,
+        overRestActiveArb,
+        sleepStateArb,
+        (pomodoro, overRestActive, sleepState) => {
+          const futureUnblock = { active: true, endTime: Date.now() + 300_000 };
+          const input = buildInput(pomodoro, overRestActive, sleepState, futureUnblock);
+          return evaluateBlockingReason(input) === null;
+        }
+      ),
+      { numRuns: 200 }
+    );
+  });
+
+  it('expired temporaryUnblock should NOT override blocking reasons', () => {
+    fc.assert(
+      fc.property(
+        // Force at least one blocking condition active (active pomodoro)
+        fc.record({
+          id: fc.uuid(),
+          taskId: fc.uuid() as fc.Arbitrary<string | null>,
+          taskTitle: fc.string({ minLength: 1, maxLength: 50 }),
+          startTime: fc.integer({ min: 1000000000000, max: 2000000000000 }),
+          duration: fc.integer({ min: 1, max: 120 }),
+          status: fc.constant('active' as const),
+        }),
+        sleepStateArb,
+        (activePomodoro, sleepState) => {
+          const expiredUnblock = { active: true, endTime: Date.now() - 60_000 };
+          const input = buildInput(activePomodoro, false, sleepState, expiredUnblock);
+          return evaluateBlockingReason(input) === 'focus';
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('inactive temporaryUnblock should NOT override blocking reasons', () => {
+    fc.assert(
+      fc.property(
+        fc.record({
+          id: fc.uuid(),
+          taskId: fc.uuid() as fc.Arbitrary<string | null>,
+          taskTitle: fc.string({ minLength: 1, maxLength: 50 }),
+          startTime: fc.integer({ min: 1000000000000, max: 2000000000000 }),
+          duration: fc.integer({ min: 1, max: 120 }),
+          status: fc.constant('active' as const),
+        }),
+        sleepStateArb,
+        (activePomodoro, sleepState) => {
+          const inactiveUnblock = { active: false, endTime: Date.now() + 300_000 };
+          const input = buildInput(activePomodoro, false, sleepState, inactiveUnblock);
+          return evaluateBlockingReason(input) === 'focus';
         }
       ),
       { numRuns: 100 }

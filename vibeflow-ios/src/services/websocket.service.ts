@@ -12,8 +12,11 @@ import { io, Socket } from 'socket.io-client';
 import {
   RECONNECT_INITIAL_DELAY_MS,
   RECONNECT_MAX_DELAY_MS,
+  KEEPALIVE_INTERVAL_MS,
+  KEEPALIVE_TIMEOUT_MS,
+  CONNECT_WATCHDOG_TIMEOUT_MS,
 } from '@/config';
-import { getSocketAuthPayload } from '@/config/auth';
+import { getSocketAuthPayload, getCachedEmail } from '@/config/auth';
 import { serverConfigService } from './server-config.service';
 import { useAppStore } from '@/store';
 import type {
@@ -80,6 +83,14 @@ class WebSocketService {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isManualDisconnect = false;
 
+  // Connect watchdog — forces reconnect if WS handshake stalls
+  private connectWatchdog: ReturnType<typeof setTimeout> | null = null;
+
+  // Application-layer keepalive — detects dead connections faster than Socket.io ping
+  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+  private keepalivePending = false;
+  private keepaliveTimeout: ReturnType<typeof setTimeout> | null = null;
+
   // Event handlers
   private syncStateHandlers: SyncStateHandler[] = [];
   private policyUpdateHandlers: PolicyUpdateHandler[] = [];
@@ -104,6 +115,9 @@ class WebSocketService {
       return;
     }
 
+    // Clear any pending reconnect timer to prevent old timers racing with this connect
+    this.clearReconnectTimer();
+
     // Always refresh URL from serverConfigService
     this.config.url = serverConfigService.getServerUrlSync();
 
@@ -123,14 +137,26 @@ class WebSocketService {
 
     console.log('[WebSocket] Connecting to:', this.config.url);
 
+    // Include x-dev-user-email in extraHeaders so DEV_MODE server
+    // resolves the correct user identity (not the default dev@vibeflow.local).
+    const email = getCachedEmail();
+    const extraHeaders: Record<string, string> = {};
+    if (email) {
+      extraHeaders['x-dev-user-email'] = email;
+    }
+
     this.socket = io(this.config.url, {
       transports: ['websocket'],
       auth: getSocketAuthPayload(),
+      extraHeaders,
       reconnection: false, // We handle reconnection manually
       timeout: 10000,
     });
 
     this.setupEventListeners();
+
+    // Start watchdog: if WS handshake doesn't complete within timeout, force reconnect
+    this.startConnectWatchdog();
   }
 
   /**
@@ -139,6 +165,8 @@ class WebSocketService {
   disconnect(): void {
     this.isManualDisconnect = true;
     this.clearReconnectTimer();
+    this.clearConnectWatchdog();
+    this.stopKeepalive();
 
     if (this.socket) {
       this.socket.disconnect();
@@ -313,9 +341,13 @@ class WebSocketService {
 
     this.socket.on('connect', () => {
       console.log('[WebSocket] Connected successfully!');
+      this.clearConnectWatchdog();
       const wasReconnect = this.reconnectAttempt > 0;
       this.reconnectAttempt = 0;
       this.setStatus('connected');
+
+      // Start application-layer keepalive to detect dead connections
+      this.startKeepalive();
 
       // Notify reconnect handlers if this was a reconnection
       if (wasReconnect) {
@@ -325,21 +357,35 @@ class WebSocketService {
 
     this.socket.on('disconnect', (reason) => {
       console.log('[WebSocket] Disconnected, reason:', reason);
-      this.setStatus('disconnected');
+      this.stopKeepalive();
       this.disconnectHandlers.forEach((handler) => handler());
 
       // Auto-reconnect unless manually disconnected
       if (!this.isManualDisconnect) {
+        this.setStatus('connecting'); // Will reconnect shortly — show "connecting" not "disconnected"
         this.scheduleReconnect();
+      } else {
+        this.setStatus('disconnected');
       }
     });
 
     this.socket.on('connect_error', (error) => {
       console.log('[WebSocket] Connection error:', error.message);
-      this.setStatus('disconnected');
 
       if (!this.isManualDisconnect) {
+        this.setStatus('connecting'); // Will reconnect shortly
         this.scheduleReconnect();
+      } else {
+        this.setStatus('disconnected');
+      }
+    });
+
+    // Application-layer keepalive response
+    this.socket.on('pong_custom' as never, () => {
+      this.keepalivePending = false;
+      if (this.keepaliveTimeout) {
+        clearTimeout(this.keepaliveTimeout);
+        this.keepaliveTimeout = null;
       }
     });
 
@@ -407,9 +453,9 @@ class WebSocketService {
       this.config.maxDelay
     );
 
+    console.log(`[WebSocket] Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempt})`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempt++;
-      this.setStatus('connecting');
       this.connect();
     }, delay);
   }
@@ -419,6 +465,81 @@ class WebSocketService {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+  }
+
+  // ===========================================================================
+  // CONNECT WATCHDOG
+  // ===========================================================================
+
+  /**
+   * Start a watchdog timer that fires if the WS handshake doesn't complete.
+   * This catches the case where TCP connects but the WS upgrade stalls
+   * (common with frp TCP tunnels / NAT).
+   */
+  private startConnectWatchdog(): void {
+    this.clearConnectWatchdog();
+    this.connectWatchdog = setTimeout(() => {
+      if (this.connectionStatus === 'connecting') {
+        console.log('[WebSocket] Connect watchdog timeout — forcing reconnect');
+        if (this.socket) {
+          this.socket.removeAllListeners();
+          this.socket.disconnect();
+          this.socket = null;
+        }
+        this.setStatus('disconnected');
+        if (!this.isManualDisconnect) {
+          this.setStatus('connecting');
+          this.scheduleReconnect();
+        }
+      }
+    }, CONNECT_WATCHDOG_TIMEOUT_MS);
+  }
+
+  private clearConnectWatchdog(): void {
+    if (this.connectWatchdog) {
+      clearTimeout(this.connectWatchdog);
+      this.connectWatchdog = null;
+    }
+  }
+
+  // ===========================================================================
+  // APPLICATION-LAYER KEEPALIVE
+  // ===========================================================================
+
+  /**
+   * Send periodic pings at the application layer to keep the connection alive
+   * through NAT gateways and detect dead connections faster than Socket.io's
+   * built-in ping (which has up to 85s detection latency).
+   *
+   * Interval (15s) is chosen to be well under typical NAT idle timeouts (30-60s).
+   */
+  private startKeepalive(): void {
+    this.stopKeepalive();
+    this.keepaliveTimer = setInterval(() => {
+      if (!this.socket?.connected) return;
+
+      this.keepalivePending = true;
+      this.socket.volatile.emit('ping_custom');
+
+      this.keepaliveTimeout = setTimeout(() => {
+        if (this.keepalivePending) {
+          console.log('[WebSocket] Keepalive timeout — connection dead');
+          this.socket?.disconnect();
+        }
+      }, KEEPALIVE_TIMEOUT_MS);
+    }, KEEPALIVE_INTERVAL_MS);
+  }
+
+  private stopKeepalive(): void {
+    if (this.keepaliveTimer) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
+    if (this.keepaliveTimeout) {
+      clearTimeout(this.keepaliveTimeout);
+      this.keepaliveTimeout = null;
+    }
+    this.keepalivePending = false;
   }
 }
 
