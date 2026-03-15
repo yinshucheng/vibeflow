@@ -32,6 +32,8 @@ import {
   Loader2,
   AlertCircle,
   Info,
+  Star,
+  Clock,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -67,6 +69,10 @@ export const Icons = {
   play: Play,
   pause: Pause,
   stop: Square,
+
+  // Task
+  star: Star,
+  clock: Clock,
 
   // Misc
   logo: Waves,
