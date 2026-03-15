@@ -36,12 +36,12 @@
 
 ## Phase 4: FocusZone 组件
 
-- [ ] **4.1** 创建 `FocusZone` 组件骨架，集成 `usePomodoroMachine`
+- [x] **4.1** 创建 `FocusZone` 组件骨架，集成 `usePomodoroMachine` `1ea6eac`
   - 文件: `src/components/dashboard/focus-zone.tsx`
   - 空闲态: 任务选择器 + 开始番茄按钮 + 番茄进度条
-- [ ] **4.2** 实现专注态 UI: 当前任务名 + 紧凑计时器（`text-3xl font-mono MM:SS` + 水平进度条）+ 中止按钮
-- [ ] **4.3** 集成完成/休息流程: 复用 `PomodoroCompletionModal`、`RestModeUI`（compact 模式）、`DailyCapModal`
-- [ ] **4.4** 实现番茄进度显示: 圆点指示器 `●●●○○○○○ 3/8`，从 `dailyState.getToday` 读取
+- [x] **4.2** 实现专注态 UI: 当前任务名 + 紧凑计时器（`text-3xl font-mono MM:SS` + 水平进度条）+ 中止按钮 `1ea6eac`
+- [x] **4.3** 集成完成/休息流程: 复用 `PomodoroCompletionModal`、`RestModeUI`（compact 模式）、`DailyCapModal` `1ea6eac`
+- [x] **4.4** 实现番茄进度显示: 圆点指示器 `●●●○○○○○ 3/8`，从 `dailyState.getToday` 读取 `1ea6eac`
 - [ ] **4.5** 验证: 在 Dashboard 上完整跑通 开始→专注→完成→休息→结束 流程
 
 ## Phase 5: TodayTaskList 组件
