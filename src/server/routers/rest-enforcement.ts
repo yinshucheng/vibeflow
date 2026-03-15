@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 import { restEnforcementService } from '@/services/rest-enforcement.service';
 
@@ -15,5 +14,10 @@ export const restEnforcementRouter = router({
     .mutation(async ({ ctx }) => {
       const result = await restEnforcementService.requestSkipRest(ctx.user.userId);
       return result;
+    }),
+
+  getGraceInfo: protectedProcedure
+    .query(async ({ ctx }) => {
+      return restEnforcementService.getGraceInfo(ctx.user.userId);
     }),
 });

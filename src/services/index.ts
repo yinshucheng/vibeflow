@@ -624,6 +624,14 @@ export { chatUserConfigService } from './chat-user-config.service';
 export type { AIModelConfig } from './chat-user-config.service';
 
 // Screen Time Exemption Service exports (Temporary Unblock via AI Chat)
+// REST Enforcement Service exports
+export { restEnforcementService } from './rest-enforcement.service';
+export type {
+  GraceRequestResult,
+  GraceInfo,
+  SkipRestResult,
+} from './rest-enforcement.service';
+
 export { screenTimeExemptionService } from './screen-time-exemption.service';
 export type {
   ActiveExemption,
