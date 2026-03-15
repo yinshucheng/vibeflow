@@ -10,3 +10,4 @@ export { DailyProgressCard } from './daily-progress-card';
 export { GoalRiskSuggestions } from './goal-risk-suggestions';
 export { TaskSuggestions } from './task-suggestions';
 export { FocusZone } from './focus-zone';
+export { TodayTaskList } from './today-task-list';
