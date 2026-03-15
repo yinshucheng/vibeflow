@@ -1,9 +1,15 @@
 'use client';
 
 /**
- * Home Page / Dashboard
+ * Home Page / Dashboard — Command Center
  *
- * Notion-style dashboard showing system state and quick actions.
+ * Single-column layout with priority-ordered sections:
+ * 1. Airlock Prompt (conditional)
+ * 2. FocusZone — embedded pomodoro controls
+ * 3. TodayTaskList — today's tasks with inline actions
+ * 4. Auxiliary dual-column: DailyProgressCard + FocusSessionControl
+ * 5. Suggestions (collapsible): GoalRiskSuggestions + TaskSuggestions
+ *
  * Redirects to Airlock when system is in LOCKED state (respects airlockMode setting).
  */
 
@@ -16,14 +22,14 @@ import {
   Card,
   CardHeader,
   CardContent,
-  EmptyState,
 } from '@/components/layout';
 import { FocusSessionControl } from '@/components/focus-session';
 import {
-  DashboardStatus,
   DailyProgressCard,
   GoalRiskSuggestions,
   TaskSuggestions,
+  FocusZone,
+  TodayTaskList,
 } from '@/components/dashboard';
 import { TaskDetailPanel } from '@/components/tasks/task-detail-panel';
 import { Button } from '@/components/ui/button';
@@ -36,10 +42,9 @@ type AirlockMode = 'required' | 'optional' | 'disabled';
 export default function Home() {
   const router = useRouter();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const { data: dailyState, isLoading: stateLoading } = trpc.dailyState.getToday.useQuery();
   const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
-  const { data: projects, isLoading: projectsLoading } = trpc.project.list.useQuery();
-  const { data: todayTasks, isLoading: tasksLoading } = trpc.task.getTodayTasks.useQuery();
 
   const systemState = dailyState?.systemState?.toLowerCase() as SystemState | undefined;
   const isLocked = systemState === 'locked';
@@ -62,9 +67,6 @@ export default function Home() {
 
   const LoaderIcon = Icons.loader;
   const SunriseIcon = Icons.airlock;
-  const ProjectIcon = Icons.projects;
-  const TaskIcon = Icons.tasks;
-  const PlusIcon = Icons.plus;
 
   // Show loading while checking state
   if (stateLoading || settingsLoading) {
@@ -91,9 +93,9 @@ export default function Home() {
 
   return (
     <MainLayout title="Dashboard">
-      <PageHeader title="Welcome to VibeFlow" description="Your AI-Native Output Engine" />
+      <PageHeader title="Dashboard" description="Your command center" />
 
-      {/* Show Airlock prompt if locked but not required */}
+      {/* Airlock prompt (conditional — locked but not required) */}
       {isLocked && !airlockCompleted && airlockMode !== 'disabled' && (
         <div className="mb-6 p-4 bg-notion-accent-purple-bg border border-notion-border rounded-notion-lg">
           <div className="flex items-center justify-between">
@@ -113,177 +115,54 @@ export default function Home() {
         </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Current Status Card (Requirements: 15.1-15.5) */}
-        <Card>
-          <CardHeader title="Current Status" />
-          <CardContent>
-            <DashboardStatus compact />
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        {/* FocusZone — full width */}
+        <FocusZone />
 
-        {/* Daily Progress Card (Requirements: 17.1-17.4, 19.1-19.7) */}
-        <Card>
-          <CardHeader title="Daily Progress" />
-          <CardContent>
-            <DailyProgressCard compact />
-          </CardContent>
-        </Card>
+        {/* Today's Tasks — full width */}
+        <TodayTaskList onTaskSelect={setSelectedTaskId} />
 
-        {/* Ad-hoc Focus Session Card (Requirements: 5.1, 5.2, 5.3, 5.4) */}
-        <Card>
-          <CardHeader title="Focus Session" description="Block distractions outside work hours" />
-          <CardContent>
-            <FocusSessionControl compact />
-          </CardContent>
-        </Card>
-
-        {/* Goal Risk Suggestions (Requirements: 19.1.1-19.1.7) */}
-        <div className="md:col-span-2 lg:col-span-3">
-          <GoalRiskSuggestions />
+        {/* Auxiliary dual-column: Daily Progress + Focus Session */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader title="Daily Progress" />
+            <CardContent>
+              <DailyProgressCard compact />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader title="Focus Session" description="Block distractions outside work hours" />
+            <CardContent>
+              <FocusSessionControl compact />
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Task Suggestions Card (Requirements: 22.1-22.4) */}
-        <Card>
-          <CardHeader title="Suggested Tasks" description="Based on priority and remaining time" />
-          <CardContent>
-            <TaskSuggestions maxSuggestions={3} compact />
-          </CardContent>
-        </Card>
-
-        {/* Active Projects Card */}
-        <Card>
-          <CardHeader
-            title="Active Projects"
-            actions={
-              <Link
-                href="/projects"
-                className="text-sm text-notion-accent-blue hover:underline"
-              >
-                View all
-              </Link>
-            }
-          />
-          <CardContent>
-            {projectsLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse h-12 bg-notion-bg-tertiary rounded-notion-md" />
-                ))}
-              </div>
-            ) : projects && projects.length > 0 ? (
-              <ul className="space-y-1">
-                {projects
-                  .filter((p: { status: string }) => p.status === 'ACTIVE')
-                  .slice(0, 5)
-                  .map((project: { id: string; title: string; deliverable: string }) => (
-                    <li key={project.id}>
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="group flex items-center gap-2 p-2 rounded-notion-md hover:bg-notion-bg-hover transition-colors"
-                      >
-                        <ProjectIcon className="w-4 h-4 text-notion-text-tertiary" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-notion-text truncate">
-                            {project.title}
-                          </div>
-                          <div className="text-xs text-notion-text-tertiary truncate">
-                            {project.deliverable}
-                          </div>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-              </ul>
+        {/* Suggestions — collapsible, default collapsed */}
+        <div className="border border-notion-border rounded-notion-lg overflow-hidden">
+          <button
+            onClick={() => setSuggestionsOpen(!suggestionsOpen)}
+            className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-notion-text-secondary hover:bg-notion-bg-hover transition-colors"
+          >
+            {suggestionsOpen ? (
+              <Icons.chevronDown className="w-4 h-4" />
             ) : (
-              <EmptyState
-                icon={<ProjectIcon className="w-8 h-8" />}
-                title="No Projects"
-                description="Create your first project to get started"
-                action={
-                  <Link href="/projects/new">
-                    <Button variant="primary" size="sm">
-                      <PlusIcon className="w-3.5 h-3.5" />
-                      Create Project
-                    </Button>
-                  </Link>
-                }
-              />
+              <Icons.chevronRight className="w-4 h-4" />
             )}
-          </CardContent>
-        </Card>
-
-        {/* Today's Tasks Card */}
-        <Card>
-          <CardHeader
-            title="Today's Tasks"
-            actions={
-              <Link href="/tasks" className="text-sm text-notion-accent-blue hover:underline">
-                View all
-              </Link>
-            }
-          />
-          <CardContent>
-            {tasksLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse h-10 bg-notion-bg-tertiary rounded-notion-md" />
-                ))}
-              </div>
-            ) : todayTasks && todayTasks.length > 0 ? (
-              <ul className="space-y-1">
-                {todayTasks
-                  .slice(0, 5)
-                  .map((task: { id: string; title: string; status: string; priority: string }) => (
-                    <li key={task.id}>
-                      <button
-                        onClick={() => setSelectedTaskId(task.id)}
-                        className="w-full text-left group flex items-center gap-2 p-2 rounded-notion-md hover:bg-notion-bg-hover transition-colors"
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-notion-sm border flex items-center justify-center ${
-                            task.status === 'DONE'
-                              ? 'bg-notion-accent-blue border-notion-accent-blue'
-                              : 'border-notion-border-strong'
-                          }`}
-                        >
-                          {task.status === 'DONE' && (
-                            <Icons.check className="w-3 h-3 text-white" />
-                          )}
-                        </div>
-                        <span
-                          className={`flex-1 text-sm ${
-                            task.status === 'DONE'
-                              ? 'line-through text-notion-text-tertiary'
-                              : 'text-notion-text'
-                          }`}
-                        >
-                          {task.title}
-                        </span>
-                        <span
-                          className={`text-xs px-1.5 py-0.5 rounded-notion-sm ${
-                            task.priority === 'P1'
-                              ? 'bg-notion-accent-red-bg text-notion-accent-red'
-                              : task.priority === 'P2'
-                                ? 'bg-notion-accent-orange-bg text-notion-accent-orange'
-                                : 'bg-notion-bg-tertiary text-notion-text-tertiary'
-                          }`}
-                        >
-                          {task.priority}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            ) : (
-              <EmptyState
-                icon={<TaskIcon className="w-8 h-8" />}
-                title="No Tasks Today"
-                description="Plan your day in the Morning Airlock"
-              />
-            )}
-          </CardContent>
-        </Card>
+            Suggestions
+          </button>
+          {suggestionsOpen && (
+            <div className="px-4 pb-4 space-y-4">
+              <GoalRiskSuggestions />
+              <Card>
+                <CardHeader title="Suggested Tasks" description="Based on priority and remaining time" />
+                <CardContent>
+                  <TaskSuggestions maxSuggestions={3} compact />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </div>
 
       <TaskDetailPanel taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} />
