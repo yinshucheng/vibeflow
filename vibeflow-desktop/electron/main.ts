@@ -1177,14 +1177,18 @@ app.whenReady().then(async () => {
     if (mainWindow) {
       overRestEnforcer.setMainWindow(mainWindow);
     }
-    
+
+    // Diagnostic: always log policy.overRest on every policy update
+    console.log('[Main] Over rest policy field:', policy.overRest ? {
+      isOverRest: policy.overRest.isOverRest,
+      overRestMinutes: policy.overRest.overRestMinutes,
+      appsCount: policy.overRest.enforcementApps?.length ?? 0,
+      bringToFront: policy.overRest.bringToFront,
+    } : 'absent');
+
     if (policy.overRest?.isOverRest) {
-      console.log('[Main] Over rest detected, starting enforcement:', {
-        overRestMinutes: policy.overRest.overRestMinutes,
-        appsCount: policy.overRest.enforcementApps?.length ?? 0,
-        bringToFront: policy.overRest.bringToFront,
-      });
-      
+      console.log('[Main] Over rest detected, starting enforcement');
+
       handleOverRestPolicyUpdate(policy.overRest);
     } else {
       // Not in over rest - stop enforcement if active

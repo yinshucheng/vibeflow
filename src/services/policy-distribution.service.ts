@@ -238,6 +238,9 @@ export const policyDistributionService = {
       // Compile over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
       let overRest: OverRestPolicy | undefined;
       const overRestStatusResult = await overRestService.checkOverRestStatus(userId);
+      if (!overRestStatusResult.success) {
+        console.log(`[PolicyDistribution] Over rest check FAILED for user ${userId}: ${overRestStatusResult.error?.message}`);
+      }
       if (overRestStatusResult.success && overRestStatusResult.data) {
         const overRestStatus = overRestStatusResult.data;
         
@@ -254,7 +257,7 @@ export const policyDistributionService = {
                 name: app.name,
               }))
             : [];
-          
+
           // If no over rest apps configured, fall back to user's distraction apps
           // This ensures over rest enforcement works even without explicit configuration
           if (overRestApps.length === 0 && distractionApps.length > 0) {
@@ -264,15 +267,17 @@ export const policyDistributionService = {
             }));
             console.log(`[PolicyDistribution] Using ${overRestApps.length} distraction apps for over rest enforcement`);
           }
-          
+
           overRest = {
             isOverRest: true,
             overRestMinutes: overRestStatus.overRestMinutes,
             enforcementApps: overRestApps,
             bringToFront: true, // Always bring app to front during over rest
           };
-          
+
           console.log(`[PolicyDistribution] Over rest enforcement ACTIVE for user ${userId}: ${overRestStatus.overRestMinutes}min over, ${overRestApps.length} apps to enforce`);
+        } else {
+          console.log(`[PolicyDistribution] Over rest enforcement OMITTED for user ${userId}: isOverRest=${overRestStatus.isOverRest}, shouldTriggerActions=${overRestStatus.shouldTriggerActions}, overRestMinutes=${overRestStatus.overRestMinutes}, gracePeriodRemaining=${overRestStatus.gracePeriodRemaining}min`);
         }
       }
 
