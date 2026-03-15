@@ -114,16 +114,16 @@
 ## Phase 5: Health Limit Notifications (REQ-6)
 
 ### Task 14: Add healthLimit to policy compilation
-- [ ] Call `healthLimitService.checkHealthLimit(userId)` in `compilePolicy()`
-- [ ] When exceeded, include `healthLimit: { type, message }` in policy
-- [ ] Messages: "2hours" → "You've been working for 2+ hours continuously. Consider a longer break."
-- [ ] Messages: "daily" → "You've worked over 10 hours today. Please take care of yourself."
+- [x] Call `healthLimitService.checkHealthLimit(userId)` in `compilePolicy()` — 70e5d57
+- [x] When exceeded, include `healthLimit: { type, message }` in policy — 70e5d57
+- [x] Messages: "2hours" → "You've been working for 2+ hours continuously. Consider a longer break." — 70e5d57
+- [x] Messages: "daily" → "You've worked over 10 hours today. Please take care of yourself." — 70e5d57
 
 ### Task 15: Desktop health limit notifications
-- [ ] In `main.ts` policy handler, track `lastHealthLimitNotified` type
-- [ ] Show notification only when limit type changes (avoid repeat notifications)
-- [ ] Reset tracking when `healthLimit` is absent from policy
-- [ ] Use `type: 'info'`, `urgency: 'normal'` (informational, not critical)
+- [x] In `main.ts` policy handler, track `lastHealthLimitNotified` type — 5702797
+- [x] Show notification only when limit type changes (avoid repeat notifications) — 5702797
+- [x] Reset tracking when `healthLimit` is absent from policy — 5702797
+- [x] Use `type: 'info'`, `urgency: 'normal'` (informational, not critical) — 5702797
 
 ---
 
