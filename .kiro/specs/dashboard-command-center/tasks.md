@@ -46,11 +46,11 @@
 
 ## Phase 5: TodayTaskList 组件
 
-- [ ] **5.1** 创建 `TodayTaskList` 组件，使用 `trpc.task.getTodayTasksAll` + TaskRow 展示
+- [x] **5.1** 创建 `TodayTaskList` 组件，使用 `trpc.task.getTodayTasksAll` + TaskRow 展示 `ddc2942`
   - 文件: `src/components/dashboard/today-task-list.tsx`
-- [ ] **5.2** 实现前端排序: Top 3 置顶 → 未完成按优先级 → 已完成排底部
+- [x] **5.2** 实现前端排序: Top 3 置顶 → 未完成按优先级 → 已完成排底部 `ddc2942`
   - Top 3 从 `dailyState.top3TaskIds` 读取
-- [ ] **5.3** 已完成区域默认折叠，显示 "N completed" 文字，点击展开
+- [x] **5.3** 已完成区域默认折叠，显示 "N completed" 文字，点击展开 `ddc2942`
 - [ ] **5.4** 验证: 完成/删除操作后列表自动更新排序
 
 ## Phase 6: Dashboard 页面重构
