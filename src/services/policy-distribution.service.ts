@@ -8,12 +8,15 @@
  */
 
 import prisma from '@/lib/prisma';
-import type { Policy, TimeSlot, DistractionApp, AdhocFocusSession, SleepTimePolicy, SleepEnforcementAppPolicy, OverRestPolicy } from '@/types/octopus';
+import type { Policy, TimeSlot, DistractionApp, AdhocFocusSession, SleepTimePolicy, SleepEnforcementAppPolicy, OverRestPolicy, RestEnforcementPolicy } from '@/types/octopus';
 import { PolicySchema } from '@/types/octopus';
 import { focusSessionService } from '@/services/focus-session.service';
 import { sleepTimeService, type SleepEnforcementApp } from '@/services/sleep-time.service';
 import { overRestService } from '@/services/over-rest.service';
 import { screenTimeExemptionService } from '@/services/screen-time-exemption.service';
+import { restEnforcementService } from '@/services/rest-enforcement.service';
+import { dailyStateService } from '@/services/daily-state.service';
+import { healthLimitService } from '@/services/health-limit.service';
 
 // Service result type
 export interface ServiceResult<T> {
@@ -273,6 +276,58 @@ export const policyDistributionService = {
         }
       }
 
+      // Compile REST enforcement configuration
+      let restEnforcement: RestEnforcementPolicy | undefined;
+      if (settings.restEnforcementEnabled) {
+        const stateResult = await dailyStateService.getCurrentState(userId);
+        if (stateResult.success && stateResult.data === 'rest') {
+          const latestPomodoro = await prisma.pomodoro.findFirst({
+            where: { userId, status: 'COMPLETED' },
+            orderBy: { endTime: 'desc' },
+          });
+
+          const graceInfo = await restEnforcementService.getGraceInfo(
+            userId,
+            latestPomodoro?.id
+          );
+
+          if (!graceInfo.activeGrace) {
+            const workApps = (settings.workApps as unknown as Array<{ bundleId: string; name: string }>) || [];
+            restEnforcement = {
+              isActive: true,
+              workApps: workApps.map(app => ({
+                bundleId: app.bundleId,
+                name: app.name,
+              })),
+              actions: settings.restEnforcementActions.length > 0
+                ? settings.restEnforcementActions
+                : ['close'],
+              grace: {
+                available: graceInfo.remaining > 0,
+                remaining: graceInfo.remaining,
+                durationMinutes: graceInfo.durationMinutes,
+              },
+            };
+
+            console.log(`[PolicyDistribution] REST enforcement ACTIVE for user ${userId}: ${workApps.length} work apps to enforce`);
+          } else {
+            console.log(`[PolicyDistribution] REST enforcement skipped for user ${userId}: grace is active`);
+          }
+        }
+      }
+
+      // Compile health limit notification
+      let healthLimit: { type: '2hours' | 'daily'; message: string } | undefined;
+      const healthLimitResult = await healthLimitService.checkHealthLimit(userId);
+      if (healthLimitResult.exceeded && healthLimitResult.type) {
+        healthLimit = {
+          type: healthLimitResult.type,
+          message: healthLimitResult.type === '2hours'
+            ? "You've been working for 2+ hours continuously. Consider a longer break."
+            : "You've worked over 10 hours today. Please take care of yourself.",
+        };
+      }
+
       // Check for active temporary unblock
       let temporaryUnblock: { active: boolean; endTime: number } | undefined;
       const exemptionResult = await screenTimeExemptionService.getActiveExemption(userId);
@@ -303,6 +358,10 @@ export const policyDistributionService = {
         ...(sleepTime && { sleepTime }),
         // Include over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
         ...(overRest && { overRest }),
+        // Include REST enforcement configuration
+        ...(restEnforcement && { restEnforcement }),
+        // Include health limit notification
+        ...(healthLimit && { healthLimit }),
         // Include temporary unblock if active
         ...(temporaryUnblock && { temporaryUnblock }),
       };
