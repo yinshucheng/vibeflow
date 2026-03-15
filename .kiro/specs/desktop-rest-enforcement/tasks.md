@@ -88,10 +88,10 @@
 ## Phase 4: OVER_REST Investigation & Fix (REQ-5)
 
 ### Task 11: Add diagnostic logging to OVER_REST pipeline
-- [ ] `overRestService.checkOverRestStatus()`: log all inputs (lastPomodoroEndTime, gracePeriod, now) and outputs
-- [ ] `compilePolicy()`: log when over-rest section is included vs omitted, with reason
-- [ ] Desktop `main.ts`: log full `policy.overRest` field on every policy update (not just when isOverRest)
-- [ ] State machine: log REST → OVER_REST transition with timestamp
+- [x] `overRestService.checkOverRestStatus()`: log all inputs (lastPomodoroEndTime, gracePeriod, now) and outputs — 67f61fa
+- [x] `compilePolicy()`: log when over-rest section is included vs omitted, with reason — 67f61fa
+- [x] Desktop `main.ts`: log full `policy.overRest` field on every policy update (not just when isOverRest) — 67f61fa
+- [x] State machine: log REST → OVER_REST transition with timestamp — 67f61fa
 
 ### Task 12: Verify OVER_REST end-to-end flow
 - [ ] Start pomodoro → complete → verify REST state
