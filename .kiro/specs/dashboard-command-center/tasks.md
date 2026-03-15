@@ -11,14 +11,14 @@
 
 ## Phase 2: TaskRow 组件（全局通用任务行）
 
-- [ ] **2.1** 创建 `TaskRow` 组件，全宽横条展示：checkbox + 标题 + 优先级 + 项目名 + 预估时间 + 计划日期 + 番茄按钮
+- [x] **2.1** 创建 `TaskRow` 组件，全宽横条展示：checkbox + 标题 + 优先级 + 项目名 + 预估时间 + 计划日期 + 番茄按钮 `ce7f926`
   - 文件: `src/components/tasks/task-row.tsx`
-- [ ] **2.2** 实现 hover 操作按钮: Edit（跳转 `/tasks/[id]/edit`）+ Delete（inline confirm: 文字变 "确认？[是][否]"，2秒后恢复）
-- [ ] **2.3** 实现 checkbox 乐观更新: 点击立即切换 UI，后台调用 `trpc.task.updateStatus`，失败时回滚
-- [ ] **2.4** 支持子任务展开/折叠（depth 缩进），Top 3 星标标记
-- [ ] **2.5** 支持 `onSelect` 回调，点击标题区域打开详情栏
-- [ ] **2.6** 在 `TaskTree` 中用 `TaskRow` 替换原有的 `TaskTreeItem`，保持 TaskTree 接口不变
-- [ ] **2.7** 验证: `/tasks` 页面和 Dashboard 都使用新的 TaskRow 展示
+- [x] **2.2** 实现 hover 操作按钮: Edit（跳转 `/tasks/[id]/edit`）+ Delete（inline confirm: 文字变 "确认？[是][否]"，2秒后恢复） `ce7f926`
+- [x] **2.3** 实现 checkbox 乐观更新: 点击立即切换 UI，后台调用 `trpc.task.updateStatus`，失败时回滚 `ce7f926`
+- [x] **2.4** 支持子任务展开/折叠（depth 缩进），Top 3 星标标记 `ce7f926`
+- [x] **2.5** 支持 `onSelect` 回调，点击标题区域打开详情栏 `ce7f926`
+- [x] **2.6** 在 `TaskTree` 中用 `TaskRow` 替换原有的 `TaskTreeItem`，保持 TaskTree 接口不变 `ce7f926`
+- [x] **2.7** 验证: `/tasks` 页面和 Dashboard 都使用新的 TaskRow 展示 `ce7f926`
 
 ## Phase 3: TaskDetailPanel 组件（右侧滑出详情栏）
 
