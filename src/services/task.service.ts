@@ -480,8 +480,9 @@ export const taskService = {
 
   /**
    * Get today's tasks for a user
+   * @param includeDone - When true, includes DONE tasks in the result. Defaults to false.
    */
-  async getTodayTasks(userId: string): Promise<ServiceResult<Task[]>> {
+  async getTodayTasks(userId: string, includeDone = false): Promise<ServiceResult<Task[]>> {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -495,7 +496,7 @@ export const taskService = {
             gte: today,
             lt: tomorrow,
           },
-          status: { not: 'DONE' },
+          ...(!includeDone && { status: { not: 'DONE' } }),
         },
         include: {
           project: true,
