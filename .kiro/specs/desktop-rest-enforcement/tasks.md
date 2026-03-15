@@ -130,10 +130,10 @@
 ## Phase 6: Testing & Validation (All REQs)
 
 ### Task 16: Property tests for REST enforcement policy
-- [ ] Property test: `compilePolicy` always includes `restEnforcement` when state=REST + enabled + no grace
-- [ ] Property test: `compilePolicy` never includes `restEnforcement` when state != REST
-- [ ] Property test: grace count never exceeds `restGraceLimit`
-- [ ] Property test: `getActiveGrace` returns null after exemption expires
+- [x] Property test: `compilePolicy` always includes `restEnforcement` when state=REST + enabled + no grace — bb8d300
+- [x] Property test: `compilePolicy` never includes `restEnforcement` when state != REST — bb8d300
+- [x] Property test: grace count never exceeds `restGraceLimit` — bb8d300
+- [x] Property test: `getActiveGrace` returns null after exemption expires — bb8d300
 
 ### Task 17: Integration verification
 - [ ] Full flow: enable REST enforcement → start pomodoro → complete → verify work apps blocked
