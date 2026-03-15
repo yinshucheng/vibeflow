@@ -2,12 +2,12 @@
 
 ## Phase 1: API 准备
 
-- [ ] **1.1** 修改 `taskService.getTodayTasks`，添加 `includeDone?: boolean` 参数，默认 false 保持向后兼容。当 `includeDone=true` 时去掉 `status: { not: 'DONE' }` 过滤
+- [x] **1.1** 修改 `taskService.getTodayTasks`，添加 `includeDone?: boolean` 参数，默认 false 保持向后兼容。当 `includeDone=true` 时去掉 `status: { not: 'DONE' }` 过滤 `056a827`
   - 文件: `src/services/task.service.ts`
-- [ ] **1.2** 在 task router 添加 `getTodayTasksAll` procedure，调用 `getTodayTasks(userId, true)`
+- [x] **1.2** 在 task router 添加 `getTodayTasksAll` procedure，调用 `getTodayTasks(userId, true)` `056a827`
   - 文件: `src/server/routers/task.ts`
-- [ ] **1.3** 验证: 写单元测试确认 `getTodayTasksAll` 返回含 DONE 状态的任务
-  - 文件: `src/services/__tests__/task-today-all.test.ts`
+- [x] **1.3** 验证: 写单元测试确认 `getTodayTasksAll` 返回含 DONE 状态的任务 `056a827`
+  - 文件: `tests/services/task-today-all.test.ts`
 
 ## Phase 2: TaskRow 组件（全局通用任务行）
 
