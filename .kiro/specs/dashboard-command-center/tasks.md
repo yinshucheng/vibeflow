@@ -22,17 +22,17 @@
 
 ## Phase 3: TaskDetailPanel 组件（右侧滑出详情栏）
 
-- [ ] **3.1** 创建 `TaskDetailPanel` 组件骨架：右侧滑出面板，宽 384px，背景遮罩
+- [x] **3.1** 创建 `TaskDetailPanel` 组件骨架：右侧滑出面板，宽 384px，背景遮罩 `63766e8`
   - 文件: `src/components/tasks/task-detail-panel.tsx`
   - 动画: slide-in/out `translate-x` transition
   - 点击遮罩或按 Esc 关闭
-- [ ] **3.2** 面板内容区: 标题、状态按钮组 (TODO/IP/DONE)、优先级、项目链接、计划日期
-- [ ] **3.3** 时间追踪区: 预估时间 vs 实际时间 + 进度条（复用 task detail page 逻辑）
-- [ ] **3.4** 子任务列表: 复用 TaskRow（compact 模式）
-- [ ] **3.5** 操作按钮: Edit（跳转编辑页）+ Delete（确认 modal）
-- [ ] **3.6** 集成到 `/tasks` 页面: 添加 `selectedTaskId` state，TaskTree 传入 `onTaskSelect`
-- [ ] **3.7** 集成到 Dashboard: TodayTaskList 传入 `onTaskSelect`，页面渲染 TaskDetailPanel
-- [ ] **3.8** 验证: 点击任务 → 面板滑出 → 修改状态 → 列表实时更新 → 关闭面板
+- [x] **3.2** 面板内容区: 标题、状态按钮组 (TODO/IP/DONE)、优先级、项目链接、计划日期 `63766e8`
+- [x] **3.3** 时间追踪区: 预估时间 vs 实际时间 + 进度条（复用 task detail page 逻辑） `63766e8`
+- [x] **3.4** 子任务列表: 复用 TaskRow（compact 模式） `63766e8`
+- [x] **3.5** 操作按钮: Edit（跳转编辑页）+ Delete（确认 modal） `63766e8`
+- [x] **3.6** 集成到 `/tasks` 页面: 添加 `selectedTaskId` state，TaskTree 传入 `onTaskSelect` `63766e8`
+- [x] **3.7** 集成到 Dashboard: TodayTaskList 传入 `onTaskSelect`，页面渲染 TaskDetailPanel `63766e8`
+- [x] **3.8** 验证: 点击任务 → 面板滑出 → 修改状态 → 列表实时更新 → 关闭面板 `63766e8`
 
 ## Phase 4: FocusZone 组件
 
