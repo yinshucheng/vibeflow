@@ -26,11 +26,11 @@
 - [x] Unit test: policy omits `restEnforcement` when state is not REST — 70e5d57
 
 ### Task 4: Create rest-enforcement tRPC router
-- [ ] Create `src/server/routers/rest-enforcement.ts` with `requestGrace` and `getGraceInfo` procedures
-- [ ] `requestGrace`: protectedProcedure, input `{ pomodoroId: string }`, delegates to `restEnforcementService.requestGrace()`
-- [ ] `getGraceInfo`: protectedProcedure, delegates to `restEnforcementService.getGraceInfo()`
-- [ ] Register router in `src/server/routers/_app.ts`
-- [ ] Export from `src/services/index.ts` if not already
+- [x] Create `src/server/routers/rest-enforcement.ts` with `requestGrace` and `getGraceInfo` procedures — 04f4f3b
+- [x] `requestGrace`: protectedProcedure, input `{ pomodoroId: string }`, delegates to `restEnforcementService.requestGrace()` — 04f4f3b
+- [x] `getGraceInfo`: protectedProcedure, delegates to `restEnforcementService.getGraceInfo()` — 04f4f3b
+- [x] Register router in `src/server/routers/_app.ts` — 04f4f3b
+- [x] Export from `src/services/index.ts` if not already — 04f4f3b
 
 ---
 
