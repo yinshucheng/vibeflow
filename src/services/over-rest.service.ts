@@ -278,11 +278,12 @@ export const overRestService = {
         };
       }
 
-      // Get last completed pomodoro
+      // Get last completed or interrupted pomodoro
+      // Both COMPLETED and INTERRUPTED pomodoros end the focus period and start rest
       const lastPomodoro = await prisma.pomodoro.findFirst({
         where: {
           userId,
-          status: 'COMPLETED',
+          status: { in: ['COMPLETED', 'INTERRUPTED'] },
         },
         orderBy: {
           endTime: 'desc',

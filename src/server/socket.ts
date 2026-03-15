@@ -24,7 +24,7 @@ import { commandQueueService } from '@/services/command-queue.service';
 import { overRestService } from '@/services/over-rest.service';
 import { pomodoroService } from '@/services/pomodoro.service';
 import { timeSliceService } from '@/services/time-slice.service';
-import { dailyStateService } from '@/services/daily-state.service';
+import { dailyStateService, getTodayDate } from '@/services/daily-state.service';
 import { chatService } from '@/services/chat.service';
 import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
@@ -1714,10 +1714,9 @@ export class VibeFlowSocketServer {
   private async sendStateSnapshotToSocket(socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>): Promise<void> {
     try {
       const { userId } = socket.data;
-      
-      // Get current daily state
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+
+      // Get current daily state (accounting for 4AM daily reset)
+      const today = getTodayDate();
       
       const [dailyState, settings, activePomodoro, tasks] = await Promise.all([
         prisma.dailyState.findUnique({
@@ -1738,15 +1737,16 @@ export class VibeFlowSocketServer {
 
       let systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
       
-      // Check for over_rest state if currently in rest OR planning (Requirements: 15.2, 16.1)
-      // Over rest can occur in both states when user is not actively working
-      if (systemState === 'rest' || systemState === 'planning') {
+      // Check for over_rest state only when in REST (not planning)
+      // If user moved to planning, they explicitly chose to exit rest — respect that choice
+      // This aligns with dailyStateService.getTodayWithProgress() behavior
+      if (systemState === 'rest') {
         const overRestResult = await overRestService.checkOverRestStatus(userId);
         if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
           systemState = 'over_rest';
         }
       }
-      
+
       // Get top 3 tasks from IDs if available, otherwise fall back to today's planned tasks
       let top3Tasks: { id: string; title: string; status: string; priority: string }[] = [];
       if (dailyState?.top3TaskIds && dailyState.top3TaskIds.length > 0) {
@@ -1881,10 +1881,9 @@ export class VibeFlowSocketServer {
       where: { userId },
     });
 
-    // Get current daily state
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+    // Get current daily state (accounting for 4AM daily reset)
+    const today = getTodayDate();
+
     const dailyState = await prisma.dailyState.findUnique({
       where: {
         userId_date: { userId, date: today },
@@ -1894,9 +1893,9 @@ export class VibeFlowSocketServer {
     // Determine the effective state (including over_rest)
     let effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
     
-    // Check for over_rest state if currently in rest OR planning
-    // Over rest can occur in both states when user is not actively working
-    if (effectiveState === 'rest' || effectiveState === 'planning') {
+    // Check for over_rest state only when in REST (not planning)
+    // If user moved to planning, they explicitly chose to exit rest — respect that choice
+    if (effectiveState === 'rest') {
       const overRestResult = await overRestService.checkOverRestStatus(userId);
       if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
         effectiveState = 'over_rest';

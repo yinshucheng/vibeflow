@@ -49,6 +49,7 @@ vi.mock('../../src/services/health-limit.service', () => ({
   },
 }));
 
+import { overRestService } from '../../src/services/over-rest.service';
 import { restEnforcementService } from '../../src/services/rest-enforcement.service';
 import { dailyStateService } from '../../src/services/daily-state.service';
 import { healthLimitService } from '../../src/services/health-limit.service';
@@ -243,6 +244,185 @@ describe('PolicyDistributionService', () => {
 
       expect(result.success).toBe(true);
       expect(result.data!.restEnforcement!.actions).toEqual(['close']);
+    });
+  });
+
+  describe('OVER_REST in compilePolicy', () => {
+    it('should include overRest when shouldTriggerActions is true', async () => {
+      vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
+        ...baseSettings,
+        distractionApps: [
+          { bundleId: 'com.google.Chrome', name: 'Chrome', action: 'force_quit', isPreset: true },
+        ],
+      } as any);
+
+      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+        success: true,
+        data: {
+          isOverRest: true,
+          restDurationMinutes: 15,
+          overRestMinutes: 10,
+          gracePeriodMinutes: 5,
+          gracePeriodRemaining: 0,
+          shouldTriggerActions: true,
+          lastPomodoroEndTime: new Date(),
+        },
+      });
+
+      vi.mocked(overRestService.getConfig).mockResolvedValue({
+        success: true,
+        data: {
+          gracePeriod: 5,
+          actions: ['close_apps'],
+          apps: [{ bundleId: 'com.spotify.client', name: 'Spotify' }],
+        },
+      });
+
+      const result = await policyDistributionService.compilePolicy(userId);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.overRest).toBeDefined();
+      expect(result.data!.overRest!.isOverRest).toBe(true);
+      expect(result.data!.overRest!.overRestMinutes).toBe(10);
+      expect(result.data!.overRest!.enforcementApps).toHaveLength(1);
+      expect(result.data!.overRest!.enforcementApps[0].bundleId).toBe('com.spotify.client');
+      expect(result.data!.overRest!.bringToFront).toBe(true);
+    });
+
+    it('should fall back to distraction apps when no over rest apps configured', async () => {
+      vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
+        ...baseSettings,
+        distractionApps: [
+          { bundleId: 'com.google.Chrome', name: 'Chrome', action: 'force_quit', isPreset: true },
+        ],
+      } as any);
+
+      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+        success: true,
+        data: {
+          isOverRest: true,
+          restDurationMinutes: 15,
+          overRestMinutes: 10,
+          gracePeriodMinutes: 5,
+          gracePeriodRemaining: 0,
+          shouldTriggerActions: true,
+          lastPomodoroEndTime: new Date(),
+        },
+      });
+
+      vi.mocked(overRestService.getConfig).mockResolvedValue({
+        success: true,
+        data: {
+          gracePeriod: 5,
+          actions: ['close_apps'],
+          apps: [], // No over rest apps configured
+        },
+      });
+
+      const result = await policyDistributionService.compilePolicy(userId);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.overRest).toBeDefined();
+      // Should fall back to distraction apps
+      expect(result.data!.overRest!.enforcementApps).toHaveLength(1);
+      expect(result.data!.overRest!.enforcementApps[0].bundleId).toBe('com.google.Chrome');
+    });
+
+    it('should omit overRest when isOverRest is false', async () => {
+      vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
+        ...baseSettings,
+      } as any);
+
+      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+        success: true,
+        data: {
+          isOverRest: false,
+          restDurationMinutes: 3,
+          overRestMinutes: 0,
+          gracePeriodMinutes: 5,
+          gracePeriodRemaining: 5,
+          shouldTriggerActions: false,
+          lastPomodoroEndTime: new Date(),
+        },
+      });
+
+      const result = await policyDistributionService.compilePolicy(userId);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.overRest).toBeUndefined();
+    });
+
+    it('should omit overRest when in grace period (shouldTriggerActions=false)', async () => {
+      vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
+        ...baseSettings,
+      } as any);
+
+      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+        success: true,
+        data: {
+          isOverRest: true,
+          restDurationMinutes: 8,
+          overRestMinutes: 3,
+          gracePeriodMinutes: 5,
+          gracePeriodRemaining: 2,
+          shouldTriggerActions: false,
+          lastPomodoroEndTime: new Date(),
+        },
+      });
+
+      const result = await policyDistributionService.compilePolicy(userId);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.overRest).toBeUndefined();
+    });
+  });
+
+  describe('REST and OVER_REST conflict resolution', () => {
+    it('should omit restEnforcement when overRest is active (even if state=REST and enabled)', async () => {
+      vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
+        ...baseSettings,
+        restEnforcementEnabled: true,
+        restEnforcementActions: ['close'],
+        workApps: [{ bundleId: 'com.apple.Xcode', name: 'Xcode' }],
+      } as any);
+
+      // Over rest is active and should trigger actions
+      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+        success: true,
+        data: {
+          isOverRest: true,
+          restDurationMinutes: 15,
+          overRestMinutes: 10,
+          gracePeriodMinutes: 5,
+          gracePeriodRemaining: 0,
+          shouldTriggerActions: true,
+          lastPomodoroEndTime: new Date(),
+        },
+      });
+
+      vi.mocked(overRestService.getConfig).mockResolvedValue({
+        success: true,
+        data: {
+          gracePeriod: 5,
+          actions: ['close_apps'],
+          apps: [{ bundleId: 'com.spotify.client', name: 'Spotify' }],
+        },
+      });
+
+      // State is rest (which would normally trigger REST enforcement)
+      vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
+        success: true,
+        data: 'rest',
+      });
+
+      const result = await policyDistributionService.compilePolicy(userId);
+
+      expect(result.success).toBe(true);
+      // OVER_REST should be present
+      expect(result.data?.overRest).toBeDefined();
+      expect(result.data!.overRest!.isOverRest).toBe(true);
+      // REST enforcement should be absent (would conflict with OVER_REST)
+      expect(result.data?.restEnforcement).toBeUndefined();
     });
   });
 

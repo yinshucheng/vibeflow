@@ -282,8 +282,11 @@ export const policyDistributionService = {
       }
 
       // Compile REST enforcement configuration
+      // Skip REST enforcement when OVER_REST is active — they are contradictory:
+      // REST enforcement closes work apps, but OVER_REST wants the user to start working
       let restEnforcement: RestEnforcementPolicy | undefined;
-      if (settings.restEnforcementEnabled) {
+      const isOverRestActive = !!overRest;
+      if (settings.restEnforcementEnabled && !isOverRestActive) {
         const stateResult = await dailyStateService.getCurrentState(userId);
         if (stateResult.success && stateResult.data === 'rest') {
           const latestPomodoro = await prisma.pomodoro.findFirst({

@@ -63,7 +63,7 @@ const DAILY_RESET_HOUR = 4;
  * Get today's date normalized to midnight
  * Accounts for the 04:00 AM reset time
  */
-function getTodayDate(): Date {
+export function getTodayDate(): Date {
   const now = new Date();
   const today = new Date(now);
   
