@@ -101,9 +101,13 @@
 - [ ] Document any issues found
 
 ### Task 13: Fix identified OVER_REST bugs
-- [ ] Fix root cause(s) identified in Task 12
-- [ ] Verify fix with end-to-end test
-- [ ] Document root cause in commit message
+- [x] Fix root cause(s) identified in Task 12 — 8803ed4
+  - Bug 1: REST enforcement conflicts with OVER_REST (contradictory app closing)
+  - Bug 2: Date mismatch between midnight-4AM bypasses over_rest enforcement
+  - Bug 3: Inconsistent planning→over_rest override between socket and dailyState
+  - Bug 4: INTERRUPTED pomodoros ignored in over-rest rest duration calculation
+- [x] Verify fix with unit tests (5 new tests for OVER_REST policy + conflict resolution) — 8803ed4
+- [x] Document root cause in commit message — 8803ed4
 
 ---
 
