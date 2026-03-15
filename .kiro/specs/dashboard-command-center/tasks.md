@@ -55,13 +55,13 @@
 
 ## Phase 6: Dashboard 页面重构
 
-- [ ] **6.1** 重构 `src/app/page.tsx` 布局: Airlock Prompt → FocusZone → TodayTaskList → 辅助双列 → 建议区
-- [ ] **6.2** 移除 "Current Status" 卡片（信息已被 FocusZone 覆盖）
-- [ ] **6.3** 移除 "Active Projects" 卡片（项目信息已作为任务标签展示）
-- [ ] **6.4** DailyProgressCard + FocusSessionControl 并排放在辅助双列区
-- [ ] **6.5** GoalRiskSuggestions + TaskSuggestions 放入可折叠区域（默认折叠）
-- [ ] **6.6** 保留 PageHeader，调整文案
-- [ ] **6.7** 在 dashboard/index.ts 中导出新组件
+- [x] **6.1** 重构 `src/app/page.tsx` 布局: Airlock Prompt → FocusZone → TodayTaskList → 辅助双列 → 建议区 `6ab3515`
+- [x] **6.2** 移除 "Current Status" 卡片（信息已被 FocusZone 覆盖） `6ab3515`
+- [x] **6.3** 移除 "Active Projects" 卡片（项目信息已作为任务标签展示） `6ab3515`
+- [x] **6.4** DailyProgressCard + FocusSessionControl 并排放在辅助双列区 `6ab3515`
+- [x] **6.5** GoalRiskSuggestions + TaskSuggestions 放入可折叠区域（默认折叠） `6ab3515`
+- [x] **6.6** 保留 PageHeader，调整文案 `6ab3515`
+- [x] **6.7** 在 dashboard/index.ts 中导出新组件 `6ab3515`
 - [ ] **6.8** 验证: 完整 Dashboard 布局在桌面端（1200px+）下的视觉效果
 
 ## Phase 7: 质量验证
