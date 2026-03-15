@@ -23,11 +23,12 @@ import {
   EarlyWarningSettings,
   OverRestSettings,
   EntertainmentSitesSettings,
-  DemoModeSettings
+  DemoModeSettings,
+  RestEnforcementSettings
 } from '@/components/settings';
 import { WorkAppsSettings } from '@/components/settings/work-apps-settings';
 
-type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'workapps' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices' | 'demomode';
+type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'restenforce' | 'workapps' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices' | 'demomode';
 
 interface TabConfig {
   id: SettingsTab;
@@ -66,6 +67,12 @@ const tabs: TabConfig[] = [
     label: 'Over Rest',
     icon: '⏰',
     description: 'Actions when resting too long during work hours'
+  },
+  {
+    id: 'restenforce',
+    label: 'REST Enforce',
+    icon: '😴',
+    description: 'Close or hide work apps during REST state'
   },
   {
     id: 'workapps',
@@ -170,6 +177,7 @@ export default function SettingsPage() {
         {activeTab === 'worktime' && <WorkTimeSettings />}
         {activeTab === 'sleeptime' && <SleepTimeSettings />}
         {activeTab === 'overrest' && <OverRestSettings />}
+        {activeTab === 'restenforce' && <RestEnforcementSettings />}
         {activeTab === 'workapps' && <WorkAppsSettings />}
         {activeTab === 'expectations' && <ExpectationSettings />}
         {activeTab === 'notifications' && <NotificationSettings />}

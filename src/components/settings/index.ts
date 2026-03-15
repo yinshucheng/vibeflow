@@ -25,3 +25,4 @@ export { EarlyWarningSettings } from './early-warning-settings';
 export { OverRestSettings } from './over-rest-settings';
 export { EntertainmentSitesSettings } from './entertainment-sites-settings';
 export { DemoModeSettings } from './demo-mode-settings';
+export { RestEnforcementSettings } from './rest-enforcement-settings';

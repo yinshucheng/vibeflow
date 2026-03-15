@@ -108,6 +108,11 @@ export const UpdateSettingsSchema = z.object({
     bundleId: z.string(),
     name: z.string(),
   })).optional(),
+  // REST enforcement settings
+  restEnforcementEnabled: z.boolean().optional(),
+  restEnforcementActions: z.array(z.string()).optional(),
+  restGraceLimit: z.number().min(1).max(5).optional(),
+  restGraceDuration: z.number().min(1).max(10).optional(),
 });
 
 export type UpdateSettingsInput = z.infer<typeof UpdateSettingsSchema>;
