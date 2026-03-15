@@ -22,6 +22,7 @@ vi.mock('ai', () => {
     streamText: vi.fn(),
     generateText: vi.fn(),
     stepCountIs: vi.fn((n: number) => ({ type: 'stepCount', count: n })),
+    tool: vi.fn((opts: Record<string, unknown>) => opts),
   };
 });
 
@@ -245,7 +246,8 @@ describe('chatService.handleMessage with attachments', () => {
       // Verify no attachment context was injected
       const callArgs = mockedStreamText.mock.calls[0][0];
       const lastMessage = callArgs.messages[callArgs.messages.length - 1];
-      expect(lastMessage.content).toBe('Hello');
+      // Content includes a time prefix (e.g. "[2026/3/16 10:00]\n") prepended by handleMessage
+      expect(lastMessage.content).toContain('Hello');
       expect(lastMessage.content).not.toContain('[Referenced');
     }));
 
