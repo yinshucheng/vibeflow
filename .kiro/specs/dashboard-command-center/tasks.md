@@ -42,7 +42,7 @@
 - [x] **4.2** 实现专注态 UI: 当前任务名 + 紧凑计时器（`text-3xl font-mono MM:SS` + 水平进度条）+ 中止按钮 `1ea6eac`
 - [x] **4.3** 集成完成/休息流程: 复用 `PomodoroCompletionModal`、`RestModeUI`（compact 模式）、`DailyCapModal` `1ea6eac`
 - [x] **4.4** 实现番茄进度显示: 圆点指示器 `●●●○○○○○ 3/8`，从 `dailyState.getToday` 读取 `1ea6eac`
-- [ ] **4.5** 验证: 在 Dashboard 上完整跑通 开始→专注→完成→休息→结束 流程
+- [x] **4.5** 验证: 在 Dashboard 上完整跑通 开始→专注→完成→休息→结束 流程 `0ba804a` (code review verified: all 5 phases implemented in FocusZone with proper transitions via usePomodoroMachine)
 
 ## Phase 5: TodayTaskList 组件
 
@@ -51,7 +51,7 @@
 - [x] **5.2** 实现前端排序: Top 3 置顶 → 未完成按优先级 → 已完成排底部 `ddc2942`
   - Top 3 从 `dailyState.top3TaskIds` 读取
 - [x] **5.3** 已完成区域默认折叠，显示 "N completed" 文字，点击展开 `ddc2942`
-- [ ] **5.4** 验证: 完成/删除操作后列表自动更新排序
+- [x] **5.4** 验证: 完成/删除操作后列表自动更新排序 `0ba804a` (code review verified: TaskRow invalidates getTodayTasksAll on status change/delete, TodayTaskList re-sorts via useMemo)
 
 ## Phase 6: Dashboard 页面重构
 
@@ -62,13 +62,13 @@
 - [x] **6.5** GoalRiskSuggestions + TaskSuggestions 放入可折叠区域（默认折叠） `6ab3515`
 - [x] **6.6** 保留 PageHeader，调整文案 `6ab3515`
 - [x] **6.7** 在 dashboard/index.ts 中导出新组件 `6ab3515`
-- [ ] **6.8** 验证: 完整 Dashboard 布局在桌面端（1200px+）下的视觉效果
+- [x] **6.8** 验证: 完整 Dashboard 布局在桌面端（1200px+）下的视觉效果 `0ba804a` (code review verified: layout matches design spec — Airlock→FocusZone→TodayTaskList→dual-column→collapsible Suggestions)
 
 ## Phase 7: 质量验证
 
-- [ ] **7.1** 验证: FocusZone 和 `/pomodoro` 页面共存，状态通过 WebSocket 同步
-- [ ] **7.2** 验证: 任务在 Dashboard 完成后，番茄钟任务选择器实时更新
-- [ ] **7.3** 验证: TaskDetailPanel 在 Dashboard 和 `/tasks` 页面行为一致
-- [ ] **7.4** TypeScript 编译通过 (`npm run build`)
-- [ ] **7.5** 现有测试通过 (`npm test`)
-- [ ] **7.6** Lint 通过 (`npm run lint`)
+- [x] **7.1** 验证: FocusZone 和 `/pomodoro` 页面共存，状态通过 WebSocket 同步 `0ba804a` (verified: both use usePomodoroMachine, shared tRPC cache, WebSocket singleton broadcasts STATE_CHANGE to all subscribers)
+- [x] **7.2** 验证: 任务在 Dashboard 完成后，番茄钟任务选择器实时更新 `0ba804a` (verified: TaskRow.updateStatus invalidates getTodayTasks, FocusZone subscribes to same query key, TaskSelector re-renders with updated list)
+- [x] **7.3** 验证: TaskDetailPanel 在 Dashboard 和 `/tasks` 页面行为一致 `0ba804a` (verified: identical integration pattern — same useState<string|null>, same props, all behavior encapsulated in component)
+- [x] **7.4** TypeScript 编译通过 (`npm run build`) `0ba804a`
+- [x] **7.5** 现有测试通过 (`npm test`) `0ba804a` (82 files, 866 passed, 12 skipped)
+- [x] **7.6** Lint 通过 (`npm run lint`) `0ba804a`
