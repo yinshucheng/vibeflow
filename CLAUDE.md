@@ -210,7 +210,8 @@ Each spec has a status label. When working on a spec, update the table below.
 | `pomodoro-multitask-enhancement` | partial | Phase 1–2 done, Phase 3 ~80%, Phase 4–8 not started |
 | `e2e-testing` | partial | Fixtures + core flows done; Page Objects, CRUD E2E, CI/CD missing |
 | `dev-user-system` | not-started | Multi-user, data isolation, OAuth prep |
-| `rest-sleep-enforcement` | not-started | REST/SLEEP work app blocking (~60 tasks) |
+| `rest-sleep-enforcement` | deprecated | Superseded by desktop-rest-enforcement |
+| `desktop-rest-enforcement` | not-started | REST work app blocking, OVER_REST fix, health notifications |
 | `ui-redesign` | not-started | Design tokens, component library, accessibility |
 | `ios-mobile-enhancement` | not-started | iOS write operations |
 | `mcp-capability-enhancement` | not-started | 8 additional MCP tools |
