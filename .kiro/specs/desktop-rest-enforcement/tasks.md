@@ -16,14 +16,14 @@
 - [x] Unit test: `getGraceInfo` correctly counts remaining grace requests — 63c0d4e
 
 ### Task 3: Add REST enforcement to compilePolicy()
-- [x] Import `restEnforcementService` and `dailyStateService` in policy-distribution.service.ts
-- [x] After over-rest section, add REST enforcement compilation block
-- [x] Check: state is REST, `restEnforcementEnabled` is true, no active grace → include `restEnforcement`
-- [x] Compile `workApps` from settings, `actions` from `restEnforcementActions`, grace info from service
-- [x] Add health limit check: call `healthLimitService.checkHealthLimit()` → include `healthLimit` in policy
-- [x] Unit test: policy includes `restEnforcement` when state=REST and enabled
-- [x] Unit test: policy omits `restEnforcement` when grace is active
-- [x] Unit test: policy omits `restEnforcement` when state is not REST
+- [x] Import `restEnforcementService` and `dailyStateService` in policy-distribution.service.ts — 70e5d57
+- [x] After over-rest section, add REST enforcement compilation block — 70e5d57
+- [x] Check: state is REST, `restEnforcementEnabled` is true, no active grace → include `restEnforcement` — 70e5d57
+- [x] Compile `workApps` from settings, `actions` from `restEnforcementActions`, grace info from service — 70e5d57
+- [x] Add health limit check: call `healthLimitService.checkHealthLimit()` → include `healthLimit` in policy — 70e5d57
+- [x] Unit test: policy includes `restEnforcement` when state=REST and enabled — 70e5d57
+- [x] Unit test: policy omits `restEnforcement` when grace is active — 70e5d57
+- [x] Unit test: policy omits `restEnforcement` when state is not REST — 70e5d57
 
 ### Task 4: Create rest-enforcement tRPC router
 - [ ] Create `src/server/routers/rest-enforcement.ts` with `requestGrace` and `getGraceInfo` procedures
