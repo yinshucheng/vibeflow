@@ -23,6 +23,7 @@ import { getSensorReporter } from './modules/sensor-reporter';
 import { getSleepEnforcer, setupSleepEnforcerIpc } from './modules/sleep-enforcer';
 import { createFocusTimeMonitor, AppMonitor } from './modules/app-monitor';
 import { getOverRestEnforcer, handleOverRestPolicyUpdate } from './modules/over-rest-enforcer';
+import { getRestEnforcer, handleRestEnforcementPolicyUpdate } from './modules/rest-enforcer';
 import { getHeartbeatManager } from './modules/heartbeat-manager';
 import {
   getQuitPrevention,
@@ -1038,6 +1039,9 @@ app.whenReady().then(async () => {
   // Focus time app monitor for pomodoro/focus session enforcement
   let focusTimeMonitor: AppMonitor | null = null;
 
+  // Track health limit notification to avoid repeating
+  let lastHealthLimitNotified: string | null = null;
+
   // Connect sleep enforcer to policy updates (Requirements: 11.1, 11.2)
   connectionManager.onPolicyUpdate((policy) => {
     console.log('[Main] Received policy update:', {
@@ -1189,7 +1193,42 @@ app.whenReady().then(async () => {
         handleOverRestPolicyUpdate(undefined);
       }
     }
-    
+
+    // Handle REST enforcement (close/hide work apps during rest)
+    const restEnforcer = getRestEnforcer();
+    if (mainWindow) {
+      restEnforcer.setMainWindow(mainWindow);
+    }
+
+    if (policy.restEnforcement?.isActive) {
+      console.log('[Main] REST enforcement active, starting/updating enforcer:', {
+        appsCount: policy.restEnforcement.workApps?.length ?? 0,
+        actions: policy.restEnforcement.actions,
+        graceAvailable: policy.restEnforcement.grace?.available,
+      });
+      handleRestEnforcementPolicyUpdate(policy.restEnforcement);
+    } else {
+      if (restEnforcer.isActive()) {
+        console.log('[Main] REST enforcement ended, stopping enforcer');
+        handleRestEnforcementPolicyUpdate(undefined);
+      }
+    }
+
+    // Handle health limit notifications (informational, show once per type)
+    if (policy.healthLimit && policy.healthLimit.type !== lastHealthLimitNotified) {
+      getNotificationManager().show({
+        title: '⏰ 健康提醒',
+        body: policy.healthLimit.message,
+        type: 'info',
+        urgency: 'normal',
+      });
+      lastHealthLimitNotified = policy.healthLimit.type;
+      console.log('[Main] Health limit notification shown:', policy.healthLimit.type);
+    }
+    if (!policy.healthLimit) {
+      lastHealthLimitNotified = null;
+    }
+
     // Update quit prevention config with work time slots (Requirements: 1.6)
     const quitPrevention = getQuitPrevention();
     quitPrevention.updateConfig({
