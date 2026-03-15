@@ -70,17 +70,17 @@
 ## Phase 3: Settings UI (REQ-4)
 
 ### Task 9: Create RestEnforcementSettings component
-- [ ] Create `src/components/settings/rest-enforcement-settings.tsx`
-- [ ] Toggle: `restEnforcementEnabled` (Switch component)
-- [ ] Action selector: radio/select for `close` vs `hide` (maps to `restEnforcementActions`)
-- [ ] Grace settings: `restGraceLimit` (1-5, NumberInput) and `restGraceDuration` (1-10 min, NumberInput)
-- [ ] Show current work apps count with "Configure work apps →" link
-- [ ] Read settings via `trpc.settings.get`, update via `trpc.settings.update`
-- [ ] Disabled state when `restEnforcementEnabled` is off (gray out sub-settings)
+- [x] Create `src/components/settings/rest-enforcement-settings.tsx` — 9f8d930
+- [x] Toggle: `restEnforcementEnabled` (Switch component) — 9f8d930
+- [x] Action selector: radio/select for `close` vs `hide` (maps to `restEnforcementActions`) — 9f8d930
+- [x] Grace settings: `restGraceLimit` (1-5, NumberInput) and `restGraceDuration` (1-10 min, NumberInput) — 9f8d930
+- [x] Show current work apps count with "Configure work apps →" link — 9f8d930
+- [x] Read settings via `trpc.settings.get`, update via `trpc.settings.update` — 9f8d930
+- [x] Disabled state when `restEnforcementEnabled` is off (gray out sub-settings) — 9f8d930
 
 ### Task 10: Integrate settings in page
-- [ ] Add `RestEnforcementSettings` to `src/app/settings/page.tsx`
-- [ ] Place near existing over-rest settings section
+- [x] Add `RestEnforcementSettings` to `src/app/settings/page.tsx` — 9f8d930
+- [x] Place near existing over-rest settings section — 9f8d930
 - [ ] Verify settings changes trigger policy recompilation (existing settings.update → broadcastStateChange pattern)
 
 ---
