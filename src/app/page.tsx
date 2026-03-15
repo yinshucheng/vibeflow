@@ -7,7 +7,7 @@
  * Redirects to Airlock when system is in LOCKED state (respects airlockMode setting).
  */
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,6 +25,7 @@ import {
   GoalRiskSuggestions,
   TaskSuggestions,
 } from '@/components/dashboard';
+import { TaskDetailPanel } from '@/components/tasks/task-detail-panel';
 import { Button } from '@/components/ui/button';
 import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
@@ -34,6 +35,7 @@ type AirlockMode = 'required' | 'optional' | 'disabled';
 
 export default function Home() {
   const router = useRouter();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const { data: dailyState, isLoading: stateLoading } = trpc.dailyState.getToday.useQuery();
   const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
   const { data: projects, isLoading: projectsLoading } = trpc.project.list.useQuery();
@@ -234,7 +236,10 @@ export default function Home() {
                   .slice(0, 5)
                   .map((task: { id: string; title: string; status: string; priority: string }) => (
                     <li key={task.id}>
-                      <div className="group flex items-center gap-2 p-2 rounded-notion-md hover:bg-notion-bg-hover transition-colors">
+                      <button
+                        onClick={() => setSelectedTaskId(task.id)}
+                        className="w-full text-left group flex items-center gap-2 p-2 rounded-notion-md hover:bg-notion-bg-hover transition-colors"
+                      >
                         <div
                           className={`w-4 h-4 rounded-notion-sm border flex items-center justify-center ${
                             task.status === 'DONE'
@@ -266,7 +271,7 @@ export default function Home() {
                         >
                           {task.priority}
                         </span>
-                      </div>
+                      </button>
                     </li>
                   ))}
               </ul>
@@ -280,6 +285,8 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+
+      <TaskDetailPanel taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} />
     </MainLayout>
   );
 }

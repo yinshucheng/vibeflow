@@ -21,6 +21,7 @@ import {
 } from '@/components/layout';
 import { Button } from '@/components/ui';
 import { TaskTree } from '@/components/tasks/task-tree';
+import { TaskDetailPanel } from '@/components/tasks/task-detail-panel';
 import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
 import { calculateRemainingSeconds } from '@/lib/pomodoro-cache';
@@ -35,6 +36,7 @@ type TaskWithProject = Task & {
 
 export default function TasksPage() {
   const [filter, setFilter] = useState<TaskFilter>('today');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const { data: todayTasks, isLoading: todayLoading } = trpc.task.getTodayTasks.useQuery();
   const { data: overdueTasks, isLoading: overdueLoading } = trpc.task.getOverdue.useQuery();
@@ -142,7 +144,7 @@ export default function TasksPage() {
               ))}
             </div>
           ) : tasks && tasks.length > 0 ? (
-            <TaskTree tasks={tasks} showProject />
+            <TaskTree tasks={tasks} showProject onTaskSelect={setSelectedTaskId} />
           ) : (
             <EmptyState
               icon={
@@ -186,20 +188,22 @@ export default function TasksPage() {
             {projects
               .filter((p: Project) => p.status === 'ACTIVE')
               .map((project: Project) => (
-                <ProjectTasksCard key={project.id} project={project} />
+                <ProjectTasksCard key={project.id} project={project} onTaskSelect={setSelectedTaskId} />
               ))}
           </div>
         </div>
       )}
+      <TaskDetailPanel taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} />
     </MainLayout>
   );
 }
 
 interface ProjectTasksCardProps {
   project: Project;
+  onTaskSelect?: (taskId: string) => void;
 }
 
-function ProjectTasksCard({ project }: ProjectTasksCardProps) {
+function ProjectTasksCard({ project, onTaskSelect }: ProjectTasksCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { data: tasks } = trpc.task.getByProject.useQuery(
     { projectId: project.id },
@@ -231,7 +235,7 @@ function ProjectTasksCard({ project }: ProjectTasksCardProps) {
       {isExpanded && (
         <CardContent className="pt-0">
           {typedTasks.length > 0 ? (
-            <TaskTree tasks={typedTasks} />
+            <TaskTree tasks={typedTasks} onTaskSelect={onTaskSelect} />
           ) : (
             <p className="text-sm text-notion-text-tertiary py-2">No tasks in this project</p>
           )}
