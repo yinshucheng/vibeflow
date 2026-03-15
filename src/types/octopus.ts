@@ -872,6 +872,24 @@ export interface OverRestPolicy {
 }
 
 /**
+ * REST enforcement policy - blocks work apps during rest periods
+ */
+export interface RestEnforcementPolicy {
+  /** Whether REST enforcement is currently active */
+  isActive: boolean;
+  /** Work apps to close/hide during REST */
+  workApps: SleepEnforcementAppPolicy[];
+  /** Enforcement actions: 'close' | 'hide' */
+  actions: string[];
+  /** Grace info for client display */
+  grace: {
+    available: boolean;
+    remaining: number;
+    durationMinutes: number;
+  };
+}
+
+/**
  * Policy object distributed to clients
  * Requirements: 10.5, 10.6
  */
@@ -893,6 +911,10 @@ export interface Policy {
   overRest?: OverRestPolicy;
   /** Temporary unblock configuration (optional) */
   temporaryUnblock?: { active: boolean; endTime: number };
+  /** REST enforcement configuration (optional) */
+  restEnforcement?: RestEnforcementPolicy;
+  /** Health limit notification (optional) */
+  healthLimit?: { type: '2hours' | 'daily'; message: string };
 }
 
 // =============================================================================
@@ -1495,6 +1517,24 @@ export const TemporaryUnblockPolicySchema = z.object({
   endTime: z.number().int().positive(),
 });
 
+// REST enforcement policy schema
+export const RestEnforcementPolicySchema = z.object({
+  isActive: z.boolean(),
+  workApps: z.array(SleepEnforcementAppPolicySchema),
+  actions: z.array(z.string()),
+  grace: z.object({
+    available: z.boolean(),
+    remaining: z.number().int().nonnegative(),
+    durationMinutes: z.number().int().positive(),
+  }),
+});
+
+// Health limit notification schema
+export const HealthLimitSchema = z.object({
+  type: z.enum(['2hours', 'daily']),
+  message: z.string(),
+});
+
 // Policy schema
 export const PolicySchema = z.object({
   version: z.number().int().positive(),
@@ -1509,6 +1549,8 @@ export const PolicySchema = z.object({
   sleepTime: SleepTimePolicySchema.optional(),
   overRest: OverRestPolicySchema.optional(),
   temporaryUnblock: TemporaryUnblockPolicySchema.optional(),
+  restEnforcement: RestEnforcementPolicySchema.optional(),
+  healthLimit: HealthLimitSchema.optional(),
 });
 
 // Update policy payload schema
