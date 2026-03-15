@@ -37,33 +37,33 @@
 ## Phase 2: Desktop RestEnforcer Module (REQ-2)
 
 ### Task 5: Add createRestTimeMonitor() factory to AppMonitor
-- [ ] Add `createRestTimeMonitor(apps, options?)` in `vibeflow-desktop/electron/modules/app-monitor.ts`
-- [ ] Use 15s check interval, 10s warning delay, context "休息时间", emoji "😴"
-- [ ] Support `hide` action (minimize/hide window) in addition to existing `close`/`force_quit`
-- [ ] Add idle check callback support via `shouldSkipEnforcement` option (reuse existing pattern)
+- [x] Add `createRestTimeMonitor(apps, options?)` in `vibeflow-desktop/electron/modules/app-monitor.ts` — 5702797
+- [x] Use 15s check interval, 10s warning delay, context "休息时间", emoji "😴" — 5702797
+- [x] Support `hide` action (minimize/hide window) in addition to existing `close`/`force_quit` — 5702797
+- [x] Add idle check callback support via `shouldSkipEnforcement` option (reuse existing pattern) — 5702797
 
 ### Task 6: Create RestEnforcer module
-- [ ] Create `vibeflow-desktop/electron/modules/rest-enforcer.ts`
-- [ ] Follow `OverRestEnforcer` pattern: singleton class + `getRestEnforcer()` + `handleRestEnforcementPolicyUpdate()`
-- [ ] `start(config)`: create AppMonitor via `createRestTimeMonitor()`, subscribe to enforcement events, show notification
-- [ ] `stop()`: stop AppMonitor, clear state
-- [ ] `updateConfig(config)`: update AppMonitor config if already running
-- [ ] `getState()`: return `{ isEnforcing, closedAppsCount, lastEnforcementTime, isSystemIdle }`
-- [ ] Show macOS notification on start: "😴 Time to rest! Work apps will be closed."
-- [ ] Skip enforcement when system is idle (reuse `powerMonitor.getSystemIdleTime()` pattern)
+- [x] Create `vibeflow-desktop/electron/modules/rest-enforcer.ts` — 5702797
+- [x] Follow `OverRestEnforcer` pattern: singleton class + `getRestEnforcer()` + `handleRestEnforcementPolicyUpdate()` — 5702797
+- [x] `start(config)`: create AppMonitor via `createRestTimeMonitor()`, subscribe to enforcement events, show notification — 5702797
+- [x] `stop()`: stop AppMonitor, clear state — 5702797
+- [x] `updateConfig(config)`: update AppMonitor config if already running — 5702797
+- [x] `getState()`: return `{ isEnforcing, closedAppsCount, lastEnforcementTime, isSystemIdle }` — 5702797
+- [x] Show macOS notification on start: "😴 Time to rest! Work apps will be closed." — 5702797
+- [x] Skip enforcement when system is idle (reuse `powerMonitor.getSystemIdleTime()` pattern) — 5702797
 
 ### Task 7: Add PolicyRestEnforcement type to desktop types
-- [ ] Add `PolicyRestEnforcement` interface to `vibeflow-desktop/electron/types/index.ts`
-- [ ] Add optional `restEnforcement?: PolicyRestEnforcement` field to `DesktopPolicy`
-- [ ] Add optional `healthLimit?: { type: string; message: string }` field to `DesktopPolicy`
+- [x] Add `PolicyRestEnforcement` interface to `vibeflow-desktop/electron/types/index.ts` — 5702797
+- [x] Add optional `restEnforcement?: PolicyRestEnforcement` field to `DesktopPolicy` — 5702797
+- [x] Add optional `healthLimit?: { type: string; message: string }` field to `DesktopPolicy` — 5702797
 
 ### Task 8: Integrate RestEnforcer in main.ts
-- [ ] Import `getRestEnforcer` and `handleRestEnforcementPolicyUpdate` from rest-enforcer module
-- [ ] In `onPolicyUpdate()` callback, after over-rest handling, add REST enforcement dispatch
-- [ ] Pass `mainWindow` to RestEnforcer via `setMainWindow()`
-- [ ] When `policy.restEnforcement?.isActive` → start/update enforcer
-- [ ] When `!policy.restEnforcement` or `!isActive` → stop enforcer if active
-- [ ] Add health limit notification handling (show once per breach type, reset when cleared)
+- [x] Import `getRestEnforcer` and `handleRestEnforcementPolicyUpdate` from rest-enforcer module — 5702797
+- [x] In `onPolicyUpdate()` callback, after over-rest handling, add REST enforcement dispatch — 5702797
+- [x] Pass `mainWindow` to RestEnforcer via `setMainWindow()` — 5702797
+- [x] When `policy.restEnforcement?.isActive` → start/update enforcer — 5702797
+- [x] When `!policy.restEnforcement` or `!isActive` → stop enforcer if active — 5702797
+- [x] Add health limit notification handling (show once per breach type, reset when cleared) — 5702797
 
 ---
 
