@@ -15,6 +15,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { execSync } from 'child_process';
+import net from 'net';
 import path from 'path';
 
 const prisma = new PrismaClient();
@@ -32,6 +33,22 @@ function skipIfNoDb(fn: () => void | Promise<void>): void | Promise<void> {
     return;
   }
   return fn();
+}
+
+/**
+ * Check if a port is in use (i.e. dev server is running).
+ * The dev server auto-creates `dev@vibeflow.local` on requests,
+ * which interferes with tests that temporarily rename/remove the account.
+ */
+function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(500);
+    socket.once('connect', () => { socket.destroy(); resolve(true); });
+    socket.once('timeout', () => { socket.destroy(); resolve(false); });
+    socket.once('error', () => { socket.destroy(); resolve(false); });
+    socket.connect(port, '127.0.0.1');
+  });
 }
 
 function runMigrateScript(args: string): { stdout: string; exitCode: number } {
@@ -220,15 +237,25 @@ describe('2.1.1 account not found', () => {
 
   afterAll(async () => {
     if (!dbAvailable || !realDevUser) return;
-    // Restore original email
-    await prisma.user.update({
-      where: { id: realDevUser.id },
-      data: { email: DEV_EMAIL },
-    });
+    try {
+      // Restore original email
+      await prisma.user.update({
+        where: { id: realDevUser.id },
+        data: { email: DEV_EMAIL },
+      });
+    } catch {
+      // If restore fails (e.g., dev server recreated the account), clean up the temp user
+      await prisma.user.deleteMany({ where: { email: tempEmail } }).catch(() => {});
+    }
   });
 
   it('exits safely when account not found', () =>
     skipIfNoDb(async () => {
+      // Dev server auto-creates dev@vibeflow.local on requests, making this test unreliable
+      if (await isPortInUse(3000)) {
+        console.warn('[migrate-dev-account] Skipping: dev server running on :3000 may recreate dev account');
+        return;
+      }
       const { stdout, exitCode } = runMigrateScript('--password TestMigrate123');
       expect(exitCode).toBe(0);
       expect(stdout).toContain('not found');
