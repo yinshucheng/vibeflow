@@ -3,17 +3,17 @@
 ## Phase 1: Types & Server Policy (REQ-1)
 
 ### Task 1: Add RestEnforcementPolicy type to octopus.ts
-- [ ] Add `RestEnforcementPolicy` interface to `src/types/octopus.ts` (after `OverRestPolicy`)
-- [ ] Add optional `restEnforcement?: RestEnforcementPolicy` field to `Policy` interface
-- [ ] Add `healthLimit?: { type: '2hours' | 'daily'; message: string }` field to `Policy` interface
-- [ ] Update `PolicySchema` Zod validation to include new fields
+- [x] Add `RestEnforcementPolicy` interface to `src/types/octopus.ts` (after `OverRestPolicy`) — 746daef
+- [x] Add optional `restEnforcement?: RestEnforcementPolicy` field to `Policy` interface — 746daef
+- [x] Add `healthLimit?: { type: '2hours' | 'daily'; message: string }` field to `Policy` interface — 746daef
+- [x] Update `PolicySchema` Zod validation to include new fields — 746daef
 
 ### Task 2: Add getActiveGrace() and getGraceInfo() to RestEnforcementService
-- [ ] Add `getActiveGrace(userId)` — queries unexpired grace exemptions from `RestExemption`
-- [ ] Add `getGraceInfo(userId, pomodoroId?)` — returns `{ activeGrace, remaining, durationMinutes }`
-- [ ] Add grace expiry rebroadcast: after creating exemption, schedule `broadcastStateChange` after `graceDuration` minutes
-- [ ] Unit test: `getActiveGrace` returns null when no active grace, returns exemption when active
-- [ ] Unit test: `getGraceInfo` correctly counts remaining grace requests
+- [x] Add `getActiveGrace(userId)` — queries unexpired grace exemptions from `RestExemption` — 63c0d4e
+- [x] Add `getGraceInfo(userId, pomodoroId?)` — returns `{ activeGrace, remaining, durationMinutes }` — 63c0d4e
+- [x] Add grace expiry rebroadcast: after creating exemption, schedule `broadcastStateChange` after `graceDuration` minutes — 63c0d4e
+- [x] Unit test: `getActiveGrace` returns null when no active grace, returns exemption when active — 63c0d4e
+- [x] Unit test: `getGraceInfo` correctly counts remaining grace requests — 63c0d4e
 
 ### Task 3: Add REST enforcement to compilePolicy()
 - [ ] Import `restEnforcementService` and `dailyStateService` in policy-distribution.service.ts
