@@ -21,15 +21,21 @@ Backend: tRPC 11, Socket.io 4.8, PostgreSQL + Prisma 6.2, XState 5.19
 # Development
 npm run dev              # Full stack: Next.js + Socket.io + hot reload (port 3000)
 npm run dev:mcp          # MCP server (stdio transport)
+npm run dev:feat -- <name>  # Feature environment dev server (isolated DB + port)
 
-# Testing
-npm run test             # Vitest (single run)
-npm run test:watch       # Vitest watch mode
+# Testing (auto-isolated — never touches prod database)
+npm run test             # Vitest (single run) → vibeflow_test DB
+npm run test:watch       # Vitest watch mode → vibeflow_test DB
 npx vitest run path/to/file.test.ts        # Single test file
 npx vitest run -t "test name pattern"      # Single test by name
-npm run e2e              # Playwright E2E (starts dev server automatically)
+npm run e2e              # Playwright E2E → vibeflow_e2e DB, port 3200
 npm run e2e:ui           # Playwright UI mode
 npx playwright test e2e/tests/file.spec.ts # Single E2E test
+
+# Feature Environment Management
+npm run env:create -- <name>    # Create feature DB + .env
+npm run env:destroy -- <name>   # Drop feature DB + remove .env
+npm run env:list                # List all feature environments
 
 # Database
 npm run db:generate      # Generate Prisma client
@@ -181,6 +187,19 @@ New features require specs in `.kiro/specs/<feature-name>/`:
 - `requirements.md` — requirements and acceptance criteria
 - `design.md` — technical design and architecture decisions
 - `tasks.md` — implementation tasks and progress tracking (mark `[x]` on completion)
+
+## Environment Isolation
+
+Databases are fully isolated per environment. `npm test` and `npm run e2e` never touch prod data.
+
+| Environment | Database | Port | Config | Auto-setup |
+|-------------|----------|------|--------|------------|
+| **prod** | `vibeflow` | 3000 | `.env` | Manual |
+| **test** | `vibeflow_test` | — | `vitest.config.ts` | Yes (globalSetup) |
+| **e2e** | `vibeflow_e2e` | 3200 | `.env.e2e` | Yes (globalSetup) |
+| **feat-{name}** | `vibeflow_feat_{name}` | 3101+ | `.envs/.env.feat-{name}` | `npm run env:create` |
+
+Test/E2E databases are auto-created on first run. Feature environments use `scripts/env-manager.sh`.
 
 ## Environment Setup
 
