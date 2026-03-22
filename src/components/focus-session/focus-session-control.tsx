@@ -10,7 +10,7 @@
  * Requirements: 5.1, 5.2, 5.3, 5.4, 7.1, 7.2, 7.3, 13.1, 13.2
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui';
 import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
@@ -93,14 +93,21 @@ export function FocusSessionControl({
     },
   });
 
+  // Track whether we've already fired the expiry invalidation (survives effect re-runs)
+  const hasExpiredRef = useRef(false);
+
+  // Reset the flag when session identity changes (new session started)
+  const activeSessionId = activeSession?.id;
+  useEffect(() => {
+    hasExpiredRef.current = false;
+  }, [activeSessionId]);
+
   // Calculate remaining time from active session (Requirements: 5.1, 5.4)
   useEffect(() => {
     if (!activeSession) {
       setTimeRemaining(0);
       return;
     }
-
-    let hasExpired = false;
 
     const calculateRemaining = () => {
       const endTime = new Date(activeSession.plannedEndTime).getTime();
@@ -109,8 +116,8 @@ export function FocusSessionControl({
       setTimeRemaining(remaining);
 
       // Auto-refresh when session expires (only once to prevent infinite loop)
-      if (remaining === 0 && !hasExpired) {
-        hasExpired = true;
+      if (remaining === 0 && !hasExpiredRef.current) {
+        hasExpiredRef.current = true;
         utils.focusSession.getActiveSession.invalidate();
       }
     };
