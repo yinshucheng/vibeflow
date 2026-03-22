@@ -72,9 +72,10 @@ All clients connect to `localhost:3000`, using local PostgreSQL. No special conf
 ./scripts/start-remote.sh desktop
 # or: VIBEFLOW_SERVER_URL=http://39.105.213.147:4000 npm run dev (in vibeflow-desktop/)
 
-# iOS
+# iOS (dev server only — Dev Client must already be installed on device)
 ./scripts/start-remote.sh ios
-# or: EXPO_PUBLIC_SERVER_HOST=39.105.213.147 EXPO_PUBLIC_SERVER_PORT=4000 npx expo start (in vibeflow-ios/)
+# iOS (full native build + deploy — use when native code changed)
+./scripts/start-remote.sh ios --build
 
 # Browser Extension
 # Open popup → Server URL input → enter http://39.105.213.147:4000 → Connect
