@@ -78,6 +78,15 @@ interface WindowState {
   bounds: { x: number; y: number; width: number; height: number };
 }
 
+// Support running two instances concurrently: local dev + remote production
+// When VIBEFLOW_SERVER_URL is set, use a different app name to get separate
+// single-instance lock and userData directory (config, cache, offline queue)
+const isRemoteMode = !!process.env.VIBEFLOW_SERVER_URL;
+if (isRemoteMode) {
+  app.setName('vibeflow-desktop-remote');
+  app.setPath('userData', path.join(app.getPath('appData'), 'vibeflow-desktop-remote'));
+}
+
 // Store for persisting configuration
 const store = new Store<{
   config: ElectronMainConfig;
@@ -155,7 +164,7 @@ function createWindow(): void {
     y: savedState?.bounds.y,
     minWidth: 800,
     minHeight: 600,
-    title: 'VibeFlow',
+    title: isRemoteMode ? 'VibeFlow (Remote)' : 'VibeFlow',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
