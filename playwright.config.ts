@@ -74,14 +74,17 @@ export default defineConfig({
 
   // Run local dev server before starting the tests — uses .env.e2e for isolation
   webServer: {
-    command: 'dotenv -e .env.e2e -- tsx watch --clear-screen=false server.ts',
+    command: 'tsx watch --clear-screen=false server.ts',
     url: 'http://localhost:3200',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
     env: {
       DATABASE_URL: e2eDbUrl,
       PORT: '3200',
+      NEXTAUTH_URL: 'http://localhost:3200',
+      NEXTAUTH_SECRET: 'e2e-test-secret-not-for-production',
       DEV_MODE: 'true',
+      NEXT_PUBLIC_DEV_MODE: 'true',
       DEV_USER_EMAIL: 'e2e@vibeflow.local',
     },
   },

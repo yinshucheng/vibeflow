@@ -9,7 +9,7 @@ import { test, expect } from '../fixtures';
  * Requirements: 3.2 (data-isolation-audit)
  */
 
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3200';
 
 // --- tRPC HTTP helpers ---
 

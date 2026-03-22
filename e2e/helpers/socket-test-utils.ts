@@ -7,7 +7,7 @@ import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
  * to avoid duplication.
  */
 
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3200';
 
 /** Auto-incrementing sequence number for events */
 let _seq = 0;
