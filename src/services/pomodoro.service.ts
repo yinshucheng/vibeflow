@@ -3,7 +3,6 @@ import prisma from '@/lib/prisma';
 import type { Pomodoro, PomodoroStatus } from '@prisma/client';
 import { mcpEventService } from './mcp-event.service';
 import { dailyStateService } from './daily-state.service';
-import { overRestService } from './over-rest.service';
 import { chatTriggersStateService } from './chat-triggers-state.service';
 
 // Timer configuration constraints (Requirements: 14.5)
@@ -576,16 +575,8 @@ export const pomodoroService = {
             chatTriggersStateService.handlePomodoroCompleted(userId, expiredPayload)
               .catch((err) => console.error('[AI Trigger] handlePomodoroCompleted (expired) error:', err));
 
-            // Update system state to REST (fixes tray showing PLANNING after auto-complete)
-            // Check if already in over-rest state
-            const overRestResult = await overRestService.checkOverRestStatus(userId);
-            const isOverRest = overRestResult.success && overRestResult.data?.isOverRest;
-
-            if (isOverRest) {
-              await dailyStateService.updateSystemState(userId, 'over_rest');
-            } else {
-              await dailyStateService.updateSystemState(userId, 'rest');
-            }
+            // Always transition to rest on auto-completion
+            await dailyStateService.updateSystemState(userId, 'rest');
             await dailyStateService.incrementPomodoroCount(userId);
 
             completedCount++;

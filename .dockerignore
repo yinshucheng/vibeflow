@@ -1,0 +1,38 @@
+node_modules
+.next
+dist
+.git
+.gitignore
+
+# Sub-projects (not needed in web server image)
+vibeflow-desktop
+vibeflow-extension
+vibeflow-ios
+
+# Tests
+e2e
+tests
+coverage
+playwright-report
+test-results
+
+# Dev files
+.env
+.env.local
+.env.dev
+.env.test
+.env.e2e
+.envs
+.debug
+logs
+
+# IDE
+.vscode
+.idea
+.claude
+.serena
+.kiro
+
+# OS
+.DS_Store
+*.log

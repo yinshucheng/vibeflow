@@ -22,6 +22,7 @@ vi.mock('ai', () => {
     streamText: vi.fn(),
     generateText: vi.fn(),
     stepCountIs: vi.fn((n: number) => ({ type: 'stepCount', count: n })),
+    tool: vi.fn((opts: Record<string, unknown>) => opts),
   };
 });
 
@@ -173,14 +174,15 @@ describe('chatService concurrency (F3.3)', () => {
         await prisma.lLMUsageLog.deleteMany({ where: { userId: user2.id } });
         await prisma.chatMessage.deleteMany({ where: { conversation: { userId: user2.id } } });
         await prisma.conversation.deleteMany({ where: { userId: user2.id } });
+        await prisma.dailyState.deleteMany({ where: { userId: user2.id } });
         await prisma.user.delete({ where: { id: user2.id } });
       }
     }));
 
   it('lock is released even if LLM call throws an error', () =>
     skipIfNoDb(async () => {
-      // First call: streamText throws an error
-      vi.mocked(streamText).mockImplementationOnce((() => {
+      // First call: streamText always throws (covers adapter's no-tools retry too)
+      vi.mocked(streamText).mockImplementation((() => {
         throw new Error('LLM API Error');
       }) as unknown as typeof streamText);
 

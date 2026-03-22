@@ -1,12 +1,20 @@
 import { defineConfig, devices } from '@playwright/test';
+import os from 'os';
+
+const dbUser = os.userInfo().username;
+const e2eDbUrl = `postgresql://${dbUser}@localhost:5432/vibeflow_e2e?schema=public`;
 
 /**
  * Playwright configuration for VibeFlow E2E tests
+ * Uses isolated database (vibeflow_e2e) and port (3200) to avoid touching prod data.
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
   // Test directory
   testDir: './e2e/tests',
+
+  // Global setup: ensure E2E database exists
+  globalSetup: './e2e/global-setup.ts',
 
   // Run tests in parallel
   fullyParallel: true,
@@ -29,8 +37,8 @@ export default defineConfig({
 
   // Shared settings for all projects
   use: {
-    // Base URL for navigation
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
+    // Base URL for navigation — E2E runs on port 3200
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3200',
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
@@ -64,12 +72,18 @@ export default defineConfig({
     },
   ],
 
-  // Run local dev server before starting the tests
+  // Run local dev server before starting the tests — uses .env.e2e for isolation
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: 'dotenv -e .env.e2e -- tsx watch --clear-screen=false server.ts',
+    url: 'http://localhost:3200',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      DATABASE_URL: e2eDbUrl,
+      PORT: '3200',
+      DEV_MODE: 'true',
+      DEV_USER_EMAIL: 'e2e@vibeflow.local',
+    },
   },
 
   // Global timeout for each test

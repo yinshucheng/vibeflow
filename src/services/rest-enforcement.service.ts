@@ -59,7 +59,9 @@ class RestEnforcementService {
     };
   }
 
+  /** @deprecated Skip rest is no longer supported. Users stay in rest until starting next pomodoro. */
   async requestSkipRest(userId: string): Promise<SkipRestResult> {
+    console.warn('[RestEnforcement] requestSkipRest is deprecated. Users should start a pomodoro from rest state.');
     const healthLimit = await healthLimitService.checkHealthLimit(userId);
 
     if (!healthLimit.exceeded) {

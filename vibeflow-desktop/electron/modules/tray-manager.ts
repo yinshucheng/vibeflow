@@ -442,7 +442,7 @@ export class TrayManager {
         case 'REST':
           if (restTimeRemaining) {
             template.push({
-              label: `☕ Rest Mode (${restTimeRemaining} remaining)`,
+              label: `☕ Rest (${restTimeRemaining} elapsed)`,
               enabled: false,
             });
           } else {
@@ -630,7 +630,7 @@ export class TrayManager {
           break;
         case 'REST':
           if (restTimeRemaining) {
-            tooltip = `VibeFlow - Rest (${restTimeRemaining} remaining)`;
+            tooltip = `VibeFlow - Rest (${restTimeRemaining} elapsed)`;
           } else {
             tooltip = 'VibeFlow - Rest Mode';
           }
@@ -734,7 +734,7 @@ export class TrayManager {
               'If you want to do it in 4 months, ask yourself: why not 4 weeks?',
             ];
             const msgIndex = Math.floor(Date.now() / 20000) % messages.length;
-            title = `⚠️ +${overRestDuration} ${messages[msgIndex]}`;
+            title = `⚠️ ${overRestDuration} ${messages[msgIndex]}`;
           } else {
             title = '⚠️ 休息超时了';
           }

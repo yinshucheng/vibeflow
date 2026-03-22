@@ -2,9 +2,9 @@
 
 /**
  * Rest Mode UI Component
- * 
- * Displays rest countdown and blocks starting new pomodoro until rest ends.
- * Supports auto-start next pomodoro after break completion.
+ *
+ * Displays rest elapsed time (count-up) and allows starting next pomodoro.
+ * Supports auto-start next pomodoro after configured rest duration.
  * Requirements: 4.7, 7.2, 7.4, 7.5, 7.6
  */
 
@@ -15,7 +15,7 @@ import { AutoStartCountdown } from './auto-start-countdown';
 import { NotificationSoundType, playSound } from '@/services/notification.service';
 
 interface RestModeUIProps {
-  onRestComplete: () => void;
+  onStartPomodoro: () => void;
   /** Task ID to start next pomodoro with (for auto-start) */
   nextTaskId?: string;
   /** Task title for display */
@@ -34,17 +34,15 @@ const motivationalQuotes = [
   "Step away to come back stronger.",
 ];
 
-export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestModeUIProps) {
-  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+export function RestModeUI({ onStartPomodoro, nextTaskId, nextTaskTitle }: RestModeUIProps) {
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [showAutoStartCountdown, setShowAutoStartCountdown] = useState(false);
-  const [isWaitingForConfirmation, setIsWaitingForConfirmation] = useState(false);
-  const [quote] = useState(() => 
+  const [isRestDurationExceeded, setIsRestDurationExceeded] = useState(false);
+  const [quote] = useState(() =>
     motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]
   );
   const confirmationSoundIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const hasPlayedInitialSound = useRef(false);
-
-  const utils = trpc.useUtils();
+  const hasPlayedRestEndSound = useRef(false);
 
   // Get user settings for rest duration and auto-start config
   const { data: settings } = trpc.settings.get.useQuery();
@@ -57,10 +55,6 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
   });
-
-  // Note: RestModeUI now delegates state transitions to the parent (PomodoroPage via usePomodoroMachine)
-  // The onRestComplete callback handles the API calls, so we don't need local mutations here anymore.
-  // We keep minimal mutation references only for loading states.
 
   // Get auto-start settings with type assertion
   const autoStartSettings = useMemo(() => {
@@ -81,93 +75,84 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
   // Calculate rest duration based on pomodoro count
   const restDuration = useMemo(() => {
     if (!settings || !dailyState) return 5; // default 5 minutes
-    
+
     const pomodoroCount = dailyState.progress?.pomodoroCount ?? 0;
     const longRestInterval = settings.longRestInterval ?? 4;
-    
+
     // Long rest after every N pomodoros
     if (pomodoroCount > 0 && pomodoroCount % longRestInterval === 0) {
       return settings.longRestDuration ?? 15;
     }
-    
+
     return settings.shortRestDuration ?? 5;
   }, [settings, dailyState]);
 
   // Initialize timer - recover from server if page was refreshed
   useEffect(() => {
-    // Wait for rest status query to complete before initializing
-    if (restStatusLoading) {
-      return;
-    }
+    if (restStatusLoading) return;
 
     if (restStatus?.restStartTime) {
       // Recover from server: calculate elapsed time since rest started
       const restStartMs = new Date(restStatus.restStartTime).getTime();
-      const elapsedSeconds = Math.floor((Date.now() - restStartMs) / 1000);
-      const totalSeconds = restStatus.restDuration * 60;
-      const remaining = Math.max(0, totalSeconds - elapsedSeconds);
-      setTimeRemaining(remaining);
+      const elapsed = Math.floor((Date.now() - restStartMs) / 1000);
+      setElapsedSeconds(Math.max(0, elapsed));
 
-      // If rest already completed, trigger completion state
-      if (remaining <= 0) {
+      // Check if rest duration already exceeded
+      const totalSeconds = restStatus.restDuration * 60;
+      if (elapsed >= totalSeconds) {
+        setIsRestDurationExceeded(true);
         if (autoStartSettings.autoStartNextPomodoro && nextTaskId) {
           setShowAutoStartCountdown(true);
-        } else {
-          setIsWaitingForConfirmation(true);
         }
       }
-    } else {
-      // New rest session (no server data yet)
-      setTimeRemaining(restDuration * 60);
     }
-  }, [restStatusLoading, restStatus, restDuration, autoStartSettings.autoStartNextPomodoro, nextTaskId]);
+  }, [restStatusLoading, restStatus, autoStartSettings.autoStartNextPomodoro, nextTaskId]);
 
-  // Countdown timer - trigger auto-start countdown or waiting state when rest completes
+  // Count-up timer
   useEffect(() => {
-    if (timeRemaining <= 0) return;
-
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          // Rest complete - check if auto-start is enabled (Requirements 7.2, 7.5)
+      setElapsedSeconds((prev) => {
+        const next = prev + 1;
+        const totalSeconds = restDuration * 60;
+
+        // Check if rest duration just exceeded
+        if (next >= totalSeconds && !isRestDurationExceeded) {
+          setIsRestDurationExceeded(true);
           if (autoStartSettings.autoStartNextPomodoro && nextTaskId) {
             setShowAutoStartCountdown(true);
-          } else {
-            // Auto-start disabled - show manual confirmation (Requirements 7.4, 7.6)
-            setIsWaitingForConfirmation(true);
           }
-          return 0;
         }
-        return prev - 1;
+
+        return next;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timeRemaining, autoStartSettings.autoStartNextPomodoro, nextTaskId]);
+  }, [restDuration, isRestDurationExceeded, autoStartSettings.autoStartNextPomodoro, nextTaskId]);
 
-  // Play sound periodically when waiting for manual confirmation (Requirements 7.6)
+  // Play sound when rest duration is exceeded (Requirements 7.6)
   useEffect(() => {
-    if (!isWaitingForConfirmation) {
+    if (!isRestDurationExceeded) {
+      hasPlayedRestEndSound.current = false;
       if (confirmationSoundIntervalRef.current) {
         clearInterval(confirmationSoundIntervalRef.current);
         confirmationSoundIntervalRef.current = null;
       }
-      hasPlayedInitialSound.current = false;
       return;
     }
 
-    // Play sound immediately when entering waiting state
-    if (!hasPlayedInitialSound.current && autoStartSettings.notificationSound !== 'none') {
+    // Play sound immediately when rest duration is exceeded
+    if (!hasPlayedRestEndSound.current && autoStartSettings.notificationSound !== 'none') {
       playSound(autoStartSettings.notificationSound);
-      hasPlayedInitialSound.current = true;
+      hasPlayedRestEndSound.current = true;
     }
 
-    // Play sound every 10 seconds while waiting for confirmation
+    // Play sound every 30 seconds as a gentle reminder
     confirmationSoundIntervalRef.current = setInterval(() => {
       if (autoStartSettings.notificationSound !== 'none') {
         playSound(autoStartSettings.notificationSound);
       }
-    }, 10000);
+    }, 30000);
 
     return () => {
       if (confirmationSoundIntervalRef.current) {
@@ -175,79 +160,49 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
         confirmationSoundIntervalRef.current = null;
       }
     };
-  }, [isWaitingForConfirmation, autoStartSettings.notificationSound]);
+  }, [isRestDurationExceeded, autoStartSettings.notificationSound]);
 
-  // Format time as MM:SS
-  const formatTime = useCallback((seconds: number) => {
+  // Format elapsed time as +M:SS
+  const formatElapsed = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `+${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
-  // Calculate progress percentage
+  // Calculate progress percentage (fills up, then stays full when exceeded)
   const progress = useMemo(() => {
     const totalSeconds = restDuration * 60;
-    return ((totalSeconds - timeRemaining) / totalSeconds) * 100;
-  }, [restDuration, timeRemaining]);
+    return Math.min(100, (elapsedSeconds / totalSeconds) * 100);
+  }, [restDuration, elapsedSeconds]);
 
-  // Handle end rest (manual) - goes back to planning state
-  // Delegates to parent (usePomodoroMachine.endRest) which handles the API call
-  const handleEndRest = async () => {
-    // Stop confirmation sound
+  // Handle start pomodoro
+  const handleStartPomodoro = async () => {
     if (confirmationSoundIntervalRef.current) {
       clearInterval(confirmationSoundIntervalRef.current);
       confirmationSoundIntervalRef.current = null;
     }
-    setIsWaitingForConfirmation(false);
-
-    // Delegate to parent - it handles the API call via usePomodoroMachine
-    onRestComplete();
-  };
-
-  // Handle manual start pomodoro (Requirements 7.4)
-  // For now, delegates to handleEndRest which notifies parent
-  // TODO: Add onStartNextPomodoro callback for better control
-  const handleManualStartPomodoro = async () => {
-    // Stop confirmation sound
-    if (confirmationSoundIntervalRef.current) {
-      clearInterval(confirmationSoundIntervalRef.current);
-      confirmationSoundIntervalRef.current = null;
-    }
-    setIsWaitingForConfirmation(false);
-
-    // Delegate to parent - it can handle starting the next pomodoro
-    // The parent (PomodoroPage) will transition to idle, and user can start new pomodoro
-    onRestComplete();
+    onStartPomodoro();
   };
 
   // Handle auto-start pomodoro (Requirements 7.2, 7.5)
-  // Delegates to parent which handles the state transition
   const handleAutoStartPomodoro = useCallback(async () => {
     if (confirmationSoundIntervalRef.current) {
       clearInterval(confirmationSoundIntervalRef.current);
       confirmationSoundIntervalRef.current = null;
     }
-    setIsWaitingForConfirmation(false);
-
-    // Delegate to parent - it handles the state transition
-    onRestComplete();
-  }, [onRestComplete]);
+    onStartPomodoro();
+  }, [onStartPomodoro]);
 
   // Handle cancel auto-start
   const handleCancelAutoStart = useCallback(() => {
     setShowAutoStartCountdown(false);
-    // Show manual confirmation instead
-    setIsWaitingForConfirmation(true);
   }, []);
-
-  // Check if rest is complete
-  const isRestComplete = timeRemaining === 0;
 
   // Determine if this is a long rest
   const isLongRest = restDuration > (settings?.shortRestDuration ?? 5);
 
-  // Show auto-start countdown if enabled and rest is complete
-  if (showAutoStartCountdown && isRestComplete && nextTaskId) {
+  // Show auto-start countdown if enabled and rest duration exceeded
+  if (showAutoStartCountdown && isRestDurationExceeded && nextTaskId) {
     return (
       <AutoStartCountdown
         countdownSeconds={autoStartSettings.autoStartCountdown}
@@ -263,20 +218,20 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
   return (
     <div className="flex flex-col items-center gap-6 p-6">
       {/* Rest Icon */}
-      <div className={`text-6xl ${!isRestComplete ? 'animate-pulse' : ''}`}>
-        {isLongRest ? '🧘' : '☕'}
+      <div className={`text-6xl ${!isRestDurationExceeded ? 'animate-pulse' : ''}`}>
+        {isRestDurationExceeded ? '⚠️' : isLongRest ? '🧘' : '☕'}
       </div>
 
       {/* Title */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900">
-          {isLongRest ? 'Long Break' : 'Short Break'}
+          {isRestDurationExceeded
+            ? 'Time to focus!'
+            : isLongRest ? 'Long Break' : 'Short Break'}
         </h2>
         <p className="text-gray-500 mt-1">
-          {isRestComplete 
-            ? isWaitingForConfirmation 
-              ? 'Ready to continue?' 
-              : 'Break complete!' 
+          {isRestDurationExceeded
+            ? 'Your rest time is up — start your next session'
             : 'Time to recharge'}
         </p>
       </div>
@@ -298,7 +253,7 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
             cy="50"
             r="45"
             fill="none"
-            stroke={isWaitingForConfirmation ? '#22c55e' : '#8b5cf6'}
+            stroke={isRestDurationExceeded ? '#f59e0b' : '#8b5cf6'}
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={`${2 * Math.PI * 45}`}
@@ -306,34 +261,23 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
             className="transition-all duration-1000"
           />
         </svg>
-        
+
         {/* Time Display */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {isWaitingForConfirmation ? (
-            <>
-              <span className="text-4xl">🎯</span>
-              <span className="text-sm text-gray-500 mt-1">
-                Ready!
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="text-4xl font-bold text-gray-900">
-                {formatTime(timeRemaining)}
-              </span>
-              <span className="text-sm text-gray-500 mt-1">
-                {isLongRest ? 'Long rest' : 'Short rest'}
-              </span>
-            </>
-          )}
+          <span className={`text-4xl font-bold ${isRestDurationExceeded ? 'text-amber-600' : 'text-gray-900'}`}>
+            {formatElapsed(elapsedSeconds)}
+          </span>
+          <span className="text-sm text-gray-500 mt-1">
+            {isLongRest ? 'Long rest' : 'Short rest'}
+          </span>
         </div>
       </div>
 
-      {/* Waiting for confirmation message (Requirements 7.4, 7.6) */}
-      {isWaitingForConfirmation && (
+      {/* Over-rest reminder */}
+      {isRestDurationExceeded && (
         <div className="text-center animate-pulse">
-          <p className="text-green-600 font-medium">
-            🔔 Break complete! Click to start your next focus session
+          <p className="text-amber-600 font-medium">
+            🔔 Break time exceeded! Ready to focus?
           </p>
           {nextTaskTitle && (
             <p className="text-sm text-gray-500 mt-1">
@@ -344,49 +288,26 @@ export function RestModeUI({ onRestComplete, nextTaskId, nextTaskTitle }: RestMo
       )}
 
       {/* Motivational Quote */}
-      {!isWaitingForConfirmation && (
+      {!isRestDurationExceeded && (
         <div className="max-w-sm text-center">
           <p className="text-gray-600 italic">&quot;{quote}&quot;</p>
         </div>
       )}
 
-      {/* Action Buttons (Requirements 7.4) */}
-      {isRestComplete ? (
-        <div className="flex flex-col gap-3 w-full max-w-xs">
-          {/* Primary: Start Pomodoro button when waiting for confirmation */}
-          {nextTaskId && (
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={handleManualStartPomodoro}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              🎯 Start Focus Session
-            </Button>
-          )}
-
-          {/* Secondary: Back to planning */}
-          <Button
-            variant={nextTaskId ? 'outline' : 'primary'}
-            size={nextTaskId ? 'md' : 'lg'}
-            onClick={handleEndRest}
-            className={nextTaskId ? '' : 'bg-purple-600 hover:bg-purple-700'}
-          >
-            {nextTaskId ? 'Choose Different Task' : '🎯 Ready to Focus'}
-          </Button>
-        </div>
-      ) : (
+      {/* Action Button — always "Start Next Pomodoro", no skip rest */}
+      <div className="flex flex-col gap-3 w-full max-w-xs">
         <Button
-          variant="outline"
-          size="md"
-          onClick={handleEndRest}
+          variant="primary"
+          size="lg"
+          onClick={handleStartPomodoro}
+          className={isRestDurationExceeded ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-600 hover:bg-purple-700'}
         >
-          Skip Rest
+          🎯 {isRestDurationExceeded ? 'Start Focus Session' : 'Start Next Session'}
         </Button>
-      )}
+      </div>
 
       {/* Rest Tips */}
-      {!isWaitingForConfirmation && (
+      {!isRestDurationExceeded && (
         <div className="mt-4 p-4 bg-purple-50 rounded-lg max-w-sm">
           <h3 className="font-medium text-purple-900 mb-2">💡 Rest Tips</h3>
           <ul className="text-sm text-purple-700 space-y-1">

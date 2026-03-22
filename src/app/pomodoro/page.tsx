@@ -26,7 +26,7 @@ export default function PomodoroPage() {
   const router = useRouter();
 
   // Use centralized state machine for all pomodoro state management
-  const { phase, pomodoro, completedPomodoro, systemState, isLoading, actions } =
+  const { phase, pomodoro, completedPomodoro, restStatus, systemState, isLoading, actions } =
     usePomodoroMachine();
 
   // Get daily state for progress display and cap checking
@@ -126,9 +126,16 @@ export default function PomodoroPage() {
           <CardContent>
             {phase === 'resting' ? (
               <RestModeUI
-                onRestComplete={actions.endRest}
-                nextTaskId={completedPomodoro?.taskId ?? pomodoro?.taskId ?? undefined}
-                nextTaskTitle={completedPomodoro?.task?.title ?? pomodoro?.task?.title ?? undefined}
+                onStartPomodoro={() => {
+                  const taskId = completedPomodoro?.taskId ?? pomodoro?.taskId ?? restStatus?.lastTaskId;
+                  if (taskId) {
+                    actions.startNextPomodoro(taskId);
+                  } else {
+                    actions.startTasklessPomodoro();
+                  }
+                }}
+                nextTaskId={completedPomodoro?.taskId ?? pomodoro?.taskId ?? restStatus?.lastTaskId}
+                nextTaskTitle={completedPomodoro?.task?.title ?? pomodoro?.task?.title ?? restStatus?.lastTaskTitle}
               />
             ) : (
               <PomodoroTimer onComplete={actions.triggerComplete} onAbort={actions.abortPomodoro} />
@@ -142,7 +149,7 @@ export default function PomodoroPage() {
         <PomodoroCompletionModal
           pomodoroId={completedPomodoro.id}
           taskTitle={completedPomodoro.task?.title ?? 'Unknown Task'}
-          onConfirm={actions.skipBreak}
+          onConfirm={actions.confirmBreak}
           onStartBreak={actions.confirmBreak}
           alreadyCompleted={true}
         />

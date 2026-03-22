@@ -152,15 +152,31 @@ export const dailyStateRouter = router({
   updateSystemState: protectedProcedure
     .input(z.enum(['locked', 'planning', 'focus', 'rest']))
     .mutation(async ({ ctx, input }) => {
+      // Guard: reject rest/over_rest → planning transition
+      // Users should start a pomodoro directly from rest, not go through planning
+      if (input === 'planning') {
+        const currentState = await dailyStateService.getCurrentState(ctx.user.userId);
+        if (currentState.success && currentState.data) {
+          const state = parseSystemState(currentState.data);
+          if (state === 'rest' || state === 'over_rest') {
+            console.warn(`[DailyState] Rejecting ${state} → planning transition for user ${ctx.user.userId}. Start a pomodoro instead.`);
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Cannot transition from rest to planning. Start a pomodoro to continue.',
+            });
+          }
+        }
+      }
+
       const result = await dailyStateService.updateSystemState(ctx.user.userId, input);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to update system state',
         });
       }
-      
+
       return result.data;
     }),
 
@@ -170,14 +186,31 @@ export const dailyStateRouter = router({
    */
   skipAirlockForNewUser: protectedProcedure.mutation(async ({ ctx }) => {
     const result = await dailyStateService.skipAirlockForNewUser(ctx.user.userId);
-    
+
     if (!result.success) {
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: result.error?.message ?? 'Failed to skip airlock',
       });
     }
-    
+
+    return result.data;
+  }),
+
+  /**
+   * Skip airlock and go directly to PLANNING
+   * Available when airlockMode is not 'required'
+   */
+  skipAirlock: protectedProcedure.mutation(async ({ ctx }) => {
+    const result = await dailyStateService.skipAirlock(ctx.user.userId);
+
+    if (!result.success) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: result.error?.message ?? 'Failed to skip airlock',
+      });
+    }
+
     return result.data;
   }),
 
@@ -324,10 +357,11 @@ export const dailyStateRouter = router({
       return null;
     }
 
-    // Get last completed pomodoro to calculate rest start time
+    // Get last completed pomodoro to calculate rest start time and suggest next task
     const lastPomodoro = await prisma.pomodoro.findFirst({
       where: { userId, status: 'COMPLETED' },
       orderBy: { endTime: 'desc' },
+      include: { task: { select: { id: true, title: true } } },
     });
 
     if (!lastPomodoro?.endTime) {
@@ -353,6 +387,8 @@ export const dailyStateRouter = router({
       isLongRest,
       pomodoroCount,
       isOverRest: currentState === 'over_rest',
+      lastTaskId: lastPomodoro.taskId ?? undefined,
+      lastTaskTitle: lastPomodoro.task?.title ?? undefined,
     };
   }),
 });

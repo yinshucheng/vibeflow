@@ -49,9 +49,9 @@ cd vibeflow-ios && npx jest             # iOS tests
 
 ## Code Quality Gates (必须遵守)
 
-Every code change must pass these checks in order:
+每个独立功能点或 bug 修复完成后，**立即**依次运行以下检查，不要积攒到最后：
 
-1. **TypeScript compilation**: `npm run build` or `npx tsc --noEmit`
+1. **TypeScript compilation**: 仅改服务端代码时 `npx tsc --noEmit` 即可；涉及前端或需完整验证时 `npm run build`
 2. **Tests pass**: `npm test`
 3. **Lint clean**: `npm run lint`
 
@@ -103,7 +103,7 @@ All services exported from `src/services/index.ts`.
 
 ### tRPC Router Pattern
 
-Routers in `src/server/routers/` are thin wrappers — no business logic. Root router at `_app.ts` combines ~21 domain routers.
+Routers in `src/server/routers/` are thin wrappers — no business logic。Router 中禁止出现：数据库查询、业务条件判断、数据转换逻辑。如果需要这些，提取到 service。Root router at `_app.ts` combines ~21 domain routers.
 
 Three procedure types in `src/server/trpc.ts`:
 - `publicProcedure` — no auth
@@ -112,7 +112,7 @@ Three procedure types in `src/server/trpc.ts`:
 
 ### Real-time Communication
 
-`src/server/socket.ts` handles all WebSocket events. After state mutations, always call `socketBroadcastService.broadcastStateChange(userId, state)`.
+`src/server/socket.ts` handles all WebSocket events. After state mutations, always call `socketBroadcastService.broadcastStateChange(userId, state)`。涉及状态机 state 变迁的操作（如 FOCUS→REST），必须使用 `broadcastFullState` 而非仅广播 delta，确保所有客户端状态一致。
 
 ### MCP Integration
 
@@ -144,7 +144,7 @@ E2E auth via `X-Dev-User-Email` header (non-production only).
 
 ### Database
 
-Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access layer.
+Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access layer。修改 schema 后必须：`db:generate` → `db:push` → 检查相关 service 的 Zod schema 是否需要同步更新。
 
 ### Entry Point
 
@@ -165,15 +165,32 @@ Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access l
 - Zod schemas define validation once, reuse in routers and services
 - Routers stay thin — delegate to services
 - Multi-client support with offline resilience
+- 修改服务端 API/Socket 事件/数据结构时，必须检查所有 4 个客户端（Web、Desktop、Extension、iOS）是否需要同步调整
+- Bug 修复流程：先写测试复现 bug（单测优先，必要时用 E2E），再修复代码。如果 bug 难以用自动化测试复现（如纯 UI/环境相关），需在 commit message 中说明理由和手动复现步骤。
 
-## Steering Documents (必读)
+## Deployment
 
-Before starting any new feature, read `.kiro/steering/`:
-- `product.md` — domain hierarchy, Daily State Machine, platform locations
-- `structure.md` — service/router patterns, component conventions
-- `tech.md` — tech stack, import conventions, constraints
+Production runs on Alibaba Cloud ECS via Docker. Key commands:
 
-Update steering docs if implementation reveals inconsistencies.
+```bash
+./deploy/deploy.sh              # Deploy to production (one command)
+./scripts/start-remote.sh ios   # Start iOS connected to remote server
+./scripts/start-remote.sh desktop  # Start Desktop connected to remote server
+```
+
+Local `npm run dev` connects to local DB — isolated from production.
+
+See `.kiro/steering/deployment.md` for full deployment guide, server operations, and data backup.
+
+## Reference Documents
+
+`.kiro/steering/` 中有专题参考文档，仅在涉及相关功能时按需查阅。核心架构和约束以本文件（CLAUDE.md）为唯一 truth source。
+
+| Document | When to read |
+|----------|-------------|
+| `deployment.md` | 部署、服务器运维、客户端连接远程服务器 |
+| `desktop-window-behavior.md` | Desktop 窗口行为 |
+| `e2e-testing.md` | E2E 测试 |
 
 ## Feature Specs (Required)
 
@@ -181,6 +198,55 @@ New features require specs in `.kiro/specs/<feature-name>/`:
 - `requirements.md` — requirements and acceptance criteria
 - `design.md` — technical design and architecture decisions
 - `tasks.md` — implementation tasks and progress tracking (mark `[x]` on completion)
+
+### Spec Status Labels
+
+Each spec has a status label. When working on a spec, update the table below.
+
+| Label | Meaning |
+|-------|---------|
+| `done` | All tasks completed and verified |
+| `tested` | Implementation complete, tests passing |
+| `dev` | Actively in development |
+| `partial` | Some tasks done, not actively being worked on |
+| `requirements` | Only requirements.md exists, no design or tasks |
+| `not-started` | Has design/tasks but no implementation yet |
+| `deprecated` | Superseded by another spec |
+
+### Spec Status Table
+
+| Spec | Status | Notes |
+|------|--------|-------|
+| `vibeflow-foundation` | done | Core services, state machine, UI, MCP, extension |
+| `desktop-focus-enforcement` | done | Electron focus enforcement, tray, skip tokens |
+| `desktop-production-resilience` | done | Heartbeat, bypass detection, demo mode, process guardian |
+| `desktop-tray-enhancement` | done | Tray state display, tooltips, icons |
+| `browser-sentinel-enhancement` | done | Entertainment mode, LOCKED/OVER_REST restrictions |
+| `ai-native-enhancement` | done | Smart suggestions, task decomposition, MCP |
+| `ad-hoc-focus-session` | done | Focus sessions, sleep time, progress calculations |
+| `ios-mvp` | done | iOS read-only client, Screen Time, notifications |
+| `octopus-architecture` | done | Protocol types, client registry, policy distribution |
+| `pomodoro-enhancement` | partial | Tasks 16.5–16.8 (WebsiteStatsService) not done |
+| `pomodoro-multitask-enhancement` | partial | Phase 1–2 done, Phase 3 ~80%, Phase 4–8 not started |
+| `e2e-testing` | partial | Fixtures + core flows done; Page Objects, CRUD E2E, CI/CD missing |
+| `dev-user-system` | not-started | Multi-user, data isolation, OAuth prep |
+| `rest-sleep-enforcement` | deprecated | Superseded by desktop-rest-enforcement |
+| `desktop-rest-enforcement` | not-started | REST work app blocking, OVER_REST fix, health notifications |
+| `ui-redesign` | not-started | Design tokens, component library, accessibility |
+| `ios-mobile-enhancement` | not-started | iOS write operations |
+| `mcp-capability-enhancement` | not-started | 8 additional MCP tools |
+| `production-auth` | not-started | Login/register UI, OAuth, password reset, security |
+| `data-isolation-audit` | not-started | Prisma query audit, Socket isolation, cross-user tests |
+| `error-observability` | not-started | Error boundary, structured logs, health check |
+| `e2e-test-coverage` | not-started | Task/Project/Goal/Settings/DailyState CRUD E2E |
+| `pre-launch-polish` | not-started | Secret management, performance, onboarding, privacy |
+| `public-network-deployment` | requirements | Public network deployment plan |
+| `state-aware-enforcement` | requirements | State-aware enforcement rules |
+| `task-categorization` | requirements | Task categorization system |
+| `pomodoro-state-transition` | requirements | Architecture refactor docs |
+| `ios-screen-time` | requirements | Has design + pipeline config, no tasks |
+| `mobile-app` | deprecated | Superseded by ios-mvp |
+| `dashboard-command-center` | not-started | Dashboard 指挥部改造，内嵌番茄钟+任务操作 |
 
 ## Environment Setup
 

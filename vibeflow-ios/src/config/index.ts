@@ -1,22 +1,22 @@
 export * from './auth';
 
-// Get server host/port from environment or use defaults
-// Set EXPO_PUBLIC_SERVER_HOST env var to your Mac's IP when it changes
-// Set EXPO_PUBLIC_SERVER_PORT to connect to dev (3100) or stable (3000) server
-const SERVER_HOST = process.env.EXPO_PUBLIC_SERVER_HOST || '192.168.1.4';
-const SERVER_PORT = process.env.EXPO_PUBLIC_SERVER_PORT || '3000';
+// Server connection configuration
+// EXPO_PUBLIC_SERVER_HOST/PORT are baked in at build time by Expo.
+// For dev: set to your Mac's LAN IP (auto-detected by start-remote.sh)
+// For release: set to the public server IP/domain
+const SERVER_HOST = process.env.EXPO_PUBLIC_SERVER_HOST || '39.105.213.147';
+const SERVER_PORT = process.env.EXPO_PUBLIC_SERVER_PORT || '4000';
+const SERVER_PROTOCOL = process.env.EXPO_PUBLIC_SERVER_PROTOCOL || 'http';
 
 /**
  * Server Configuration
+ * In both dev and release, the URL is determined by env vars baked at build time.
+ * The production domain (vibeflow.app) will be used once HTTPS + domain is set up.
  */
-export const SERVER_URL = __DEV__
-  ? `http://${SERVER_HOST}:${SERVER_PORT}`
-  : 'https://vibeflow.app';
+export const SERVER_URL = `${SERVER_PROTOCOL}://${SERVER_HOST}:${SERVER_PORT}`;
 
 // Socket.io uses HTTP URL (auto-upgrades to WebSocket)
-export const WEBSOCKET_URL = __DEV__
-  ? `http://${SERVER_HOST}:${SERVER_PORT}`
-  : 'https://vibeflow.app';
+export const WEBSOCKET_URL = SERVER_URL;
 
 /**
  * Timing Configuration

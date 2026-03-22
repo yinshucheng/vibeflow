@@ -57,14 +57,30 @@ export const taskRouter = router({
    */
   getTodayTasks: protectedProcedure.query(async ({ ctx }) => {
     const result = await taskService.getTodayTasks(ctx.user.userId);
-    
+
     if (!result.success) {
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: result.error?.message ?? 'Failed to get today tasks',
       });
     }
-    
+
+    return result.data;
+  }),
+
+  /**
+   * Get all today's tasks including completed ones (for Dashboard)
+   */
+  getTodayTasksAll: protectedProcedure.query(async ({ ctx }) => {
+    const result = await taskService.getTodayTasks(ctx.user.userId, true);
+
+    if (!result.success) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: result.error?.message ?? 'Failed to get today tasks',
+      });
+    }
+
     return result.data;
   }),
 

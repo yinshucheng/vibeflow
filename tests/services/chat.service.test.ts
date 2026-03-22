@@ -22,6 +22,7 @@ vi.mock('ai', () => {
     streamText: vi.fn(),
     generateText: vi.fn(),
     stepCountIs: vi.fn((n: number) => ({ type: 'stepCount', count: n })),
+    tool: vi.fn((opts: Record<string, unknown>) => opts),
   };
 });
 

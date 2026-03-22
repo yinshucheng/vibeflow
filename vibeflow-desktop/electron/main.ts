@@ -78,6 +78,15 @@ interface WindowState {
   bounds: { x: number; y: number; width: number; height: number };
 }
 
+// Support running two instances concurrently: local dev + remote production
+// When VIBEFLOW_SERVER_URL is set, use a different app name to get separate
+// single-instance lock and userData directory (config, cache, offline queue)
+const isRemoteMode = !!process.env.VIBEFLOW_SERVER_URL;
+if (isRemoteMode) {
+  app.setName('vibeflow-desktop-remote');
+  app.setPath('userData', path.join(app.getPath('appData'), 'vibeflow-desktop-remote'));
+}
+
 // Store for persisting configuration
 const store = new Store<{
   config: ElectronMainConfig;
@@ -155,7 +164,7 @@ function createWindow(): void {
     y: savedState?.bounds.y,
     minWidth: 800,
     minHeight: 600,
-    title: 'VibeFlow',
+    title: isRemoteMode ? 'VibeFlow (Remote)' : 'VibeFlow',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -382,6 +391,87 @@ function stopPomodoroCountdown(): void {
   }
   pomodoroCountdown = null;
   console.log('[Main] Pomodoro countdown stopped');
+}
+
+// ============================================================================
+// Rest Elapsed Timer (main process)
+// Count-up timer showing how long the user has been resting.
+// Runs independently of renderer process to ensure tray updates
+// continue when app is in background.
+// ============================================================================
+let restTimer: {
+  active: boolean;
+  startTime: number;
+  isOverRest: boolean;
+  timerId?: ReturnType<typeof setInterval>;
+} | null = null;
+
+function startRestTimer(): void {
+  stopRestTimer();
+
+  restTimer = {
+    active: true,
+    startTime: Date.now(),
+    isOverRest: false,
+  };
+
+  // Full menu rebuild on rest start
+  updateTrayMenu({
+    pomodoroActive: false,
+    pomodoroTimeRemaining: undefined,
+    currentTask: undefined,
+    systemState: 'REST',
+    restTimeRemaining: '+0:00',
+    overRestDuration: undefined,
+  });
+
+  // Subsequent ticks only update title text (lightweight)
+  restTimer.timerId = setInterval(updateRestElapsed, 1000);
+  console.log('[Main] Rest timer started');
+}
+
+function updateRestElapsed(): void {
+  if (!restTimer?.active) return;
+
+  const elapsedMs = Date.now() - restTimer.startTime;
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+  const timeStr = `+${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+  if (restTimer.isOverRest) {
+    updateTrayTitleOnly({ overRestDuration: timeStr });
+  } else {
+    updateTrayTitleOnly({ restTimeRemaining: timeStr });
+  }
+}
+
+function transitionToOverRest(): void {
+  if (!restTimer?.active) return;
+
+  restTimer.isOverRest = true;
+
+  // Full menu rebuild for over-rest display
+  const elapsedMs = Date.now() - restTimer.startTime;
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+  const timeStr = `+${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+  updateTrayMenu({
+    systemState: 'OVER_REST',
+    overRestDuration: timeStr,
+    restTimeRemaining: undefined,
+  });
+  console.log('[Main] Rest timer transitioned to OVER_REST');
+}
+
+function stopRestTimer(): void {
+  if (restTimer?.timerId) {
+    clearInterval(restTimer.timerId);
+  }
+  restTimer = null;
+  console.log('[Main] Rest timer stopped');
 }
 
 // Setup auto-launch using AutoLaunchManager
@@ -1119,8 +1209,14 @@ app.whenReady().then(async () => {
         appsCount: policy.overRest.enforcementApps?.length ?? 0,
         bringToFront: policy.overRest.bringToFront,
       });
-      
+
       handleOverRestPolicyUpdate(policy.overRest);
+
+      // Transition rest timer to over-rest if it's active but not yet marked
+      if (restTimer?.active && !restTimer.isOverRest) {
+        console.log('[Main] Policy indicates over-rest, transitioning rest timer');
+        transitionToOverRest();
+      }
     } else {
       // Not in over rest - stop enforcement if active
       if (overRestEnforcer.isActive()) {
@@ -1166,12 +1262,30 @@ app.whenReady().then(async () => {
     const mappedState = stateMapping[state];
     if (mappedState) {
       console.log('[Main] Updating tray menu with state:', mappedState);
-      updateTrayMenu({ systemState: mappedState });
 
       // Stop main process countdown when leaving FOCUS state
       if (mappedState !== 'FOCUS' && pomodoroCountdown?.active) {
         console.log('[Main] Stopping main process countdown due to state change to:', mappedState);
         stopPomodoroCountdown();
+      }
+
+      // Handle rest timer based on state transitions
+      if (mappedState === 'REST') {
+        startRestTimer();
+      } else if (mappedState === 'OVER_REST') {
+        if (restTimer?.active && !restTimer.isOverRest) {
+          transitionToOverRest();
+        } else if (!restTimer?.active) {
+          // Fresh over-rest without prior rest timer (e.g., reconnect)
+          startRestTimer();
+          transitionToOverRest();
+        }
+      } else {
+        // Any other state: stop rest timer and update tray
+        if (restTimer?.active) {
+          stopRestTimer();
+        }
+        updateTrayMenu({ systemState: mappedState });
       }
     } else {
       console.warn('[Main] Unknown state received:', state);
@@ -1400,7 +1514,9 @@ app.whenReady().then(async () => {
 
 // Unregister all shortcuts when app quits
 app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
+  if (app.isReady()) {
+    globalShortcut.unregisterAll();
+  }
 });
 
 // Quit when all windows are closed (except on macOS)
