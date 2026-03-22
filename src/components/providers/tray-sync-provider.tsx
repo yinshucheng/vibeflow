@@ -19,7 +19,7 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
   const mainProcessCountdownStartedRef = useRef<string | null>(null);
 
   const { data: currentPomodoro } = trpc.pomodoro.getCurrent.useQuery(undefined, {
-    refetchInterval: 1000,
+    refetchInterval: 10000, // WebSocket handles real-time updates, polling is fallback
   });
 
   // tRPC as fallback for initial load
@@ -30,15 +30,16 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
   const { data: isInSleepTime } = trpc.sleepTime.isInSleepTime.useQuery(undefined, {
     refetchInterval: 60000,
   });
-  const { data: overRestStatus } = trpc.overRest.checkStatus.useQuery(undefined, {
-    refetchInterval: 1000,
-  });
 
   // Get rest status for tray display (when in rest or over_rest state)
   const currentState = socketState || dailyState?.systemState?.toLowerCase();
   const isInRestState = currentState === 'rest' || currentState === 'over_rest';
+
+  const { data: overRestStatus } = trpc.overRest.checkStatus.useQuery(undefined, {
+    refetchInterval: isInRestState ? 5000 : 30000, // Higher frequency only when in rest/over_rest
+  });
   const { data: restStatus } = trpc.dailyState.getRestStatus.useQuery(undefined, {
-    refetchInterval: 1000,
+    refetchInterval: 5000,
     enabled: !currentPomodoro && isInRestState,
   });
 
