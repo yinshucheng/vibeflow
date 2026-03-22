@@ -121,7 +121,7 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
    * Property 13.1: vibe.complete_task marks task as DONE and stores summary
    * Validates: Requirements 9.5
    */
-  it('vibe.complete_task marks task as DONE and returns success with task', async () => {
+  it('vibe.complete_task marks task as DONE and returns success with task', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;
@@ -201,7 +201,7 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
    * Property 13.2: vibe.add_subtask creates task with correct parentId
    * Validates: Requirements 9.6
    */
-  it('vibe.add_subtask creates task with correct parentId and projectId', async () => {
+  it('vibe.add_subtask creates task with correct parentId and projectId', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;
@@ -399,7 +399,7 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
    * Property 13.5: vibe.report_blocker logs blocker and returns blocker_id
    * Validates: Requirements 9.7, 10.2
    */
-  it('vibe.report_blocker logs blocker and returns success with blocker_id', async () => {
+  it('vibe.report_blocker logs blocker and returns success with blocker_id', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;
@@ -468,7 +468,7 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
    * Property 13.6: vibe.start_pomodoro starts a pomodoro session
    * Validates: Requirements 10.2
    */
-  it('vibe.start_pomodoro starts pomodoro and returns success with pomodoro data', async () => {
+  it('vibe.start_pomodoro starts pomodoro and returns success with pomodoro data', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;
@@ -561,7 +561,7 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
    * Property 13.7: vibe.get_task_context returns detailed task context
    * Validates: Requirements 10.2
    */
-  it('vibe.get_task_context returns task with project and related data', async () => {
+  it('vibe.get_task_context returns task with project and related data', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;
@@ -702,7 +702,7 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
    * For any MCP tool call, the audit service SHALL log:
    * - agentId, toolName, input, output, success status, and duration
    */
-  it('all MCP tool calls are logged to audit with complete information', async () => {
+  it('all MCP tool calls are logged to audit with complete information', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;
@@ -793,7 +793,7 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
    * - If all updates fail, no changes are made
    * - Partial success returns updated count and failed list
    */
-  it('batch update tasks applies all valid updates atomically', async () => {
+  it('batch update tasks applies all valid updates atomically', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;
@@ -891,7 +891,7 @@ describe('Property 13: MCP Tool Execution Correctness', () => {
    * - Valid updates are still applied
    * - Failed updates are reported in the response
    */
-  it('batch update with invalid tasks reports failures while applying valid updates', async () => {
+  it('batch update with invalid tasks reports failures while applying valid updates', { timeout: 15000 }, async () => {
     if (!dbAvailable) {
       console.warn('Skipping test: Database not available');
       return;

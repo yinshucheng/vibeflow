@@ -60,9 +60,18 @@ export const chatSummaryService = {
    */
   async getOrCreateSummary(
     conversationId: string,
-    recentMessageCount: number
+    recentMessageCount: number,
+    userId?: string
   ): Promise<ServiceResult<string>> {
     try {
+      // Verify conversation ownership if userId provided
+      if (userId) {
+        const conv = await prisma.conversation.findFirst({ where: { id: conversationId, userId } });
+        if (!conv) {
+          return { success: false, error: { code: 'NOT_FOUND', message: 'Conversation not found' } };
+        }
+      }
+
       // Count total messages
       const totalCount = await prisma.chatMessage.count({
         where: { conversationId },

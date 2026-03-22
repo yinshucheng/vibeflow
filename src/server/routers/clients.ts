@@ -101,7 +101,7 @@ export const clientsRouter = router({
   getClient: protectedProcedure
     .input(z.object({ clientId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
-      const result = await clientRegistryService.getClientById(input.clientId);
+      const result = await clientRegistryService.getClientById(input.clientId, ctx.user!.userId);
       
       if (!result.success) {
         throw new TRPCError({

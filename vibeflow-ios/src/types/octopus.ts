@@ -24,7 +24,8 @@ export type EventType =
   | 'ENTERTAINMENT_MODE'
   | 'WORK_START'
   | 'CHAT_MESSAGE'
-  | 'CHAT_ACTION';
+  | 'CHAT_ACTION'
+  | 'CHAT_HISTORY_REQUEST';
 
 export type ClientType = 'web' | 'desktop' | 'browser_ext' | 'mobile';
 
@@ -230,6 +231,10 @@ export interface Policy {
   sleepTime?: SleepTimePolicy;
   overRest?: OverRestPolicy;
   adhocFocusSession?: AdhocFocusSession;
+  temporaryUnblock?: {
+    active: boolean;
+    endTime: number;
+  };
 }
 
 export interface UpdatePolicyPayload {
@@ -316,6 +321,11 @@ export interface ChatActionEvent extends BaseEvent {
   payload: ChatActionPayload;
 }
 
+export interface ChatHistoryRequestEvent extends BaseEvent {
+  eventType: 'CHAT_HISTORY_REQUEST';
+  payload: Record<string, never>;
+}
+
 // =============================================================================
 // CHAT COMMAND TYPES (Vibe Brain → iOS)
 // =============================================================================
@@ -344,7 +354,7 @@ export interface ChatSyncCommand extends BaseCommand {
 // UNION TYPES
 // =============================================================================
 
-export type OctopusEvent = HeartbeatEvent | UserActionEvent | ChatMessageEvent | ChatActionEvent;
+export type OctopusEvent = HeartbeatEvent | UserActionEvent | ChatMessageEvent | ChatActionEvent | ChatHistoryRequestEvent;
 
 export type OctopusCommand =
   | SyncStateCommand

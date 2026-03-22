@@ -232,8 +232,8 @@ export async function handleTaskStuck(
   if (!canFire) return;
 
   // Fetch task details
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, project: { userId } },
     select: { title: true, priority: true, estimatedMinutes: true },
   });
 

@@ -63,7 +63,7 @@ const DAILY_RESET_HOUR = 4;
  * Get today's date normalized to midnight
  * Accounts for the 04:00 AM reset time
  */
-function getTodayDate(): Date {
+export function getTodayDate(): Date {
   const now = new Date();
   const today = new Date(now);
   
@@ -177,6 +177,7 @@ export const dailyStateService = {
         // Do NOT check for planning - user has explicitly chosen to exit rest
         const overRestResult = await overRestService.checkOverRestStatus(userId);
         if (overRestResult.success && overRestResult.data?.isOverRest) {
+          console.log(`[DailyState] REST → OVER_REST transition detected for user ${userId}: restDuration=${overRestResult.data.restDurationMinutes}min, overRestMinutes=${overRestResult.data.overRestMinutes}min, shouldTriggerActions=${overRestResult.data.shouldTriggerActions}, timestamp=${new Date().toISOString()}`);
           effectiveSystemState = 'OVER_REST';
         }
       }
@@ -279,6 +280,7 @@ export const dailyStateService = {
 
       // S4.2: Publish over_rest_entered event if transitioning to over_rest
       if (state === 'over_rest' && previousSystemState !== 'over_rest') {
+        console.log(`[DailyState] State transition to OVER_REST for user ${userId}: previousState=${previousSystemState}, timestamp=${new Date().toISOString()}`);
         mcpEventService.publish({
           type: 'daily_state.over_rest_entered',
           userId,
@@ -342,6 +344,7 @@ export const dailyStateService = {
         await prisma.task.updateMany({
           where: {
             id: { in: validated.top3TaskIds },
+            userId,
           },
           data: {
             planDate: today,

@@ -2,42 +2,89 @@
  * App Provider
  *
  * Initializes core services and provides app-wide context.
- * - Initializes WebSocket connection
- * - Starts heartbeat service
- * - Connects sync service to store
+ * - Checks auth state on startup (SecureStore token → verify)
+ * - Shows LoginScreen if not authenticated
+ * - Initializes WebSocket, heartbeat, sync, blocking, chat services after auth
  *
  * Requirements: 2.1, 2.2, 2.3
  */
 
-import React, { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { AppState, AppStateStatus, ActivityIndicator, View } from 'react-native';
 import { syncService, heartbeatService, websocketService, chatService } from '@/services';
+import { serverConfigService } from '@/services/server-config.service';
 import { blockingService } from '@/services/blocking.service';
 import { screenTimeService } from '@/services/screen-time.service';
 import { useAppStore } from '@/store';
-import { DEV_USER_EMAIL } from '@/config/auth';
+import { getToken, verifyToken, logout, refreshCachedToken, setCachedEmail } from '@/config/auth';
+import { LoginScreen } from '@/screens/LoginScreen';
 
 interface AppProviderProps {
   children: React.ReactNode;
 }
 
+type AuthStatus = 'checking' | 'authenticated' | 'unauthenticated';
+
 export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const setUserInfo = useAppStore((state) => state.setUserInfo);
+  const clearState = useAppStore((state) => state.clearState);
   const setSelectionSummary = useAppStore((state) => state.setSelectionSummary);
+  const [serverReady, setServerReady] = useState(false);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
+  const [authUser, setAuthUser] = useState<{ id: string; email: string } | null>(null);
 
+  // Pre-load server URL from AsyncStorage
   useEffect(() => {
-    // Set default user info for MVP
-    setUserInfo('dev-user', DEV_USER_EMAIL);
+    serverConfigService.getServerUrl()
+      .catch((err) => console.error('[AppProvider] Server URL load failed, using default:', err))
+      .finally(() => setServerReady(true));
+  }, []);
+
+  // Check auth state once server URL is ready
+  useEffect(() => {
+    if (!serverReady) return;
+
+    const checkAuth = async () => {
+      const token = await getToken();
+      if (!token) {
+        setAuthStatus('unauthenticated');
+        return;
+      }
+
+      // Refresh cached token for sync use
+      await refreshCachedToken();
+
+      const result = await verifyToken(token);
+      if (result.success && result.user) {
+        setCachedEmail(result.user.email);
+        setAuthUser(result.user);
+        setAuthStatus('authenticated');
+      } else {
+        setAuthStatus('unauthenticated');
+      }
+    };
+
+    checkAuth();
+  }, [serverReady]);
+
+  // Initialize services once authenticated
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || !authUser) return;
+
+    // Set user info in store
+    setUserInfo(authUser.id, authUser.email);
 
     // Initialize sync service (connects WebSocket events to store)
     syncService.initialize({ autoConnect: true });
 
     // Start heartbeat service with userId
-    heartbeatService.start({ userId: 'dev-user' });
+    heartbeatService.start({ userId: authUser.id });
 
     // Initialize blocking service (restores persisted state, starts listening)
-    blockingService.initialize();
+    blockingService.initialize().catch((err) =>
+      console.error('[AppProvider] Blocking service init failed:', err)
+    );
     const cleanupBlocking = blockingService.startListening();
 
     // Initialize chat service (listens for AI chat commands)
@@ -68,7 +115,7 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
       heartbeatService.stop();
       syncService.cleanup();
     };
-  }, [setUserInfo, setSelectionSummary]);
+  }, [authStatus, authUser, setUserInfo, setSelectionSummary]);
 
   /**
    * Handle app state changes.
@@ -79,14 +126,11 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
       appStateRef.current.match(/inactive|background/) &&
       nextAppState === 'active'
     ) {
-      // App came to foreground
-      console.log('App came to foreground');
-      
-      // Reconnect if disconnected
-      if (!websocketService.isConnected()) {
-        websocketService.connect();
-      }
-      
+      // App came to foreground — force reconnect to avoid stale/zombie connections
+      console.log('App came to foreground — forcing reconnect');
+      websocketService.disconnect();
+      websocketService.connect();
+
       // Resume heartbeat
       heartbeatService.start();
     } else if (
@@ -95,14 +139,56 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     ) {
       // App went to background
       console.log('App went to background');
-      
-      // Keep connection alive for background updates
-      // WebSocket will maintain connection for up to 3 minutes
-      // Heartbeat continues to keep connection alive
     }
 
     appStateRef.current = nextAppState;
   };
 
+  /**
+   * Handle successful login/register from LoginScreen.
+   */
+  const handleAuthSuccess = useCallback(async (user: { id: string; email: string }) => {
+    await refreshCachedToken();
+    setCachedEmail(user.email);
+    setAuthUser(user);
+    setAuthStatus('authenticated');
+  }, []);
+
+  /**
+   * Handle logout (called from SettingsScreen or elsewhere).
+   */
+  const handleLogout = useCallback(async () => {
+    // Disconnect services
+    websocketService.disconnect();
+    heartbeatService.stop();
+
+    // Clear auth
+    await logout();
+    await refreshCachedToken();
+    setCachedEmail(null);
+
+    // Clear store
+    clearState();
+
+    // Reset auth state
+    setAuthUser(null);
+    setAuthStatus('unauthenticated');
+  }, [clearState]);
+
+  // Loading state
+  if (!serverReady || authStatus === 'checking') {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  // Not authenticated — show login
+  if (authStatus === 'unauthenticated') {
+    return <LoginScreen onAuthSuccess={handleAuthSuccess} />;
+  }
+
   return <>{children}</>;
 }
+

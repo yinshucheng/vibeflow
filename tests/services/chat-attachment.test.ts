@@ -244,6 +244,7 @@ describe('chatService.handleMessage with attachments', () => {
       expect(result.data?.fullText).toBe('Hello there!');
 
       // Verify no attachment context was injected
+      // Note: handleMessage prepends a time prefix like "[2026/3/9 12:00]\n" to the LLM message
       const callArgs = mockedStreamText.mock.calls[0][0];
       const lastMessage = callArgs.messages[callArgs.messages.length - 1];
       // Content includes a time prefix (e.g. "[2026/3/16 10:00]\n") prepended by handleMessage

@@ -53,7 +53,6 @@ export type WebSocketEventHandler = {
 export class VibeFlowWebSocket {
   private ws: WebSocket | null = null;
   private serverUrl: string;
-  private userEmail: string;
   private handlers: WebSocketEventHandler;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -62,19 +61,18 @@ export class VibeFlowWebSocket {
   private pingInterval: ReturnType<typeof setInterval> | null = null;
   private pingTimeout: number = 25000;
   private isAuthenticated = false;
-  
+
   // Octopus protocol state
   private clientId: string;
   private sequenceNumber = 0;
-  
+
   // Event queue for offline support (Requirements: 5.26, 5.27, 5.28, 5.29)
   private eventQueue: EventQueue;
   private replayManager: EventReplayManager | null = null;
   private queueEventsWhenOffline = true;
 
-  constructor(serverUrl: string, userEmail: string, handlers: WebSocketEventHandler) {
+  constructor(serverUrl: string, handlers: WebSocketEventHandler) {
     this.serverUrl = serverUrl;
-    this.userEmail = userEmail;
     this.handlers = handlers;
     // Generate a unique client ID for this browser extension instance
     this.clientId = this.generateClientId();
@@ -227,14 +225,11 @@ export class VibeFlowWebSocket {
 
   private sendSocketIOConnect(): void {
     // Socket.io CONNECT packet format: 40{auth}
-    // The auth object is passed to socket.handshake.auth on server
-    const auth = {
-      email: this.userEmail,
-    };
-    
-    // Engine.IO MESSAGE (4) + Socket.io CONNECT (0) + auth JSON
-    const packet = `40${JSON.stringify(auth)}`;
-    console.log('[WebSocket] Sending CONNECT with auth:', auth);
+    // Auth is handled via browser cookie (NextAuth session).
+    // No auth payload needed — the cookie is sent automatically with the
+    // WebSocket handshake and Socket.io will read it from the request.
+    const packet = '40{}';
+    console.log('[WebSocket] Sending CONNECT (cookie-based auth)');
     this.sendRaw(packet);
   }
 
@@ -295,7 +290,13 @@ export class VibeFlowWebSocket {
     try {
       const error = JSON.parse(payload);
       console.error('[WebSocket] Socket.io CONNECT_ERROR:', error);
-      this.handlers.onError(new Error(error.message || 'Authentication failed'));
+      const errorMessage = error.message || 'Authentication failed';
+      // Mark auth errors distinctly so the service worker can show appropriate UI
+      const err = new Error(errorMessage);
+      if (errorMessage.toLowerCase().includes('auth') || errorMessage.toLowerCase().includes('unauthorized')) {
+        err.name = 'AuthError';
+      }
+      this.handlers.onError(err);
     } catch {
       console.error('[WebSocket] Socket.io CONNECT_ERROR:', payload);
       this.handlers.onError(new Error('Connection rejected by server'));
@@ -514,7 +515,7 @@ export class VibeFlowWebSocket {
     return {
       eventId: this.generateEventId(),
       eventType,
-      userId: this.userEmail, // Using email as userId for now
+      userId: '', // Server resolves userId from the authenticated session
       clientId: this.clientId,
       clientType: 'browser_ext',
       timestamp: Date.now(),

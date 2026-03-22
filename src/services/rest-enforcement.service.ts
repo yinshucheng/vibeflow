@@ -1,10 +1,17 @@
 import { RestExemption } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { healthLimitService } from './health-limit.service';
+import { broadcastPolicyUpdate } from './socket-broadcast.service';
 
 export interface GraceRequestResult {
   granted: boolean;
   remaining: number;
+}
+
+export interface GraceInfo {
+  activeGrace: boolean;
+  remaining: number;
+  durationMinutes: number;
 }
 
 export interface SkipRestResult {
@@ -15,6 +22,8 @@ export interface SkipRestResult {
 }
 
 class RestEnforcementService {
+  private graceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   async requestGrace(
     userId: string,
     pomodoroId: string
@@ -43,15 +52,19 @@ class RestEnforcementService {
 
     const graceDuration = settings?.restGraceDuration ?? 2;
     const now = new Date();
-    await prisma.restExemption.create({
+    const expiresAt = new Date(now.getTime() + graceDuration * 60 * 1000);
+    const exemption = await prisma.restExemption.create({
       data: {
         userId,
         pomodoroId,
         type: 'grace',
         grantedAt: now,
-        expiresAt: new Date(now.getTime() + graceDuration * 60 * 1000),
+        expiresAt,
       },
     });
+
+    // Schedule policy rebroadcast when grace expires
+    this._scheduleGraceExpiryTimer(userId, exemption.id, expiresAt);
 
     return {
       granted: true,
@@ -125,6 +138,71 @@ class RestEnforcementService {
 
   async enforceWorkAppBlock(userId: string, actions: string[]): Promise<void> {
     console.log(`[RestEnforcement] Placeholder: enforceWorkAppBlock for user ${userId}, actions:`, actions);
+  }
+
+  async getActiveGrace(userId: string): Promise<RestExemption | null> {
+    return prisma.restExemption.findFirst({
+      where: {
+        userId,
+        type: 'grace',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { grantedAt: 'desc' },
+    });
+  }
+
+  async getGraceInfo(
+    userId: string,
+    pomodoroId?: string
+  ): Promise<GraceInfo> {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+    });
+    const graceLimit = settings?.restGraceLimit ?? 2;
+    const graceDuration = settings?.restGraceDuration ?? 2;
+
+    const activeGrace = await this.getActiveGrace(userId);
+
+    // Count grace requests for current pomodoro cycle
+    const graceCount = pomodoroId
+      ? await prisma.restExemption.count({
+          where: { userId, pomodoroId, type: 'grace' },
+        })
+      : 0;
+
+    return {
+      activeGrace: !!activeGrace,
+      remaining: Math.max(0, graceLimit - graceCount),
+      durationMinutes: graceDuration,
+    };
+  }
+
+  _scheduleGraceExpiryTimer(
+    userId: string,
+    exemptionId: string,
+    expiresAt: Date
+  ): void {
+    // Clear any existing timer for this exemption
+    const existing = this.graceTimers.get(exemptionId);
+    if (existing) {
+      clearTimeout(existing);
+    }
+
+    const delay = Math.max(0, expiresAt.getTime() - Date.now());
+    const timer = setTimeout(() => {
+      this.graceTimers.delete(exemptionId);
+      console.log(
+        `[RestEnforcement] Grace ${exemptionId} expired for user ${userId}, re-broadcasting policy`
+      );
+      broadcastPolicyUpdate(userId).catch((err) => {
+        console.error(
+          '[RestEnforcement] Failed to broadcast policy update on grace expiry:',
+          err
+        );
+      });
+    }, delay);
+
+    this.graceTimers.set(exemptionId, timer);
   }
 }
 

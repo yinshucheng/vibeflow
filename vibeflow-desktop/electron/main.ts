@@ -23,12 +23,14 @@ import { getSensorReporter } from './modules/sensor-reporter';
 import { getSleepEnforcer, setupSleepEnforcerIpc } from './modules/sleep-enforcer';
 import { createFocusTimeMonitor, AppMonitor } from './modules/app-monitor';
 import { getOverRestEnforcer, handleOverRestPolicyUpdate } from './modules/over-rest-enforcer';
+import { getRestEnforcer, handleRestEnforcementPolicyUpdate } from './modules/rest-enforcer';
 import { getHeartbeatManager } from './modules/heartbeat-manager';
 import {
   getQuitPrevention,
   setupQuitPreventionIpc,
   isDevelopmentMode,
 } from './modules/quit-prevention';
+import { initializeAuthManager, getAuthManager } from './modules/auth-manager';
 import {
   getModeDetector,
   detectAppMode,
@@ -1002,6 +1004,35 @@ function setupIpcHandlers(): void {
   ipcMain.handle('mode:canQuitFreely', () => {
     return modeDetector.canQuitFreely();
   });
+
+  // Auth Manager IPC handlers
+  ipcMain.handle('auth:getState', () => {
+    try {
+      return getAuthManager().getState();
+    } catch {
+      return { isAuthenticated: false, token: null, userId: null, email: null };
+    }
+  });
+
+  ipcMain.handle('auth:login', async () => {
+    try {
+      const authManager = getAuthManager();
+      const success = await authManager.openLoginWindow();
+      return { success };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('auth:logout', async () => {
+    try {
+      const authManager = getAuthManager();
+      await authManager.logout();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
 }
 
 // App lifecycle
@@ -1061,11 +1092,45 @@ app.whenReady().then(async () => {
   if (mainWindow) {
     connectionManager.setMainWindow(mainWindow);
   }
+
+  // Initialize auth manager and authenticate before connecting
+  const authManager = initializeAuthManager({ serverUrl: config.serverUrl });
+  let isAuthenticated = false;
+
+  if (authManager.getToken()) {
+    // Validate the stored token
+    console.log('[Main] Validating stored auth token…');
+    isAuthenticated = await authManager.validateToken();
+  }
+
+  if (!isAuthenticated) {
+    // No valid token — open login window
+    console.log('[Main] No valid token, opening login window…');
+    isAuthenticated = await authManager.openLoginWindow();
+  }
+
+  if (isAuthenticated) {
+    // Provide token and userId to connection manager
+    const authState = authManager.getState();
+    if (authState.userId) {
+      connectionManager.setUserId(authState.userId);
+    }
+    if (authState.token) {
+      connectionManager.setAuthToken(authState.token);
+    }
+    console.log('[Main] Authenticated as:', authState.email);
+  } else {
+    console.warn('[Main] User did not authenticate, connection may fail');
+  }
+
   // Start connection monitoring
   connectionManager.connect();
 
   // Focus time app monitor for pomodoro/focus session enforcement
   let focusTimeMonitor: AppMonitor | null = null;
+
+  // Track health limit notification to avoid repeating
+  let lastHealthLimitNotified: string | null = null;
 
   // Connect sleep enforcer to policy updates (Requirements: 11.1, 11.2)
   connectionManager.onPolicyUpdate((policy) => {
@@ -1202,7 +1267,15 @@ app.whenReady().then(async () => {
     if (mainWindow) {
       overRestEnforcer.setMainWindow(mainWindow);
     }
-    
+
+    // Diagnostic: always log policy.overRest on every policy update
+    console.log('[Main] Over rest policy field:', policy.overRest ? {
+      isOverRest: policy.overRest.isOverRest,
+      overRestMinutes: policy.overRest.overRestMinutes,
+      appsCount: policy.overRest.enforcementApps?.length ?? 0,
+      bringToFront: policy.overRest.bringToFront,
+    } : 'absent');
+
     if (policy.overRest?.isOverRest) {
       console.log('[Main] Over rest detected, starting enforcement:', {
         overRestMinutes: policy.overRest.overRestMinutes,
@@ -1224,7 +1297,42 @@ app.whenReady().then(async () => {
         handleOverRestPolicyUpdate(undefined);
       }
     }
-    
+
+    // Handle REST enforcement (close/hide work apps during rest)
+    const restEnforcer = getRestEnforcer();
+    if (mainWindow) {
+      restEnforcer.setMainWindow(mainWindow);
+    }
+
+    if (policy.restEnforcement?.isActive) {
+      console.log('[Main] REST enforcement active, starting/updating enforcer:', {
+        appsCount: policy.restEnforcement.workApps?.length ?? 0,
+        actions: policy.restEnforcement.actions,
+        graceAvailable: policy.restEnforcement.grace?.available,
+      });
+      handleRestEnforcementPolicyUpdate(policy.restEnforcement);
+    } else {
+      if (restEnforcer.isActive()) {
+        console.log('[Main] REST enforcement ended, stopping enforcer');
+        handleRestEnforcementPolicyUpdate(undefined);
+      }
+    }
+
+    // Handle health limit notifications (informational, show once per type)
+    if (policy.healthLimit && policy.healthLimit.type !== lastHealthLimitNotified) {
+      getNotificationManager().show({
+        title: '⏰ 健康提醒',
+        body: policy.healthLimit.message,
+        type: 'info',
+        urgency: 'normal',
+      });
+      lastHealthLimitNotified = policy.healthLimit.type;
+      console.log('[Main] Health limit notification shown:', policy.healthLimit.type);
+    }
+    if (!policy.healthLimit) {
+      lastHealthLimitNotified = null;
+    }
+
     // Update quit prevention config with work time slots (Requirements: 1.6)
     const quitPrevention = getQuitPrevention();
     quitPrevention.updateConfig({

@@ -16,16 +16,20 @@
       </div>
     </header>
 
+    <!-- Auth Expired Banner -->
+    <section id="auth-expired-banner" class="section auth-expired-banner hidden">
+      <p>会话已过期，请在网页端重新登录</p>
+      <button id="open-web-login" class="btn btn-primary btn-small">
+        打开网页登录
+      </button>
+    </section>
+
     <!-- Connection Info Section (Requirements: 4.5, 4.6) -->
     <section id="connection-info-section" class="section connection-info hidden">
       <div class="connection-details">
         <div class="connection-row">
           <span class="connection-label">Server:</span>
           <span id="connection-server" class="connection-value">localhost:3000</span>
-        </div>
-        <div class="connection-row">
-          <span class="connection-label">User:</span>
-          <span id="connection-user" class="connection-value">dev@vibeflow.local</span>
         </div>
         <div class="connection-row" id="reconnect-info-row" style="display: none;">
           <span class="connection-label">Status:</span>
@@ -43,14 +47,11 @@
       <!-- Login Section -->
       <section id="login-section" class="section">
         <h2>Connect to VibeFlow</h2>
+        <p class="login-hint">请先在网页端登录，Extension 将自动使用浏览器 Cookie 认证</p>
         <form id="login-form">
           <div class="form-group">
             <label for="server-url">Server URL</label>
             <input type="url" id="server-url" placeholder="http://localhost:3000" required>
-          </div>
-          <div class="form-group">
-            <label for="user-email">Email</label>
-            <input type="email" id="user-email" placeholder="your@email.com" required>
           </div>
           <button type="submit" class="btn btn-primary">Connect</button>
         </form>

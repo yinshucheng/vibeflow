@@ -1,0 +1,17 @@
+# frpc — frp client (runs on local Mac / future host Mac)
+# Docs: https://github.com/fatedier/frp
+
+serverAddr = "39.105.213.147"
+serverPort = 443
+auth.token = "a50510943d51a73c8d85e06ca10472691a746dc1b21949d1"
+loginFailExit = false
+log.to = "/tmp/frpc.log"
+log.level = "info"
+log.maxDays = 3
+
+[[proxies]]
+name = "vibeflow-http"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 3000
+remotePort = 7080

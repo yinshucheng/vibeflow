@@ -208,8 +208,19 @@ export const mcpEventService = {
   /**
    * Unsubscribe from events
    */
-  async unsubscribe(subscriptionId: string): Promise<ServiceResult<void>> {
+  async unsubscribe(userId: string, subscriptionId: string): Promise<ServiceResult<void>> {
     try {
+      // Verify ownership before deleting
+      const subscription = await prisma.mCPSubscription.findFirst({
+        where: { id: subscriptionId, userId },
+      });
+      if (!subscription) {
+        return {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Subscription not found' },
+        };
+      }
+
       await prisma.mCPSubscription.delete({
         where: { id: subscriptionId },
       });
@@ -349,10 +360,10 @@ export const mcpEventService = {
   /**
    * Get subscriptions for an agent
    */
-  async getSubscriptions(agentId: string): Promise<ServiceResult<EventSubscription[]>> {
+  async getSubscriptions(userId: string, agentId: string): Promise<ServiceResult<EventSubscription[]>> {
     try {
       const subscriptions = await prisma.mCPSubscription.findMany({
-        where: { agentId },
+        where: { agentId, userId },
       });
 
       return {

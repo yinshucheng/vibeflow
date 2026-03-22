@@ -1,0 +1,6 @@
+# frps — frp server (runs on cloud server 39.105.213.147)
+# Docs: https://github.com/fatedier/frp
+
+# 443 端口不被手机蜂窝网络屏蔽（之前 7000 会被屏蔽）
+bindPort = 443
+auth.token = "a50510943d51a73c8d85e06ca10472691a746dc1b21949d1"

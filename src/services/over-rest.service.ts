@@ -234,8 +234,11 @@ export const overRestService = {
       const focusSessionResult = await focusSessionService.getActiveSession(userId);
       const inFocusSession = focusSessionResult.success && focusSessionResult.data !== null;
 
+      console.log(`[OverRestService] checkOverRestStatus inputs: userId=${userId}, shortRestDuration=${shortRestDuration}min, gracePeriod=${gracePeriod}min, withinWorkHours=${withinWorkHours}, inFocusSession=${inFocusSession}, now=${new Date().toISOString()}`);
+
       // If not in work hours and not in focus session, not over rest
       if (!withinWorkHours && !inFocusSession) {
+        console.log(`[OverRestService] checkOverRestStatus → not over rest (outside work hours and no focus session)`);
         return {
           success: true,
           data: {
@@ -260,6 +263,7 @@ export const overRestService = {
 
       // If in pomodoro, not over rest
       if (activePomodoro) {
+        console.log(`[OverRestService] checkOverRestStatus → not over rest (active pomodoro: ${activePomodoro.id})`);
         return {
           success: true,
           data: {
@@ -274,11 +278,12 @@ export const overRestService = {
         };
       }
 
-      // Get last completed pomodoro
+      // Get last completed or interrupted pomodoro
+      // Both COMPLETED and INTERRUPTED pomodoros end the focus period and start rest
       const lastPomodoro = await prisma.pomodoro.findFirst({
         where: {
           userId,
-          status: 'COMPLETED',
+          status: { in: ['COMPLETED', 'INTERRUPTED'] },
         },
         orderBy: {
           endTime: 'desc',
@@ -337,6 +342,8 @@ export const overRestService = {
 
       // Should trigger actions if over rest and grace period has passed
       const shouldTriggerActions = isOverRest && overRestMinutes >= gracePeriod;
+
+      console.log(`[OverRestService] checkOverRestStatus → isOverRest=${isOverRest}, shouldTriggerActions=${shouldTriggerActions}, restDuration=${restDurationMinutes}min, overRestMinutes=${overRestMinutes}min, gracePeriodRemaining=${gracePeriodRemaining}min, lastPomodoroEndTime=${lastPomodoroEndTime?.toISOString() ?? 'null'}`);
 
       return {
         success: true,

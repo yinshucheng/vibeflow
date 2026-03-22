@@ -54,6 +54,10 @@ export async function cleanupChatTestUser(): Promise<void> {
     await prisma.chatMessage.deleteMany({ where: { conversation: { userId: testUserId } } });
     await prisma.conversation.deleteMany({ where: { userId: testUserId } });
     await prisma.dailyState.deleteMany({ where: { userId: testUserId } });
+    await prisma.pomodoro.deleteMany({ where: { userId: testUserId } });
+    await prisma.task.deleteMany({ where: { userId: testUserId } });
+    await prisma.project.deleteMany({ where: { userId: testUserId } });
+    await prisma.userSettings.deleteMany({ where: { userId: testUserId } });
     await prisma.user.delete({ where: { id: testUserId } });
   } catch (error) {
     console.warn('[chat-test-setup] cleanup error:', error);

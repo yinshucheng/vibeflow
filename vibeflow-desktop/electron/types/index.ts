@@ -299,6 +299,25 @@ export interface PolicyOverRest {
 }
 
 /**
+ * REST enforcement configuration for policy
+ * Closes/hides work apps during rest periods
+ */
+export interface PolicyRestEnforcement {
+  /** Whether REST enforcement is currently active */
+  isActive: boolean;
+  /** Work apps to close/hide during REST */
+  workApps: PolicySleepEnforcementApp[];
+  /** Enforcement actions: 'close' | 'hide' */
+  actions: string[];
+  /** Grace info for client display */
+  grace: {
+    available: boolean;
+    remaining: number;
+    durationMinutes: number;
+  };
+}
+
+/**
  * Policy for desktop client
  * Requirements: 10.5, 10.6
  */
@@ -315,6 +334,10 @@ export interface DesktopPolicy {
   adhocFocusSession?: PolicyAdhocFocusSession;
   /** Over rest configuration (optional) */
   overRest?: PolicyOverRest;
+  /** REST enforcement configuration (optional) */
+  restEnforcement?: PolicyRestEnforcement;
+  /** Health limit notification (optional) */
+  healthLimit?: { type: string; message: string };
 }
 
 /**
@@ -672,6 +695,12 @@ export const IPC_CHANNELS = {
   POLICY_CACHE_GET_ENFORCEMENT_MODE: 'policyCache:getEnforcementMode',
   POLICY_CACHE_GET_DISTRACTION_APPS: 'policyCache:getDistractionApps',
   POLICY_CACHE_GET_SKIP_TOKEN_CONFIG: 'policyCache:getSkipTokenConfig',
+
+  // Auth Manager
+  AUTH_GET_STATE: 'auth:getState',
+  AUTH_LOGIN: 'auth:login',
+  AUTH_LOGOUT: 'auth:logout',
+  AUTH_ON_CHANGE: 'auth:onChange',
 
   // Offline Event Queue (Requirements: 9.3, 9.6)
   OFFLINE_QUEUE_GET_STATE: 'offlineQueue:getState',

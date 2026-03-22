@@ -16,7 +16,6 @@ interface ExtendedConnectionStatus extends ConnectionStatus {
 interface ConnectionInfo {
   connected: boolean;
   serverUrl: string;
-  userEmail: string;
   reconnectAttempts: number;
   maxReconnectAttempts: number;
   isReconnecting: boolean;
@@ -27,13 +26,14 @@ const loginSection = document.getElementById('login-section') as HTMLElement;
 const statusSection = document.getElementById('status-section') as HTMLElement;
 const loginForm = document.getElementById('login-form') as HTMLFormElement;
 const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
-const userEmailInput = document.getElementById('user-email') as HTMLInputElement;
 const connectionStatus = document.getElementById('connection-status') as HTMLElement;
+
+// DOM Elements - Auth Expiry Banner
+const authExpiredBanner = document.getElementById('auth-expired-banner') as HTMLElement;
 
 // DOM Elements - Connection Info (Requirements: 4.5, 4.6)
 const connectionInfoSection = document.getElementById('connection-info-section') as HTMLElement;
 const connectionServer = document.getElementById('connection-server') as HTMLElement;
-const connectionUser = document.getElementById('connection-user') as HTMLElement;
 const reconnectInfoRow = document.getElementById('reconnect-info-row') as HTMLElement;
 const reconnectInfo = document.getElementById('reconnect-info') as HTMLElement;
 const reconnectBtn = document.getElementById('reconnect-btn') as HTMLButtonElement;
@@ -70,19 +70,12 @@ let warningShown1Min = false;
 // Initialize popup
 async function initialize(): Promise<void> {
   // Load stored settings
-  const stored = await chrome.storage.local.get(['serverUrl', 'userEmail', 'isConnected']);
-  
+  const stored = await chrome.storage.local.get(['serverUrl', 'isConnected']);
+
   if (stored.serverUrl) {
     serverUrlInput.value = stored.serverUrl;
   } else {
     serverUrlInput.value = 'http://localhost:3000';
-  }
-  
-  if (stored.userEmail) {
-    userEmailInput.value = stored.userEmail;
-  } else {
-    // Default user email (Requirements: 4.2, 4.7)
-    userEmailInput.value = 'dev@vibeflow.local';
   }
 
   // Get current status from service worker
@@ -99,10 +92,22 @@ async function initialize(): Promise<void> {
   } else {
     // Show connection info section even when disconnected (Requirements: 4.5)
     showLoginSection();
-    
-    // If reconnecting, show reconnect status
+
+    // If reconnecting (including auto-reconnect after service worker wake-up),
+    // show reconnecting status instead of the full login form
     if (connInfo.isReconnecting) {
       showReconnectingStatus(connInfo);
+    } else if (connInfo.serverUrl && connInfo.serverUrl !== '') {
+      // Service worker just woke up and triggered ensureConnected() —
+      // the connect() call is in progress but reconnectTimer hasn't been set yet.
+      // Wait briefly then re-check status.
+      setTimeout(async () => {
+        const retryStatus = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }) as ExtendedConnectionStatus;
+        if (retryStatus.connected) {
+          showStatusSection(retryStatus);
+          await refreshEntertainmentStatus();
+        }
+      }, 2000);
     }
   }
 
@@ -118,24 +123,39 @@ function setupEventListeners(): void {
   loginForm.addEventListener('submit', handleLogin);
   openDashboardBtn.addEventListener('click', handleOpenDashboard);
   disconnectBtn.addEventListener('click', handleDisconnect);
-  
+
   // Reconnect button (Requirements: 4.6)
   reconnectBtn.addEventListener('click', handleReconnect);
-  
+
   // Entertainment mode buttons (Requirements: 6.1, 6.4)
   startEntertainmentBtn.addEventListener('click', handleStartEntertainment);
   stopEntertainmentBtn.addEventListener('click', handleStopEntertainment);
+
+  // Auth expired — open web login button
+  const openWebLoginBtn = document.getElementById('open-web-login');
+  if (openWebLoginBtn) {
+    openWebLoginBtn.addEventListener('click', handleOpenWebLogin);
+  }
+}
+
+/**
+ * Open web login page when auth has expired
+ * Requirements: 4.4.2 — session expiry handling
+ */
+async function handleOpenWebLogin(): Promise<void> {
+  const stored = await chrome.storage.local.get(['serverUrl']);
+  const url = (stored.serverUrl || 'http://localhost:3000') + '/login';
+  chrome.tabs.create({ url });
 }
 
 // Handle login form submission
 async function handleLogin(event: Event): Promise<void> {
   event.preventDefault();
-  
+
   const serverUrl = serverUrlInput.value.trim();
-  const userEmail = userEmailInput.value.trim();
-  
-  if (!serverUrl || !userEmail) {
-    showError('Please fill in all fields');
+
+  if (!serverUrl) {
+    showError('Please enter a server URL');
     return;
   }
 
@@ -147,23 +167,23 @@ async function handleLogin(event: Event): Promise<void> {
     return;
   }
 
-  // Validate email
-  if (!isValidEmail(userEmail)) {
-    showError('Invalid email address');
-    return;
-  }
-
   // Show connecting state
   const submitBtn = loginForm.querySelector('button[type="submit"]') as HTMLButtonElement;
   const originalText = submitBtn.textContent;
   submitBtn.textContent = 'Connecting...';
   submitBtn.disabled = true;
 
+  // Hide auth expired banner if visible
+  if (authExpiredBanner) {
+    authExpiredBanner.classList.add('hidden');
+  }
+
   try {
     // Send connect message to service worker
+    // Auth is handled via browser cookie (NextAuth session)
     await chrome.runtime.sendMessage({
       type: 'CONNECT',
-      payload: { serverUrl, userEmail },
+      payload: { serverUrl },
     });
 
     // Wait a bit for connection
@@ -245,15 +265,14 @@ async function handleReconnect(): Promise<void> {
  * Requirements: 4.5
  */
 function updateConnectionInfo(connInfo: ConnectionInfo): void {
-  // Update server and user display
+  // Update server display
   try {
     const serverUrl = new URL(connInfo.serverUrl);
     connectionServer.textContent = serverUrl.host;
   } catch {
     connectionServer.textContent = connInfo.serverUrl;
   }
-  connectionUser.textContent = connInfo.userEmail;
-  
+
   // Show connection info section
   connectionInfoSection.classList.remove('hidden');
 }
@@ -336,6 +355,11 @@ function handleMessage(message: { type: string; payload?: unknown }): void {
       // Handle entertainment status update from service worker
       const entertainmentStatus = message.payload as EntertainmentStatus;
       updateEntertainmentDisplay(entertainmentStatus);
+      break;
+
+    case 'AUTH_EXPIRED':
+      // Session expired — show banner prompting user to log in on web
+      showAuthExpiredBanner();
       break;
 
     case 'ERROR':
@@ -716,6 +740,16 @@ function formatTime(date: Date): string {
   return `${hours}:${minutes}`;
 }
 
+/**
+ * Show auth expired banner prompting user to log in on web
+ * Requirements: 4.4.2 — session expiry handling
+ */
+function showAuthExpiredBanner(): void {
+  if (authExpiredBanner) {
+    authExpiredBanner.classList.remove('hidden');
+  }
+}
+
 // Show error message
 function showError(message: string): void {
   // Create error toast
@@ -751,12 +785,6 @@ function showError(message: string): void {
   setTimeout(() => {
     toast.remove();
   }, 3000);
-}
-
-// Validate email format
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
 }
 
 // Initialize when DOM is ready

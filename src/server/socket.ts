@@ -11,6 +11,7 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { z } from 'zod';
+import { getToken } from 'next-auth/jwt';
 import prisma from '@/lib/prisma';
 import { userService } from '@/services/user.service';
 import { authService } from '@/services/auth.service';
@@ -23,7 +24,7 @@ import { commandQueueService } from '@/services/command-queue.service';
 import { overRestService } from '@/services/over-rest.service';
 import { pomodoroService } from '@/services/pomodoro.service';
 import { timeSliceService } from '@/services/time-slice.service';
-import { dailyStateService } from '@/services/daily-state.service';
+import { dailyStateService, getTodayDate } from '@/services/daily-state.service';
 import { chatService } from '@/services/chat.service';
 import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
@@ -137,7 +138,7 @@ export interface TimelineEventEntry {
 export interface BlockEventEntry {
   url: string;
   timestamp: number;
-  blockType: 'hard_block' | 'soft_block';
+  blockType: 'hard_block' | 'soft_block' | 'entertainment_block';
   userAction?: 'proceeded' | 'returned';
   pomodoroId?: string;
 }
@@ -174,6 +175,9 @@ export interface ServerToClientEvents {
   
   // MCP Event Stream events (Requirements: 10.1, 10.2, 10.3, 10.4)
   MCP_EVENT: (payload: MCPEventPayload) => void;
+
+  // Application-layer keepalive response (ADR-001)
+  pong_custom: () => void;
 }
 
 // MCP Event payload type for Socket.io
@@ -201,6 +205,9 @@ export interface ClientToServerEvents {
   OCTOPUS_EVENT: (event: OctopusEvent) => void;
   OCTOPUS_EVENTS_BATCH: (events: OctopusEvent[]) => void;
   COMMAND_ACK: (payload: { commandId: string }) => void;
+
+  // Application-layer keepalive ping (ADR-001)
+  ping_custom: () => void;
 }
 
 // Socket data attached to each connection
@@ -215,6 +222,8 @@ export interface SocketData {
   clientVersion?: string;
   platform?: string;
   capabilities?: string[];
+  // Guest connections (unauthenticated, can only do AUTH_LOGIN/AUTH_VERIFY)
+  isGuest?: boolean;
 }
 
 // Legacy validation schemas (for backward compatibility)
@@ -260,7 +269,7 @@ const TimelineEventBatchSchema = z.array(TimelineEventSchema);
 const BlockEventSchema = z.object({
   url: z.string(),
   timestamp: z.number(),
-  blockType: z.enum(['hard_block', 'soft_block']),
+  blockType: z.enum(['hard_block', 'soft_block', 'entertainment_block']),
   userAction: z.enum(['proceeded', 'returned']).optional(),
   pomodoroId: z.string().optional(),
 });
@@ -298,27 +307,44 @@ export class VibeFlowSocketServer {
         credentials: true,
       },
       transports: ['websocket', 'polling'],
-      pingInterval: 25000,
-      pingTimeout: 60000, // 60s timeout for mobile networks
+      pingInterval: 15000, // 15s — keep under NAT idle timeout (30-60s)
+      pingTimeout: 20000, // 20s — faster dead connection detection
     });
 
-    // Authentication middleware
+    // Authentication middleware — allows guest connections for WS-based login
     this.io.use(async (socket, next) => {
       try {
         const auth = await this.authenticateSocket(socket);
         if (auth.success && auth.data) {
           socket.data = auth.data;
-          next();
         } else {
-          next(new Error(auth.error?.message || 'Authentication failed'));
+          // Allow guest connections — they can only use AUTH_LOGIN/AUTH_VERIFY
+          socket.data = {
+            userId: '',
+            email: '',
+            isDevMode: false,
+            connectedAt: Date.now(),
+            clientType: 'mobile' as ClientType,
+            clientVersion: '1.0.0',
+            platform: 'unknown',
+            capabilities: [],
+            isGuest: true,
+          } as SocketData;
         }
+        next();
       } catch (error) {
         next(new Error('Authentication error'));
       }
     });
 
     // Connection handler
-    this.io.on('connection', (socket) => this.handleConnection(socket));
+    this.io.on('connection', (socket) => {
+      if ((socket.data as SocketData & { isGuest?: boolean }).isGuest) {
+        this.handleGuestConnection(socket);
+      } else {
+        this.handleConnection(socket);
+      }
+    });
 
     // Start periodic tasks
     this.startPeriodicTasks();
@@ -426,6 +452,34 @@ export class VibeFlowSocketServer {
       }
     }
 
+    // NextAuth cookie authentication (for Web and Browser Extension)
+    if (!userService.isDevModeEnabled()) {
+      try {
+        const jwtToken = await getToken({
+          req: socket.request as Parameters<typeof getToken>[0]['req'],
+          secret: process.env.NEXTAUTH_SECRET,
+        });
+        if (jwtToken?.id && jwtToken?.email) {
+          console.log(`[Socket.io] Authenticated via NextAuth cookie: ${jwtToken.email}`);
+          return {
+            success: true,
+            data: {
+              userId: jwtToken.id as string,
+              email: jwtToken.email as string,
+              isDevMode: false,
+              connectedAt: Date.now(),
+              clientType: clientType as ClientType || 'web',
+              clientVersion: clientVersion || '1.0.0',
+              platform: platform || 'unknown',
+              capabilities: capabilities || [],
+            },
+          };
+        }
+      } catch {
+        // Cookie parsing failed, fall through to API token auth
+      }
+    }
+
     // API token authentication (for Browser Sentinel, Desktop, Mobile)
     // Requirements: 1.6, 13.2
     if (token) {
@@ -493,6 +547,131 @@ export class VibeFlowSocketServer {
 
 
   /**
+   * Handle guest (unauthenticated) socket connections.
+   * Only allows AUTH_LOGIN and AUTH_VERIFY events.
+   * Used when HTTP fetch is blocked (e.g., carrier DPI on non-standard ports).
+   */
+  private handleGuestConnection(socket: Socket): void {
+    console.log(`[Socket.io] Guest connection: ${socket.id}`);
+
+    // Auto-disconnect guests after 30 seconds to prevent resource abuse
+    const guestTimeout = setTimeout(() => {
+      console.log(`[Socket.io] Guest timeout, disconnecting: ${socket.id}`);
+      socket.disconnect(true);
+    }, 30000);
+
+    // Application-layer keepalive for guests too
+    socket.on('ping_custom', () => {
+      socket.emit('pong_custom');
+    });
+
+    socket.on('AUTH_LOGIN', async (payload: { email: string; password: string; clientType?: string }, callback?: (response: unknown) => void) => {
+      try {
+        if (!payload.email || !payload.password) {
+          const error = { success: false, error: { code: 'VALIDATION_ERROR', message: 'Email and password required' } };
+          if (callback) callback(error);
+          else socket.emit('AUTH_RESULT' as never, error as never);
+          return;
+        }
+
+        const user = await prisma.user.findUnique({ where: { email: payload.email } });
+        if (!user || user.password === 'dev_mode_no_password') {
+          const error = { success: false, error: { code: 'AUTH_ERROR', message: 'Invalid credentials' } };
+          if (callback) callback(error);
+          else socket.emit('AUTH_RESULT' as never, error as never);
+          return;
+        }
+
+        const valid = await (await import('@/lib/auth')).verifyPassword(payload.password, user.password);
+        if (!valid) {
+          const error = { success: false, error: { code: 'AUTH_ERROR', message: 'Invalid credentials' } };
+          if (callback) callback(error);
+          else socket.emit('AUTH_RESULT' as never, error as never);
+          return;
+        }
+
+        // Create API token
+        const clientType = (payload.clientType || 'mobile') as 'web' | 'desktop' | 'browser_ext' | 'mobile';
+        const name = `${clientType}-${new Date().toISOString().slice(0, 10)}`;
+        const result = await authService.createToken(user.id, { name, clientType, expiresInDays: 90 });
+
+        if (!result.success || !result.data) {
+          const error = { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create token' } };
+          if (callback) callback(error);
+          else socket.emit('AUTH_RESULT' as never, error as never);
+          return;
+        }
+
+        const response = {
+          success: true,
+          token: result.data.token,
+          user: { id: user.id, email: user.email },
+          expiresAt: result.data.tokenInfo.expiresAt,
+        };
+        console.log(`[Socket.io] Guest AUTH_LOGIN success: ${user.email}`);
+        if (callback) callback(response);
+        else socket.emit('AUTH_RESULT' as never, response as never);
+
+        // Disconnect guest — client should reconnect with the token
+        clearTimeout(guestTimeout);
+        setTimeout(() => socket.disconnect(true), 1000);
+      } catch (error) {
+        console.error('[Socket.io] AUTH_LOGIN error:', error);
+        const err = { success: false, error: { code: 'INTERNAL_ERROR', message: 'Login failed' } };
+        if (callback) callback(err);
+        else socket.emit('AUTH_RESULT' as never, err as never);
+      }
+    });
+
+    socket.on('AUTH_VERIFY', async (payload: { token: string }, callback?: (response: unknown) => void) => {
+      try {
+        if (!payload.token) {
+          const error = { success: false };
+          if (callback) callback(error);
+          else socket.emit('AUTH_RESULT' as never, error as never);
+          return;
+        }
+
+        const validationResult = await authService.validateToken(payload.token);
+        if (!validationResult.success || !validationResult.data?.valid || !validationResult.data.userId) {
+          const error = { success: false };
+          if (callback) callback(error);
+          else socket.emit('AUTH_RESULT' as never, error as never);
+          return;
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { id: validationResult.data.userId },
+          select: { id: true, email: true },
+        });
+
+        if (!user) {
+          const error = { success: false };
+          if (callback) callback(error);
+          else socket.emit('AUTH_RESULT' as never, error as never);
+          return;
+        }
+
+        const response = { success: true, user: { id: user.id, email: user.email } };
+        if (callback) callback(response);
+        else socket.emit('AUTH_RESULT' as never, response as never);
+
+        clearTimeout(guestTimeout);
+        setTimeout(() => socket.disconnect(true), 1000);
+      } catch (error) {
+        console.error('[Socket.io] AUTH_VERIFY error:', error);
+        const err = { success: false };
+        if (callback) callback(err);
+        else socket.emit('AUTH_RESULT' as never, err as never);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      clearTimeout(guestTimeout);
+    });
+  }
+
+  /**
    * Handle new socket connection
    * Requirements: 1.7, 9.1
    */
@@ -553,6 +732,12 @@ export class VibeFlowSocketServer {
 
     // Register event handlers
     this.registerEventHandlers(socket);
+
+    // Application-layer keepalive: reply to client's ping_custom with pong_custom
+    // This keeps the connection alive through NAT gateways (frp TCP tunnels, mobile networks)
+    socket.on('ping_custom', () => {
+      socket.emit('pong_custom');
+    });
 
     // Send cold-start CHAT_SYNC if user has an active conversation with history (BUG-3)
     try {
@@ -1445,6 +1630,14 @@ export class VibeFlowSocketServer {
   }
 
   /**
+   * Public wrapper for broadcastFullStateToUser.
+   * Used by tRPC routers to push full state (including activePomodoro) to all clients.
+   */
+  async broadcastFullState(userId: string): Promise<void> {
+    await this.broadcastFullStateToUser(userId);
+  }
+
+  /**
    * Handle command acknowledgment
    * Requirements: 2.6
    */
@@ -1521,10 +1714,9 @@ export class VibeFlowSocketServer {
   private async sendStateSnapshotToSocket(socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>): Promise<void> {
     try {
       const { userId } = socket.data;
-      
-      // Get current daily state
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+
+      // Get current daily state (accounting for 4AM daily reset)
+      const today = getTodayDate();
       
       const [dailyState, settings, activePomodoro, tasks] = await Promise.all([
         prisma.dailyState.findUnique({
@@ -1545,15 +1737,16 @@ export class VibeFlowSocketServer {
 
       let systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
       
-      // Check for over_rest state if currently in rest OR planning (Requirements: 15.2, 16.1)
-      // Over rest can occur in both states when user is not actively working
-      if (systemState === 'rest' || systemState === 'planning') {
+      // Check for over_rest state only when in REST (not planning)
+      // If user moved to planning, they explicitly chose to exit rest — respect that choice
+      // This aligns with dailyStateService.getTodayWithProgress() behavior
+      if (systemState === 'rest') {
         const overRestResult = await overRestService.checkOverRestStatus(userId);
         if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
           systemState = 'over_rest';
         }
       }
-      
+
       // Get top 3 tasks from IDs if available, otherwise fall back to today's planned tasks
       let top3Tasks: { id: string; title: string; status: string; priority: string }[] = [];
       if (dailyState?.top3TaskIds && dailyState.top3TaskIds.length > 0) {
@@ -1688,10 +1881,9 @@ export class VibeFlowSocketServer {
       where: { userId },
     });
 
-    // Get current daily state
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+    // Get current daily state (accounting for 4AM daily reset)
+    const today = getTodayDate();
+
     const dailyState = await prisma.dailyState.findUnique({
       where: {
         userId_date: { userId, date: today },
@@ -1701,9 +1893,9 @@ export class VibeFlowSocketServer {
     // Determine the effective state (including over_rest)
     let effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
     
-    // Check for over_rest state if currently in rest OR planning
-    // Over rest can occur in both states when user is not actively working
-    if (effectiveState === 'rest' || effectiveState === 'planning') {
+    // Check for over_rest state only when in REST (not planning)
+    // If user moved to planning, they explicitly chose to exit rest — respect that choice
+    if (effectiveState === 'rest') {
       const overRestResult = await overRestService.checkOverRestStatus(userId);
       if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
         effectiveState = 'over_rest';

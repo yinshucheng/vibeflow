@@ -41,3 +41,7 @@ export {
 export {
   chatService,
 } from './chat.service';
+
+export {
+  serverConfigService,
+} from './server-config.service';

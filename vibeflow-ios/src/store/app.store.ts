@@ -176,18 +176,13 @@ function mapFullStateToAppState(
     planDate: dailyState.date,
   }));
 
-  // Blocking is active during focus, or when system state is over_rest/OVER_REST
-  const stateUpper = systemState.state.toUpperCase();
-  const isBlocking =
-    (mappedPomodoro !== null && mappedPomodoro.status === 'active') ||
-    stateUpper === 'OVER_REST';
-
   return {
     dailyState: mappedDailyState,
     activePomodoro: mappedPomodoro,
     top3Tasks: mappedTasks,
     todayTasks: mappedTasks, // In MVP, today tasks = top3 tasks
-    isBlockingActive: isBlocking,
+    // Note: isBlockingActive is NOT set here — it is managed exclusively by blockingService
+    // which evaluates the full state (activePomodoro + policy) via evaluateBlockingReason().
   };
 }
 
@@ -254,9 +249,11 @@ function applyDeltaChanges(
             ...currentState.dailyState,
             state: newState,
           };
-          // Mark blocking active when entering OVER_REST
-          if (newState === 'OVER_REST') {
-            updates.isBlockingActive = true;
+          // When transitioning away from FOCUS, clear activePomodoro defensively.
+          // The server should also send a full sync with activePomodoro = null,
+          // but delta syncs only contain systemState.state changes.
+          if (newState !== 'FOCUS' && currentState.activePomodoro !== null) {
+            updates.activePomodoro = null;
           }
         }
         break;
@@ -280,8 +277,7 @@ function applyDeltaChanges(
       case 'activePomodoro':
         if (change.value === null) {
           updates.activePomodoro = null;
-          // Don't force isBlockingActive to false — over_rest/sleep may still need blocking.
-          // The blocking service listener will evaluate the full state.
+          // isBlockingActive is managed by blockingService which evaluates the full state.
         } else if (typeof change.value === 'object') {
           const pomodoroData = change.value as {
             id: string;
@@ -299,9 +295,7 @@ function applyDeltaChanges(
             duration: pomodoroData.duration,
             status: pomodoroData.status === 'paused' ? 'paused' : 'active',
           };
-          if (pomodoroData.status === 'active') {
-            updates.isBlockingActive = true;
-          }
+          // isBlockingActive is managed by blockingService which evaluates the full state.
         }
         break;
 

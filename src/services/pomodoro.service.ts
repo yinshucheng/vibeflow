@@ -759,7 +759,7 @@ export const pomodoroService = {
       // Mark the current task as done if it exists
       if (completedTaskId) {
         await prisma.task.update({
-          where: { id: completedTaskId },
+          where: { id: completedTaskId, userId },
           data: { status: 'DONE' },
         });
       }

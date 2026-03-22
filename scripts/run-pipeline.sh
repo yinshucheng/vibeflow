@@ -203,7 +203,12 @@ TASKS_MD="$PROJECT_DIR/$PIPELINE_TASKS_MD"
 DESIGN_MD="${PIPELINE_DESIGN_MD:+$PROJECT_DIR/$PIPELINE_DESIGN_MD}"
 PROMPTS_DIR="${PIPELINE_PROMPTS_DIR:+$PROJECT_DIR/$PIPELINE_PROMPTS_DIR}"
 LOG_FILE="${PIPELINE_LOG_FILE:+$PROJECT_DIR/$PIPELINE_LOG_FILE}"
-LOG_FILE="${LOG_FILE:-$PROJECT_DIR/scripts/logs/pipeline-$(date '+%Y%m%d-%H%M%S').log}"
+if [ -z "$LOG_FILE" ]; then
+  # 从配置文件路径提取 spec 名称（父目录名）作为日志文件名
+  _config_dir="$(dirname "$CONFIG_FILE")"
+  _spec_name="$(basename "$_config_dir")"
+  LOG_FILE="$PROJECT_DIR/scripts/logs/${_spec_name}-$(date '+%Y%m%d-%H%M%S').log"
+fi
 STATUS_FILE="$PIPELINE_STATUS_FILE"
 
 # 确保日志目录存在

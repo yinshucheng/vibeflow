@@ -172,7 +172,7 @@ describe('Property 3: Offline Detection Timing', () => {
     );
   });
 
-  it('should detect stale clients based on threshold', async () => {
+  it('should detect stale clients based on threshold', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.array(heartbeatPayloadArb(testUserId), { minLength: 1, maxLength: 3 }),

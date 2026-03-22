@@ -20,11 +20,12 @@ export const timeSliceRouter = router({
       currentSliceId: z.string().uuid().nullable(),
       newTaskId: z.string().uuid().nullable(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const result = await timeSliceService.switchTask(
         input.pomodoroId,
         input.currentSliceId,
-        input.newTaskId
+        input.newTaskId,
+        ctx.user!.userId
       );
 
       if (!result.success) {
@@ -42,8 +43,8 @@ export const timeSliceRouter = router({
    */
   getByPomodoro: protectedProcedure
     .input(z.object({ pomodoroId: z.string().uuid() }))
-    .query(async ({ input }) => {
-      const result = await timeSliceService.getByPomodoro(input.pomodoroId);
+    .query(async ({ ctx, input }) => {
+      const result = await timeSliceService.getByPomodoro(input.pomodoroId, ctx.user!.userId);
 
       if (!result.success) {
         throw new TRPCError({
@@ -63,10 +64,10 @@ export const timeSliceRouter = router({
       sliceId: z.string().uuid(),
       taskId: z.string().uuid().nullable(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const result = await timeSliceService.updateSlice(input.sliceId, {
         taskId: input.taskId,
-      });
+      }, ctx.user!.userId);
 
       if (!result.success) {
         throw new TRPCError({

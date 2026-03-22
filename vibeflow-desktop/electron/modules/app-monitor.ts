@@ -433,6 +433,30 @@ export function createFocusTimeMonitor(
   });
 }
 
+/**
+ * Create an AppMonitor configured for rest time enforcement
+ * Gentler than focus/over-rest: longer intervals, longer warning delay
+ */
+export function createRestTimeMonitor(
+  apps: Array<{ bundleId: string; name: string; action?: 'close' | 'hide' }>,
+  options?: Partial<AppMonitorConfig>
+): AppMonitor {
+  const monitoredApps: MonitoredApp[] = apps.map(app => ({
+    name: app.name,
+    bundleId: app.bundleId,
+    action: app.action === 'hide' ? 'hide_window' : 'force_quit',
+  }));
+
+  return new AppMonitor({
+    apps: monitoredApps,
+    checkIntervalMs: options?.checkIntervalMs ?? 15 * 1000, // 15 seconds (gentler)
+    warningDelayMs: options?.warningDelayMs ?? 10 * 1000,   // 10 second warning
+    context: '休息时间',
+    emoji: '😴',
+    ...options,
+  });
+}
+
 // ============================================================================
 // Export
 // ============================================================================
@@ -441,6 +465,7 @@ export const appMonitorService = {
   AppMonitor,
   createSleepTimeMonitor,
   createFocusTimeMonitor,
+  createRestTimeMonitor,
 };
 
 export default appMonitorService;

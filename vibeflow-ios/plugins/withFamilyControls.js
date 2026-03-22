@@ -4,6 +4,9 @@
  * Adds com.apple.developer.family-controls and App Group entitlements to the iOS app.
  * Required for Screen Time API (FamilyControls / ManagedSettings) and sharing data
  * between the main app and extensions (ShieldConfiguration, DeviceActivityMonitor).
+ *
+ * Also sets ios.deploymentTarget in Podfile.properties.json to 16.0 so that
+ * CocoaPods autolinking picks up the ScreenTime pod (which requires iOS 16.0+).
  */
 const { withEntitlementsPlist, withDangerousMod, withXcodeProject } = require('expo/config-plugins');
 const fs = require('fs');

@@ -8,12 +8,15 @@
  */
 
 import prisma from '@/lib/prisma';
-import type { Policy, TimeSlot, DistractionApp, AdhocFocusSession, SleepTimePolicy, SleepEnforcementAppPolicy, OverRestPolicy } from '@/types/octopus';
+import type { Policy, TimeSlot, DistractionApp, AdhocFocusSession, SleepTimePolicy, SleepEnforcementAppPolicy, OverRestPolicy, RestEnforcementPolicy } from '@/types/octopus';
 import { PolicySchema } from '@/types/octopus';
 import { focusSessionService } from '@/services/focus-session.service';
 import { sleepTimeService, type SleepEnforcementApp } from '@/services/sleep-time.service';
 import { overRestService } from '@/services/over-rest.service';
 import { screenTimeExemptionService } from '@/services/screen-time-exemption.service';
+import { restEnforcementService } from '@/services/rest-enforcement.service';
+import { dailyStateService } from '@/services/daily-state.service';
+import { healthLimitService } from '@/services/health-limit.service';
 
 // Service result type
 export interface ServiceResult<T> {
@@ -235,6 +238,9 @@ export const policyDistributionService = {
       // Compile over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
       let overRest: OverRestPolicy | undefined;
       const overRestStatusResult = await overRestService.checkOverRestStatus(userId);
+      if (!overRestStatusResult.success) {
+        console.log(`[PolicyDistribution] Over rest check FAILED for user ${userId}: ${overRestStatusResult.error?.message}`);
+      }
       if (overRestStatusResult.success && overRestStatusResult.data) {
         const overRestStatus = overRestStatusResult.data;
         
@@ -251,7 +257,7 @@ export const policyDistributionService = {
                 name: app.name,
               }))
             : [];
-          
+
           // If no over rest apps configured, fall back to user's distraction apps
           // This ensures over rest enforcement works even without explicit configuration
           if (overRestApps.length === 0 && distractionApps.length > 0) {
@@ -261,16 +267,73 @@ export const policyDistributionService = {
             }));
             console.log(`[PolicyDistribution] Using ${overRestApps.length} distraction apps for over rest enforcement`);
           }
-          
+
           overRest = {
             isOverRest: true,
             overRestMinutes: overRestStatus.overRestMinutes,
             enforcementApps: overRestApps,
             bringToFront: true, // Always bring app to front during over rest
           };
-          
+
           console.log(`[PolicyDistribution] Over rest enforcement ACTIVE for user ${userId}: ${overRestStatus.overRestMinutes}min over, ${overRestApps.length} apps to enforce`);
+        } else {
+          console.log(`[PolicyDistribution] Over rest enforcement OMITTED for user ${userId}: isOverRest=${overRestStatus.isOverRest}, shouldTriggerActions=${overRestStatus.shouldTriggerActions}, overRestMinutes=${overRestStatus.overRestMinutes}, gracePeriodRemaining=${overRestStatus.gracePeriodRemaining}min`);
         }
+      }
+
+      // Compile REST enforcement configuration
+      // Skip REST enforcement when OVER_REST is active — they are contradictory:
+      // REST enforcement closes work apps, but OVER_REST wants the user to start working
+      let restEnforcement: RestEnforcementPolicy | undefined;
+      const isOverRestActive = !!overRest;
+      if (settings.restEnforcementEnabled && !isOverRestActive) {
+        const stateResult = await dailyStateService.getCurrentState(userId);
+        if (stateResult.success && stateResult.data === 'rest') {
+          const latestPomodoro = await prisma.pomodoro.findFirst({
+            where: { userId, status: 'COMPLETED' },
+            orderBy: { endTime: 'desc' },
+          });
+
+          const graceInfo = await restEnforcementService.getGraceInfo(
+            userId,
+            latestPomodoro?.id
+          );
+
+          if (!graceInfo.activeGrace) {
+            const workApps = (settings.workApps as unknown as Array<{ bundleId: string; name: string }>) || [];
+            restEnforcement = {
+              isActive: true,
+              workApps: workApps.map(app => ({
+                bundleId: app.bundleId,
+                name: app.name,
+              })),
+              actions: settings.restEnforcementActions.length > 0
+                ? settings.restEnforcementActions
+                : ['close'],
+              grace: {
+                available: graceInfo.remaining > 0,
+                remaining: graceInfo.remaining,
+                durationMinutes: graceInfo.durationMinutes,
+              },
+            };
+
+            console.log(`[PolicyDistribution] REST enforcement ACTIVE for user ${userId}: ${workApps.length} work apps to enforce`);
+          } else {
+            console.log(`[PolicyDistribution] REST enforcement skipped for user ${userId}: grace is active`);
+          }
+        }
+      }
+
+      // Compile health limit notification
+      let healthLimit: { type: '2hours' | 'daily'; message: string } | undefined;
+      const healthLimitResult = await healthLimitService.checkHealthLimit(userId);
+      if (healthLimitResult.exceeded && healthLimitResult.type) {
+        healthLimit = {
+          type: healthLimitResult.type,
+          message: healthLimitResult.type === '2hours'
+            ? "You've been working for 2+ hours continuously. Consider a longer break."
+            : "You've worked over 10 hours today. Please take care of yourself.",
+        };
       }
 
       // Check for active temporary unblock
@@ -303,6 +366,10 @@ export const policyDistributionService = {
         ...(sleepTime && { sleepTime }),
         // Include over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
         ...(overRest && { overRest }),
+        // Include REST enforcement configuration
+        ...(restEnforcement && { restEnforcement }),
+        // Include health limit notification
+        ...(healthLimit && { healthLimit }),
         // Include temporary unblock if active
         ...(temporaryUnblock && { temporaryUnblock }),
       };

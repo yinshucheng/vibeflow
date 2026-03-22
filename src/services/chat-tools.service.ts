@@ -356,7 +356,7 @@ async function executeSetTop3(userId: string, params: Record<string, unknown>): 
     update: { top3TaskIds: task_ids },
     create: { userId, date: today, systemState: 'PLANNING', top3TaskIds: task_ids },
   });
-  await prisma.task.updateMany({ where: { id: { in: task_ids } }, data: { planDate: today } });
+  await prisma.task.updateMany({ where: { id: { in: task_ids }, userId }, data: { planDate: today } });
   const sorted = task_ids.map((id, index) => { const t = tasks.find(t => t.id === id); return t ? { id: t.id, title: t.title, priority: t.priority, projectTitle: t.project.title, order: index + 1 } : null; }).filter(Boolean);
   return { success: true, data: { tasks: sorted } };
 }
@@ -527,8 +527,8 @@ async function executeGetProject(userId: string, params: Record<string, unknown>
     },
   });
   if (!project) return { success: false, error: { code: 'NOT_FOUND', message: 'Project not found' } };
-  const taskCount = await prisma.task.count({ where: { projectId: project.id } });
-  const completedCount = await prisma.task.count({ where: { projectId: project.id, status: 'DONE' } });
+  const taskCount = await prisma.task.count({ where: { projectId: project.id, userId } });
+  const completedCount = await prisma.task.count({ where: { projectId: project.id, userId, status: 'DONE' } });
   return {
     success: true,
     data: {
