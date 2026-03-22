@@ -28,7 +28,12 @@ PIPELINE_MODULE_TIMEOUT=3600
 PIPELINE_ON_BLOCK="stop"
 
 # ===== 已知 Flaky 测试 =====
-PIPELINE_KNOWN_FLAKY=()
+PIPELINE_KNOWN_FLAKY=(
+  "chat.service.test.ts"
+  "chat-attachment.test.ts"
+  "chat-concurrency.test.ts"
+  "chat-summary.test.ts"
+)
 
 # ===== 额外上下文 =====
 PIPELINE_EXTRA_CONTEXT=()

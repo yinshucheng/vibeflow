@@ -54,6 +54,8 @@ export interface RestStatusData {
   isLongRest: boolean;
   pomodoroCount: number;
   isOverRest: boolean;
+  lastTaskId?: string;
+  lastTaskTitle?: string;
 }
 
 /**
@@ -85,14 +87,8 @@ export interface PomodoroMachineActions {
   /** Confirm break and transition to rest (break_prompt -> resting) */
   confirmBreak: (summary?: string) => Promise<void>;
 
-  /** Skip break and return to idle (break_prompt -> idle) */
-  skipBreak: () => Promise<void>;
-
   /** Start next pomodoro from rest (resting -> focus) */
   startNextPomodoro: (taskId: string, duration?: number) => Promise<void>;
-
-  /** End rest and return to idle (resting -> idle) */
-  endRest: () => Promise<void>;
 
   /** Abort current pomodoro (focus -> idle) */
   abortPomodoro: () => Promise<void>;
@@ -150,7 +146,6 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
   const startTasklessMutation = trpc.pomodoro.startTaskless.useMutation();
   const completeMutation = trpc.pomodoro.complete.useMutation();
   const abortMutation = trpc.pomodoro.abort.useMutation();
-  const updateStateMutation = trpc.dailyState.updateSystemState.useMutation();
 
   // Derive system state from WebSocket or daily state
   const systemState = useMemo(() => {
@@ -368,6 +363,8 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
 
   /**
    * Confirm break and transition to rest
+   * Server already set state to 'rest' during the complete mutation,
+   * so we just update local phase.
    */
   const confirmBreak = useCallback(async (_summary?: string) => {
     if (phase !== 'break_prompt') {
@@ -377,48 +374,12 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
 
     console.log('[PomodoroMachine] confirmBreak called');
 
-    try {
-      setError(null);
-      // Set user intent before API call
-      setUserIntentPhase('resting');
-      setPhase('resting');
-      setCompletedPomodoro(null);
-
-      await updateStateMutation.mutateAsync('rest');
-      await utils.dailyState.getToday.refetch();
-    } catch (err) {
-      setUserIntentPhase(null);
-      setError(err instanceof Error ? err : new Error('Failed to start break'));
-      throw err;
-    }
-  }, [phase, updateStateMutation, utils]);
-
-  /**
-   * Skip break and return to idle
-   */
-  const skipBreak = useCallback(async () => {
-    if (phase !== 'break_prompt') {
-      console.warn('[PomodoroMachine] Cannot skip break in phase:', phase);
-      return;
-    }
-
-    console.log('[PomodoroMachine] skipBreak called');
-
-    try {
-      setError(null);
-      // Set user intent before API call
-      setUserIntentPhase('idle');
-      setPhase('idle');
-      setCompletedPomodoro(null);
-
-      await updateStateMutation.mutateAsync('planning');
-      await utils.dailyState.getToday.refetch();
-    } catch (err) {
-      setUserIntentPhase(null);
-      setError(err instanceof Error ? err : new Error('Failed to skip break'));
-      throw err;
-    }
-  }, [phase, updateStateMutation, utils]);
+    setError(null);
+    setUserIntentPhase('resting');
+    setPhase('resting');
+    setCompletedPomodoro(null);
+    await utils.dailyState.getToday.refetch();
+  }, [phase, utils]);
 
   /**
    * Start next pomodoro from rest
@@ -442,39 +403,6 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
       throw err;
     }
   }, [phase, startMutation, utils]);
-
-  /**
-   * End rest and return to idle
-   * Note: Also allows ending rest from 'idle' phase (when server state shows rest but local phase is idle)
-   */
-  const endRest = useCallback(async () => {
-    // Allow ending rest from 'resting' or 'idle' phase
-    // 'idle' case: server state might still be 'rest' but user wants to exit
-    if (phase !== 'resting' && phase !== 'idle') {
-      console.warn('[PomodoroMachine] Cannot end rest in phase:', phase);
-      return;
-    }
-
-    console.log('[PomodoroMachine] endRest called, current phase:', phase, 'systemState:', systemState);
-
-    try {
-      setError(null);
-      // Set user intent before API call
-      setUserIntentPhase('idle');
-      setPhase('idle');
-
-      // Only call API if server state is actually rest
-      if (systemState === 'rest' || systemState === 'over_rest') {
-        await updateStateMutation.mutateAsync('planning');
-        await utils.dailyState.getToday.refetch();
-      }
-    } catch (err) {
-      console.error('[PomodoroMachine] endRest failed:', err);
-      setUserIntentPhase(null);
-      setError(err instanceof Error ? err : new Error('Failed to end rest'));
-      throw err;
-    }
-  }, [phase, systemState, updateStateMutation, utils]);
 
   /**
    * Abort current pomodoro
@@ -530,9 +458,7 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
       startTasklessPomodoro,
       triggerComplete,
       confirmBreak,
-      skipBreak,
       startNextPomodoro,
-      endRest,
       abortPomodoro,
       reset,
     },

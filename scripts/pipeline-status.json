@@ -1,47 +1,53 @@
 {
-  "started_at": "2026-03-01T18:53:36Z",
-  "config": "docs/ai-chat-design/pending-pipeline.config.sh",
-  "branch": "feature/f2-llm-engine",
+  "started_at": "2026-03-15T16:34:45Z",
+  "config": ".kiro/specs/dashboard-command-center/pipeline.config.sh",
+  "branch": "feature/dashboard-command-center",
   "current_module": null,
   "current_phase": null,
   "modules": [
     {
-      "id": "c1",
+      "id": "phase1",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "c2",
+      "id": "phase2",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "d1",
+      "id": "phase3",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "d2",
+      "id": "phase4",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "d3",
+      "id": "phase5",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "d4",
+      "id": "phase6",
+      "status": "pending",
+      "duration": null,
+      "blocker": null
+    },
+    {
+      "id": "phase7",
       "status": "pending",
       "duration": null,
       "blocker": null
     }
   ],
-  "wall_clock": "1h8m31s",
-  "last_test_output": "   \u2713 Property 13: MCP Tool Execution Correctness > vibe.add_subtask creates task with correct parentId and projectId 1421ms\n   \u2713 Property 13: MCP Tool Execution Correctness > vibe.report_blocker logs blocker and returns success with blocker_id 651ms\n   \u2713 Property 13: MCP Tool Execution Correctness > vibe.start_pomodoro starts pomodoro and returns success with pomodoro data 1751ms\n   \u2713 Property 13: MCP Tool Execution Correctness > vibe.get_task_context returns task with project and related data 1088ms\n   \u2713 Property 13: MCP Tool Execution Correctness > all MCP tool calls are logged to audit with complete information 583ms\n   \u2713 Property 13: MCP Tool Execution Correctness > batch update tasks applies all valid updates atomically 925ms\n \u2713 tests/property/test-data-isolation.property.ts (3 tests) 6240ms\n   \u2713 Property 2: Test Data Isolation > should isolate test data: cleanup removes only tracked data 4312ms\n   \u2713 Property 2: Test Data Isolation > should ensure parallel test isolation: multiple trackers do not interfere 1220ms\n   \u2713 Property 2: Test Data Isolation > should handle cleanup of hierarchical data correctly 697ms\n \u2713 tests/property/heartbeat-interval.property.ts (7 tests) 6170ms\n   \u2713 Property 2: Heartbeat Interval Consistency > should track consecutive heartbeats with increasing timestamps 4666ms\n   \u2713 Property 2: Heartbeat Interval Consistency > should handle multiple clients sending heartbeats independently 345ms\n   \u2713 Property 2: Heartbeat Interval Consistency > should close open offline events when heartbeat is received 771ms\n\n Test Files  81 passed (81)\n      Tests  861 passed | 12 skipped (873)\n   Start at  04:01:56\n   Duration  11.64s (transform 1.81s, setup 0ms, collect 10.39s, tests 90.27s, environment 7ms, prepare 3.29s)\n\n"
+  "wall_clock": "51m55s",
+  "last_test_output": "\u251c \u25cb /projects                            2.31 kB         155 kB\n\u251c \u0192 /projects/[id]                       3.01 kB         156 kB\n\u251c \u0192 /projects/[id]/edit                  756 B           156 kB\n\u251c \u25cb /projects/new                        379 B           155 kB\n\u251c \u25cb /settings                            45.1 kB         212 kB\n\u251c \u25cb /stats                               17.2 kB         170 kB\n\u251c \u25cb /tasks                               2.41 kB         161 kB\n\u251c \u0192 /tasks/[id]                          2.27 kB         158 kB\n\u251c \u0192 /tasks/[id]/edit                     769 B           156 kB\n\u251c \u25cb /tasks/new                           418 B           156 kB\n\u2514 \u25cb /timeline                            5.73 kB         158 kB\n+ First Load JS shared by all            87.3 kB\n  \u251c chunks/117-ec5b0fe67c9dc3d0.js       31.7 kB\n  \u251c chunks/fd9d1056-90e27c5daf44f13b.js  53.6 kB\n  \u2514 other shared chunks (total)          1.95 kB\n\n\n\u25cb  (Static)   prerendered as static content\n\u0192  (Dynamic)  server-rendered on demand\n\n"
 }

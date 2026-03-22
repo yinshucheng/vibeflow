@@ -48,10 +48,8 @@ export type VibeFlowEvent =
   | { type: 'START_TASKLESS_POMODORO'; pomodoroId: string; label?: string }
   | { type: 'COMPLETE_POMODORO' }
   | { type: 'ABORT_POMODORO' }
-  | { type: 'COMPLETE_REST' }
   | { type: 'ENTER_OVER_REST' }
   | { type: 'DAILY_RESET' }
-  | { type: 'OVERRIDE_CAP' }
   | { type: 'SET_AIRLOCK_STEP'; step: AirlockStep }
   | { type: 'INCREMENT_POMODORO_COUNT' }
   | { type: 'SET_DAILY_CAP'; cap: number }
@@ -100,7 +98,9 @@ const defaultContext: VibeFlowContext = {
  * - PLANNING → FOCUS (via START_POMODORO)
  * - FOCUS → REST (via COMPLETE_POMODORO)
  * - FOCUS → PLANNING (via ABORT_POMODORO)
- * - REST → PLANNING (via COMPLETE_REST)
+ * - REST → FOCUS (via START_POMODORO) — no PLANNING in between
+ * - REST → OVER_REST (via ENTER_OVER_REST)
+ * - OVER_REST → FOCUS (via START_POMODORO)
  * - Any state → LOCKED (via DAILY_RESET)
  */
 export const vibeFlowMachine = setup({
@@ -133,7 +133,7 @@ export const vibeFlowMachine = setup({
      */
     hasValidTop3: ({ event }) => {
       if (event.type !== 'COMPLETE_AIRLOCK') return false;
-      return event.top3TaskIds.length === 3;
+      return event.top3TaskIds.length >= 0 && event.top3TaskIds.length <= 3;
     },
 
     /**
@@ -141,13 +141,6 @@ export const vibeFlowMachine = setup({
      */
     hasActivePomodoro: ({ context }) => {
       return context.currentPomodoroId !== null;
-    },
-
-    /**
-     * Check if system is currently in over-rest state
-     */
-    isInOverRest: ({ context }) => {
-      return context.overRestStartTime !== null;
     },
   },
   actions: {
@@ -286,21 +279,6 @@ export const vibeFlowMachine = setup({
     }),
 
     /**
-     * Complete a pomodoro when already in over-rest
-     * Stay in over-rest state, don't start new rest period
-     */
-    completePomodoroInOverRest: assign({
-      todayPomodoroCount: ({ context }) => context.todayPomodoroCount + 1,
-      currentPomodoroId: () => null,
-      pomodoroStartTime: () => null,
-      // Keep existing overRestStartTime, don't start new rest
-      // Reset multi-task fields
-      taskStack: () => [],
-      currentTimeSliceId: () => null,
-      isTaskless: () => false,
-    }),
-
-    /**
      * Abort a pomodoro session
      */
     abortPomodoro: assign({
@@ -311,14 +289,6 @@ export const vibeFlowMachine = setup({
       taskStack: () => [],
       currentTimeSliceId: () => null,
       isTaskless: () => false,
-    }),
-
-    /**
-     * Complete rest period
-     */
-    completeRest: assign({
-      currentTaskId: () => null,
-      restStartTime: () => null,
     }),
 
     /**
@@ -461,17 +431,10 @@ export const vibeFlowMachine = setup({
      */
     focus: {
       on: {
-        COMPLETE_POMODORO: [
-          {
-            target: 'over_rest',
-            guard: 'isInOverRest',
-            actions: 'completePomodoroInOverRest',
-          },
-          {
-            target: 'rest',
-            actions: 'completePomodoro',
-          },
-        ],
+        COMPLETE_POMODORO: {
+          target: 'rest',
+          actions: 'completePomodoro',
+        },
         ABORT_POMODORO: {
           target: 'planning',
           actions: 'abortPomodoro',
@@ -498,28 +461,24 @@ export const vibeFlowMachine = setup({
 
     /**
      * REST State
-     * Requirements: 5.6 - Display rest countdown and motivational content
+     * Requirements: 5.6 - Display rest elapsed time and motivational content
+     * User stays in REST until starting next pomodoro (no PLANNING in between)
      */
     rest: {
       on: {
-        COMPLETE_REST: [
-          {
-            target: 'planning',
-            guard: { type: 'isDailyCapped', params: {} },
-            actions: 'completeRest',
-          },
-          {
-            target: 'planning',
-            actions: 'completeRest',
-          },
-        ],
+        START_POMODORO: {
+          target: 'focus',
+          guard: 'canStartPomodoro',
+          actions: 'startPomodoro',
+        },
+        START_TASKLESS_POMODORO: {
+          target: 'focus',
+          guard: 'canStartPomodoro',
+          actions: 'startTasklessPomodoro',
+        },
         ENTER_OVER_REST: {
           target: 'over_rest',
           actions: 'enterOverRest',
-        },
-        OVERRIDE_CAP: {
-          target: 'planning',
-          actions: 'completeRest',
         },
         DAILY_RESET: {
           target: 'locked',
@@ -580,9 +539,9 @@ export function getAllowedEvents(state: SystemState): string[] {
     case 'focus':
       return ['COMPLETE_POMODORO', 'ABORT_POMODORO', 'DAILY_RESET'];
     case 'rest':
-      return ['COMPLETE_REST', 'ENTER_OVER_REST', 'OVERRIDE_CAP', 'DAILY_RESET'];
+      return ['START_POMODORO', 'START_TASKLESS_POMODORO', 'ENTER_OVER_REST', 'DAILY_RESET'];
     case 'over_rest':
-      return ['START_POMODORO', 'DAILY_RESET'];
+      return ['START_POMODORO', 'START_TASKLESS_POMODORO', 'DAILY_RESET'];
     default:
       return [];
   }

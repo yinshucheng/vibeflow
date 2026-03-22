@@ -37,8 +37,6 @@ import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
 import type { SystemState } from '@/machines/vibeflow.machine';
 
-type AirlockMode = 'required' | 'optional' | 'disabled';
-
 export default function Home() {
   const router = useRouter();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -49,7 +47,7 @@ export default function Home() {
   const systemState = dailyState?.systemState?.toLowerCase() as SystemState | undefined;
   const isLocked = systemState === 'locked';
   const airlockCompleted = dailyState?.airlockCompleted ?? false;
-  const airlockMode = (settings?.airlockMode as AirlockMode) ?? 'optional';
+  const airlockMode = (settings?.airlockMode ?? 'optional') as 'required' | 'optional' | 'disabled';
 
   // Redirect to Airlock when system is locked and airlock not completed
   // Only redirect if airlockMode is 'required'
@@ -96,23 +94,8 @@ export default function Home() {
       <PageHeader title="Dashboard" description="Your command center" />
 
       {/* Airlock prompt (conditional — locked but not required) */}
-      {isLocked && !airlockCompleted && airlockMode !== 'disabled' && (
-        <div className="mb-6 p-4 bg-notion-accent-purple-bg border border-notion-border rounded-notion-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <SunriseIcon className="w-6 h-6 text-notion-accent-purple" />
-              <div>
-                <h3 className="font-medium text-notion-text">Start your day with intention</h3>
-                <p className="text-sm text-notion-text-secondary">
-                  Complete the Morning Airlock to plan your day
-                </p>
-              </div>
-            </div>
-            <Link href="/airlock">
-              <Button variant="primary">Open Airlock</Button>
-            </Link>
-          </div>
-        </div>
+      {isLocked && !airlockCompleted && airlockMode === 'optional' && (
+        <AirlockPromptBanner />
       )}
 
       <div className="space-y-6">
@@ -167,5 +150,44 @@ export default function Home() {
 
       <TaskDetailPanel taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} />
     </MainLayout>
+  );
+}
+
+/** Banner shown when airlock is optional and not yet completed */
+function AirlockPromptBanner() {
+  const utils = trpc.useUtils();
+  const skipMutation = trpc.dailyState.skipAirlock.useMutation({
+    onSuccess: () => {
+      utils.dailyState.getToday.invalidate();
+    },
+  });
+  const SunriseIcon = Icons.airlock;
+
+  return (
+    <div className="mb-6 p-4 bg-notion-accent-purple-bg border border-notion-border rounded-notion-lg">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <SunriseIcon className="w-6 h-6 text-notion-accent-purple" />
+          <div>
+            <h3 className="font-medium text-notion-text">Start your day with intention</h3>
+            <p className="text-sm text-notion-text-secondary">
+              Complete the Morning Airlock to plan your day
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => skipMutation.mutate()}
+            disabled={skipMutation.isPending}
+          >
+            {skipMutation.isPending ? 'Skipping...' : 'Skip'}
+          </Button>
+          <Link href="/airlock">
+            <Button variant="primary">Open Airlock</Button>
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

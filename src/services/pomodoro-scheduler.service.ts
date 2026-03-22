@@ -6,8 +6,8 @@
  */
 
 import { pomodoroService } from './pomodoro.service';
-import { dailyStateService } from './daily-state.service';
 import { broadcastPolicyUpdate } from './socket-broadcast.service';
+import { socketServer } from '@/server/socket';
 import prisma from '@/lib/prisma';
 
 class PomodoroSchedulerService {
@@ -64,12 +64,15 @@ class PomodoroSchedulerService {
           
           if (result.success && result.data && result.data > 0) {
             console.log(`Auto-completed ${result.data} expired pomodoro(s) for user ${userId}`);
-            
-            // Update system state to REST for users whose pomodoros were completed
-            await dailyStateService.updateSystemState(userId, 'rest');
-            
+
             // Broadcast policy update to update desktop clients
             await broadcastPolicyUpdate(userId);
+
+            // Notify desktop app so tray updates even when window is in background
+            socketServer.sendExecuteCommand(userId, {
+              action: 'POMODORO_COMPLETE',
+              params: { autoCompleted: true },
+            });
           }
         } catch (error) {
           console.error(`Failed to check expired pomodoros for user ${userId}:`, error);

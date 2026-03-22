@@ -19,7 +19,6 @@ import { statsService, GetStatsSchema } from '@/services/stats.service';
 import { socketServer } from '@/server/socket';
 import { broadcastPolicyUpdate } from '@/services/socket-broadcast.service';
 import { trayIntegrationService } from '@/services/tray-integration.service';
-import { overRestService } from '@/services/over-rest.service';
 import prisma from '@/lib/prisma';
 
 export const pomodoroRouter = router({
@@ -204,12 +203,11 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Check if user is currently in over-rest state (Requirements: 7.1, 7.2)
-      const overRestResult = await dailyStateService.isInOverRest(ctx.user.userId);
-      const isInOverRest = overRestResult.success && overRestResult.data === true;
-
       // Increment pomodoro count
       await dailyStateService.incrementPomodoroCount(ctx.user.userId);
+
+      // Always transition to rest state on completion
+      await dailyStateService.updateSystemState(ctx.user.userId, 'rest');
 
       // Get user settings for rest duration
       const settings = await prisma.userSettings.findUnique({
@@ -217,50 +215,27 @@ export const pomodoroRouter = router({
       });
       const restDuration = settings?.shortRestDuration ?? 5;
 
-      // Handle state transition based on over-rest status (Requirements: 7.1, 7.2)
-      let newState: 'rest' | 'over_rest';
-      let restData: { startTime: Date; duration: number; isOverRest: boolean } | undefined;
+      const restData = {
+        startTime: new Date(),
+        duration: restDuration,
+        isOverRest: false,
+      };
 
-      if (isInOverRest) {
-        // If already in over-rest, stay in over-rest (Requirement 7.1)
-        await dailyStateService.updateSystemState(ctx.user.userId, 'over_rest');
-        newState = 'over_rest';
-        
-        // Get over-rest status for duration calculation
-        const overRestStatus = await overRestService.checkOverRestStatus(ctx.user.userId);
-        if (overRestStatus.success && overRestStatus.data && overRestStatus.data.lastPomodoroEndTime) {
-          restData = {
-            startTime: overRestStatus.data.lastPomodoroEndTime,
-            duration: 0,
-            isOverRest: true,
-          };
-        }
-      } else {
-        // Normal completion - transition to rest state
-        await dailyStateService.updateSystemState(ctx.user.userId, 'rest');
-        newState = 'rest';
-        restData = {
-          startTime: new Date(),
-          duration: restDuration,
-          isOverRest: false,
-        };
-      }
-      
-      // Update tray with completion state (Requirements: 7.2, 7.8)
+      // Update tray with completion state
       trayIntegrationService.handlePomodoroCompletion({
-        wasInOverRest: isInOverRest,
-        newState,
+        wasInOverRest: false,
+        newState: 'rest',
         restData,
       });
-      
-      // Broadcast policy update to update over rest status on desktop
+
+      // Broadcast policy update to update desktop clients
       await broadcastPolicyUpdate(ctx.user.userId);
-      
+
       // Send WebSocket event to Browser Sentinel (Requirement 4.6)
       if (result.data) {
-        const pomodoroData = result.data as { 
-          id: string; 
-          taskId: string; 
+        const pomodoroData = result.data as {
+          id: string;
+          taskId: string;
           duration: number;
           task?: { title: string };
         };
@@ -271,7 +246,6 @@ export const pomodoroRouter = router({
             taskId: pomodoroData.taskId,
             taskTitle: pomodoroData.task?.title ?? 'Unknown Task',
             duration: pomodoroData.duration,
-            wasInOverRest: isInOverRest,
           },
         });
       }

@@ -116,6 +116,7 @@ export function FocusZone() {
     phase,
     pomodoro,
     completedPomodoro,
+    restStatus,
     isLoading,
     actions,
   } = usePomodoroMachine();
@@ -189,9 +190,16 @@ export function FocusZone() {
         <Card className="border-notion-accent-green/30 bg-notion-accent-green-bg/30">
           <CardContent>
             <RestModeUI
-              onRestComplete={actions.endRest}
-              nextTaskId={completedPomodoro?.taskId ?? pomodoro?.taskId ?? undefined}
-              nextTaskTitle={completedPomodoro?.task?.title ?? pomodoro?.task?.title ?? undefined}
+              onStartPomodoro={() => {
+                const taskId = completedPomodoro?.taskId ?? pomodoro?.taskId ?? restStatus?.lastTaskId;
+                if (taskId) {
+                  actions.startNextPomodoro(taskId);
+                } else {
+                  actions.startTasklessPomodoro();
+                }
+              }}
+              nextTaskId={completedPomodoro?.taskId ?? pomodoro?.taskId ?? restStatus?.lastTaskId}
+              nextTaskTitle={completedPomodoro?.task?.title ?? pomodoro?.task?.title ?? restStatus?.lastTaskTitle}
             />
           </CardContent>
         </Card>
@@ -288,7 +296,7 @@ export function FocusZone() {
         <PomodoroCompletionModal
           pomodoroId={completedPomodoro.id}
           taskTitle={completedPomodoro.task?.title ?? 'Unknown Task'}
-          onConfirm={actions.skipBreak}
+          onConfirm={actions.confirmBreak}
           onStartBreak={actions.confirmBreak}
           alreadyCompleted={true}
         />

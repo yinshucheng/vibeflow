@@ -98,31 +98,37 @@ export const dailyStateService = {
   async getOrCreateToday(userId: string): Promise<ServiceResult<DailyState>> {
     try {
       const today = getTodayDate();
-      
-      // Try to find existing state for today
-      let dailyState = await prisma.dailyState.findUnique({
+
+      // Check user's airlockMode setting to determine initial state
+      const settings = await prisma.userSettings.findUnique({
+        where: { userId },
+        select: { airlockMode: true },
+      });
+      const airlockMode = settings?.airlockMode ?? 'optional';
+
+      // When airlock is disabled, skip LOCKED and go directly to PLANNING
+      const skipAirlock = airlockMode === 'disabled';
+
+      // Use upsert to avoid race conditions from concurrent requests
+      const dailyState = await prisma.dailyState.upsert({
         where: {
           userId_date: {
             userId,
             date: today,
           },
         },
+        // If record already exists, return it as-is (no update)
+        update: {},
+        create: {
+          userId,
+          date: today,
+          systemState: skipAirlock ? 'PLANNING' : 'LOCKED',
+          top3TaskIds: [],
+          pomodoroCount: 0,
+          capOverrideCount: 0,
+          airlockCompleted: skipAirlock,
+        },
       });
-
-      // If no state exists or it's a new day, create new state
-      if (!dailyState) {
-        dailyState = await prisma.dailyState.create({
-          data: {
-            userId,
-            date: today,
-            systemState: 'LOCKED',
-            top3TaskIds: [],
-            pomodoroCount: 0,
-            capOverrideCount: 0,
-            airlockCompleted: false,
-          },
-        });
-      }
 
       return { success: true, data: dailyState };
     } catch (error) {
@@ -772,6 +778,14 @@ export const dailyStateService = {
    * Sets system state to PLANNING without requiring Top 3 selection
    */
   async skipAirlockForNewUser(userId: string): Promise<ServiceResult<DailyState>> {
+    return this.skipAirlock(userId);
+  },
+
+  /**
+   * Skip airlock and go directly to PLANNING state.
+   * Works for any user regardless of whether they have tasks.
+   */
+  async skipAirlock(userId: string): Promise<ServiceResult<DailyState>> {
     try {
       const today = getTodayDate();
 
@@ -811,7 +825,7 @@ export const dailyStateService = {
         },
       };
     }
-  },
+  }
 };
 
 export default dailyStateService;
