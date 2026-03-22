@@ -3,8 +3,9 @@
 # Start VibeFlow clients connected to the remote (production) server
 # Usage:
 #   ./scripts/start-remote.sh desktop          # Start desktop client
-#   ./scripts/start-remote.sh ios              # Start iOS (dev server only)
-#   ./scripts/start-remote.sh ios --build      # Start iOS (native build + deploy)
+#   ./scripts/start-remote.sh ios              # Start iOS (dev server, needs same network)
+#   ./scripts/start-remote.sh ios --build      # Build debug + deploy to device
+#   ./scripts/start-remote.sh ios --release    # Build release (standalone, no Metro needed)
 #   ./scripts/start-remote.sh all              # Start both
 # =============================================================================
 
@@ -20,22 +21,36 @@ start_desktop() {
 }
 
 start_ios() {
-    echo "Starting iOS Dev Client → $SERVER_URL"
+    local flag="${2:-}"
+    echo "Starting iOS → $SERVER_URL"
     cd "$ROOT_DIR/vibeflow-ios"
 
     # Kill stale expo processes on port 8081
     lsof -i :8081 -t 2>/dev/null | xargs kill -9 2>/dev/null
 
-    if [ "${2:-}" = "--build" ]; then
-        # Full native build + deploy to device (slow, use when native code changed)
-        echo "  Building native + deploying to device..."
-        EXPO_PUBLIC_SERVER_HOST="$SERVER_IP" EXPO_PUBLIC_SERVER_PORT="$SERVER_PORT" npx expo run:ios --device --port 8081
-    else
-        # Start dev server only (fast, Dev Client already installed on device)
-        echo "  Starting dev server (connect from Dev Client on device)"
-        echo "  Use --build flag if native code changed"
-        EXPO_PUBLIC_SERVER_HOST="$SERVER_IP" EXPO_PUBLIC_SERVER_PORT="$SERVER_PORT" npx expo start --port 8081
-    fi
+    # Common env vars (baked into JS bundle at build time)
+    export EXPO_PUBLIC_SERVER_HOST="$SERVER_IP"
+    export EXPO_PUBLIC_SERVER_PORT="$SERVER_PORT"
+
+    case "$flag" in
+        --release)
+            # Release build: JS bundle embedded, works without Metro/computer
+            echo "  Building RELEASE → device (standalone, no Metro needed)"
+            echo "  This takes a few minutes..."
+            npx expo run:ios --device --configuration Release
+            ;;
+        --build)
+            # Debug build: needs Metro but native code is fresh
+            echo "  Building DEBUG → device (needs Metro on same network)"
+            npx expo run:ios --device --port 8081
+            ;;
+        *)
+            # Dev server only: fastest, Dev Client already on device
+            echo "  Starting dev server (Dev Client connects from same network)"
+            echo "  Flags: --build (debug native build), --release (standalone build)"
+            npx expo start --port 8081
+            ;;
+    esac
 }
 
 case "${1:-all}" in
@@ -61,6 +76,11 @@ case "${1:-all}" in
         ;;
     *)
         echo "Usage: $0 [desktop|ios|all]"
+        echo ""
+        echo "iOS flags:"
+        echo "  (none)      Dev server only (fast, needs same network)"
+        echo "  --build     Debug native build + deploy to device"
+        echo "  --release   Release build (standalone, works anywhere)"
         exit 1
         ;;
 esac
