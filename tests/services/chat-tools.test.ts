@@ -27,6 +27,13 @@ vi.mock('../../src/services/pomodoro.service', () => ({
     startTaskless: vi.fn(),
     completeTaskInPomodoro: vi.fn(),
     record: vi.fn(),
+    abort: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/services/state-engine.service', () => ({
+  stateEngineService: {
+    send: vi.fn(),
   },
 }));
 
@@ -79,6 +86,7 @@ vi.mock('../../src/lib/prisma', () => ({
 import { taskService } from '../../src/services/task.service';
 import { pomodoroService } from '../../src/services/pomodoro.service';
 import { nlParserService } from '../../src/services/nl-parser.service';
+import { stateEngineService } from '../../src/services/state-engine.service';
 import {
   createChatTools,
   getChatToolDefinitions,
@@ -314,6 +322,7 @@ describe('flow_start_pomodoro execute', () => {
         status: 'IN_PROGRESS',
       } as never,
     });
+    vi.mocked(stateEngineService.send).mockResolvedValue({ success: true, from: 'idle', to: 'focus', event: 'START_POMODORO' } as never);
 
     const toolSet = createChatTools(TEST_USER_ID);
     const result = await toolSet.flow_start_pomodoro.execute!(

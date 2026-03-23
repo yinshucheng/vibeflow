@@ -76,8 +76,8 @@
 - [x] 验证：通过 Socket 启动番茄钟，确认状态正确 <!-- 2.7 done -->
 
 ### 2.8 迁移 chatToolsService
-- [ ] `src/services/chat-tools.service.ts`：删除独立的 `updateSystemState('focus')`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', ... })`
-- [ ] 验证：通过 AI Chat 启动番茄钟
+- [x] `src/services/chat-tools.service.ts`：删除独立的 `updateSystemState('focus')`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', ... })`
+- [x] 验证：通过 AI Chat 启动番茄钟 <!-- 2.8 done -->
 
 ### 2.9 迁移 dailyReset
 - [ ] `src/services/daily-state.service.ts` 的 reset 逻辑：改为 `stateEngine.send(userId, { type: 'DAILY_RESET' })`

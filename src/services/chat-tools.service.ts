@@ -19,8 +19,7 @@ import { projectService } from './project.service';
 import { timeSliceService } from './time-slice.service';
 import { activityLogService } from './activity-log.service';
 import { efficiencyAnalysisService } from './efficiency-analysis.service';
-import { dailyStateService } from './daily-state.service';
-import { broadcastStateChange } from './socket-broadcast.service';
+import { stateEngineService } from './state-engine.service';
 import { screenTimeExemptionService } from './screen-time-exemption.service';
 import { pomodoroService as pomodoroServiceDirect } from './pomodoro.service';
 import { sleepTimeService } from './sleep-time.service';
@@ -254,9 +253,22 @@ async function executeStartPomodoro(userId: string, params: Record<string, unkno
   if (!result.success) {
     return { success: false, error: result.error ?? { code: 'INTERNAL_ERROR', message: 'Failed to start pomodoro' } };
   }
-  // Transition to FOCUS state and broadcast SYNC_STATE to all devices (BUG-4)
-  await dailyStateService.updateSystemState(userId, 'focus');
-  return { success: true, data: { id: result.data?.id, taskId: result.data?.taskId, duration: result.data?.duration, startTime: result.data?.startTime, status: result.data?.status } };
+
+  // Transition state via StateEngine (handles state write, broadcast, policy update, MCP event, logging)
+  const pomodoroData = result.data!;
+  const transition = await stateEngineService.send(userId, {
+    type: 'START_POMODORO',
+    pomodoroId: pomodoroData.id,
+    taskId: pomodoroData.taskId,
+  });
+
+  if (!transition.success) {
+    // Guard rejected — clean up the created pomodoro
+    await pomodoroService.abort(pomodoroData.id, userId).catch(() => {});
+    return { success: false, error: { code: 'CONFLICT', message: transition.message } };
+  }
+
+  return { success: true, data: { id: pomodoroData.id, taskId: pomodoroData.taskId, duration: pomodoroData.duration, startTime: pomodoroData.startTime, status: pomodoroData.status } };
 }
 
 // S1.1 Task management execute helpers
@@ -407,7 +419,23 @@ async function executeStartTasklessPomodoro(userId: string, params: Record<strin
   if (!result.success) {
     return { success: false, error: result.error ?? { code: 'INTERNAL_ERROR', message: 'Failed to start taskless pomodoro' } };
   }
-  return { success: true, data: { id: result.data?.id, label: result.data?.label, startTime: result.data?.startTime, isTaskless: true } };
+
+  // Transition state via StateEngine (handles state write, broadcast, policy update, MCP event, logging)
+  const pomodoroData = result.data!;
+  const transition = await stateEngineService.send(userId, {
+    type: 'START_POMODORO',
+    pomodoroId: pomodoroData.id,
+    taskId: pomodoroData.taskId,
+    isTaskless: true,
+  });
+
+  if (!transition.success) {
+    // Guard rejected — clean up the created pomodoro
+    await pomodoroService.abort(pomodoroData.id, userId).catch(() => {});
+    return { success: false, error: { code: 'CONFLICT', message: transition.message } };
+  }
+
+  return { success: true, data: { id: pomodoroData.id, label: pomodoroData.label, startTime: pomodoroData.startTime, isTaskless: true } };
 }
 
 async function executeRecordPomodoro(userId: string, params: Record<string, unknown>): Promise<ChatToolResult> {

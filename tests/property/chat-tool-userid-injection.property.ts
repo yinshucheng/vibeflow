@@ -14,7 +14,11 @@ vi.mock('../../src/services/task.service', () => ({
 }));
 
 vi.mock('../../src/services/pomodoro.service', () => ({
-  pomodoroService: { start: vi.fn(), startTaskless: vi.fn(), completeTaskInPomodoro: vi.fn(), record: vi.fn() },
+  pomodoroService: { start: vi.fn(), startTaskless: vi.fn(), completeTaskInPomodoro: vi.fn(), record: vi.fn(), abort: vi.fn() },
+}));
+
+vi.mock('../../src/services/state-engine.service', () => ({
+  stateEngineService: { send: vi.fn() },
 }));
 
 vi.mock('../../src/services/nl-parser.service', () => ({
@@ -62,6 +66,7 @@ vi.mock('../../src/lib/prisma', () => ({
 import { taskService } from '../../src/services/task.service';
 import { pomodoroService } from '../../src/services/pomodoro.service';
 import { nlParserService } from '../../src/services/nl-parser.service';
+import { stateEngineService } from '../../src/services/state-engine.service';
 import { createChatTools, getChatToolDefinitions } from '../../src/services/chat-tools.service';
 
 beforeEach(() => {
@@ -77,6 +82,10 @@ beforeEach(() => {
     success: true,
     data: { id: 'pom-1', taskId: 'task-1', duration: 25, startTime: new Date(), status: 'IN_PROGRESS' } as never,
   });
+
+  vi.mocked(stateEngineService.send).mockResolvedValue({
+    success: true, from: 'idle', to: 'focus', event: 'START_POMODORO',
+  } as never);
 
   vi.mocked(nlParserService.parseTaskDescription).mockResolvedValue({
     success: true,
@@ -130,6 +139,9 @@ describe('userId injection property', () => {
             success: true,
             data: { id: 'p', taskId, duration: 25, startTime: new Date(), status: 'IN_PROGRESS' } as never,
           });
+          vi.mocked(stateEngineService.send).mockResolvedValue({
+            success: true, from: 'idle', to: 'focus', event: 'START_POMODORO',
+          } as never);
 
           const tools = createChatTools(userId);
           await tools.flow_start_pomodoro.execute!(
@@ -199,6 +211,9 @@ describe('userId injection property', () => {
             success: true,
             data: { title: 'T', priority: 'P2', projectId: null, planDate: null, estimatedMinutes: null, confidence: 0.9, ambiguities: [] },
           });
+          vi.mocked(stateEngineService.send).mockResolvedValue({
+            success: true, from: 'idle', to: 'focus', event: 'START_POMODORO',
+          } as never);
 
           // Execute each definition's execute with the userId
           for (const def of defs) {
