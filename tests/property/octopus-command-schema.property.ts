@@ -62,7 +62,7 @@ const baseCommandFieldsArb = fc.record({
 
 // System state generator
 const systemStateArb = fc.record({
-  state: fc.constantFrom('LOCKED', 'PLANNING', 'FOCUS', 'REST'),
+  state: fc.constantFrom('IDLE', 'FOCUS', 'OVER_REST'),
   dailyCapReached: fc.boolean(),
   skipTokensRemaining: fc.integer({ min: 0, max: 10 }),
 });

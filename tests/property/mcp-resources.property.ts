@@ -569,11 +569,11 @@ describe('Property 12: MCP Resource Schema Consistency', () => {
             data: {
               userId: testUserId,
               date: serviceToday,
-              systemState: 'PLANNING',
+              systemState: 'IDLE',
               top3TaskIds,
               pomodoroCount: 0,
               capOverrideCount: 0,
-              airlockCompleted: true,
+              airlockCompleted: true, // field retained in schema for migration compat
             },
           });
 

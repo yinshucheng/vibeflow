@@ -146,7 +146,7 @@ export class TaskFactory {
   }
 
   /**
-   * Create a task planned for yesterday (for airlock testing)
+   * Create a task planned for yesterday (for daily planning testing)
    */
   async createForYesterday(projectId: string, userId: string, input: Omit<CreateTaskInput, 'planDate'> = {}): Promise<Task> {
     const yesterday = new Date();

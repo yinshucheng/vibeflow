@@ -180,10 +180,10 @@
 - [x] 验证：不选 Top 3 也能正常开始番茄钟 <!-- 4.4 done -->
 
 ### 4.5 清理测试
-- [ ] 删除/更新状态机单元测试中的 LOCKED/PLANNING/REST 相关 case
-- [ ] 删除/更新 E2E 测试中的 airlock 流程
-- [ ] 更新 MCP 工具测试中的状态相关 case
-- [ ] 验证：`npm test` + `npm run e2e` 全部通过
+- [x] 删除/更新状态机单元测试中的 LOCKED/PLANNING/REST 相关 case
+- [x] 删除/更新 E2E 测试中的 airlock 流程
+- [x] 更新 MCP 工具测试中的状态相关 case
+- [x] 验证：`npm test` + `npm run e2e` 全部通过 <!-- 4.5 done -->
 
 ### 4.6 Phase 4 完整验证
 - [ ] `npm run build` 通过

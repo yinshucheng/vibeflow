@@ -1282,7 +1282,7 @@ export const WorkStartPayloadSchema = z.object({
   configuredStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format. Use HH:mm'),
   actualStartTime: z.number().int().positive(),
   delayMinutes: z.number().int().nonnegative(),
-  trigger: z.literal('airlock_complete'),
+  trigger: z.literal('first_pomodoro'),
 });
 
 // Work start event schema

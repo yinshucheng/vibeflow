@@ -100,7 +100,7 @@ const workStartEventArb = fc.record({
     configuredStartTime: timeStringArb,
     actualStartTime: fc.integer({ min: 1, max: Date.now() + 86400000 }),
     delayMinutes: fc.integer({ min: 0, max: 1440 }),
-    trigger: fc.constant('airlock_complete' as const),
+    trigger: fc.constant('first_pomodoro' as const),
   }),
 });
 
@@ -190,7 +190,7 @@ describe('Property 14: Octopus Protocol Consistency', () => {
             expect(payload.configuredStartTime).toBe(event.payload.configuredStartTime);
             expect(payload.actualStartTime).toBe(event.payload.actualStartTime);
             expect(payload.delayMinutes).toBe(event.payload.delayMinutes);
-            expect(payload.trigger).toBe('airlock_complete');
+            expect(payload.trigger).toBe('first_pomodoro');
           }
         }
         return true;
@@ -269,7 +269,7 @@ describe('Property 14: Octopus Protocol Consistency', () => {
     await fc.assert(
       fc.asyncProperty(
         workStartEventArb,
-        fc.string({ minLength: 1, maxLength: 30 }).filter((s) => s !== 'airlock_complete'),
+        fc.string({ minLength: 1, maxLength: 30 }).filter((s) => s !== 'first_pomodoro'),
         async (validEvent, invalidTrigger) => {
           const invalidEvent = {
             ...validEvent,
@@ -362,7 +362,7 @@ describe('Property 14: Octopus Protocol Consistency', () => {
       configuredStartTime: '09:00',
       actualStartTime: Date.now(),
       delayMinutes: 15,
-      trigger: 'airlock_complete' as const,
+      trigger: 'first_pomodoro' as const,
     };
     const result = WorkStartPayloadSchema.safeParse(payload);
     expect(result.success).toBe(true);

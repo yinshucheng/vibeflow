@@ -58,8 +58,8 @@ const metadataGenerators: Record<string, fc.Arbitrary<Record<string, unknown>>> 
     pomodoroId: fc.option(fc.uuid(), { nil: undefined }),
   }),
   state_change: fc.record({
-    fromState: fc.constantFrom('LOCKED', 'PLANNING', 'FOCUS', 'REST'),
-    toState: fc.constantFrom('LOCKED', 'PLANNING', 'FOCUS', 'REST'),
+    fromState: fc.constantFrom('IDLE', 'FOCUS', 'OVER_REST'),
+    toState: fc.constantFrom('IDLE', 'FOCUS', 'OVER_REST'),
     trigger: fc.constantFrom('user', 'system', 'timer'),
   }),
   interruption: fc.record({

@@ -346,7 +346,7 @@ export interface WorkStartPayload {
   configuredStartTime: string;   // HH:mm
   actualStartTime: number;       // Unix timestamp
   delayMinutes: number;          // 0 if on-time or early, positive if late
-  trigger: 'airlock_complete';   // What triggered the work start
+  trigger: 'first_pomodoro';     // What triggered the work start
 }
 
 /**

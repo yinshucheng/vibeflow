@@ -226,7 +226,7 @@ export class WorkStartTracker {
       configuredStartTime: info.configuredStartTime,
       actualStartTime: info.actualStartTime,
       delayMinutes: info.delayMinutes,
-      trigger: 'airlock_complete',
+      trigger: 'first_pomodoro',
     };
 
     try {

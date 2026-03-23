@@ -3,7 +3,7 @@ import { test, expect } from '../fixtures';
 /**
  * Pomodoro Flow Integration Tests
  * 
- * Tests the complete PLANNING → FOCUS → REST → PLANNING flow.
+ * Tests the complete IDLE → FOCUS → IDLE flow (3-state model).
  * 
  * Requirements: 4.1-4.9
  * - 4.1: Start Pomodoro requires selecting a Task
@@ -12,7 +12,7 @@ import { test, expect } from '../fixtures';
  * - 4.4: Display timer prominently with current Task title
  * - 4.5: Full-screen modal on timer completion
  * - 4.6: Record session with COMPLETED status
- * - 4.7: REST state blocks new Pomodoro until rest ends
+ * - 4.7: IDLE state after completion (rest is now a sub-phase of IDLE)
  * - 4.8: Record ABORTED status on manual stop
  * - 4.9: Record INTERRUPTED status on external event
  */
@@ -26,7 +26,7 @@ test.describe('Pomodoro Flow', () => {
       authenticatedPage,
       testUser,
     }) => {
-      // Setup: Create project and task, set state to PLANNING
+      // Setup: Create project and task, set state to IDLE
       const project = await projectFactory.create(testUser.id);
       const task = await taskFactory.createForToday(project.id, testUser.id, {
         title: 'Focus Task',
@@ -47,7 +47,7 @@ test.describe('Pomodoro Flow', () => {
         },
       });
 
-      // Set daily state to PLANNING
+      // Set daily state to IDLE
       await prisma.dailyState.deleteMany({ where: { userId: testUser.id } });
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -55,7 +55,7 @@ test.describe('Pomodoro Flow', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 0,
           capOverrideCount: 0,
@@ -116,7 +116,7 @@ test.describe('Pomodoro Flow', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 0,
           capOverrideCount: 0,
@@ -258,7 +258,7 @@ test.describe('Pomodoro Flow', () => {
   });
 
   test.describe('Completing a Pomodoro', () => {
-    test('should transition to REST state after completion', async ({
+    test('should transition to IDLE state after completion', async ({
       projectFactory,
       taskFactory,
       prisma,
@@ -314,7 +314,7 @@ test.describe('Pomodoro Flow', () => {
         },
       });
 
-      // Update state to REST
+      // Update state to IDLE (completing pomodoro returns to IDLE in 3-state model)
       await prisma.dailyState.update({
         where: {
           userId_date: {
@@ -323,7 +323,7 @@ test.describe('Pomodoro Flow', () => {
           },
         },
         data: {
-          systemState: 'REST',
+          systemState: 'IDLE',
           pomodoroCount: 1,
         },
       });
@@ -338,7 +338,7 @@ test.describe('Pomodoro Flow', () => {
         },
       });
 
-      expect(dailyState?.systemState).toBe('REST');
+      expect(dailyState?.systemState).toBe('IDLE');
       expect(dailyState?.pomodoroCount).toBe(1);
 
       // Verify pomodoro status
@@ -392,7 +392,7 @@ test.describe('Pomodoro Flow', () => {
         },
       });
 
-      // Update state back to PLANNING
+      // Update state back to IDLE (abort returns to IDLE in 3-state model)
       await prisma.dailyState.update({
         where: {
           userId_date: {
@@ -401,7 +401,7 @@ test.describe('Pomodoro Flow', () => {
           },
         },
         data: {
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
         },
       });
 
@@ -419,7 +419,7 @@ test.describe('Pomodoro Flow', () => {
           },
         },
       });
-      expect(dailyState?.systemState).toBe('PLANNING');
+      expect(dailyState?.systemState).toBe('IDLE');
       // Pomodoro count should not increase on abort
       expect(dailyState?.pomodoroCount).toBe(0);
     });
@@ -477,12 +477,11 @@ test.describe('Pomodoro Flow', () => {
     });
   });
 
-  test.describe('Rest Period', () => {
-    test('should block new pomodoro during REST state', async ({
+  test.describe('Rest Period (IDLE sub-phase)', () => {
+    test('should allow starting new pomodoro in IDLE state (rest is IDLE sub-phase)', async ({
       projectFactory,
       taskFactory,
       prisma,
-      authenticatedPage,
       testUser,
     }) => {
       const project = await projectFactory.create(testUser.id);
@@ -508,7 +507,7 @@ test.describe('Pomodoro Flow', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'REST',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 1,
           capOverrideCount: 0,
@@ -516,23 +515,23 @@ test.describe('Pomodoro Flow', () => {
         },
       });
 
-      await authenticatedPage.goto('/pomodoro');
-      await authenticatedPage.waitForLoadState('domcontentloaded');
-      // Wait for page content to load
-      await authenticatedPage.waitForSelector('text=Focus Session', { timeout: 15000 }).catch(() => {});
+      // In the 3-state model, IDLE allows starting new pomodoros
+      // (REST is no longer a separate blocking state)
+      const dailyState = await prisma.dailyState.findUnique({
+        where: {
+          userId_date: {
+            userId: testUser.id,
+            date: today,
+          },
+        },
+      });
 
-      // Should show rest mode or disable start button
-      const restIndicator = authenticatedPage.locator('text=Rest');
-      const startButton = authenticatedPage.locator('button:has-text("Start")');
-
-      const isResting = await restIndicator.isVisible({ timeout: 5000 }).catch(() => false);
-      const startDisabled = await startButton.isDisabled().catch(() => true);
-
-      // Either showing rest mode or start is disabled
-      expect(isResting || startDisabled).toBeTruthy();
+      expect(dailyState?.systemState).toBe('IDLE');
+      // pomodoroCount < dailyCap means user can start a new pomodoro
+      expect(dailyState!.pomodoroCount).toBeLessThan(8);
     });
 
-    test('should transition to PLANNING after rest completes', async ({
+    test('should stay in IDLE after pomodoro completion (no separate REST state)', async ({
       projectFactory,
       taskFactory,
       prisma,
@@ -548,7 +547,7 @@ test.describe('Pomodoro Flow', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'REST',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 1,
           capOverrideCount: 0,
@@ -556,20 +555,7 @@ test.describe('Pomodoro Flow', () => {
         },
       });
 
-      // Complete rest
-      await prisma.dailyState.update({
-        where: {
-          userId_date: {
-            userId: testUser.id,
-            date: today,
-          },
-        },
-        data: {
-          systemState: 'PLANNING',
-        },
-      });
-
-      // Verify
+      // Verify IDLE state persists (no REST→PLANNING transition needed)
       const dailyState = await prisma.dailyState.findUnique({
         where: {
           userId_date: {
@@ -579,7 +565,7 @@ test.describe('Pomodoro Flow', () => {
         },
       });
 
-      expect(dailyState?.systemState).toBe('PLANNING');
+      expect(dailyState?.systemState).toBe('IDLE');
     });
   });
 
@@ -614,7 +600,7 @@ test.describe('Pomodoro Flow', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 2, // Already at cap
           capOverrideCount: 0,
@@ -670,7 +656,7 @@ test.describe('Pomodoro Flow', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'REST',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 2,
           capOverrideCount: 0,
@@ -688,7 +674,7 @@ test.describe('Pomodoro Flow', () => {
         },
         data: {
           capOverrideCount: { increment: 1 },
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
         },
       });
 
@@ -703,12 +689,12 @@ test.describe('Pomodoro Flow', () => {
       });
 
       expect(dailyState?.capOverrideCount).toBe(1);
-      expect(dailyState?.systemState).toBe('PLANNING');
+      expect(dailyState?.systemState).toBe('IDLE');
     });
   });
 
   test.describe('Full Pomodoro Cycle', () => {
-    test('should complete full PLANNING → FOCUS → REST → PLANNING cycle', async ({
+    test('should complete full IDLE → FOCUS → IDLE cycle', async ({
       projectFactory,
       taskFactory,
       prisma,
@@ -735,13 +721,13 @@ test.describe('Pomodoro Flow', () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Step 1: Start in PLANNING
+      // Step 1: Start in IDLE
       await prisma.dailyState.deleteMany({ where: { userId: testUser.id } });
       await prisma.dailyState.create({
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 0,
           capOverrideCount: 0,
@@ -752,7 +738,7 @@ test.describe('Pomodoro Flow', () => {
       let state = await prisma.dailyState.findUnique({
         where: { userId_date: { userId: testUser.id, date: today } },
       });
-      expect(state?.systemState).toBe('PLANNING');
+      expect(state?.systemState).toBe('IDLE');
 
       // Step 2: Start Pomodoro → FOCUS
       const pomodoro = await prisma.pomodoro.create({
@@ -774,7 +760,7 @@ test.describe('Pomodoro Flow', () => {
       });
       expect(state?.systemState).toBe('FOCUS');
 
-      // Step 3: Complete Pomodoro → REST
+      // Step 3: Complete Pomodoro → IDLE (rest is now a sub-phase of IDLE)
       await prisma.pomodoro.update({
         where: { id: pomodoro.id },
         data: { status: 'COMPLETED', endTime: new Date() },
@@ -782,25 +768,14 @@ test.describe('Pomodoro Flow', () => {
 
       await prisma.dailyState.update({
         where: { userId_date: { userId: testUser.id, date: today } },
-        data: { systemState: 'REST', pomodoroCount: 1 },
+        data: { systemState: 'IDLE', pomodoroCount: 1 },
       });
 
       state = await prisma.dailyState.findUnique({
         where: { userId_date: { userId: testUser.id, date: today } },
       });
-      expect(state?.systemState).toBe('REST');
+      expect(state?.systemState).toBe('IDLE');
       expect(state?.pomodoroCount).toBe(1);
-
-      // Step 4: Complete Rest → PLANNING
-      await prisma.dailyState.update({
-        where: { userId_date: { userId: testUser.id, date: today } },
-        data: { systemState: 'PLANNING' },
-      });
-
-      state = await prisma.dailyState.findUnique({
-        where: { userId_date: { userId: testUser.id, date: today } },
-      });
-      expect(state?.systemState).toBe('PLANNING');
 
       // Verify pomodoro was recorded correctly
       const completedPomodoro = await prisma.pomodoro.findUnique({

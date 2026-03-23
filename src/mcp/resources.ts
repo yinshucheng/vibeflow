@@ -486,7 +486,7 @@ async function getCurrentContext(userId: string): Promise<CurrentContextResource
   return {
     project,
     task,
-    systemState: systemState?.toString() || 'LOCKED',
+    systemState: systemState?.toString() || 'idle',
     pomodoroRemaining,
   };
 }
