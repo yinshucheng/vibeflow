@@ -2,7 +2,7 @@
 
 ## Phase 1: 基础设施（不改变外部行为）
 
-### 1.1 Schema 变更 ✅ `db63b15`
+### 1.1 Schema 变更 ✅ `2528321`
 - [x] DailyState 新增字段：`lastPomodoroEndTime DateTime?`、`overRestEnteredAt DateTime?`、`overRestExitCount Int @default(0)`
 - [x] 新增 `StateTransitionLog` 模型（id, userId, fromState, toState, event, context, timestamp + 索引）
 - [x] `npm run db:generate && npm run db:push`
