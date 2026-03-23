@@ -37,17 +37,17 @@
 ## Phase 2: 引擎上线 + 调用方迁移
 
 ### 2.1 StateEngine 完整实现
-- [ ] 实现 `send()` 完整逻辑：
+- [x] 实现 `send()` 完整逻辑：
   - withLock → 读 DB → buildContext → XState transition → $transaction（写状态+context+日志）→ 广播 + MCP 事件 + timer 调度
-- [ ] 实现 `scheduleOverRestTimer()`：番茄钟完成后设 delayed timer（shortRestDuration+gracePeriod），到时检查状态+工作时间后发 ENTER_OVER_REST
-- [ ] 实现 `getState(userId)`: 从 DB 读 + normalizeState 的统一入口
-- [ ] 写集成测试：
+- [x] 实现 `scheduleOverRestTimer()`：番茄钟完成后设 delayed timer（shortRestDuration+gracePeriod），到时检查状态+工作时间后发 ENTER_OVER_REST
+- [x] 实现 `getState(userId)`: 从 DB 读 + normalizeState 的统一入口
+- [x] 写集成测试：
   - IDLE→FOCUS→IDLE 完整流程（mock DB）
   - IDLE→FOCUS→IDLE→(timer)→OVER_REST 流程
   - 并发 send 串行化测试
   - guard 拒绝后不写 DB、不广播
   - 事务内写入 StateTransitionLog
-- [ ] 验证：`npm test` 通过
+- [x] 验证：`npm test` 通过 <!-- 2.1 done -->
 
 ### 2.2 迁移 pomodoro.start（tRPC） ✅ `6f97a5b`
 - [x] `src/server/routers/pomodoro.ts` 的 `start` mutation：删除 `dailyStateService.updateSystemState('focus')` 和手动 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', pomodoroId, taskId })`
@@ -95,10 +95,10 @@
 - [x] 验证：`npm run build` + `npm test`，grep 确认无非 deprecated 调用 <!-- 2.11 done -->
 
 ### 2.12 Phase 2 完整验证
-- [ ] `npm run build` 通过
-- [ ] `npm test` 通过
-- [ ] `npm run lint` 通过
-- [ ] 手动 happy path 测试：开始→完成→休息→OVER_REST→开始下一个
+- [x] `npm run build` 通过
+- [x] `npm test` 通过（991 passed, 12 skipped）
+- [x] `npm run lint` 通过
+- [ ] [HUMAN] 手动 happy path 测试：开始→完成→休息→OVER_REST→开始下一个 <!-- 2.12 done -->
 
 ## Phase 3: 清理旧代码 + 前端适配
 

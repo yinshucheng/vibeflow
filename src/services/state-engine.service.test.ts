@@ -550,4 +550,196 @@ describe('StateEngineService', () => {
       stateEngineService._clearOverRestTimer('nonexistent-user');
     });
   });
+
+  // ── Integration-style multi-step transitions ──────────────────────
+
+  describe('multi-step transitions', () => {
+    /**
+     * Helper: setup mocks so that each send() call reads fresh state.
+     * Tracks the "current state" in a closure that updates after each $transaction.
+     */
+    function setupStatefulMocks(initial: { systemState: string; pomodoroCount: number }) {
+      let currentSystemState = initial.systemState;
+      let currentPomodoroCount = initial.pomodoroCount;
+      let currentLastPomodoroEndTime: Date | null = null;
+
+      mockDailyStateService.getOrCreateToday.mockImplementation(async () => ({
+        success: true,
+        data: makeDailyState({
+          systemState: currentSystemState,
+          pomodoroCount: currentPomodoroCount,
+          lastPomodoroEndTime: currentLastPomodoroEndTime,
+        }),
+      }));
+
+      mockPrisma.userSettings.findFirst.mockResolvedValue(
+        makeSettings({ dailyCap: 8, shortRestDuration: 5, overRestGracePeriod: 5 }),
+      );
+      mockPrisma.pomodoro.findFirst.mockResolvedValue(null);
+
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+        const mockUpdate = vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+          // Track state changes from the transaction
+          if (data.systemState) currentSystemState = data.systemState as string;
+          if (typeof data.pomodoroCount === 'number') currentPomodoroCount = data.pomodoroCount;
+          if (data.lastPomodoroEndTime !== undefined) {
+            currentLastPomodoroEndTime = data.lastPomodoroEndTime as Date | null;
+          }
+        });
+        await fn({
+          dailyState: { update: mockUpdate },
+          stateTransitionLog: { create: vi.fn() },
+        });
+      });
+
+      return { getCurrentState: () => currentSystemState };
+    }
+
+    it('should complete IDLE→FOCUS→IDLE round-trip (START + COMPLETE)', async () => {
+      const tracker = setupStatefulMocks({ systemState: 'IDLE', pomodoroCount: 0 });
+
+      // Step 1: START_POMODORO (IDLE → FOCUS)
+      const startResult = await stateEngineService.send(TEST_USER_ID, {
+        type: 'START_POMODORO',
+        pomodoroId: 'pomo-round-1',
+        taskId: 'task-round-1',
+      });
+
+      expect(startResult).toEqual({
+        success: true,
+        from: 'idle',
+        to: 'focus',
+        event: 'START_POMODORO',
+      });
+      expect(tracker.getCurrentState()).toBe('FOCUS');
+
+      // Step 2: COMPLETE_POMODORO (FOCUS → IDLE)
+      const completeResult = await stateEngineService.send(TEST_USER_ID, {
+        type: 'COMPLETE_POMODORO',
+      });
+
+      expect(completeResult).toEqual({
+        success: true,
+        from: 'focus',
+        to: 'idle',
+        event: 'COMPLETE_POMODORO',
+      });
+      expect(tracker.getCurrentState()).toBe('IDLE');
+    });
+
+    it('should complete IDLE→FOCUS→IDLE round-trip (START + ABORT)', async () => {
+      setupStatefulMocks({ systemState: 'IDLE', pomodoroCount: 0 });
+
+      const startResult = await stateEngineService.send(TEST_USER_ID, {
+        type: 'START_POMODORO',
+        pomodoroId: 'pomo-abort-1',
+        taskId: 'task-abort-1',
+      });
+      expect(startResult.success).toBe(true);
+
+      const abortResult = await stateEngineService.send(TEST_USER_ID, {
+        type: 'ABORT_POMODORO',
+      });
+
+      expect(abortResult).toEqual({
+        success: true,
+        from: 'focus',
+        to: 'idle',
+        event: 'ABORT_POMODORO',
+      });
+    });
+
+    it('should transition IDLE→OVER_REST via ENTER_OVER_REST', async () => {
+      const lastEndTime = new Date(Date.now() - 15 * 60 * 1000); // 15 min ago
+      const tracker = setupStatefulMocks({ systemState: 'IDLE', pomodoroCount: 1 });
+
+      // Override to include lastPomodoroEndTime
+      mockDailyStateService.getOrCreateToday.mockResolvedValue({
+        success: true,
+        data: makeDailyState({
+          systemState: 'IDLE',
+          pomodoroCount: 1,
+          lastPomodoroEndTime: lastEndTime,
+        }),
+      });
+
+      const result = await stateEngineService.send(TEST_USER_ID, {
+        type: 'ENTER_OVER_REST',
+      });
+
+      expect(result).toEqual({
+        success: true,
+        from: 'idle',
+        to: 'over_rest',
+        event: 'ENTER_OVER_REST',
+      });
+      expect(tracker.getCurrentState()).toBe('OVER_REST');
+    });
+
+    it('should complete full cycle: IDLE→FOCUS→IDLE→OVER_REST→FOCUS', async () => {
+      const tracker = setupStatefulMocks({ systemState: 'IDLE', pomodoroCount: 0 });
+
+      // 1. Start pomodoro
+      const r1 = await stateEngineService.send(TEST_USER_ID, {
+        type: 'START_POMODORO',
+        pomodoroId: 'p1',
+        taskId: 't1',
+      });
+      expect(r1.success).toBe(true);
+
+      // 2. Complete pomodoro
+      const r2 = await stateEngineService.send(TEST_USER_ID, {
+        type: 'COMPLETE_POMODORO',
+      });
+      expect(r2.success).toBe(true);
+
+      // 3. Enter over rest
+      const r3 = await stateEngineService.send(TEST_USER_ID, {
+        type: 'ENTER_OVER_REST',
+      });
+      expect(r3.success).toBe(true);
+      expect(tracker.getCurrentState()).toBe('OVER_REST');
+
+      // 4. Start new pomodoro from OVER_REST
+      const r4 = await stateEngineService.send(TEST_USER_ID, {
+        type: 'START_POMODORO',
+        pomodoroId: 'p2',
+        taskId: 't2',
+      });
+      expect(r4).toEqual({
+        success: true,
+        from: 'over_rest',
+        to: 'focus',
+        event: 'START_POMODORO',
+      });
+    });
+  });
+
+  // ── Guard rejection side effects ─────────────────────────────────
+
+  describe('guard rejection side effects', () => {
+    it('should not broadcast when transition is rejected', async () => {
+      const mockBroadcaster = vi.fn().mockResolvedValue(undefined);
+      // Register the broadcaster so we can assert it's NOT called
+      stateEngineService.registerFullStateBroadcaster(mockBroadcaster);
+
+      const dailyState = makeDailyState({ systemState: 'IDLE' });
+      mockDailyStateService.getOrCreateToday.mockResolvedValue({
+        success: true,
+        data: dailyState,
+      });
+      mockPrisma.userSettings.findFirst.mockResolvedValue(makeSettings());
+      mockPrisma.pomodoro.findFirst.mockResolvedValue(null);
+
+      await stateEngineService.send(TEST_USER_ID, {
+        type: 'COMPLETE_POMODORO',
+      });
+
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockBroadcaster).not.toHaveBeenCalled();
+
+      // Clean up: reset broadcaster
+      stateEngineService.registerFullStateBroadcaster(null as unknown as (userId: string) => Promise<void>);
+    });
+  });
 });
