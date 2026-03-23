@@ -28,7 +28,12 @@ vi.mock('@/services/llm-adapter.service', () => ({
 import prisma from '@/lib/prisma';
 import { llmAdapterService } from '@/services/llm-adapter.service';
 
-const mockPrisma = vi.mocked(prisma);
+const mockPrisma = prisma as unknown as {
+  chatMessage: {
+    count: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+  };
+};
 const mockLLM = vi.mocked(llmAdapterService);
 
 describe('chatSummaryService (S7.1)', () => {
