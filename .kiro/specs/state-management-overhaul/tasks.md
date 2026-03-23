@@ -23,16 +23,16 @@
 - [x] 写单元测试：覆盖所有转换路径（10 条）、guard 拒绝场景（dailyCap 超限、冷却期未到、退出次数用尽）、action 正确性（context 字段变化）
 - [x] 验证：`npm test` + `npm run build` + `npm run lint` 通过 <!-- 1.2+1.3 done -->
 
-### 1.4 StateEngine 骨架
-- [ ] 创建 `src/services/state-engine.service.ts`
+### 1.4 StateEngine 骨架 ✅ `590eb7c`
+- [x] 创建 `src/services/state-engine.service.ts`
   - `TransitionResult` 类型定义
-  - `send()` 方法签名（暂时空实现，返回 INTERNAL_ERROR）
+  - `send()` 方法（完整实现：withLock → 读 DB → buildContext → XState transition → $transaction → 广播 + MCP + timer）
   - `withLock()` 并发互斥实现
   - `buildContext()` 方法实现（从 DailyState + Pomodoro + TimeSlice + UserSettings 恢复 context）
   - `clearOverRestTimer()` / `scheduleOverRestTimer()` 骨架
-- [ ] 在 `src/services/index.ts` 导出 `stateEngineService` 单例
-- [ ] 写 buildContext 的单元测试：mock DB 数据，验证 context 各字段正确恢复
-- [ ] 验证：`npm test` + `npm run build` 通过，现有系统行为不变（StateEngine 未被调用）
+- [x] 在 `src/services/index.ts` 导出 `stateEngineService` 单例
+- [x] 写 buildContext 的单元测试：mock DB 数据，验证 context 各字段正确恢复（20 tests: buildContext 7, withLock 1, send 7, getState 3, timer 2）
+- [x] 验证：`npm test`（986 passed）+ `npm run build` + `npm run lint` 通过，现有系统行为不变（StateEngine 未被调用） <!-- 1.4 done -->
 
 ## Phase 2: 引擎上线 + 调用方迁移
 
