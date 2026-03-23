@@ -2558,7 +2558,7 @@ async function setTop3(
     create: {
       userId: context.userId,
       date: today,
-      systemState: 'PLANNING',
+      systemState: 'IDLE',
       top3TaskIds: input.task_ids,
     },
   });

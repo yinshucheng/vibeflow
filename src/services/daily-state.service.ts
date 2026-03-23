@@ -260,7 +260,7 @@ export const dailyStateService = {
         create: {
           userId,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [],
           pomodoroCount: 0,
           capOverrideCount: 1,

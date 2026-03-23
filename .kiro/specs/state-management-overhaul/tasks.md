@@ -175,9 +175,9 @@
 - [x] 验证：`npm test`（995 passed）+ `npm run build` 通过 <!-- 4.3 done -->
 
 ### 4.4 Top 3 降级为可选功能
-- [ ] Top 3 任务选择 UI 改为 Dashboard 上的可选卡片（不阻塞操作）
-- [ ] 保留 `DailyState.top3TaskIds` 字段和相关查询，但不再作为 guard
-- [ ] 验证：不选 Top 3 也能正常开始番茄钟
+- [x] Top 3 任务选择 UI 改为 Dashboard 上的可选卡片（不阻塞操作）
+- [x] 保留 `DailyState.top3TaskIds` 字段和相关查询，但不再作为 guard
+- [x] 验证：不选 Top 3 也能正常开始番茄钟 <!-- 4.4 done -->
 
 ### 4.5 清理测试
 - [ ] 删除/更新状态机单元测试中的 LOCKED/PLANNING/REST 相关 case

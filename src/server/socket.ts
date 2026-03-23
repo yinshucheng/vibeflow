@@ -1352,7 +1352,7 @@ export class VibeFlowSocketServer {
             await prisma.dailyState.upsert({
               where: { userId_date: { userId, date: today } },
               update: { top3TaskIds: taskIds },
-              create: { userId, date: today, systemState: 'PLANNING', top3TaskIds: taskIds },
+              create: { userId, date: today, systemState: 'IDLE', top3TaskIds: taskIds },
             });
             success = true;
             await this.broadcastFullStateToUser(userId);

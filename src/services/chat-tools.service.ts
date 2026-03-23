@@ -366,7 +366,7 @@ async function executeSetTop3(userId: string, params: Record<string, unknown>): 
   await prisma.dailyState.upsert({
     where: { userId_date: { userId, date: today } },
     update: { top3TaskIds: task_ids },
-    create: { userId, date: today, systemState: 'PLANNING', top3TaskIds: task_ids },
+    create: { userId, date: today, systemState: 'IDLE', top3TaskIds: task_ids },
   });
   await prisma.task.updateMany({ where: { id: { in: task_ids }, userId }, data: { planDate: today } });
   const sorted = task_ids.map((id, index) => { const t = tasks.find(t => t.id === id); return t ? { id: t.id, title: t.title, priority: t.priority, projectTitle: t.project.title, order: index + 1 } : null; }).filter(Boolean);
