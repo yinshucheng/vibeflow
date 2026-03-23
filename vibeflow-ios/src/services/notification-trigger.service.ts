@@ -3,8 +3,8 @@
  *
  * Monitors state changes from server sync and triggers appropriate notifications.
  * This service listens to the Zustand store and sends notifications when:
- * - A pomodoro completes (state changes from FOCUS to REST)
- * - Rest period ends (state changes from REST to PLANNING/FOCUS)
+ * - A pomodoro completes (state changes from FOCUS to IDLE)
+ * - Rest period ends (state changes from IDLE to FOCUS, i.e. new pomodoro started)
  *
  * All notifications are read-only reminders with no action buttons.
  *
@@ -147,7 +147,7 @@ class NotificationTriggerService {
   /**
    * Check if a pomodoro has completed and trigger notification.
    * A pomodoro is considered complete when:
-   * - State changes from FOCUS to REST, OR
+   * - State changes from FOCUS to IDLE, OR
    * - Active pomodoro becomes null while in FOCUS state, OR
    * - Completed pomodoro count increases
    *
@@ -167,9 +167,9 @@ class NotificationTriggerService {
       return;
     }
 
-    // Condition 1: State changed from FOCUS to REST
-    const stateChangedToRest =
-      previousDailyState === 'FOCUS' && currentDailyState === 'REST';
+    // Condition 1: State changed from FOCUS to IDLE (pomodoro completed)
+    const stateChangedToIdle =
+      previousDailyState === 'FOCUS' && currentDailyState === 'IDLE';
 
     // Condition 2: Pomodoro count increased (most reliable indicator)
     const pomodoroCountIncreased =
@@ -181,7 +181,7 @@ class NotificationTriggerService {
       currentPomodoro === null &&
       previousDailyState === 'FOCUS';
 
-    if (stateChangedToRest || pomodoroCountIncreased || pomodoroEndedInFocus) {
+    if (stateChangedToIdle || pomodoroCountIncreased || pomodoroEndedInFocus) {
       console.log('[NotificationTrigger] Pomodoro completed, sending notification');
       this.triggerPomodoroCompleteNotification();
     }
@@ -189,8 +189,8 @@ class NotificationTriggerService {
 
   /**
    * Check if rest period has ended and trigger notification.
-   * Rest period is considered ended when:
-   * - State changes from REST to PLANNING or FOCUS
+   * In 3-state model, rest is a sub-phase of IDLE. Rest ends when user starts
+   * a new pomodoro (IDLE → FOCUS).
    *
    * Requirements: 8.3
    */
@@ -204,10 +204,9 @@ class NotificationTriggerService {
       return;
     }
 
-    // Check if state changed from REST to PLANNING or FOCUS
+    // Check if state changed from IDLE to FOCUS (user started new pomodoro after rest)
     const restEnded =
-      previousDailyState === 'REST' &&
-      (currentDailyState === 'PLANNING' || currentDailyState === 'FOCUS');
+      previousDailyState === 'IDLE' && currentDailyState === 'FOCUS';
 
     if (restEnded) {
       console.log('[NotificationTrigger] Rest period ended, sending notification');

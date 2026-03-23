@@ -27,8 +27,8 @@ import type {
  * Generator for DailyStateData
  */
 const dailyStateDataArb = fc.record({
-  state: fc.constantFrom('LOCKED', 'PLANNING', 'FOCUS', 'REST', 'OVER_REST') as fc.Arbitrary<
-    'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST'
+  state: fc.constantFrom('IDLE', 'FOCUS', 'OVER_REST') as fc.Arbitrary<
+    'IDLE' | 'FOCUS' | 'OVER_REST'
   >,
   completedPomodoros: fc.nat({ max: 20 }),
   dailyCap: fc.integer({ min: 1, max: 20 }),
@@ -177,7 +177,7 @@ describe('Property 2: State Sync Round-Trip', () => {
 
         const ds = loadedState.dailyState;
         return (
-          ['LOCKED', 'PLANNING', 'FOCUS', 'REST', 'OVER_REST'].includes(ds.state) &&
+          ['IDLE', 'FOCUS', 'OVER_REST'].includes(ds.state) &&
           typeof ds.completedPomodoros === 'number' &&
           typeof ds.dailyCap === 'number' &&
           typeof ds.totalFocusMinutes === 'number'

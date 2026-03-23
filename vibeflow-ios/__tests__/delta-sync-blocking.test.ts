@@ -117,8 +117,8 @@ describe('Delta sync: activePomodoro clearing on state transition', () => {
     useAppStore.getState().clearState();
   });
 
-  describe('FOCUS → REST delta sync', () => {
-    it('should clear activePomodoro when state changes from FOCUS to REST', () => {
+  describe('FOCUS → non-FOCUS delta sync', () => {
+    it('should clear activePomodoro when state changes from FOCUS to IDLE', () => {
       // Setup: simulate app in FOCUS state with active pomodoro
       useAppStore.setState({
         dailyState: makeDailyState({ state: 'FOCUS' }),
@@ -129,25 +129,12 @@ describe('Delta sync: activePomodoro clearing on state transition', () => {
 
       expect(useAppStore.getState().activePomodoro).not.toBeNull();
 
-      // Act: receive delta sync with state = 'rest'
-      useAppStore.getState().handleSyncState(makeDeltaSyncCommand('rest'));
+      // Act: receive delta sync with state = 'idle'
+      useAppStore.getState().handleSyncState(makeDeltaSyncCommand('idle'));
 
       // Assert: activePomodoro should be cleared
       expect(useAppStore.getState().activePomodoro).toBeNull();
-      expect(useAppStore.getState().dailyState?.state).toBe('REST');
-    });
-
-    it('should clear activePomodoro when state changes from FOCUS to PLANNING', () => {
-      useAppStore.setState({
-        dailyState: makeDailyState({ state: 'FOCUS' }),
-        activePomodoro: makeActivePomodoro(),
-        isBlockingActive: true,
-      });
-
-      useAppStore.getState().handleSyncState(makeDeltaSyncCommand('planning'));
-
-      expect(useAppStore.getState().activePomodoro).toBeNull();
-      expect(useAppStore.getState().dailyState?.state).toBe('PLANNING');
+      expect(useAppStore.getState().dailyState?.state).toBe('IDLE');
     });
 
     it('should clear activePomodoro when state changes from FOCUS to OVER_REST', () => {
@@ -163,7 +150,34 @@ describe('Delta sync: activePomodoro clearing on state transition', () => {
       expect(useAppStore.getState().dailyState?.state).toBe('OVER_REST');
     });
 
-    it('should clear activePomodoro when state changes from FOCUS to LOCKED', () => {
+    it('should normalize legacy state values (rest → IDLE)', () => {
+      useAppStore.setState({
+        dailyState: makeDailyState({ state: 'FOCUS' }),
+        activePomodoro: makeActivePomodoro(),
+        isBlockingActive: true,
+      });
+
+      // Server sends legacy 'rest' value — should normalize to IDLE
+      useAppStore.getState().handleSyncState(makeDeltaSyncCommand('rest'));
+
+      expect(useAppStore.getState().activePomodoro).toBeNull();
+      expect(useAppStore.getState().dailyState?.state).toBe('IDLE');
+    });
+
+    it('should normalize legacy state values (planning → IDLE)', () => {
+      useAppStore.setState({
+        dailyState: makeDailyState({ state: 'FOCUS' }),
+        activePomodoro: makeActivePomodoro(),
+        isBlockingActive: true,
+      });
+
+      useAppStore.getState().handleSyncState(makeDeltaSyncCommand('planning'));
+
+      expect(useAppStore.getState().activePomodoro).toBeNull();
+      expect(useAppStore.getState().dailyState?.state).toBe('IDLE');
+    });
+
+    it('should normalize legacy state values (locked → IDLE)', () => {
       useAppStore.setState({
         dailyState: makeDailyState({ state: 'FOCUS' }),
         activePomodoro: makeActivePomodoro(),
@@ -173,15 +187,15 @@ describe('Delta sync: activePomodoro clearing on state transition', () => {
       useAppStore.getState().handleSyncState(makeDeltaSyncCommand('locked'));
 
       expect(useAppStore.getState().activePomodoro).toBeNull();
-      expect(useAppStore.getState().dailyState?.state).toBe('LOCKED');
+      expect(useAppStore.getState().dailyState?.state).toBe('IDLE');
     });
   });
 
   describe('Non-FOCUS state transitions should not affect activePomodoro', () => {
-    it('should not clear activePomodoro when transitioning from PLANNING to FOCUS', () => {
+    it('should not clear activePomodoro when transitioning from IDLE to FOCUS', () => {
       // activePomodoro may already be set optimistically
       useAppStore.setState({
-        dailyState: makeDailyState({ state: 'PLANNING' }),
+        dailyState: makeDailyState({ state: 'IDLE' }),
         activePomodoro: makeActivePomodoro(),
       });
 
@@ -193,11 +207,11 @@ describe('Delta sync: activePomodoro clearing on state transition', () => {
 
     it('should not clear null activePomodoro on non-FOCUS transitions', () => {
       useAppStore.setState({
-        dailyState: makeDailyState({ state: 'REST' }),
+        dailyState: makeDailyState({ state: 'IDLE' }),
         activePomodoro: null,
       });
 
-      useAppStore.getState().handleSyncState(makeDeltaSyncCommand('planning'));
+      useAppStore.getState().handleSyncState(makeDeltaSyncCommand('over_rest'));
 
       expect(useAppStore.getState().activePomodoro).toBeNull();
     });
@@ -224,8 +238,8 @@ describe('Delta sync: activePomodoro clearing on state transition', () => {
     it('should not set isBlockingActive on full sync without active pomodoro', () => {
       useAppStore.setState({ isBlockingActive: true });
 
-      // Full sync without active pomodoro in PLANNING state
-      useAppStore.getState().handleSyncState(makeFullSyncCommand('planning'));
+      // Full sync without active pomodoro in IDLE state
+      useAppStore.getState().handleSyncState(makeFullSyncCommand('idle'));
 
       // isBlockingActive should not be changed by the store
       // (it was true before, and the store doesn't touch it)
@@ -237,7 +251,7 @@ describe('Delta sync: activePomodoro clearing on state transition', () => {
   describe('Delta sync: isBlockingActive is not set by store', () => {
     it('should not set isBlockingActive when entering OVER_REST via delta', () => {
       useAppStore.setState({
-        dailyState: makeDailyState({ state: 'REST' }),
+        dailyState: makeDailyState({ state: 'IDLE' }),
         activePomodoro: null,
         isBlockingActive: false,
       });

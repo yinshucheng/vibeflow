@@ -135,14 +135,14 @@
 - [x] 验证：服务端状态转到 OVER_REST 后，iOS 能通过 UPDATE_POLICY 收到 `policy.overRest.isOverRest = true` <!-- 3.5 done -->
 
 ### 3.6 iOS 端适配 (vibeflow-ios)
-- [ ] **状态类型更新**：`vibeflow-ios/src/types/index.ts:15` 将 `DailyStateData.state` 类型从 `'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST'` 改为 `'IDLE' | 'FOCUS' | 'OVER_REST'`
-- [ ] **Store 兼容层**：`vibeflow-ios/src/store/app.store.ts` 的 `mapFullStateToAppState()`（~line 146）和 `applyDeltaChanges()`（~line 245）中引入 `normalizeState` 逻辑，将旧值 `LOCKED/PLANNING/REST` 映射为 `IDLE`
-- [ ] **StatusScreen UI 适配**：`vibeflow-ios/src/screens/StatusScreen.tsx` 的 `DailyStateIndicator`（~line 48）删除 LOCKED/PLANNING/REST 的配置，新增 IDLE（'空闲'）；`getTimePeriodLabel()`（~line 199）适配新状态值
-- [ ] **通知触发器适配**：`vibeflow-ios/src/services/notification-trigger.service.ts` 的 `checkPomodoroCompletion()`（~line 171）从 `FOCUS→REST` 改为 `FOCUS→IDLE`；`checkRestPeriodEnd()`（~line 208）从 `REST→PLANNING/FOCUS` 改为检测 IDLE 状态下开始新番茄钟
-- [ ] **Screen Time 阻断逻辑**：`vibeflow-ios/src/utils/blocking-reason.ts` 的 `evaluateBlockingReason()` 目前依赖 `policy.overRest.isOverRest`（不依赖 systemState），**确认** 3.5 的 policy 广播适配完成后此逻辑无需修改；同时新增 fallback：当 `systemState === 'OVER_REST'` 且 policy 尚未更新时也返回 `'over_rest'`
-- [ ] **ChatBubble 适配**：`vibeflow-ios/src/components/chat/ChatBubble.tsx:26` 的 `on_planning_enter` 触发标签改为适配新状态（如改为 '每日空闲' 或删除）
-- [ ] **测试更新**：更新 `__tests__/delta-sync-blocking.test.ts` 中的状态引用（LOCKED/PLANNING/REST→IDLE）；更新 `__tests__/property/cache-round-trip.property.ts:30-31` 的状态生成器
-- [ ] 验证：`cd vibeflow-ios && npx jest` 通过
+- [x] **状态类型更新**：`vibeflow-ios/src/types/index.ts:15` 将 `DailyStateData.state` 类型从 `'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST'` 改为 `'IDLE' | 'FOCUS' | 'OVER_REST'`
+- [x] **Store 兼容层**：`vibeflow-ios/src/store/app.store.ts` 的 `mapFullStateToAppState()`（~line 146）和 `applyDeltaChanges()`（~line 245）中引入 `normalizeState` 逻辑，将旧值 `LOCKED/PLANNING/REST` 映射为 `IDLE`
+- [x] **StatusScreen UI 适配**：`vibeflow-ios/src/screens/StatusScreen.tsx` 的 `DailyStateIndicator`（~line 48）删除 LOCKED/PLANNING/REST 的配置，新增 IDLE（'空闲'）；`getTimePeriodLabel()`（~line 199）适配新状态值
+- [x] **通知触发器适配**：`vibeflow-ios/src/services/notification-trigger.service.ts` 的 `checkPomodoroCompletion()`（~line 171）从 `FOCUS→REST` 改为 `FOCUS→IDLE`；`checkRestPeriodEnd()`（~line 208）从 `REST→PLANNING/FOCUS` 改为检测 IDLE 状态下开始新番茄钟
+- [x] **Screen Time 阻断逻辑**：`vibeflow-ios/src/utils/blocking-reason.ts` 的 `evaluateBlockingReason()` 目前依赖 `policy.overRest.isOverRest`（不依赖 systemState），**确认** 3.5 的 policy 广播适配完成后此逻辑无需修改；同时新增 fallback：当 `systemState === 'OVER_REST'` 且 policy 尚未更新时也返回 `'over_rest'`
+- [x] **ChatBubble 适配**：`vibeflow-ios/src/components/chat/ChatBubble.tsx:26` 的 `on_planning_enter` 触发标签改为适配新状态（如改为 '每日空闲' 或删除）
+- [x] **测试更新**：更新 `__tests__/delta-sync-blocking.test.ts` 中的状态引用（LOCKED/PLANNING/REST→IDLE）；更新 `__tests__/property/cache-round-trip.property.ts:30-31` 的状态生成器
+- [x] 验证：`cd vibeflow-ios && npx jest` 通过 <!-- 3.6 done -->
 
 ### 3.7 Phase 3 完整验证
 - [ ] `npm run build` 通过

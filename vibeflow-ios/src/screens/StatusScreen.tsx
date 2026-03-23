@@ -30,6 +30,7 @@ import {
 } from '@/store/app.store';
 import { calculateRemainingTime } from '@/utils/pomodoro-calculator';
 import { useTheme } from '@/theme';
+import { serverConfigService } from '@/services/server-config.service';
 import type { BlockingReason, SelectionSummary } from '@/types';
 
 // =============================================================================
@@ -37,17 +38,15 @@ import type { BlockingReason, SelectionSummary } from '@/types';
 // =============================================================================
 
 interface DailyStateIndicatorProps {
-  state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST' | null;
+  state: 'IDLE' | 'FOCUS' | 'OVER_REST' | null;
 }
 
 function DailyStateIndicator({ state }: DailyStateIndicatorProps): React.JSX.Element {
   const theme = useTheme();
 
   const stateConfig: Record<string, { label: string; color: string }> = {
-    LOCKED: { label: '已锁定', color: theme.colors.textMuted },
-    PLANNING: { label: '计划中', color: theme.colors.primary },
+    IDLE: { label: '空闲', color: theme.colors.primary },
     FOCUS: { label: '专注中', color: theme.colors.success },
-    REST: { label: '休息中', color: theme.colors.warning },
     OVER_REST: { label: '超时休息', color: theme.colors.error },
   };
 
@@ -57,6 +56,28 @@ function DailyStateIndicator({ state }: DailyStateIndicatorProps): React.JSX.Ele
     <View style={[styles.stateIndicator, { backgroundColor: config.color + '20' }]}>
       <View style={[styles.stateDot, { backgroundColor: config.color }]} />
       <Text style={[styles.stateText, { color: config.color }]}>{config.label}</Text>
+    </View>
+  );
+}
+
+// =============================================================================
+// SERVER INDICATOR (local vs remote)
+// =============================================================================
+
+function isLocalUrl(url: string): boolean {
+  return /localhost|127\.0\.0\.1|192\.168\.|10\.\d|172\.(1[6-9]|2\d|3[01])\./.test(url);
+}
+
+function ServerIndicator(): React.JSX.Element {
+  const theme = useTheme();
+  const url = serverConfigService.getServerUrlSync();
+  const isLocal = isLocalUrl(url);
+  const label = isLocal ? '本地' : '远程';
+  const color = isLocal ? theme.colors.success : '#3B82F6';
+
+  return (
+    <View style={[styles.serverIndicator, { backgroundColor: color + '20' }]}>
+      <Text style={[styles.serverIndicatorText, { color }]}>{label}</Text>
     </View>
   );
 }
@@ -181,10 +202,7 @@ function StateInfoBanner(): React.JSX.Element | null {
     if (policy?.overRest?.isOverRest) {
       return `超时休息 ${policy.overRest.overRestMinutes} 分钟`;
     }
-    const state = dailyState?.state;
-    if (state === 'FOCUS') return '工作时间';
-    if (state === 'REST') return '休息时间';
-    if (state === 'PLANNING') return '计划时间';
+    if (dailyState?.state === 'FOCUS') return '工作时间';
     return null;
   };
 
@@ -269,6 +287,7 @@ export function StatusScreen(): React.JSX.Element {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={[styles.title, { color: theme.colors.text }]}>VibeFlow</Text>
+          <ServerIndicator />
           <DailyStateIndicator state={dailyState?.state ?? null} />
         </View>
         <View style={styles.headerRight}>
@@ -358,6 +377,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
+  },
+  serverIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  serverIndicatorText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   stateIndicator: {
     flexDirection: 'row',
