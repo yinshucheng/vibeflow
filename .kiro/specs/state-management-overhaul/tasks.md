@@ -165,8 +165,8 @@
 ### 4.2 删除 Airlock 前端代码
 - [x] 删除 `src/app/airlock/` 目录
 - [x] 删除或简化 Airlock 相关组件（如有）
-- [ ] Settings 页面：删除 `airlockMode` 配置项
-- [ ] 验证：`npm run build`
+- [x] Settings 页面：删除 `airlockMode` 配置项
+- [x] 验证：`npm run build` <!-- 4.2 done -->
 
 ### 4.3 删除 Extension LOCKED 逻辑
 - [ ] `vibeflow-extension/src/background/service-worker.ts`：`enforceStateRestrictions()` 删除 LOCKED 分支

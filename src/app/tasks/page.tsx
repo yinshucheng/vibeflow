@@ -165,7 +165,7 @@ export default function TasksPage() {
               }
               description={
                 filter === 'today'
-                  ? 'Plan your day in the Morning Airlock or add tasks manually'
+                  ? 'Add tasks manually or use daily planning to organize your day'
                   : filter === 'overdue'
                     ? 'Great job! All past tasks are completed'
                     : 'All tasks have been scheduled'

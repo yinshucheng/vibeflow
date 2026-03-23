@@ -105,7 +105,7 @@ export function WorkStartStats({ days = 30 }: WorkStartStatsProps) {
           <div className="text-center py-8 text-gray-500">
             <div className="text-3xl mb-2">🚀</div>
             <p className="text-sm">暂无工作启动记录</p>
-            <p className="text-xs text-gray-400 mt-1">完成 Airlock 后会自动记录</p>
+            <p className="text-xs text-gray-400 mt-1">开始番茄钟后会自动记录</p>
           </div>
         </CardContent>
       </Card>
