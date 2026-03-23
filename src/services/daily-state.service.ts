@@ -686,35 +686,31 @@ export const dailyStateService = {
    */
   async resetToday(userId: string): Promise<ServiceResult<DailyState>> {
     try {
-      const today = getTodayDate();
-
-      const dailyState = await prisma.dailyState.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
+      // Use StateEngine for state transition (DAILY_RESET event)
+      const { stateEngineService } = await import('./state-engine.service');
+      const result = await stateEngineService.send(userId, { type: 'DAILY_RESET' });
+      if (!result.success) {
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: `State transition failed: ${result.message}`,
           },
+        };
+      }
+
+      // Also reset non-state fields (top3, capOverride, airlock)
+      const today = getTodayDate();
+      const dailyState = await prisma.dailyState.update({
+        where: {
+          userId_date: { userId, date: today },
         },
-        update: {
-          systemState: 'LOCKED',
+        data: {
           top3TaskIds: [],
-          pomodoroCount: 0,
-          capOverrideCount: 0,
-          airlockCompleted: false,
-        },
-        create: {
-          userId,
-          date: today,
-          systemState: 'LOCKED',
-          top3TaskIds: [],
-          pomodoroCount: 0,
           capOverrideCount: 0,
           airlockCompleted: false,
         },
       });
-
-      // Broadcast state change to connected clients
-      broadcastStateChange(userId, 'idle');
 
       return { success: true, data: dailyState };
     } catch (error) {

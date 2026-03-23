@@ -80,8 +80,8 @@
 - [x] 验证：通过 AI Chat 启动番茄钟 <!-- 2.8 done -->
 
 ### 2.9 迁移 dailyReset
-- [ ] `src/services/daily-state.service.ts` 的 reset 逻辑：改为 `stateEngine.send(userId, { type: 'DAILY_RESET' })`
-- [ ] 验证：手动触发 daily reset，确认状态变为 IDLE
+- [x] `src/services/daily-state.service.ts` 的 `resetToday()` 改为 `stateEngine.send(userId, { type: 'DAILY_RESET' })`
+- [x] 验证：`npm test` + `npm run build` 通过 <!-- 2.9 done -->
 
 ### 2.10 OVER_REST 触发机制
 - [ ] 修改 30 秒 `overRestCheckInterval`（`src/server/socket.ts`）：
