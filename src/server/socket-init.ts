@@ -18,6 +18,10 @@ import {
 import { registerMCPEventBroadcaster as registerMCPServiceBroadcaster, mcpEventService } from '@/services/mcp-event.service';
 import { dailyResetSchedulerService } from '@/services/daily-reset-scheduler.service';
 import { registerProactiveBroadcaster } from '@/services/ai-trigger.service';
+import {
+  registerFullStateBroadcaster,
+  registerStateEnginePolicyBroadcaster,
+} from '@/services/state-engine.service';
 
 let isInitialized = false;
 let mcpEventCleanupInterval: ReturnType<typeof setInterval> | null = null;
@@ -33,9 +37,17 @@ export function initializeSocketServer(httpServer: HttpServer): void {
   }
 
   socketServer.initialize(httpServer);
-  
+
   // Register broadcasters for use by other services
   registerPolicyUpdateBroadcaster(async (userId) => {
+    await socketServer.broadcastPolicyUpdate(userId);
+  });
+
+  // Register StateEngine broadcasters (full state + policy update)
+  registerFullStateBroadcaster(async (userId) => {
+    await socketServer.broadcastFullState(userId);
+  });
+  registerStateEnginePolicyBroadcaster(async (userId) => {
     await socketServer.broadcastPolicyUpdate(userId);
   });
   

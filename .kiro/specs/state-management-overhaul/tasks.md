@@ -130,9 +130,9 @@
 - [x] 验证：`npm run build` + `npm run lint` <!-- 3.4 done -->
 
 ### 3.5 服务端 Policy 广播适配
-- [ ] `policyDistributionService.compilePolicy()` 适配新状态：当 `systemState === 'over_rest'`（DB 真实值）时直接构建 `overRest` policy，不再依赖 `overRestService.checkOverRestStatus()` 的动态计算
-- [ ] StateEngine 的 `broadcastFullState` 后追加 `broadcastPolicyUpdate(userId)` 调用，确保 iOS 的 UPDATE_POLICY 通道不断
-- [ ] 验证：服务端状态转到 OVER_REST 后，iOS 能通过 UPDATE_POLICY 收到 `policy.overRest.isOverRest = true`
+- [x] `policyDistributionService.compilePolicy()` 适配新状态：当 `systemState === 'over_rest'`（DB 真实值）时直接构建 `overRest` policy，不再依赖 `overRestService.checkOverRestStatus()` 的动态计算
+- [x] StateEngine 的 `broadcastFullState` 后追加 `broadcastPolicyUpdate(userId)` 调用，确保 iOS 的 UPDATE_POLICY 通道不断
+- [x] 验证：服务端状态转到 OVER_REST 后，iOS 能通过 UPDATE_POLICY 收到 `policy.overRest.isOverRest = true` <!-- 3.5 done -->
 
 ### 3.6 iOS 端适配 (vibeflow-ios)
 - [ ] **状态类型更新**：`vibeflow-ios/src/types/index.ts:15` 将 `DailyStateData.state` 类型从 `'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST'` 改为 `'IDLE' | 'FOCUS' | 'OVER_REST'`

@@ -17,6 +17,8 @@ import { screenTimeExemptionService } from '@/services/screen-time-exemption.ser
 import { restEnforcementService } from '@/services/rest-enforcement.service';
 import { stateEngineService } from '@/services/state-engine.service';
 import { healthLimitService } from '@/services/health-limit.service';
+import { dailyStateService } from '@/services/daily-state.service';
+import { normalizeState } from '@/lib/state-utils';
 
 // Service result type
 export interface ServiceResult<T> {
@@ -236,19 +238,18 @@ export const policyDistributionService = {
       }
 
       // Compile over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
+      // OVER_REST is now a real DB state written by StateEngine — no dynamic computation needed
       let overRest: OverRestPolicy | undefined;
-      const overRestStatusResult = await overRestService.checkOverRestStatus(userId);
-      if (!overRestStatusResult.success) {
-        console.log(`[PolicyDistribution] Over rest check FAILED for user ${userId}: ${overRestStatusResult.error?.message}`);
-      }
-      if (overRestStatusResult.success && overRestStatusResult.data) {
-        const overRestStatus = overRestStatusResult.data;
-        
-        // Log over rest status for debugging
-        console.log(`[PolicyDistribution] Over rest check for user ${userId}: isOverRest=${overRestStatus.isOverRest}, shouldTriggerActions=${overRestStatus.shouldTriggerActions}, restDuration=${overRestStatus.restDurationMinutes}min`);
-        
-        // Only include over rest policy if user is actually over rest
-        if (overRestStatus.isOverRest && overRestStatus.shouldTriggerActions) {
+      const dailyStateResult = await dailyStateService.getOrCreateToday(userId);
+      if (dailyStateResult.success && dailyStateResult.data) {
+        const dailyState = dailyStateResult.data;
+        const currentState = normalizeState(dailyState.systemState);
+
+        if (currentState === 'over_rest') {
+          const overRestMinutes = dailyState.overRestEnteredAt
+            ? Math.floor((Date.now() - dailyState.overRestEnteredAt.getTime()) / 60000)
+            : 0;
+
           // Get over rest config for enforcement apps
           const overRestConfigResult = await overRestService.getConfig(userId);
           let overRestApps = overRestConfigResult.success && overRestConfigResult.data
@@ -270,14 +271,14 @@ export const policyDistributionService = {
 
           overRest = {
             isOverRest: true,
-            overRestMinutes: overRestStatus.overRestMinutes,
+            overRestMinutes,
             enforcementApps: overRestApps,
             bringToFront: true, // Always bring app to front during over rest
           };
 
-          console.log(`[PolicyDistribution] Over rest enforcement ACTIVE for user ${userId}: ${overRestStatus.overRestMinutes}min over, ${overRestApps.length} apps to enforce`);
+          console.log(`[PolicyDistribution] Over rest enforcement ACTIVE for user ${userId}: ${overRestMinutes}min over, ${overRestApps.length} apps to enforce`);
         } else {
-          console.log(`[PolicyDistribution] Over rest enforcement OMITTED for user ${userId}: isOverRest=${overRestStatus.isOverRest}, shouldTriggerActions=${overRestStatus.shouldTriggerActions}, overRestMinutes=${overRestStatus.overRestMinutes}, gracePeriodRemaining=${overRestStatus.gracePeriodRemaining}min`);
+          console.log(`[PolicyDistribution] Over rest enforcement OMITTED for user ${userId}: state=${currentState}`);
         }
       }
 

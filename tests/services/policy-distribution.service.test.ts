@@ -49,10 +49,17 @@ vi.mock('../../src/services/health-limit.service', () => ({
   },
 }));
 
+vi.mock('../../src/services/daily-state.service', () => ({
+  dailyStateService: {
+    getOrCreateToday: vi.fn().mockResolvedValue({ success: false }),
+  },
+}));
+
 import { overRestService } from '../../src/services/over-rest.service';
 import { restEnforcementService } from '../../src/services/rest-enforcement.service';
 import { stateEngineService } from '../../src/services/state-engine.service';
 import { healthLimitService } from '../../src/services/health-limit.service';
+import { dailyStateService } from '../../src/services/daily-state.service';
 
 const baseSettings = {
   userId: 'user-1',
@@ -96,6 +103,27 @@ describe('PolicyDistributionService', () => {
 
     // Default: state is idle (not focus/over_rest)
     vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
+
+    // Default: daily state is IDLE (not OVER_REST)
+    vi.mocked(dailyStateService.getOrCreateToday).mockResolvedValue({
+      success: true,
+      data: {
+        id: 'ds-1',
+        userId: 'user-1',
+        date: new Date(),
+        systemState: 'IDLE',
+        top3TaskIds: [],
+        pomodoroCount: 0,
+        capOverrideCount: 0,
+        airlockCompleted: false,
+        adjustedGoal: null,
+        lastPomodoroEndTime: null,
+        overRestEnteredAt: null,
+        overRestExitCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    } as any);
   });
 
   describe('REST enforcement in compilePolicy', () => {
@@ -230,7 +258,7 @@ describe('PolicyDistributionService', () => {
   });
 
   describe('OVER_REST in compilePolicy', () => {
-    it('should include overRest when shouldTriggerActions is true', async () => {
+    it('should include overRest when DB state is OVER_REST', async () => {
       vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
         ...baseSettings,
         distractionApps: [
@@ -238,18 +266,27 @@ describe('PolicyDistributionService', () => {
         ],
       } as any);
 
-      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+      // DB state is OVER_REST with overRestEnteredAt 10 minutes ago
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      vi.mocked(dailyStateService.getOrCreateToday).mockResolvedValue({
         success: true,
         data: {
-          isOverRest: true,
-          restDurationMinutes: 15,
-          overRestMinutes: 10,
-          gracePeriodMinutes: 5,
-          gracePeriodRemaining: 0,
-          shouldTriggerActions: true,
+          id: 'ds-1',
+          userId: 'user-1',
+          date: new Date(),
+          systemState: 'OVER_REST',
+          top3TaskIds: [],
+          pomodoroCount: 3,
+          capOverrideCount: 0,
+          airlockCompleted: false,
+          adjustedGoal: null,
           lastPomodoroEndTime: new Date(),
+          overRestEnteredAt: tenMinutesAgo,
+          overRestExitCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
-      });
+      } as any);
 
       vi.mocked(overRestService.getConfig).mockResolvedValue({
         success: true,
@@ -279,18 +316,26 @@ describe('PolicyDistributionService', () => {
         ],
       } as any);
 
-      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+      // DB state is OVER_REST
+      vi.mocked(dailyStateService.getOrCreateToday).mockResolvedValue({
         success: true,
         data: {
-          isOverRest: true,
-          restDurationMinutes: 15,
-          overRestMinutes: 10,
-          gracePeriodMinutes: 5,
-          gracePeriodRemaining: 0,
-          shouldTriggerActions: true,
+          id: 'ds-1',
+          userId: 'user-1',
+          date: new Date(),
+          systemState: 'OVER_REST',
+          top3TaskIds: [],
+          pomodoroCount: 3,
+          capOverrideCount: 0,
+          airlockCompleted: false,
+          adjustedGoal: null,
           lastPomodoroEndTime: new Date(),
+          overRestEnteredAt: new Date(Date.now() - 10 * 60 * 1000),
+          overRestExitCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
-      });
+      } as any);
 
       vi.mocked(overRestService.getConfig).mockResolvedValue({
         success: true,
@@ -310,23 +355,12 @@ describe('PolicyDistributionService', () => {
       expect(result.data!.overRest!.enforcementApps[0].bundleId).toBe('com.google.Chrome');
     });
 
-    it('should omit overRest when isOverRest is false', async () => {
+    it('should omit overRest when DB state is not OVER_REST', async () => {
       vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
         ...baseSettings,
       } as any);
 
-      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
-        success: true,
-        data: {
-          isOverRest: false,
-          restDurationMinutes: 3,
-          overRestMinutes: 0,
-          gracePeriodMinutes: 5,
-          gracePeriodRemaining: 5,
-          shouldTriggerActions: false,
-          lastPomodoroEndTime: new Date(),
-        },
-      });
+      // DB state is IDLE (default mock already sets this)
 
       const result = await policyDistributionService.compilePolicy(userId);
 
@@ -334,33 +368,51 @@ describe('PolicyDistributionService', () => {
       expect(result.data?.overRest).toBeUndefined();
     });
 
-    it('should omit overRest when in grace period (shouldTriggerActions=false)', async () => {
+    it('should compute overRestMinutes as 0 when overRestEnteredAt is null', async () => {
       vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
         ...baseSettings,
       } as any);
 
-      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+      // DB state is OVER_REST but overRestEnteredAt is null (edge case)
+      vi.mocked(dailyStateService.getOrCreateToday).mockResolvedValue({
         success: true,
         data: {
-          isOverRest: true,
-          restDurationMinutes: 8,
-          overRestMinutes: 3,
-          gracePeriodMinutes: 5,
-          gracePeriodRemaining: 2,
-          shouldTriggerActions: false,
+          id: 'ds-1',
+          userId: 'user-1',
+          date: new Date(),
+          systemState: 'OVER_REST',
+          top3TaskIds: [],
+          pomodoroCount: 3,
+          capOverrideCount: 0,
+          airlockCompleted: false,
+          adjustedGoal: null,
           lastPomodoroEndTime: new Date(),
+          overRestEnteredAt: null,
+          overRestExitCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      } as any);
+
+      vi.mocked(overRestService.getConfig).mockResolvedValue({
+        success: true,
+        data: {
+          gracePeriod: 5,
+          actions: ['close_apps'],
+          apps: [],
         },
       });
 
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.overRest).toBeUndefined();
+      expect(result.data?.overRest).toBeDefined();
+      expect(result.data!.overRest!.overRestMinutes).toBe(0);
     });
   });
 
   describe('REST and OVER_REST conflict resolution', () => {
-    it('should omit restEnforcement when overRest is active (even if state=REST and enabled)', async () => {
+    it('should omit restEnforcement when overRest is active (even if restEnforcementEnabled)', async () => {
       vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
         ...baseSettings,
         restEnforcementEnabled: true,
@@ -368,19 +420,26 @@ describe('PolicyDistributionService', () => {
         workApps: [{ bundleId: 'com.apple.Xcode', name: 'Xcode' }],
       } as any);
 
-      // Over rest is active and should trigger actions
-      vi.mocked(overRestService.checkOverRestStatus).mockResolvedValue({
+      // DB state is OVER_REST
+      vi.mocked(dailyStateService.getOrCreateToday).mockResolvedValue({
         success: true,
         data: {
-          isOverRest: true,
-          restDurationMinutes: 15,
-          overRestMinutes: 10,
-          gracePeriodMinutes: 5,
-          gracePeriodRemaining: 0,
-          shouldTriggerActions: true,
+          id: 'ds-1',
+          userId: 'user-1',
+          date: new Date(),
+          systemState: 'OVER_REST',
+          top3TaskIds: [],
+          pomodoroCount: 3,
+          capOverrideCount: 0,
+          airlockCompleted: false,
+          adjustedGoal: null,
           lastPomodoroEndTime: new Date(),
+          overRestEnteredAt: new Date(Date.now() - 10 * 60 * 1000),
+          overRestExitCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
-      });
+      } as any);
 
       vi.mocked(overRestService.getConfig).mockResolvedValue({
         success: true,
@@ -391,8 +450,8 @@ describe('PolicyDistributionService', () => {
         },
       });
 
-      // State is idle (which would normally trigger REST enforcement)
-      vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
+      // State is over_rest (which conflicts with REST enforcement)
+      vi.mocked(stateEngineService.getState).mockResolvedValue('over_rest');
 
       const result = await policyDistributionService.compilePolicy(userId);
 

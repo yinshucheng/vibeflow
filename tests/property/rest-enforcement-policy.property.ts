@@ -64,9 +64,16 @@ vi.mock('../../src/services/health-limit.service', () => ({
   },
 }));
 
+vi.mock('../../src/services/daily-state.service', () => ({
+  dailyStateService: {
+    getOrCreateToday: vi.fn().mockResolvedValue({ success: false }),
+  },
+}));
+
 import { restEnforcementService } from '../../src/services/rest-enforcement.service';
 import { stateEngineService } from '../../src/services/state-engine.service';
 import { healthLimitService } from '../../src/services/health-limit.service';
+import { dailyStateService } from '../../src/services/daily-state.service';
 
 // =============================================================================
 // BASE SETTINGS
@@ -154,6 +161,27 @@ beforeEach(() => {
 
   // Default: state is idle (not rest)
   vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
+
+  // Default: daily state is IDLE (not OVER_REST)
+  vi.mocked(dailyStateService.getOrCreateToday).mockResolvedValue({
+    success: true,
+    data: {
+      id: 'ds-1',
+      userId: 'user-1',
+      date: new Date(),
+      systemState: 'IDLE',
+      top3TaskIds: [],
+      pomodoroCount: 0,
+      capOverrideCount: 0,
+      airlockCompleted: false,
+      adjustedGoal: null,
+      lastPomodoroEndTime: null,
+      overRestEnteredAt: null,
+      overRestExitCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  } as any);
 });
 
 // =============================================================================
