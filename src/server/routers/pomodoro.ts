@@ -15,6 +15,7 @@ import {
   RecordPomodoroSchema,
 } from '@/services/pomodoro.service';
 import { dailyStateService } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 import { statsService, GetStatsSchema } from '@/services/stats.service';
 import { socketServer } from '@/server/socket';
 import { broadcastPolicyUpdate } from '@/services/socket-broadcast.service';
@@ -122,7 +123,7 @@ export const pomodoroRouter = router({
   start: protectedProcedure
     .input(StartPomodoroSchema)
     .mutation(async ({ ctx, input }) => {
-      // Check if daily cap is reached
+      // Pre-check daily cap (fast-fail before creating pomodoro; stateEngine guard is authoritative)
       const cappedResult = await dailyStateService.isDailyCapped(ctx.user.userId);
       if (cappedResult.success && cappedResult.data) {
         throw new TRPCError({
@@ -132,13 +133,13 @@ export const pomodoroRouter = router({
       }
 
       const result = await pomodoroService.start(ctx.user.userId, input);
-      
+
       if (!result.success) {
-        const code = 
+        const code =
           result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' :
           result.error?.code === 'CONFLICT' ? 'CONFLICT' :
           'INTERNAL_SERVER_ERROR';
-          
+
         throw new TRPCError({
           code,
           message: result.error?.message ?? 'Failed to start pomodoro',
@@ -146,30 +147,39 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Update system state to FOCUS
-      await dailyStateService.updateSystemState(ctx.user.userId, 'focus');
-      
-      // Update tray with pomodoro start
-      if (result.data) {
-        const pomodoroData = result.data as {
-          id: string;
-          taskId: string | null;
-          duration: number;
-          startTime: Date;
-          task?: { title: string } | null;
-        };
-        trayIntegrationService.updatePomodoroState({
-          id: pomodoroData.id,
-          taskId: pomodoroData.taskId,
-          duration: pomodoroData.duration,
-          startTime: pomodoroData.startTime,
-          task: pomodoroData.task,
+      // Transition state via StateEngine (handles state write, broadcast, policy update, MCP event, logging)
+      const pomodoroData = result.data as {
+        id: string;
+        taskId: string | null;
+        duration: number;
+        startTime: Date;
+        task?: { title: string } | null;
+      };
+
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'START_POMODORO',
+        pomodoroId: pomodoroData.id,
+        taskId: pomodoroData.taskId,
+      });
+
+      if (!transition.success) {
+        // Guard rejected — clean up the created pomodoro
+        await pomodoroService.abort(pomodoroData.id, ctx.user.userId).catch(() => {});
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: transition.message,
         });
       }
-      
-      // Broadcast policy update to stop over rest enforcement on desktop
-      await broadcastPolicyUpdate(ctx.user.userId);
-      
+
+      // Update tray with pomodoro start (tray is not managed by StateEngine)
+      trayIntegrationService.updatePomodoroState({
+        id: pomodoroData.id,
+        taskId: pomodoroData.taskId,
+        duration: pomodoroData.duration,
+        startTime: pomodoroData.startTime,
+        task: pomodoroData.task,
+      });
+
       return result.data;
     }),
 
