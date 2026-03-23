@@ -71,7 +71,6 @@ export type {
 
 export { socketBroadcastService } from './socket-broadcast.service';
 export {
-  broadcastStateChange,
   broadcastPolicyUpdate,
   sendExecuteCommand,
   broadcastIdleAlert,

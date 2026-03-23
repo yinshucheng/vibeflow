@@ -52,9 +52,9 @@ vi.mock('../../src/services/rest-enforcement.service', () => ({
   },
 }));
 
-vi.mock('../../src/services/daily-state.service', () => ({
-  dailyStateService: {
-    getCurrentState: vi.fn(),
+vi.mock('../../src/services/state-engine.service', () => ({
+  stateEngineService: {
+    getState: vi.fn(),
   },
 }));
 
@@ -65,7 +65,7 @@ vi.mock('../../src/services/health-limit.service', () => ({
 }));
 
 import { restEnforcementService } from '../../src/services/rest-enforcement.service';
-import { dailyStateService } from '../../src/services/daily-state.service';
+import { stateEngineService } from '../../src/services/state-engine.service';
 import { healthLimitService } from '../../src/services/health-limit.service';
 
 // =============================================================================
@@ -153,10 +153,7 @@ beforeEach(() => {
   });
 
   // Default: state is idle (not rest)
-  vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-    success: true,
-    data: 'idle',
-  });
+  vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
 });
 
 // =============================================================================
@@ -190,10 +187,7 @@ describe('Property: REST enforcement policy compilation', () => {
             configurable: true,
           });
 
-          vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-            success: true,
-            data: 'idle',
-          });
+          vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
 
           vi.spyOn(prisma.pomodoro, 'findFirst').mockResolvedValue({
             id: 'pomodoro-gen',
@@ -265,10 +259,7 @@ describe('Property: REST enforcement policy compilation', () => {
             configurable: true,
           });
 
-          vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-            success: true,
-            data: state,
-          });
+          vi.mocked(stateEngineService.getState).mockResolvedValue(state);
 
           vi.mocked(healthLimitService.checkHealthLimit).mockResolvedValue({
             exceeded: false,

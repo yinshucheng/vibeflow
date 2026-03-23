@@ -14,6 +14,7 @@ import {
   CompleteAirlockSchema,
   OverrideCapSchema
 } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 import { progressCalculationService } from '@/services/progress-calculation.service';
 import { parseSystemState } from '@/machines/vibeflow.machine';
 
@@ -40,16 +41,7 @@ export const dailyStateRouter = router({
    * Requirements: 5.1, 5.7
    */
   getCurrentState: protectedProcedure.query(async ({ ctx }) => {
-    const result = await dailyStateService.getCurrentState(ctx.user.userId);
-    
-    if (!result.success) {
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: result.error?.message ?? 'Failed to get current state',
-      });
-    }
-    
-    return result.data;
+    return stateEngineService.getState(ctx.user.userId);
   }),
 
   /**
@@ -145,27 +137,6 @@ export const dailyStateRouter = router({
     return result.data;
   }),
 
-  /**
-   * Update system state
-   * Requirements: 5.1, 5.2
-   */
-  updateSystemState: protectedProcedure
-    .input(z.enum(['idle', 'focus', 'over_rest', 'locked', 'planning', 'rest']))
-    .mutation(async ({ ctx, input }) => {
-      // Normalize old state values to new 3-state model
-      const normalizedInput = parseSystemState(input);
-
-      const result = await dailyStateService.updateSystemState(ctx.user.userId, normalizedInput);
-
-      if (!result.success) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: result.error?.message ?? 'Failed to update system state',
-        });
-      }
-
-      return result.data;
-    }),
 
   /**
    * Skip airlock for new users

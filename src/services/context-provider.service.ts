@@ -9,8 +9,8 @@
 
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { dailyStateService } from './daily-state.service';
 import { pomodoroService } from './pomodoro.service';
+import { stateEngineService } from './state-engine.service';
 import { screenTimeExemptionService } from './screen-time-exemption.service';
 import { sleepTimeService } from './sleep-time.service';
 import { overRestService } from './over-rest.service';
@@ -123,10 +123,7 @@ export const contextProviderService = {
   async getFullContext(userId: string): Promise<ServiceResult<AIContext>> {
     try {
       // Get current system state
-      const stateResult = await dailyStateService.getCurrentState(userId);
-      const systemState = stateResult.success && stateResult.data 
-        ? stateResult.data 
-        : 'locked';
+      const systemState = await stateEngineService.getState(userId);
 
       // Get current pomodoro (Requirement 6.4)
       const pomodoroResult = await pomodoroService.getCurrent(userId);

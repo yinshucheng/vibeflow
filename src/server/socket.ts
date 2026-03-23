@@ -22,7 +22,7 @@ import { timelineService, type TimelineEventTypeValue } from '@/services/timelin
 import { clientRegistryService } from '@/services/client-registry.service';
 import { policyDistributionService } from '@/services/policy-distribution.service';
 import { commandQueueService } from '@/services/command-queue.service';
-import { overRestService } from '@/services/over-rest.service';
+
 import { pomodoroService } from '@/services/pomodoro.service';
 import { timeSliceService } from '@/services/time-slice.service';
 import { dailyStateService, getTodayDate } from '@/services/daily-state.service';
@@ -1756,16 +1756,8 @@ export class VibeFlowSocketServer {
         }),
       ]);
 
-      let systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
-
-      // Check for over_rest state only when in IDLE with recent pomodoro (legacy REST behavior)
-      // TODO: Remove this dynamic computation after StateEngine migration (Phase 2)
-      if (systemState === 'idle') {
-        const overRestResult = await overRestService.checkOverRestStatus(userId);
-        if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
-          systemState = 'over_rest';
-        }
-      }
+      // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
+      const systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
 
       // Get top 3 tasks from IDs if available, otherwise fall back to today's planned tasks
       let top3Tasks: { id: string; title: string; status: string; priority: string }[] = [];
@@ -1910,17 +1902,8 @@ export class VibeFlowSocketServer {
       },
     });
 
-    // Determine the effective state (including over_rest)
-    let effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
-
-    // Check for over_rest state only when in IDLE with recent pomodoro (legacy REST behavior)
-    // TODO: Remove this dynamic computation after StateEngine migration (Phase 2)
-    if (effectiveState === 'idle') {
-      const overRestResult = await overRestService.checkOverRestStatus(userId);
-      if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
-        effectiveState = 'over_rest';
-      }
-    }
+    // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
+    const effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
 
     return {
       globalState: effectiveState,

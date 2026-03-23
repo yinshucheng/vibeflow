@@ -470,8 +470,13 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Increment pomodoro count for the day of completion
-      await dailyStateService.incrementPomodoroCount(ctx.user.userId);
+      // Increment pomodoro count for the retroactively recorded day
+      const { getTodayDate } = await import('@/services/daily-state.service');
+      const today = getTodayDate();
+      await (await import('@/lib/prisma')).default.dailyState.updateMany({
+        where: { userId: ctx.user.userId, date: today },
+        data: { pomodoroCount: { increment: 1 } },
+      });
 
       return result.data;
     }),

@@ -22,10 +22,10 @@ vi.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
-// Mock daily state service
-vi.mock('@/services/daily-state.service', () => ({
-  dailyStateService: {
-    getCurrentState: vi.fn().mockResolvedValue({ success: true, data: 'planning' }),
+// Mock state engine service
+vi.mock('@/services/state-engine.service', () => ({
+  stateEngineService: {
+    getState: vi.fn().mockResolvedValue('planning'),
   },
 }));
 
@@ -78,7 +78,7 @@ import {
   getEscalationTemplate,
 } from '@/services/ai-trigger.service';
 import type { TriggerDefinition } from '@/services/ai-trigger.service';
-import { dailyStateService } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 import { chatService } from '@/services/chat.service';
 import { llmAdapterService } from '@/services/llm-adapter.service';
 import { mcpAuditService } from '@/services/mcp-audit.service';
@@ -133,10 +133,7 @@ describe('aiTriggerService', () => {
 
     // Reset specific mocks to clear mockResolvedValueOnce queues, then re-set defaults
     vi.mocked(mockPrisma.userSettings.findUnique).mockReset().mockResolvedValue(null as never);
-    vi.mocked(dailyStateService.getCurrentState).mockReset().mockResolvedValue({
-      success: true,
-      data: 'planning' as never,
-    });
+    vi.mocked(stateEngineService.getState).mockReset().mockResolvedValue('planning' as never);
   });
 
   // =====================================================================
@@ -204,20 +201,14 @@ describe('aiTriggerService', () => {
     });
 
     it('should return false for low priority in FOCUS state', async () => {
-      vi.mocked(dailyStateService.getCurrentState).mockResolvedValueOnce({
-        success: true,
-        data: 'focus' as never,
-      });
+      vi.mocked(stateEngineService.getState).mockResolvedValueOnce('focus' as never);
 
       const result = await aiTriggerService.shouldFire(TEST_USER_ID, lowPriorityTrigger);
       expect(result).toBe(false);
     });
 
     it('should return false for normal priority in FOCUS state', async () => {
-      vi.mocked(dailyStateService.getCurrentState).mockResolvedValueOnce({
-        success: true,
-        data: 'focus' as never,
-      });
+      vi.mocked(stateEngineService.getState).mockResolvedValueOnce('focus' as never);
 
       const result = await aiTriggerService.shouldFire(TEST_USER_ID, testTrigger);
       expect(result).toBe(false);

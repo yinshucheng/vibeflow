@@ -9,6 +9,7 @@
 import type { MCPContext } from './auth';
 import prisma from '../lib/prisma';
 import { dailyStateService } from '../services/daily-state.service';
+import { stateEngineService } from '../services/state-engine.service';
 import { taskService } from '../services/task.service';
 import { projectService } from '../services/project.service';
 import { goalService } from '../services/goal.service';
@@ -425,8 +426,7 @@ export async function handleResourceRead(
  */
 async function getCurrentContext(userId: string): Promise<CurrentContextResource> {
   // Get current system state
-  const stateResult = await dailyStateService.getCurrentState(userId);
-  const systemState = stateResult.success ? stateResult.data : 'LOCKED';
+  const systemState = await stateEngineService.getState(userId);
 
   // Get current pomodoro if any
   const pomodoroResult = await pomodoroService.getCurrent(userId);
@@ -938,7 +938,7 @@ async function getPomodoroSummary(userId: string): Promise<PomodoroSummaryResour
  * MCP Capability Enhancement
  */
 async function getStateCurrent(userId: string): Promise<StateCurrentResource> {
-  const stateResult = await dailyStateService.getCurrentState(userId);
+  const currentState = await stateEngineService.getState(userId);
   const today = new Date().toISOString().split('T')[0];
 
   const dailyState = await prisma.dailyState.findUnique({
@@ -950,7 +950,7 @@ async function getStateCurrent(userId: string): Promise<StateCurrentResource> {
   });
 
   return {
-    systemState: (stateResult.success && stateResult.data) ? stateResult.data : 'LOCKED',
+    systemState: currentState,
     pomodoroCount: completedPomodoros,
     adjustedGoal: dailyState?.adjustedGoal ?? null,
     top3TaskIds: dailyState?.top3TaskIds ?? [],

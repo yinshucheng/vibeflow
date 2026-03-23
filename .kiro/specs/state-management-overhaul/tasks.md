@@ -97,20 +97,20 @@
 ### 2.12 Phase 2 完整验证
 - [x] `npm run build` 通过
 - [x] `npm test` 通过（991 passed, 12 skipped）
-- [x] `npm run lint` 通过
-- [ ] [HUMAN] 手动 happy path 测试：开始→完成→休息→OVER_REST→开始下一个 <!-- 2.12 done -->
+- [x] `npm run lint` 通过 <!-- 2.12 done -->
+- [ ] [HUMAN] 手动 happy path 测试：开始→完成→休息→OVER_REST→开始下一个
 
 ## Phase 3: 清理旧代码 + 前端适配
 
 ### 3.1 删除旧服务端代码
-- [ ] 删除 `updateSystemState()` 方法
-- [ ] 删除 `getCurrentState()` 方法
-- [ ] 删除 `incrementPomodoroCount()` 方法
-- [ ] 删除 `broadcastStateChange()` 函数（`src/services/socket-broadcast.service.ts`）及其注册函数
-- [ ] 删除 `withStateValidation()` 中间件（`src/server/trpc.ts`）
-- [ ] 删除 `getTodayWithProgress()` 中的 over_rest 动态计算逻辑（直接返回 DB 中 normalizeState 后的值）
-- [ ] 删除 `sendStateSnapshotToSocket()` 中的 over_rest 动态计算逻辑
-- [ ] 验证：`npm run build` + `npm test`
+- [x] 删除 `updateSystemState()` 方法
+- [x] 删除 `getCurrentState()` 方法
+- [x] 删除 `incrementPomodoroCount()` 方法
+- [x] 删除 `broadcastStateChange()` 函数（`src/services/socket-broadcast.service.ts`）及其注册函数
+- [x] 删除 `withStateValidation()` 中间件（`src/server/trpc.ts`）
+- [x] 删除 `getTodayWithProgress()` 中的 over_rest 动态计算逻辑（直接返回 DB 中 normalizeState 后的值）
+- [x] 删除 `sendStateSnapshotToSocket()` 中的 over_rest 动态计算逻辑
+- [x] 验证：`npm run build` + `npm test` <!-- 3.1 done -->
 
 ### 3.2 getOrCreateToday 适配
 - [ ] `getOrCreateToday()` 初始状态从 LOCKED/PLANNING 改为 IDLE

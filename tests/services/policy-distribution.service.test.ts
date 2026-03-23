@@ -37,9 +37,9 @@ vi.mock('../../src/services/rest-enforcement.service', () => ({
   },
 }));
 
-vi.mock('../../src/services/daily-state.service', () => ({
-  dailyStateService: {
-    getCurrentState: vi.fn(),
+vi.mock('../../src/services/state-engine.service', () => ({
+  stateEngineService: {
+    getState: vi.fn(),
   },
 }));
 
@@ -51,7 +51,7 @@ vi.mock('../../src/services/health-limit.service', () => ({
 
 import { overRestService } from '../../src/services/over-rest.service';
 import { restEnforcementService } from '../../src/services/rest-enforcement.service';
-import { dailyStateService } from '../../src/services/daily-state.service';
+import { stateEngineService } from '../../src/services/state-engine.service';
 import { healthLimitService } from '../../src/services/health-limit.service';
 
 const baseSettings = {
@@ -95,10 +95,7 @@ describe('PolicyDistributionService', () => {
     });
 
     // Default: state is idle (not focus/over_rest)
-    vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-      success: true,
-      data: 'idle',
-    });
+    vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
   });
 
   describe('REST enforcement in compilePolicy', () => {
@@ -115,10 +112,7 @@ describe('PolicyDistributionService', () => {
         workApps,
       } as any);
 
-      vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-        success: true,
-        data: 'idle',
-      });
+      vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
 
       vi.spyOn(prisma.pomodoro, 'findFirst').mockResolvedValue({
         id: 'pomodoro-1',
@@ -154,10 +148,7 @@ describe('PolicyDistributionService', () => {
         workApps: [{ bundleId: 'com.apple.Xcode', name: 'Xcode' }],
       } as any);
 
-      vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-        success: true,
-        data: 'idle',
-      });
+      vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
 
       vi.spyOn(prisma.pomodoro, 'findFirst').mockResolvedValue({
         id: 'pomodoro-1',
@@ -184,10 +175,7 @@ describe('PolicyDistributionService', () => {
         workApps: [{ bundleId: 'com.apple.Xcode', name: 'Xcode' }],
       } as any);
 
-      vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-        success: true,
-        data: 'focus',
-      });
+      vi.mocked(stateEngineService.getState).mockResolvedValue('focus');
 
       const result = await policyDistributionService.compilePolicy(userId);
 
@@ -203,17 +191,14 @@ describe('PolicyDistributionService', () => {
         restEnforcementEnabled: false,
       } as any);
 
-      vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-        success: true,
-        data: 'idle',
-      });
+      vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
 
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
       expect(result.data?.restEnforcement).toBeUndefined();
       // Should not check state when disabled
-      expect(dailyStateService.getCurrentState).not.toHaveBeenCalled();
+      expect(stateEngineService.getState).not.toHaveBeenCalled();
     });
 
     it('should use default action "close" when restEnforcementActions is empty', async () => {
@@ -224,10 +209,7 @@ describe('PolicyDistributionService', () => {
         workApps: [{ bundleId: 'com.app.test', name: 'Test' }],
       } as any);
 
-      vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-        success: true,
-        data: 'idle',
-      });
+      vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
 
       vi.spyOn(prisma.pomodoro, 'findFirst').mockResolvedValue({
         id: 'pomodoro-1',
@@ -410,10 +392,7 @@ describe('PolicyDistributionService', () => {
       });
 
       // State is idle (which would normally trigger REST enforcement)
-      vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
-        success: true,
-        data: 'idle',
-      });
+      vi.mocked(stateEngineService.getState).mockResolvedValue('idle');
 
       const result = await policyDistributionService.compilePolicy(userId);
 

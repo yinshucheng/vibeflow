@@ -15,7 +15,7 @@ import { sleepTimeService, type SleepEnforcementApp } from '@/services/sleep-tim
 import { overRestService } from '@/services/over-rest.service';
 import { screenTimeExemptionService } from '@/services/screen-time-exemption.service';
 import { restEnforcementService } from '@/services/rest-enforcement.service';
-import { dailyStateService } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 import { healthLimitService } from '@/services/health-limit.service';
 
 // Service result type
@@ -287,8 +287,8 @@ export const policyDistributionService = {
       let restEnforcement: RestEnforcementPolicy | undefined;
       const isOverRestActive = !!overRest;
       if (settings.restEnforcementEnabled && !isOverRestActive) {
-        const stateResult = await dailyStateService.getCurrentState(userId);
-        if (stateResult.success && stateResult.data === 'idle') {
+        const currentState = await stateEngineService.getState(userId);
+        if (currentState === 'idle') {
           const latestPomodoro = await prisma.pomodoro.findFirst({
             where: { userId, status: 'COMPLETED' },
             orderBy: { endTime: 'desc' },
