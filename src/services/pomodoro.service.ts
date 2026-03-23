@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import type { Pomodoro, PomodoroStatus } from '@prisma/client';
 import { mcpEventService } from './mcp-event.service';
 import { dailyStateService } from './daily-state.service';
+import { stateEngineService } from './state-engine.service';
 import { chatTriggersStateService } from './chat-triggers-state.service';
 
 // Timer configuration constraints (Requirements: 14.5)
@@ -575,9 +576,16 @@ export const pomodoroService = {
             chatTriggersStateService.handlePomodoroCompleted(userId, expiredPayload)
               .catch((err) => console.error('[AI Trigger] handlePomodoroCompleted (expired) error:', err));
 
-            // Always transition to idle on auto-completion (was 'rest' in old model)
-            await dailyStateService.updateSystemState(userId, 'idle');
-            await dailyStateService.incrementPomodoroCount(userId);
+            // Transition state via StateEngine (handles state write, pomodoroCount increment,
+            // broadcast, policy update, MCP event, logging, and OVER_REST timer scheduling)
+            const transition = await stateEngineService.send(userId, {
+              type: 'COMPLETE_POMODORO',
+            });
+
+            if (!transition.success) {
+              console.error(`[Scheduler] StateEngine transition failed for pomodoro ${pomodoro.id}:`, transition.message);
+              // Pomodoro is already marked COMPLETED in DB, so we don't roll back.
+            }
 
             completedCount++;
           } catch (error) {

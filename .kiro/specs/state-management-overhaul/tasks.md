@@ -68,8 +68,8 @@
 - [x] 验证：`npm test` + `npm run build` <!-- 2.5 done -->
 
 ### 2.6 迁移 Scheduler completeExpiredPomodoros
-- [ ] `src/services/pomodoro.service.ts` 的 `completeExpiredPomodoros()`：删除 `dailyStateService.updateSystemState('rest')` 和 `dailyStateService.incrementPomodoroCount()`，改为 `stateEngine.send(userId, { type: 'COMPLETE_POMODORO' })`
-- [ ] 验证：手动等待番茄钟超时自动完成，确认状态变为 IDLE
+- [x] `src/services/pomodoro.service.ts` 的 `completeExpiredPomodoros()`：删除 `dailyStateService.updateSystemState('rest')` 和 `dailyStateService.incrementPomodoroCount()`，改为 `stateEngine.send(userId, { type: 'COMPLETE_POMODORO' })`
+- [x] 验证：手动等待番茄钟超时自动完成，确认状态变为 IDLE <!-- 2.6 done -->
 
 ### 2.7 迁移 Socket POMODORO_START handler
 - [ ] `src/server/socket.ts` 的 `POMODORO_START` 处理：删除重复的 start 逻辑，改为调用 stateEngine（或直接调用 pomodoro service 让其走 stateEngine 路径）
