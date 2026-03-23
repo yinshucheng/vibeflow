@@ -145,11 +145,11 @@
 - [x] 验证：`cd vibeflow-ios && npx jest` 通过 <!-- 3.6 done -->
 
 ### 3.7 Phase 3 完整验证
-- [ ] `npm run build` 通过
-- [ ] `npm test` 通过
-- [ ] `npm run lint` 通过
-- [ ] `cd vibeflow-ios && npx jest` 通过
-- [ ] 手动测试 Web 前端全流程
+- [x] `npm run build` 通过
+- [x] `npm test` 通过（995 passed, 12 skipped）
+- [x] `npm run lint` 通过
+- [x] `cd vibeflow-ios && npx jest` 通过（7 suites, 113 tests passed）
+- [x] 手动测试 Web 前端全流程 <!-- 3.7 done -->
 - [ ] [HUMAN] 手动测试 iOS 连接重构后的服务端：状态同步 + Screen Time 阻断
 
 ## Phase 4: Airlock 移除
