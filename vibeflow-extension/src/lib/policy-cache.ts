@@ -293,13 +293,12 @@ export class PolicyCacheManager {
   // ==========================================================================
 
   /**
-   * Check if the system is in a restricted state (LOCKED or OVER_REST)
-   * In these states, only Dashboard access is allowed
-   * Requirements: 1.1, 1.2, 1.6, 1.10
+   * Check if the system is in a restricted state (OVER_REST only)
+   * LOCKED state removed in 3-state model overhaul.
    */
   isRestrictedState(): boolean {
     const state = this.cache.globalState;
-    return state === 'LOCKED' || state === 'OVER_REST';
+    return state === 'OVER_REST';
   }
 
   /**
@@ -323,23 +322,16 @@ export class PolicyCacheManager {
    * Get the restriction reason for the current state
    * Requirements: 1.6, 1.7
    */
-  getRestrictionReason(): { reason: 'locked' | 'over_rest' | null; message: string } {
+  getRestrictionReason(): { reason: 'over_rest' | null; message: string } {
     const state = this.cache.globalState;
-    
-    if (state === 'LOCKED') {
-      return {
-        reason: 'locked',
-        message: '请完成今日计划',
-      };
-    }
-    
+
     if (state === 'OVER_REST') {
       return {
         reason: 'over_rest',
         message: '超时休息中，请开始工作',
       };
     }
-    
+
     return { reason: null, message: '' };
   }
 
@@ -348,7 +340,7 @@ export class PolicyCacheManager {
    * Returns the screensaver URL to redirect to, or null if allowed
    * Requirements: 1.1, 1.2, 1.6, 1.10
    */
-  shouldBlockForStateRestriction(url: string): { blocked: boolean; redirectUrl?: string; reason?: 'locked' | 'over_rest' } {
+  shouldBlockForStateRestriction(url: string): { blocked: boolean; redirectUrl?: string; reason?: 'over_rest' } {
     // Skip internal URLs
     if (this.isInternalUrl(url)) {
       return { blocked: false };
@@ -364,15 +356,13 @@ export class PolicyCacheManager {
       return { blocked: false };
     }
 
-    // Block and redirect to appropriate screensaver
-    const state = this.cache.globalState;
-    const reason = state === 'LOCKED' ? 'locked' : 'over_rest';
-    const screensaverPath = state === 'LOCKED' ? 'locked-screensaver.html' : 'over-rest-screensaver.html';
+    // Block and redirect to over-rest screensaver
+    const screensaverPath = 'over-rest-screensaver.html';
     
     return {
       blocked: true,
       redirectUrl: chrome.runtime.getURL(screensaverPath),
-      reason,
+      reason: 'over_rest' as const,
     };
   }
 

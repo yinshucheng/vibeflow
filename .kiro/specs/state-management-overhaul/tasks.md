@@ -169,10 +169,10 @@
 - [x] 验证：`npm run build` <!-- 4.2 done -->
 
 ### 4.3 删除 Extension LOCKED 逻辑
-- [ ] `vibeflow-extension/src/background/service-worker.ts`：`enforceStateRestrictions()` 删除 LOCKED 分支
-- [ ] `vibeflow-extension/src/lib/policy-cache.ts`：`isRestrictedState()` 删除 LOCKED 判断（只保留 OVER_REST）
-- [ ] 删除 `locked-screensaver.html` 及相关资源
-- [ ] 验证：Extension 在 IDLE 状态下不屏蔽任何页面
+- [x] `vibeflow-extension/src/background/service-worker.ts`：`enforceStateRestrictions()` 删除 LOCKED 分支，只保留 OVER_REST
+- [x] `vibeflow-extension/src/lib/policy-cache.ts`：`isRestrictedState()` 删除 LOCKED 判断，`getRestrictionReason` / `shouldBlockForStateRestriction` 移除 locked 类型
+- [x] 删除 `locked-screensaver.html`
+- [x] 验证：`npm test`（995 passed）+ `npm run build` 通过 <!-- 4.3 done -->
 
 ### 4.4 Top 3 降级为可选功能
 - [ ] Top 3 任务选择 UI 改为 Dashboard 上的可选卡片（不阻塞操作）
