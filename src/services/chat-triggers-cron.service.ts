@@ -106,9 +106,9 @@ export const chatTriggersCronService = {
     const trigger = aiTriggerService.getTrigger('morning_greeting');
     if (!trigger) return;
 
-    // Condition: user must be in LOCKED state (hasn't started work)
+    // Condition: user must be in IDLE state (hasn't started work)
     const stateResult = await dailyStateService.getCurrentState(userId);
-    if (!stateResult.success || stateResult.data !== 'locked') return;
+    if (!stateResult.success || stateResult.data !== 'idle') return;
 
     const canFire = await aiTriggerService.shouldFire(userId, trigger);
     if (!canFire) return;

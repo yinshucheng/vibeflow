@@ -107,29 +107,22 @@ describe('TrayIntegrationService', () => {
   });
 
   describe('updateSystemState', () => {
-    it('should handle PLANNING state', () => {
-      service.updateSystemState('planning');
+    it('should handle IDLE state', () => {
+      service.updateSystemState('idle');
 
       expect(mockTrayUpdate).toHaveBeenCalledWith({
-        systemState: 'PLANNING',
+        systemState: 'PLANNING', // Desktop tray maps idle to PLANNING for display
         restTimeRemaining: undefined,
         overRestDuration: undefined,
       });
     });
 
-    it('should handle REST state with countdown', () => {
-      const restStartTime = new Date(Date.now() - 2 * 60 * 1000); // 2 minutes ago
-      const restData = {
-        startTime: restStartTime,
-        duration: 5, // 5 minutes rest
-        isOverRest: false,
-      };
-
-      service.updateSystemState('rest', restData);
+    it('should handle IDLE state (was REST) — no rest countdown in 3-state model', () => {
+      service.updateSystemState('idle');
 
       expect(mockTrayUpdate).toHaveBeenCalledWith({
-        systemState: 'REST',
-        restTimeRemaining: '03:00', // 5 - 2 = 3 minutes remaining
+        systemState: 'PLANNING', // Desktop tray maps idle to PLANNING
+        restTimeRemaining: undefined,
         overRestDuration: undefined,
       });
     });

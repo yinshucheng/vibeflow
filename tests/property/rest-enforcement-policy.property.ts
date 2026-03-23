@@ -8,8 +8,8 @@ import { prisma } from '../../src/lib/prisma';
  * Task 16: Property tests for REST enforcement policy
  *
  * Properties tested:
- * 1. compilePolicy always includes restEnforcement when state=REST + enabled + no grace
- * 2. compilePolicy never includes restEnforcement when state != REST
+ * 1. compilePolicy always includes restEnforcement when state=IDLE + enabled + no grace
+ * 2. compilePolicy never includes restEnforcement when state != IDLE
  * 3. Grace count never exceeds restGraceLimit
  * 4. getActiveGrace returns null after exemption expires
  */
@@ -121,11 +121,10 @@ const graceLimitArb = fc.integer({ min: 1, max: 5 });
 const graceDurationArb = fc.integer({ min: 1, max: 10 });
 
 /**
- * Generator for all daily states that are NOT 'rest'
+ * Generator for all daily states that are NOT 'idle'
+ * (idle is the state that triggers rest enforcement)
  */
-const nonRestStateArb = fc.constantFrom(
-  'locked' as const,
-  'planning' as const,
+const nonIdleStateArb = fc.constantFrom(
   'focus' as const,
   'over_rest' as const
 );
@@ -153,10 +152,10 @@ beforeEach(() => {
     type: null,
   });
 
-  // Default: state is planning (not rest)
+  // Default: state is idle (not rest)
   vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
     success: true,
-    data: 'planning',
+    data: 'idle',
   });
 });
 
@@ -165,7 +164,7 @@ beforeEach(() => {
 // =============================================================================
 
 describe('Property: REST enforcement policy compilation', () => {
-  it('compilePolicy always includes restEnforcement when state=REST + enabled + no grace', async () => {
+  it('compilePolicy always includes restEnforcement when state=IDLE + enabled + no grace', async () => {
     await fc.assert(
       fc.asyncProperty(
         workAppsArb,
@@ -175,7 +174,7 @@ describe('Property: REST enforcement policy compilation', () => {
         async (workApps, actions, graceLimit, graceDuration) => {
           vi.clearAllMocks();
 
-          // Setup: REST enforcement enabled, state=REST, no active grace
+          // Setup: REST enforcement enabled, state=IDLE, no active grace
           vi.spyOn(prisma.userSettings, 'findUnique').mockResolvedValue({
             ...baseSettings,
             restEnforcementEnabled: true,
@@ -193,7 +192,7 @@ describe('Property: REST enforcement policy compilation', () => {
 
           vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
             success: true,
-            data: 'rest',
+            data: 'idle',
           });
 
           vi.spyOn(prisma.pomodoro, 'findFirst').mockResolvedValue({
@@ -244,10 +243,10 @@ describe('Property: REST enforcement policy compilation', () => {
     );
   });
 
-  it('compilePolicy never includes restEnforcement when state != REST', async () => {
+  it('compilePolicy never includes restEnforcement when state != IDLE', async () => {
     await fc.assert(
       fc.asyncProperty(
-        nonRestStateArb,
+        nonIdleStateArb,
         workAppsArb,
         fc.boolean(),
         async (state, workApps, enabled) => {
@@ -278,7 +277,7 @@ describe('Property: REST enforcement policy compilation', () => {
 
           const result = await policyDistributionService.compilePolicy('user-1');
 
-          // Property: restEnforcement MUST NOT be present when state != REST
+          // Property: restEnforcement MUST NOT be present when state != IDLE
           expect(result.success).toBe(true);
           expect(result.data?.restEnforcement).toBeUndefined();
 

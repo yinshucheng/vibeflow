@@ -16,6 +16,7 @@ import prisma from '@/lib/prisma';
 import { userService } from '@/services/user.service';
 import { authService } from '@/services/auth.service';
 import { parseSystemState } from '@/machines/vibeflow.machine';
+import type { SystemState } from '@/lib/state-utils';
 import { activityLogService } from '@/services/activity-log.service';
 import { timelineService, type TimelineEventTypeValue } from '@/services/timeline.service';
 import { clientRegistryService } from '@/services/client-registry.service';
@@ -60,11 +61,8 @@ import {
 // Types and Schemas
 // ============================================================================
 
-/**
- * System state type (matches vibeflow.machine.ts)
- * Note: over_rest is a computed state when rest exceeds grace period
- */
-export type SystemState = 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
+// Re-export SystemState from canonical source
+export type { SystemState } from '@/lib/state-utils';
 
 /**
  * Policy cache sent to clients (legacy format for backward compatibility)
@@ -1735,12 +1733,11 @@ export class VibeFlowSocketServer {
         }),
       ]);
 
-      let systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
-      
-      // Check for over_rest state only when in REST (not planning)
-      // If user moved to planning, they explicitly chose to exit rest — respect that choice
-      // This aligns with dailyStateService.getTodayWithProgress() behavior
-      if (systemState === 'rest') {
+      let systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
+
+      // Check for over_rest state only when in IDLE with recent pomodoro (legacy REST behavior)
+      // TODO: Remove this dynamic computation after StateEngine migration (Phase 2)
+      if (systemState === 'idle') {
         const overRestResult = await overRestService.checkOverRestStatus(userId);
         if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
           systemState = 'over_rest';
@@ -1891,11 +1888,11 @@ export class VibeFlowSocketServer {
     });
 
     // Determine the effective state (including over_rest)
-    let effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
-    
-    // Check for over_rest state only when in REST (not planning)
-    // If user moved to planning, they explicitly chose to exit rest — respect that choice
-    if (effectiveState === 'rest') {
+    let effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
+
+    // Check for over_rest state only when in IDLE with recent pomodoro (legacy REST behavior)
+    // TODO: Remove this dynamic computation after StateEngine migration (Phase 2)
+    if (effectiveState === 'idle') {
       const overRestResult = await overRestService.checkOverRestStatus(userId);
       if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
         effectiveState = 'over_rest';

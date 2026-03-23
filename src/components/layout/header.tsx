@@ -17,7 +17,7 @@ import { OfflineModeIndicatorWithStatus } from '@/components/ui/offline-mode-ind
 import { trpc } from '@/lib/trpc';
 import { useSocket } from '@/hooks/use-socket';
 import { Icons } from '@/lib/icons';
-import type { SystemState } from '@/machines/vibeflow.machine';
+import { normalizeState } from '@/lib/state-utils';
 
 interface HeaderProps {
   title?: string;
@@ -34,10 +34,11 @@ export function Header({ title = 'VibeFlow' }: HeaderProps) {
 
   // Prefer WebSocket state (real-time) over tRPC state (polled)
   const systemState =
-    socketState || (dailyState?.systemState?.toLowerCase() as SystemState | undefined);
+    socketState || (dailyState?.systemState ? normalizeState(dailyState.systemState) : undefined);
 
   // Get rest status for countdown display (when in rest or over_rest state)
-  const isInRestState = systemState === 'rest' || systemState === 'over_rest';
+  // REST no longer exists as separate state — over_rest is the only rest-like state
+  const isInRestState = systemState === 'over_rest';
   const { data: restStatus } = trpc.dailyState.getRestStatus.useQuery(undefined, {
     refetchOnMount: 'always',
     enabled: isInRestState,

@@ -1,499 +1,226 @@
 /**
- * VibeFlow State Machine
- * 
- * Implements the core system state management using XState v5.
- * States: LOCKED, PLANNING, FOCUS, REST
- * 
- * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7
+ * VibeFlow State Machine — 3-State Model
+ *
+ * States: IDLE, FOCUS, OVER_REST
+ * Engine: XState v5 used as a pure-function transition validator (no actors).
+ *
+ * Design: .kiro/specs/state-management-overhaul/design.md
  */
 
-import { createMachine, assign, setup } from 'xstate';
+import { assign, setup } from 'xstate';
+import {
+  normalizeState,
+  serializeState,
+  type SystemState,
+} from '@/lib/state-utils';
 
-// System states
-export type SystemState = 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
+// Re-export the canonical SystemState from state-utils
+export type { SystemState } from '@/lib/state-utils';
 
-// Airlock wizard steps
+// ── Types ──────────────────────────────────────────────────────────
+
+/** @deprecated Airlock is removed in the 3-state model */
 export type AirlockStep = 'REVIEW' | 'PLAN' | 'COMMIT';
 
-// Task stack entry for multi-task tracking (Req 1)
 export interface TaskStackEntry {
-  taskId: string | null;  // null = taskless segment
-  startedAt: Date;
+  taskId: string | null; // null = taskless segment
+  startTime: number; // epoch ms (was Date, now number for serialisation)
 }
 
-// Machine context
 export interface VibeFlowContext {
   userId: string;
-  /** @deprecated Use taskStack.at(-1)?.taskId instead */
-  currentTaskId: string | null;
-  currentPomodoroId: string | null;
   todayPomodoroCount: number;
   dailyCap: number;
-  top3TaskIds: string[];
-  airlockStep: AirlockStep | null;
-  restDuration: number; // in minutes
-  pomodoroStartTime: Date | null;
-  restStartTime: Date | null;
-  overRestStartTime: Date | null;
-  // Multi-task enhancement fields (Req 1, 3)
+
+  // Pomodoro-related
+  currentPomodoroId: string | null;
+  currentTaskId: string | null;
+  pomodoroStartTime: number | null; // epoch ms
   taskStack: TaskStackEntry[];
-  currentTimeSliceId: string | null;
   isTaskless: boolean;
+
+  // Rest tracking (IDLE sub-phase)
+  lastPomodoroEndTime: number | null; // epoch ms, set on COMPLETE_POMODORO
+
+  // OVER_REST exit constraints
+  overRestEnteredAt: number | null; // epoch ms
+  overRestExitCount: number; // daily counter for RETURN_TO_IDLE
 }
 
-// Machine events
 export type VibeFlowEvent =
-  | { type: 'COMPLETE_AIRLOCK'; top3TaskIds: string[] }
-  | { type: 'START_POMODORO'; taskId: string; pomodoroId: string }
-  | { type: 'START_TASKLESS_POMODORO'; pomodoroId: string; label?: string }
+  | { type: 'START_POMODORO'; pomodoroId: string; taskId: string | null; isTaskless?: boolean }
   | { type: 'COMPLETE_POMODORO' }
   | { type: 'ABORT_POMODORO' }
+  | { type: 'SWITCH_TASK'; taskId: string; timeSliceId: string }
+  | { type: 'COMPLETE_CURRENT_TASK' }
   | { type: 'ENTER_OVER_REST' }
-  | { type: 'DAILY_RESET' }
-  | { type: 'SET_AIRLOCK_STEP'; step: AirlockStep }
-  | { type: 'INCREMENT_POMODORO_COUNT' }
-  | { type: 'SET_DAILY_CAP'; cap: number }
-  | { type: 'SYNC_STATE'; context: Partial<VibeFlowContext> }
-  // Multi-task enhancement events (Req 1, 2, 3)
-  | { type: 'SWITCH_TASK'; taskId: string | null; timeSliceId: string }
-  | { type: 'ASSOCIATE_TASK'; taskId: string; timeSliceId: string }
-  | { type: 'COMPLETE_CURRENT_TASK' };
+  | { type: 'RETURN_TO_IDLE' }
+  | { type: 'WORK_TIME_ENDED' }
+  | { type: 'DAILY_RESET' };
 
-// Input for machine initialization
 export interface VibeFlowInput {
   userId: string;
   dailyCap?: number;
   todayPomodoroCount?: number;
-  top3TaskIds?: string[];
-  airlockCompleted?: boolean;
-  currentPomodoroId?: string | null;
-  currentTaskId?: string | null;
 }
 
-// Default context values
-const defaultContext: VibeFlowContext = {
-  userId: '',
-  currentTaskId: null,
-  currentPomodoroId: null,
-  todayPomodoroCount: 0,
-  dailyCap: 8,
-  top3TaskIds: [],
-  airlockStep: 'REVIEW',
-  restDuration: 5,
-  pomodoroStartTime: null,
-  restStartTime: null,
-  overRestStartTime: null,
-  // Multi-task enhancement defaults
-  taskStack: [],
-  currentTimeSliceId: null,
-  isTaskless: false,
-};
+// ── Machine ────────────────────────────────────────────────────────
 
+/** OVER_REST cooldown: 10 minutes before user can RETURN_TO_IDLE */
+const OVER_REST_COOLDOWN_MS = 10 * 60 * 1000;
+/** Max RETURN_TO_IDLE per day */
+const MAX_OVER_REST_EXITS = 3;
 
-/**
- * VibeFlow State Machine Definition
- * 
- * State Transitions:
- * - LOCKED → PLANNING (via COMPLETE_AIRLOCK)
- * - PLANNING → FOCUS (via START_POMODORO)
- * - FOCUS → REST (via COMPLETE_POMODORO)
- * - FOCUS → PLANNING (via ABORT_POMODORO)
- * - REST → FOCUS (via START_POMODORO) — no PLANNING in between
- * - REST → OVER_REST (via ENTER_OVER_REST)
- * - OVER_REST → FOCUS (via START_POMODORO)
- * - Any state → LOCKED (via DAILY_RESET)
- */
-export const vibeFlowMachine = setup({
+export const vibeflowMachine = setup({
   types: {
     context: {} as VibeFlowContext,
     events: {} as VibeFlowEvent,
     input: {} as VibeFlowInput,
   },
   guards: {
-    /**
-     * Check if user can start a new pomodoro
-     * Requirements: 12.2, 12.3
-     */
-    canStartPomodoro: ({ context }) => {
-      // Cannot start if daily cap is reached
-      return context.todayPomodoroCount < context.dailyCap;
-    },
+    canStartPomodoro: ({ context }) =>
+      context.todayPomodoroCount < context.dailyCap,
 
-    /**
-     * Check if daily cap has been reached
-     * Requirements: 12.2
-     */
-    isDailyCapped: ({ context }) => {
-      return context.todayPomodoroCount >= context.dailyCap;
-    },
-
-    /**
-     * Check if airlock has valid top 3 tasks
-     * Requirements: 3.8
-     */
-    hasValidTop3: ({ event }) => {
-      if (event.type !== 'COMPLETE_AIRLOCK') return false;
-      return event.top3TaskIds.length >= 0 && event.top3TaskIds.length <= 3;
-    },
-
-    /**
-     * Check if there's an active pomodoro
-     */
-    hasActivePomodoro: ({ context }) => {
-      return context.currentPomodoroId !== null;
+    canReturnToIdle: ({ context }) => {
+      if (context.overRestExitCount >= MAX_OVER_REST_EXITS) return false;
+      if (!context.overRestEnteredAt) return false;
+      const elapsed = Date.now() - context.overRestEnteredAt;
+      return elapsed >= OVER_REST_COOLDOWN_MS;
     },
   },
   actions: {
-    /**
-     * Set top 3 tasks from airlock completion
-     */
-    setTop3Tasks: assign({
-      top3TaskIds: ({ event }) => {
-        if (event.type === 'COMPLETE_AIRLOCK') {
-          return event.top3TaskIds;
-        }
-        return [];
-      },
-      airlockStep: () => null,
+    startPomodoro: assign(({ context, event }) => {
+      if (event.type !== 'START_POMODORO') return {};
+      const now = Date.now();
+      return {
+        currentPomodoroId: event.pomodoroId,
+        currentTaskId: event.taskId,
+        pomodoroStartTime: now,
+        isTaskless: event.isTaskless ?? false,
+        taskStack: event.taskId
+          ? [{ taskId: event.taskId, startTime: now }]
+          : [],
+        lastPomodoroEndTime: null,
+        overRestEnteredAt: null,
+      };
     }),
 
-    /**
-     * Start a pomodoro session
-     */
-    startPomodoro: assign({
-      currentTaskId: ({ event }) => {
-        if (event.type === 'START_POMODORO') {
-          return event.taskId;
-        }
-        return null;
-      },
-      currentPomodoroId: ({ event }) => {
-        if (event.type === 'START_POMODORO') {
-          return event.pomodoroId;
-        }
-        return null;
-      },
-      pomodoroStartTime: () => new Date(),
-      overRestStartTime: () => null, // Exit over-rest when starting pomodoro
-      // Multi-task: initialize taskStack with the starting task
-      taskStack: ({ event }) => {
-        if (event.type === 'START_POMODORO') {
-          return [{ taskId: event.taskId, startedAt: new Date() }];
-        }
-        return [];
-      },
-      isTaskless: () => false,
-      currentTimeSliceId: () => null,
-    }),
-
-    /**
-     * Start a taskless pomodoro session (Req 3)
-     */
-    startTasklessPomodoro: assign({
-      currentTaskId: () => null,
-      currentPomodoroId: ({ event }) => {
-        if (event.type === 'START_TASKLESS_POMODORO') {
-          return event.pomodoroId;
-        }
-        return null;
-      },
-      pomodoroStartTime: () => new Date(),
-      overRestStartTime: () => null,
-      taskStack: () => [],
-      isTaskless: () => true,
-      currentTimeSliceId: () => null,
-    }),
-
-    /**
-     * Switch to a different task during pomodoro (Req 1)
-     */
-    switchTask: assign({
-      taskStack: ({ context, event }) => {
-        if (event.type === 'SWITCH_TASK') {
-          return [...context.taskStack, { taskId: event.taskId, startedAt: new Date() }];
-        }
-        return context.taskStack;
-      },
-      currentTaskId: ({ event }) => {
-        if (event.type === 'SWITCH_TASK') {
-          return event.taskId;
-        }
-        return null;
-      },
-      currentTimeSliceId: ({ event }) => {
-        if (event.type === 'SWITCH_TASK') {
-          return event.timeSliceId;
-        }
-        return null;
-      },
-    }),
-
-    /**
-     * Complete current task during pomodoro (Req 2)
-     */
-    completeCurrentTask: assign({
-      taskStack: ({ context }) => [
-        ...context.taskStack,
-        { taskId: null, startedAt: new Date() },
-      ],
-      currentTaskId: () => null,
-    }),
-
-    /**
-     * Associate a task to a taskless pomodoro (Req 3)
-     */
-    associateTask: assign({
-      isTaskless: () => false,
-      taskStack: ({ event }) => {
-        if (event.type === 'ASSOCIATE_TASK') {
-          return [{ taskId: event.taskId, startedAt: new Date() }];
-        }
-        return [];
-      },
-      currentTaskId: ({ event }) => {
-        if (event.type === 'ASSOCIATE_TASK') {
-          return event.taskId;
-        }
-        return null;
-      },
-      currentTimeSliceId: ({ event }) => {
-        if (event.type === 'ASSOCIATE_TASK') {
-          return event.timeSliceId;
-        }
-        return null;
-      },
-    }),
-
-    /**
-     * Complete a pomodoro and increment count
-     */
     completePomodoro: assign({
-      todayPomodoroCount: ({ context }) => context.todayPomodoroCount + 1,
       currentPomodoroId: () => null,
-      pomodoroStartTime: () => null,
-      restStartTime: () => new Date(),
-      // Reset multi-task fields
-      taskStack: () => [],
-      currentTimeSliceId: () => null,
-      isTaskless: () => false,
-    }),
-
-    /**
-     * Abort a pomodoro session
-     */
-    abortPomodoro: assign({
       currentTaskId: () => null,
-      currentPomodoroId: () => null,
       pomodoroStartTime: () => null,
-      // Reset multi-task fields
-      taskStack: () => [],
-      currentTimeSliceId: () => null,
+      taskStack: () => [] as TaskStackEntry[],
       isTaskless: () => false,
+      todayPomodoroCount: ({ context }) => context.todayPomodoroCount + 1,
+      lastPomodoroEndTime: () => Date.now(),
     }),
 
-    /**
-     * Enter over-rest state
-     */
+    abortPomodoro: assign({
+      currentPomodoroId: () => null,
+      currentTaskId: () => null,
+      pomodoroStartTime: () => null,
+      taskStack: () => [] as TaskStackEntry[],
+      isTaskless: () => false,
+      // Intentionally NOT setting lastPomodoroEndTime:
+      // abort = user chose to stop, should NOT be penalised with OVER_REST.
+    }),
+
     enterOverRest: assign({
-      overRestStartTime: () => new Date(),
-      restStartTime: () => null,
+      overRestEnteredAt: () => Date.now(),
     }),
 
-    /**
-     * Exit over-rest state (when starting new pomodoro)
-     */
-    exitOverRest: assign({
-      overRestStartTime: () => null,
-    }),
+    returnToIdle: assign(({ context }) => ({
+      overRestEnteredAt: null,
+      overRestExitCount: context.overRestExitCount + 1,
+    })),
 
-    /**
-     * Reset daily state for new day
-     */
     resetDaily: assign({
       todayPomodoroCount: () => 0,
-      top3TaskIds: () => [],
-      airlockStep: () => 'REVIEW' as AirlockStep,
-      currentTaskId: () => null,
       currentPomodoroId: () => null,
+      currentTaskId: () => null,
       pomodoroStartTime: () => null,
-      restStartTime: () => null,
-      overRestStartTime: () => null,
-      // Reset multi-task fields
-      taskStack: () => [],
-      currentTimeSliceId: () => null,
+      taskStack: () => [] as TaskStackEntry[],
       isTaskless: () => false,
+      lastPomodoroEndTime: () => null,
+      overRestEnteredAt: () => null,
+      overRestExitCount: () => 0,
     }),
 
-    /**
-     * Set airlock step
-     */
-    setAirlockStep: assign({
-      airlockStep: ({ event }) => {
-        if (event.type === 'SET_AIRLOCK_STEP') {
-          return event.step;
-        }
-        return null;
-      },
+    switchTask: assign(({ context, event }) => {
+      if (event.type !== 'SWITCH_TASK') return {};
+      return {
+        currentTaskId: event.taskId,
+        taskStack: [
+          ...context.taskStack,
+          { taskId: event.taskId, startTime: Date.now() },
+        ],
+      };
     }),
 
-    /**
-     * Set daily cap
-     */
-    setDailyCap: assign({
-      dailyCap: ({ event }) => {
-        if (event.type === 'SET_DAILY_CAP') {
-          return event.cap;
-        }
-        return 8;
-      },
-    }),
-
-    /**
-     * Sync state from external source
-     */
-    syncState: assign(({ context, event }) => {
-      if (event.type === 'SYNC_STATE') {
-        return { ...context, ...event.context };
-      }
-      return context;
-    }),
+    completeCurrentTask: assign(({ context }) => ({
+      currentTaskId: null,
+      taskStack: [
+        ...context.taskStack,
+        { taskId: null, startTime: Date.now() },
+      ],
+    })),
   },
 }).createMachine({
   id: 'vibeflow',
-  initial: 'locked',
+  initial: 'idle',
   context: ({ input }) => ({
-    ...defaultContext,
     userId: input.userId,
-    dailyCap: input.dailyCap ?? defaultContext.dailyCap,
     todayPomodoroCount: input.todayPomodoroCount ?? 0,
-    top3TaskIds: input.top3TaskIds ?? [],
-    currentPomodoroId: input.currentPomodoroId ?? null,
-    currentTaskId: input.currentTaskId ?? null,
-    airlockStep: input.airlockCompleted ? null : 'REVIEW',
+    dailyCap: input.dailyCap ?? 8,
+    currentPomodoroId: null,
+    currentTaskId: null,
+    pomodoroStartTime: null,
+    taskStack: [],
+    isTaskless: false,
+    lastPomodoroEndTime: null,
+    overRestEnteredAt: null,
+    overRestExitCount: 0,
   }),
   states: {
-    /**
-     * LOCKED State
-     * Requirements: 5.3 - Only allow Morning_Airlock interactions
-     */
-    locked: {
-      on: {
-        COMPLETE_AIRLOCK: {
-          target: 'planning',
-          guard: 'hasValidTop3',
-          actions: 'setTop3Tasks',
-        },
-        SET_AIRLOCK_STEP: {
-          actions: 'setAirlockStep',
-        },
-        SYNC_STATE: {
-          actions: 'syncState',
-        },
-      },
-    },
-
-    /**
-     * PLANNING State
-     * Requirements: 5.4 - Allow Task management and Pomodoro start
-     */
-    planning: {
+    idle: {
       on: {
         START_POMODORO: {
           target: 'focus',
           guard: 'canStartPomodoro',
           actions: 'startPomodoro',
         },
-        START_TASKLESS_POMODORO: {
-          target: 'focus',
-          guard: 'canStartPomodoro',
-          actions: 'startTasklessPomodoro',
-        },
         ENTER_OVER_REST: {
           target: 'over_rest',
           actions: 'enterOverRest',
         },
         DAILY_RESET: {
-          target: 'locked',
+          target: 'idle',
           actions: 'resetDaily',
-        },
-        SET_DAILY_CAP: {
-          actions: 'setDailyCap',
-        },
-        SYNC_STATE: {
-          actions: 'syncState',
         },
       },
     },
-
-    /**
-     * FOCUS State
-     * Requirements: 5.5 - Minimize UI distractions, show only current Task and timer
-     */
     focus: {
       on: {
         COMPLETE_POMODORO: {
-          target: 'rest',
+          target: 'idle',
           actions: 'completePomodoro',
         },
         ABORT_POMODORO: {
-          target: 'planning',
+          target: 'idle',
           actions: 'abortPomodoro',
         },
-        // Multi-task events (Req 1, 2, 3)
         SWITCH_TASK: {
           actions: 'switchTask',
-        },
-        ASSOCIATE_TASK: {
-          actions: 'associateTask',
         },
         COMPLETE_CURRENT_TASK: {
           actions: 'completeCurrentTask',
         },
         DAILY_RESET: {
-          target: 'locked',
+          target: 'idle',
           actions: 'resetDaily',
-        },
-        SYNC_STATE: {
-          actions: 'syncState',
         },
       },
     },
-
-    /**
-     * REST State
-     * Requirements: 5.6 - Display rest elapsed time and motivational content
-     * User stays in REST until starting next pomodoro (no PLANNING in between)
-     */
-    rest: {
-      on: {
-        START_POMODORO: {
-          target: 'focus',
-          guard: 'canStartPomodoro',
-          actions: 'startPomodoro',
-        },
-        START_TASKLESS_POMODORO: {
-          target: 'focus',
-          guard: 'canStartPomodoro',
-          actions: 'startTasklessPomodoro',
-        },
-        ENTER_OVER_REST: {
-          target: 'over_rest',
-          actions: 'enterOverRest',
-        },
-        DAILY_RESET: {
-          target: 'locked',
-          actions: 'resetDaily',
-        },
-        SYNC_STATE: {
-          actions: 'syncState',
-        },
-      },
-    },
-
-    /**
-     * OVER_REST State
-     * Requirements: 7.1-7.9 - Handle over-rest state transitions
-     */
     over_rest: {
       on: {
         START_POMODORO: {
@@ -501,62 +228,57 @@ export const vibeFlowMachine = setup({
           guard: 'canStartPomodoro',
           actions: 'startPomodoro',
         },
-        START_TASKLESS_POMODORO: {
-          target: 'focus',
-          guard: 'canStartPomodoro',
-          actions: 'startTasklessPomodoro',
+        RETURN_TO_IDLE: {
+          target: 'idle',
+          guard: 'canReturnToIdle',
+          actions: 'returnToIdle',
+        },
+        WORK_TIME_ENDED: {
+          target: 'idle',
+          // No guard — unconditional when work time ends
+          actions: 'returnToIdle',
         },
         DAILY_RESET: {
-          target: 'locked',
+          target: 'idle',
           actions: 'resetDaily',
-        },
-        SYNC_STATE: {
-          actions: 'syncState',
         },
       },
     },
   },
 });
 
-// Export machine type for use in other files
-export type VibeFlowMachine = typeof vibeFlowMachine;
+// Legacy alias for backward compatibility — prefer vibeflowMachine
+export const vibeFlowMachine = vibeflowMachine;
 
+export type VibeFlowMachine = typeof vibeflowMachine;
+
+// ── Helper functions ───────────────────────────────────────────────
 
 /**
- * Helper functions for state machine operations
- */
-
-/**
- * Get allowed events for a given state
- * Requirements: 5.2 - Update UI to reflect available actions
+ * Get allowed events for a given state.
  */
 export function getAllowedEvents(state: SystemState): string[] {
   switch (state) {
-    case 'locked':
-      return ['COMPLETE_AIRLOCK', 'SET_AIRLOCK_STEP'];
-    case 'planning':
-      return ['START_POMODORO', 'ENTER_OVER_REST', 'DAILY_RESET', 'SET_DAILY_CAP'];
+    case 'idle':
+      return ['START_POMODORO', 'ENTER_OVER_REST', 'DAILY_RESET'];
     case 'focus':
-      return ['COMPLETE_POMODORO', 'ABORT_POMODORO', 'DAILY_RESET'];
-    case 'rest':
-      return ['START_POMODORO', 'START_TASKLESS_POMODORO', 'ENTER_OVER_REST', 'DAILY_RESET'];
+      return ['COMPLETE_POMODORO', 'ABORT_POMODORO', 'SWITCH_TASK', 'COMPLETE_CURRENT_TASK', 'DAILY_RESET'];
     case 'over_rest':
-      return ['START_POMODORO', 'START_TASKLESS_POMODORO', 'DAILY_RESET'];
+      return ['START_POMODORO', 'RETURN_TO_IDLE', 'WORK_TIME_ENDED', 'DAILY_RESET'];
     default:
       return [];
   }
 }
 
 /**
- * Check if an event is allowed in the current state
+ * Check if an event is allowed in the current state.
  */
 export function isEventAllowed(state: SystemState, eventType: string): boolean {
   return getAllowedEvents(state).includes(eventType);
 }
 
 /**
- * Get state display information
- * Requirements: 5.7 - Display current System_State visually
+ * State display information for UI components.
  */
 export interface StateDisplayInfo {
   state: SystemState;
@@ -568,18 +290,10 @@ export interface StateDisplayInfo {
 
 export function getStateDisplayInfo(state: SystemState): StateDisplayInfo {
   switch (state) {
-    case 'locked':
+    case 'idle':
       return {
-        state: 'locked',
-        label: 'Locked',
-        color: 'gray',
-        icon: '🔒',
-        description: 'Complete the Morning Airlock to start your day',
-      };
-    case 'planning':
-      return {
-        state: 'planning',
-        label: 'Planning',
+        state: 'idle',
+        label: 'Idle',
         color: 'blue',
         icon: '📋',
         description: 'Ready to start a focus session',
@@ -592,14 +306,6 @@ export function getStateDisplayInfo(state: SystemState): StateDisplayInfo {
         icon: '🎯',
         description: 'Deep work in progress',
       };
-    case 'rest':
-      return {
-        state: 'rest',
-        label: 'Rest',
-        color: 'purple',
-        icon: '☕',
-        description: 'Take a break, you earned it',
-      };
     case 'over_rest':
       return {
         state: 'over_rest',
@@ -610,7 +316,7 @@ export function getStateDisplayInfo(state: SystemState): StateDisplayInfo {
       };
     default:
       return {
-        state: 'locked',
+        state: 'idle',
         label: 'Unknown',
         color: 'gray',
         icon: '❓',
@@ -620,12 +326,12 @@ export function getStateDisplayInfo(state: SystemState): StateDisplayInfo {
 }
 
 /**
- * Validate state transition
- * Returns error message if transition is invalid, null if valid
+ * Validate state transition.
+ * Returns error message if transition is invalid, null if valid.
  */
 export function validateTransition(
   currentState: SystemState,
-  eventType: string
+  eventType: string,
 ): string | null {
   if (!isEventAllowed(currentState, eventType)) {
     return `Cannot perform ${eventType} while in ${currentState} state. Allowed events: ${getAllowedEvents(currentState).join(', ')}`;
@@ -634,27 +340,18 @@ export function validateTransition(
 }
 
 /**
- * Map database state string to SystemState type
+ * Map database state string to SystemState type.
+ * Delegates to normalizeState for the 3-state mapping.
+ * @deprecated Use normalizeState from '@/lib/state-utils' directly.
  */
 export function parseSystemState(stateString: string): SystemState {
-  const normalized = stateString.toLowerCase();
-  // Handle both underscore and non-underscore formats for compatibility
-  if (normalized === 'over_rest' || normalized === 'overrest') {
-    return 'over_rest';
-  }
-  if (['locked', 'planning', 'focus', 'rest'].includes(normalized)) {
-    return normalized as SystemState;
-  }
-  return 'locked'; // Default to locked for safety
+  return normalizeState(stateString);
 }
 
 /**
- * Map SystemState to database string
+ * Map SystemState to database string (UPPERCASE).
+ * @deprecated Use serializeState from '@/lib/state-utils' directly.
  */
 export function serializeSystemState(state: SystemState): string {
-  // Convert over_rest to OVER_REST for database storage
-  if (state === 'over_rest') {
-    return 'OVER_REST';
-  }
-  return state.toUpperCase();
+  return serializeState(state);
 }

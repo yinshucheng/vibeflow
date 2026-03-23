@@ -2,8 +2,8 @@
  * Chat Cron Trigger Tests (S9.5)
  *
  * Tests for:
- * - morning_greeting: LOCKED + weekday 9:00 → trigger
- * - morning_greeting: user already in PLANNING → don't trigger
+ * - morning_greeting: IDLE + weekday 9:00 → trigger
+ * - morning_greeting: user already in non-IDLE state → don't trigger
  * - morning_greeting: weekend → don't trigger
  * - evening_summary: end-of-day time → trigger + message includes stats
  * - progress_check: FOCUS state → don't interrupt (shouldFire returns false)
@@ -109,8 +109,8 @@ describe('Chat Cron Triggers (S9)', () => {
       broadcastedCommands.push({ userId, command });
     });
 
-    // Default: user in LOCKED state (for morning_greeting)
-    mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+    // Default: user in IDLE state (for morning_greeting)
+    mockGetCurrentState.mockResolvedValue({ success: true, data: 'idle' });
 
     // Default: no quiet hours (avoids time-of-day dependency in tests)
     mockPrismaClient.userSettings.findUnique.mockResolvedValue({
@@ -127,8 +127,8 @@ describe('Chat Cron Triggers (S9)', () => {
   // =====================================================================
 
   describe('morning_greeting (S9.1)', () => {
-    it('should fire when user is LOCKED on a weekday morning', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+    it('should fire when user is IDLE on a weekday morning', async () => {
+      mockGetCurrentState.mockResolvedValue({ success: true, data: 'idle' });
 
       await chatTriggersCronService.handleMorningGreeting(TEST_USER);
 
@@ -158,7 +158,7 @@ describe('Chat Cron Triggers (S9)', () => {
     });
 
     it('should include task counts in the message', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+      mockGetCurrentState.mockResolvedValue({ success: true, data: 'idle' });
       mockPrismaClient.task.findMany
         .mockResolvedValueOnce([{ id: 't1' }, { id: 't2' }, { id: 't3' }]) // today tasks
         .mockResolvedValueOnce([{ id: 'ot1' }]); // overdue tasks
@@ -171,7 +171,7 @@ describe('Chat Cron Triggers (S9)', () => {
     });
 
     it('should respect cooldown (once per day)', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+      mockGetCurrentState.mockResolvedValue({ success: true, data: 'idle' });
 
       await chatTriggersCronService.handleMorningGreeting(TEST_USER);
       expect(broadcastedCommands).toHaveLength(1);

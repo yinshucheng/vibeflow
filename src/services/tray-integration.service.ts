@@ -302,14 +302,10 @@ export class TrayIntegrationService {
    */
   private mapSystemStateToTrayState(state: SystemState): TrayMenuState['systemState'] {
     switch (state) {
-      case 'locked':
-        return 'LOCKED';
-      case 'planning':
-        return 'PLANNING';
+      case 'idle':
+        return 'PLANNING'; // Desktop tray still uses old names for display
       case 'focus':
         return 'FOCUS';
-      case 'rest':
-        return 'REST';
       case 'over_rest':
         return 'OVER_REST';
       default:

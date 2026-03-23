@@ -6,22 +6,22 @@
 - [x] DailyState 新增字段：`lastPomodoroEndTime DateTime?`、`overRestEnteredAt DateTime?`、`overRestExitCount Int @default(0)`
 - [x] 新增 `StateTransitionLog` 模型（id, userId, fromState, toState, event, context, timestamp + 索引）
 - [x] `npm run db:generate && npm run db:push`
-- [x] 验证：`npx tsc --noEmit` 通过，现有功能不受影响
+- [x] 验证：`npx tsc --noEmit` 通过，现有功能不受影响 <!-- 1.1 done -->
 
-### 1.2 工具函数
-- [ ] 创建 `src/lib/state-utils.ts`
+### 1.2 工具函数 ✅
+- [x] 创建 `src/lib/state-utils.ts`
   - `normalizeState(raw: string): SystemState` — 旧值映射（locked/planning/rest→idle）
   - `serializeState(state: SystemState): string` — 写 DB 时大写（IDLE/FOCUS/OVER_REST）
   - `SystemState` 类型导出：`'idle' | 'focus' | 'over_rest'`
-- [ ] 写单元测试：覆盖所有旧值映射（locked→idle, LOCKED→idle, planning→idle, REST→idle, focus→focus, over_rest→over_rest, 未知值→idle）
+- [x] 写单元测试：覆盖所有旧值映射（locked→idle, LOCKED→idle, planning→idle, REST→idle, focus→focus, over_rest→over_rest, 未知值→idle）
 
-### 1.3 重写 XState 状态机
-- [ ] 重写 `src/machines/vibeflow.machine.ts`：3 状态（idle/focus/over_rest）、9 事件、2 guards、9 actions
-- [ ] 更新 `VibeFlowContext`：删除 top3TaskIds/airlockStep/restStartTime/restDuration/overRestStartTime/currentTimeSliceId，新增 lastPomodoroEndTime/overRestEnteredAt/overRestExitCount
-- [ ] 更新 `VibeFlowEvent`：删除 COMPLETE_AIRLOCK/SET_AIRLOCK_STEP/START_TASKLESS_POMODORO/SYNC_STATE/SET_DAILY_CAP/ASSOCIATE_TASK，新增 WORK_TIME_ENDED
-- [ ] 更新辅助函数：`getAllowedEvents`、`isEventAllowed`、`getStateDisplayInfo`、`validateTransition`、`parseSystemState`
-- [ ] 写单元测试：覆盖所有转换路径（10 条）、guard 拒绝场景（dailyCap 超限、冷却期未到、退出次数用尽）、action 正确性（context 字段变化）
-- [ ] 验证：`npm test` 通过
+### 1.3 重写 XState 状态机 ✅
+- [x] 重写 `src/machines/vibeflow.machine.ts`：3 状态（idle/focus/over_rest）、9 事件、2 guards、9 actions
+- [x] 更新 `VibeFlowContext`：删除 top3TaskIds/airlockStep/restStartTime/restDuration/overRestStartTime/currentTimeSliceId，新增 lastPomodoroEndTime/overRestEnteredAt/overRestExitCount
+- [x] 更新 `VibeFlowEvent`：删除 COMPLETE_AIRLOCK/SET_AIRLOCK_STEP/START_TASKLESS_POMODORO/SYNC_STATE/SET_DAILY_CAP/ASSOCIATE_TASK，新增 WORK_TIME_ENDED
+- [x] 更新辅助函数：`getAllowedEvents`、`isEventAllowed`、`getStateDisplayInfo`、`validateTransition`、`parseSystemState`
+- [x] 写单元测试：覆盖所有转换路径（10 条）、guard 拒绝场景（dailyCap 超限、冷却期未到、退出次数用尽）、action 正确性（context 字段变化）
+- [x] 验证：`npm test` + `npm run build` + `npm run lint` 通过 <!-- 1.2+1.3 done -->
 
 ### 1.4 StateEngine 骨架
 - [ ] 创建 `src/services/state-engine.service.ts`

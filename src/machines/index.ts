@@ -1,10 +1,11 @@
 /**
  * State Machines
- * 
+ *
  * Export all XState machines and related utilities
  */
 
 export {
+  vibeflowMachine,
   vibeFlowMachine,
   getAllowedEvents,
   isEventAllowed,
@@ -22,4 +23,5 @@ export type {
   VibeFlowInput,
   VibeFlowMachine,
   StateDisplayInfo,
+  TaskStackEntry,
 } from './vibeflow.machine';

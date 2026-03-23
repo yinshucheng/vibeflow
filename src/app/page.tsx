@@ -35,7 +35,7 @@ import { TaskDetailPanel } from '@/components/tasks/task-detail-panel';
 import { Button } from '@/components/ui/button';
 import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
-import type { SystemState } from '@/machines/vibeflow.machine';
+import { normalizeState } from '@/lib/state-utils';
 
 export default function Home() {
   const router = useRouter();
@@ -44,8 +44,9 @@ export default function Home() {
   const { data: dailyState, isLoading: stateLoading } = trpc.dailyState.getToday.useQuery();
   const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
 
-  const systemState = dailyState?.systemState?.toLowerCase() as SystemState | undefined;
-  const isLocked = systemState === 'locked';
+  const systemState = dailyState?.systemState ? normalizeState(dailyState.systemState) : undefined;
+  // LOCKED no longer exists in 3-state model — always false
+  const isLocked = false;
   const airlockCompleted = dailyState?.airlockCompleted ?? false;
   const airlockMode = (settings?.airlockMode ?? 'optional') as 'required' | 'optional' | 'disabled';
 

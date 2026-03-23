@@ -150,25 +150,12 @@ export const dailyStateRouter = router({
    * Requirements: 5.1, 5.2
    */
   updateSystemState: protectedProcedure
-    .input(z.enum(['locked', 'planning', 'focus', 'rest']))
+    .input(z.enum(['idle', 'focus', 'over_rest', 'locked', 'planning', 'rest']))
     .mutation(async ({ ctx, input }) => {
-      // Guard: reject rest/over_rest → planning transition
-      // Users should start a pomodoro directly from rest, not go through planning
-      if (input === 'planning') {
-        const currentState = await dailyStateService.getCurrentState(ctx.user.userId);
-        if (currentState.success && currentState.data) {
-          const state = parseSystemState(currentState.data);
-          if (state === 'rest' || state === 'over_rest') {
-            console.warn(`[DailyState] Rejecting ${state} → planning transition for user ${ctx.user.userId}. Start a pomodoro instead.`);
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Cannot transition from rest to planning. Start a pomodoro to continue.',
-            });
-          }
-        }
-      }
+      // Normalize old state values to new 3-state model
+      const normalizedInput = parseSystemState(input);
 
-      const result = await dailyStateService.updateSystemState(ctx.user.userId, input);
+      const result = await dailyStateService.updateSystemState(ctx.user.userId, normalizedInput);
 
       if (!result.success) {
         throw new TRPCError({
@@ -351,9 +338,9 @@ export const dailyStateRouter = router({
       return null;
     }
 
-    // Return data if in rest or over_rest state (over_rest is still a rest period)
+    // Return data if in idle (rest sub-phase) or over_rest state
     const currentState = parseSystemState(dailyState.data.systemState);
-    if (currentState !== 'rest' && currentState !== 'over_rest') {
+    if (currentState !== 'idle' && currentState !== 'over_rest') {
       return null;
     }
 

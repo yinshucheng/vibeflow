@@ -94,10 +94,10 @@ describe('PolicyDistributionService', () => {
       type: null,
     });
 
-    // Default: state is planning (not rest)
+    // Default: state is idle (not focus/over_rest)
     vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
       success: true,
-      data: 'planning',
+      data: 'idle',
     });
   });
 
@@ -117,7 +117,7 @@ describe('PolicyDistributionService', () => {
 
       vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
         success: true,
-        data: 'rest',
+        data: 'idle',
       });
 
       vi.spyOn(prisma.pomodoro, 'findFirst').mockResolvedValue({
@@ -156,7 +156,7 @@ describe('PolicyDistributionService', () => {
 
       vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
         success: true,
-        data: 'rest',
+        data: 'idle',
       });
 
       vi.spyOn(prisma.pomodoro, 'findFirst').mockResolvedValue({
@@ -205,7 +205,7 @@ describe('PolicyDistributionService', () => {
 
       vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
         success: true,
-        data: 'rest',
+        data: 'idle',
       });
 
       const result = await policyDistributionService.compilePolicy(userId);
@@ -226,7 +226,7 @@ describe('PolicyDistributionService', () => {
 
       vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
         success: true,
-        data: 'rest',
+        data: 'idle',
       });
 
       vi.spyOn(prisma.pomodoro, 'findFirst').mockResolvedValue({
@@ -409,10 +409,10 @@ describe('PolicyDistributionService', () => {
         },
       });
 
-      // State is rest (which would normally trigger REST enforcement)
+      // State is idle (which would normally trigger REST enforcement)
       vi.mocked(dailyStateService.getCurrentState).mockResolvedValue({
         success: true,
-        data: 'rest',
+        data: 'idle',
       });
 
       const result = await policyDistributionService.compilePolicy(userId);

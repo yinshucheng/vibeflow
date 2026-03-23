@@ -288,7 +288,7 @@ export const policyDistributionService = {
       const isOverRestActive = !!overRest;
       if (settings.restEnforcementEnabled && !isOverRestActive) {
         const stateResult = await dailyStateService.getCurrentState(userId);
-        if (stateResult.success && stateResult.data === 'rest') {
+        if (stateResult.success && stateResult.data === 'idle') {
           const latestPomodoro = await prisma.pomodoro.findFirst({
             where: { userId, status: 'COMPLETED' },
             orderBy: { endTime: 'desc' },

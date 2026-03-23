@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useSocket } from '@/hooks/use-socket';
 import { trayIntegrationService } from '@/services/tray-integration.service';
+import { normalizeState } from '@/lib/state-utils';
 
 /**
  * Global provider that syncs app state to desktop tray
@@ -48,7 +49,7 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     // Sleep time takes highest priority
     if (isInSleepTime) {
       trayIntegrationService.updatePomodoroState(null);
-      trayIntegrationService.updateSystemState('locked', undefined, undefined, true);
+      trayIntegrationService.updateSystemState('idle', undefined, undefined, true);
       // Stop main process countdown if any
       if (mainProcessCountdownStartedRef.current && window.vibeflow?.pomodoro?.stopCountdown) {
         window.vibeflow.pomodoro.stopCountdown();
@@ -93,24 +94,17 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Prefer WebSocket state (real-time) over tRPC state (polled)
-    const effectiveState = socketState || dailyState?.systemState?.toLowerCase();
+    const rawState = socketState || dailyState?.systemState?.toLowerCase();
 
-    if (effectiveState) {
-      const state = effectiveState as 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
+    if (rawState) {
+      const state = normalizeState(rawState);
       const progress = dailyProgress
         ? `${dailyProgress.completedPomodoros}/${dailyProgress.targetPomodoros}`
         : undefined;
 
-      // Build restData for rest and over_rest states
+      // Build restData for over_rest state (REST no longer exists as separate state)
       let restData: { startTime: Date; duration: number; isOverRest: boolean } | undefined;
-      if (state === 'rest' && restStatus?.restStartTime) {
-        // Normal rest - use rest status from server
-        restData = {
-          startTime: new Date(restStatus.restStartTime),
-          duration: restStatus.restDuration,
-          isOverRest: false,
-        };
-      } else if (state === 'over_rest' && overRestStatus?.isOverRest && overRestStatus?.lastPomodoroEndTime) {
+      if (state === 'over_rest' && overRestStatus?.isOverRest && overRestStatus?.lastPomodoroEndTime) {
         // Over rest
         restData = {
           startTime: new Date(overRestStatus.lastPomodoroEndTime),

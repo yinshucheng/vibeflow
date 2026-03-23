@@ -575,8 +575,8 @@ export const pomodoroService = {
             chatTriggersStateService.handlePomodoroCompleted(userId, expiredPayload)
               .catch((err) => console.error('[AI Trigger] handlePomodoroCompleted (expired) error:', err));
 
-            // Always transition to rest on auto-completion
-            await dailyStateService.updateSystemState(userId, 'rest');
+            // Always transition to idle on auto-completion (was 'rest' in old model)
+            await dailyStateService.updateSystemState(userId, 'idle');
             await dailyStateService.incrementPomodoroCount(userId);
 
             completedCount++;

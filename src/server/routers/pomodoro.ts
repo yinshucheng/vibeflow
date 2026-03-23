@@ -206,8 +206,8 @@ export const pomodoroRouter = router({
       // Increment pomodoro count
       await dailyStateService.incrementPomodoroCount(ctx.user.userId);
 
-      // Always transition to rest state on completion
-      await dailyStateService.updateSystemState(ctx.user.userId, 'rest');
+      // Always transition to idle state on completion (was 'rest' in old model)
+      await dailyStateService.updateSystemState(ctx.user.userId, 'idle');
 
       // Get user settings for rest duration
       const settings = await prisma.userSettings.findUnique({
@@ -224,7 +224,7 @@ export const pomodoroRouter = router({
       // Update tray with completion state
       trayIntegrationService.handlePomodoroCompletion({
         wasInOverRest: false,
-        newState: 'rest',
+        newState: 'idle',
         restData,
       });
 
@@ -277,8 +277,8 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Update system state back to PLANNING
-      await dailyStateService.updateSystemState(ctx.user.userId, 'planning');
+      // Update system state back to IDLE (was PLANNING in old model)
+      await dailyStateService.updateSystemState(ctx.user.userId, 'idle');
 
       // Broadcast policy update to update over rest status on desktop
       await broadcastPolicyUpdate(ctx.user.userId);
@@ -318,8 +318,8 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Update system state back to PLANNING
-      await dailyStateService.updateSystemState(ctx.user.userId, 'planning');
+      // Update system state back to IDLE (was PLANNING in old model)
+      await dailyStateService.updateSystemState(ctx.user.userId, 'idle');
 
       // Broadcast policy update to update over rest status on desktop
       await broadcastPolicyUpdate(ctx.user.userId);

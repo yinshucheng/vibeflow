@@ -9,11 +9,11 @@
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import type { DailyState } from '@prisma/client';
-import { 
-  SystemState, 
-  parseSystemState, 
+import {
+  parseSystemState,
   serializeSystemState,
 } from '@/machines/vibeflow.machine';
+import type { SystemState } from '@/lib/state-utils';
 import { broadcastStateChange } from '@/services/socket-broadcast.service';
 import { mcpEventService } from './mcp-event.service';
 import { overRestService } from './over-rest.service';
@@ -172,9 +172,9 @@ export const dailyStateService = {
       if (activePomodoro) {
         // There's an active pomodoro, state should be FOCUS regardless of stored state
         effectiveSystemState = 'FOCUS';
-      } else if (currentState === 'rest') {
-        // Only check over-rest if state is explicitly 'rest'
-        // Do NOT check for planning - user has explicitly chosen to exit rest
+      } else if (currentState === 'idle') {
+        // Check over-rest if state is IDLE (was REST in old model)
+        // TODO: Remove this dynamic computation after StateEngine migration (Phase 2)
         const overRestResult = await overRestService.checkOverRestStatus(userId);
         if (overRestResult.success && overRestResult.data?.isOverRest) {
           console.log(`[DailyState] REST → OVER_REST transition detected for user ${userId}: restDuration=${overRestResult.data.restDurationMinutes}min, overRestMinutes=${overRestResult.data.overRestMinutes}min, shouldTriggerActions=${overRestResult.data.shouldTriggerActions}, timestamp=${new Date().toISOString()}`);
@@ -262,9 +262,9 @@ export const dailyStateService = {
       broadcastStateChange(userId, state);
 
       // Publish daily_state.changed event (Requirement 10.3)
-      const previousSystemState = previousState 
-        ? parseSystemState(previousState.systemState) 
-        : 'locked';
+      const previousSystemState = previousState
+        ? parseSystemState(previousState.systemState)
+        : 'idle';
       
       await mcpEventService.publish({
         type: 'daily_state.changed',
@@ -377,7 +377,7 @@ export const dailyStateService = {
       });
 
       // Broadcast state change to connected clients
-      broadcastStateChange(userId, 'planning');
+      broadcastStateChange(userId, 'idle');
 
       return { success: true, data: dailyState };
     } catch (error) {
@@ -714,7 +714,7 @@ export const dailyStateService = {
       });
 
       // Broadcast state change to connected clients
-      broadcastStateChange(userId, 'locked');
+      broadcastStateChange(userId, 'idle');
 
       return { success: true, data: dailyState };
     } catch (error) {
@@ -816,7 +816,7 @@ export const dailyStateService = {
       });
 
       // Broadcast state change to connected clients
-      broadcastStateChange(userId, 'planning');
+      broadcastStateChange(userId, 'idle');
 
       return { success: true, data: dailyState };
     } catch (error) {

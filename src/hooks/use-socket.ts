@@ -9,6 +9,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { normalizeState } from '@/lib/state-utils';
 import {
   initializeSocket,
   disconnectSocket,
@@ -80,11 +81,11 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     // Subscribe to events
     const unsubPolicy = onPolicyUpdate((newPolicy) => {
       setPolicy(newPolicy);
-      setSystemState(newPolicy.globalState);
+      setSystemState(normalizeState(newPolicy.globalState));
     });
 
     const unsubState = onStateChange((state) => {
-      setSystemState(state);
+      setSystemState(normalizeState(state));
     });
 
     const unsubCommand = onExecuteCommand((command) => {
