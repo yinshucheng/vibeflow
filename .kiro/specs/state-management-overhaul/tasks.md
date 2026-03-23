@@ -64,8 +64,8 @@
 - [x] 验证：`npm test` + `npm run build` <!-- 2.4 done -->
 
 ### 2.5 迁移 pomodoro.startTaskless（tRPC）
-- [ ] 删除 `updateSystemState('focus')` 和 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', pomodoroId, taskId: null, isTaskless: true })`
-- [ ] 验证：`npm test` + `npm run build`
+- [x] 删除 `updateSystemState('focus')` 和 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', pomodoroId, taskId: null, isTaskless: true })`
+- [x] 验证：`npm test` + `npm run build` <!-- 2.5 done -->
 
 ### 2.6 迁移 Scheduler completeExpiredPomodoros
 - [ ] `src/services/pomodoro.service.ts` 的 `completeExpiredPomodoros()`：删除 `dailyStateService.updateSystemState('rest')` 和 `dailyStateService.incrementPomodoroCount()`，改为 `stateEngine.send(userId, { type: 'COMPLETE_POMODORO' })`
