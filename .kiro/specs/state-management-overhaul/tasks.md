@@ -59,9 +59,9 @@
 - [x] 验证：手动测试番茄钟完成后状态变为 IDLE（不再是 REST） <!-- 2.3 done -->
 
 ### 2.4 迁移 pomodoro.abort + interrupt（tRPC）
-- [ ] abort mutation：删除 `updateSystemState('planning')` 和 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'ABORT_POMODORO' })`
-- [ ] interrupt mutation：同上（复用 ABORT_POMODORO 事件）
-- [ ] 验证：`npm test` + `npm run build`
+- [x] abort mutation：删除 `updateSystemState('planning')` 和 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'ABORT_POMODORO' })`
+- [x] interrupt mutation：同上（复用 ABORT_POMODORO 事件）
+- [x] 验证：`npm test` + `npm run build` <!-- 2.4 done -->
 
 ### 2.5 迁移 pomodoro.startTaskless（tRPC）
 - [ ] 删除 `updateSystemState('focus')` 和 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', pomodoroId, taskId: null, isTaskless: true })`

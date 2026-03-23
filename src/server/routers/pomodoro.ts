@@ -273,14 +273,17 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Update system state back to IDLE (was PLANNING in old model)
-      await dailyStateService.updateSystemState(ctx.user.userId, 'idle');
+      // Transition state via StateEngine (handles state write, broadcast,
+      // policy update, MCP event, and logging)
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'ABORT_POMODORO',
+      });
 
-      // Broadcast policy update to update over rest status on desktop
-      await broadcastPolicyUpdate(ctx.user.userId);
-
-      // Broadcast full state so all clients receive activePomodoro = null
-      await socketServer.broadcastFullState(ctx.user.userId);
+      if (!transition.success) {
+        console.error('[pomodoro.abort] StateEngine transition failed:', transition.message);
+        // Pomodoro is already marked ABORTED in DB, so we don't roll back.
+        // Log the error but still return success to the client.
+      }
 
       return result.data;
     }),
@@ -314,14 +317,17 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Update system state back to IDLE (was PLANNING in old model)
-      await dailyStateService.updateSystemState(ctx.user.userId, 'idle');
+      // Transition state via StateEngine (handles state write, broadcast,
+      // policy update, MCP event, and logging — same as abort)
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'ABORT_POMODORO',
+      });
 
-      // Broadcast policy update to update over rest status on desktop
-      await broadcastPolicyUpdate(ctx.user.userId);
-
-      // Broadcast full state so all clients receive activePomodoro = null
-      await socketServer.broadcastFullState(ctx.user.userId);
+      if (!transition.success) {
+        console.error('[pomodoro.interrupt] StateEngine transition failed:', transition.message);
+        // Pomodoro is already marked INTERRUPTED in DB, so we don't roll back.
+        // Log the error but still return success to the client.
+      }
 
       return result.data;
     }),
