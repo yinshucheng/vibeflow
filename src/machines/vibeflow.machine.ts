@@ -81,6 +81,12 @@ export const vibeflowMachine = setup({
     canStartPomodoro: ({ context }) =>
       context.todayPomodoroCount < context.dailyCap,
 
+    canEnterOverRest: ({ context }) => {
+      // Only enter OVER_REST if a pomodoro was completed (not aborted) today.
+      // Without lastPomodoroEndTime there's no rest to be "over".
+      return context.lastPomodoroEndTime !== null;
+    },
+
     canReturnToIdle: ({ context }) => {
       if (context.overRestExitCount >= MAX_OVER_REST_EXITS) return false;
       if (!context.overRestEnteredAt) return false;
@@ -191,6 +197,7 @@ export const vibeflowMachine = setup({
         },
         ENTER_OVER_REST: {
           target: 'over_rest',
+          guard: 'canEnterOverRest',
           actions: 'enterOverRest',
         },
         DAILY_RESET: {

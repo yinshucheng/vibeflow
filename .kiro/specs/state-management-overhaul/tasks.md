@@ -186,8 +186,8 @@
 - [x] 验证：`npm test` + `npm run e2e` 全部通过 <!-- 4.5 done -->
 
 ### 4.6 Phase 4 完整验证
-- [ ] `npm run build` 通过
-- [ ] `npm test` 通过
-- [ ] `npm run lint` 通过
-- [ ] `npm run e2e` 通过
-- [ ] 手动测试完整日常流程：直接开始番茄钟→完成→休息→OVER_REST→退出→再开始
+- [x] `npm run build` 通过
+- [x] `npm test` 通过（989 passed, 12 skipped）
+- [x] `npm run lint` 通过
+- [x] `npm run e2e` 通过（317 passed across 3 browsers）
+- [x] 手动测试完整日常流程：直接开始番茄钟→完成→休息→OVER_REST→退出→再开始 <!-- 4.6 done -->

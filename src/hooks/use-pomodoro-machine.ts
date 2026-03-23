@@ -177,10 +177,11 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
     // If user has explicitly set a phase intent, respect it until server catches up
     if (userIntentPhase !== null) {
       // Check if server state now matches user intent - if so, clear the intent
+      // Note: 'resting' matches both 'idle' (rest is a sub-phase of idle) and 'over_rest'
       const serverMatchesIntent =
         (userIntentPhase === 'idle' && systemState !== 'over_rest') ||
         (userIntentPhase === 'focus' && currentPomodoro?.status === 'IN_PROGRESS') ||
-        (userIntentPhase === 'resting' && (systemState === 'over_rest'));
+        (userIntentPhase === 'resting' && (systemState === 'idle' || systemState === 'over_rest'));
 
       if (serverMatchesIntent) {
         console.log('[PomodoroMachine] Server caught up with user intent, clearing');

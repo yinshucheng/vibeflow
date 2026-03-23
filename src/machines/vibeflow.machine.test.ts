@@ -123,12 +123,23 @@ describe('VibeFlow 3-State Machine', () => {
   });
 
   describe('IDLE → OVER_REST (ENTER_OVER_REST)', () => {
-    it('should transition to over_rest', () => {
+    it('should transition to over_rest when lastPomodoroEndTime is set', () => {
+      // Must complete a pomodoro first so lastPomodoroEndTime is set (guard)
       const actor = createIdleActor();
+      actor.send({ type: 'START_POMODORO', pomodoroId: 'p1', taskId: 't1' });
+      actor.send({ type: 'COMPLETE_POMODORO' });
+
       actor.send({ type: 'ENTER_OVER_REST' });
 
       expect(actor.getSnapshot().value).toBe('over_rest');
       expect(actor.getSnapshot().context.overRestEnteredAt).toBe(1000000);
+    });
+
+    it('should reject ENTER_OVER_REST when lastPomodoroEndTime is null', () => {
+      const actor = createIdleActor();
+      actor.send({ type: 'ENTER_OVER_REST' });
+
+      expect(actor.getSnapshot().value).toBe('idle'); // guard blocked
     });
   });
 

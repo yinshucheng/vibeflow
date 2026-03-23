@@ -260,16 +260,19 @@ export const dailyStateRouter = router({
       return null;
     }
 
-    // Get last completed pomodoro to calculate rest start time and suggest next task
+    // Use lastPomodoroEndTime from DailyState (set by state engine on COMPLETE_POMODORO)
+    // This is scoped to today's daily cycle, avoiding stale data from previous days
+    const restStartTime = dailyState.data.lastPomodoroEndTime;
+    if (!restStartTime) {
+      return null;
+    }
+
+    // Get last completed pomodoro for task suggestion
     const lastPomodoro = await prisma.pomodoro.findFirst({
       where: { userId, status: 'COMPLETED' },
       orderBy: { endTime: 'desc' },
       include: { task: { select: { id: true, title: true } } },
     });
-
-    if (!lastPomodoro?.endTime) {
-      return null;
-    }
 
     // Get user settings for rest duration calculation
     const settings = await prisma.userSettings.findUnique({
@@ -285,13 +288,13 @@ export const dailyStateRouter = router({
       : (settings?.shortRestDuration ?? 5);
 
     return {
-      restStartTime: lastPomodoro.endTime.toISOString(),
+      restStartTime: new Date(restStartTime).toISOString(),
       restDuration, // in minutes
       isLongRest,
       pomodoroCount,
       isOverRest: currentState === 'over_rest',
-      lastTaskId: lastPomodoro.taskId ?? undefined,
-      lastTaskTitle: lastPomodoro.task?.title ?? undefined,
+      lastTaskId: lastPomodoro?.taskId ?? undefined,
+      lastTaskTitle: lastPomodoro?.task?.title ?? undefined,
     };
   }),
 });
