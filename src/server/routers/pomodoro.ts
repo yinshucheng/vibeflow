@@ -20,7 +20,6 @@ import { statsService, GetStatsSchema } from '@/services/stats.service';
 import { socketServer } from '@/server/socket';
 import { broadcastPolicyUpdate } from '@/services/socket-broadcast.service';
 import { trayIntegrationService } from '@/services/tray-integration.service';
-import prisma from '@/lib/prisma';
 
 export const pomodoroRouter = router({
   /**
@@ -200,46 +199,36 @@ export const pomodoroRouter = router({
         ctx.user.userId,
         input.summary ? { summary: input.summary } : undefined
       );
-      
+
       if (!result.success) {
-        const code = 
+        const code =
           result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' :
           result.error?.code === 'CONFLICT' ? 'CONFLICT' :
           'INTERNAL_SERVER_ERROR';
-          
+
         throw new TRPCError({
           code,
           message: result.error?.message ?? 'Failed to complete pomodoro',
         });
       }
 
-      // Increment pomodoro count
-      await dailyStateService.incrementPomodoroCount(ctx.user.userId);
-
-      // Always transition to idle state on completion (was 'rest' in old model)
-      await dailyStateService.updateSystemState(ctx.user.userId, 'idle');
-
-      // Get user settings for rest duration
-      const settings = await prisma.userSettings.findUnique({
-        where: { userId: ctx.user.userId },
+      // Transition state via StateEngine (handles state write, pomodoroCount increment,
+      // broadcast, policy update, MCP event, logging, and OVER_REST timer scheduling)
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'COMPLETE_POMODORO',
       });
-      const restDuration = settings?.shortRestDuration ?? 5;
 
-      const restData = {
-        startTime: new Date(),
-        duration: restDuration,
-        isOverRest: false,
-      };
+      if (!transition.success) {
+        console.error('[pomodoro.complete] StateEngine transition failed:', transition.message);
+        // Pomodoro is already marked COMPLETED in DB, so we don't roll back.
+        // Log the error but still return success to the client.
+      }
 
-      // Update tray with completion state
+      // Update tray with completion state (tray is not managed by StateEngine)
       trayIntegrationService.handlePomodoroCompletion({
         wasInOverRest: false,
         newState: 'idle',
-        restData,
       });
-
-      // Broadcast policy update to update desktop clients
-      await broadcastPolicyUpdate(ctx.user.userId);
 
       // Send WebSocket event to Browser Sentinel (Requirement 4.6)
       if (result.data) {
@@ -259,9 +248,6 @@ export const pomodoroRouter = router({
           },
         });
       }
-
-      // Broadcast full state so all clients receive activePomodoro = null
-      await socketServer.broadcastFullState(ctx.user.userId);
 
       return result.data;
     }),

@@ -49,14 +49,14 @@
   - 事务内写入 StateTransitionLog
 - [ ] 验证：`npm test` 通过
 
-### 2.2 迁移 pomodoro.start（tRPC）
-- [ ] `src/server/routers/pomodoro.ts` 的 `start` mutation：删除 `dailyStateService.updateSystemState('focus')` 和手动 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', pomodoroId, taskId })`
-- [ ] 处理 stateEngine 返回失败（guard 拒绝）的情况：返回 tRPC 错误
-- [ ] 验证：`npm test` + `npm run build`，手动测试开始番茄钟
+### 2.2 迁移 pomodoro.start（tRPC） ✅ `6f97a5b`
+- [x] `src/server/routers/pomodoro.ts` 的 `start` mutation：删除 `dailyStateService.updateSystemState('focus')` 和手动 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', pomodoroId, taskId })`
+- [x] 处理 stateEngine 返回失败（guard 拒绝）的情况：返回 tRPC 错误
+- [x] 验证：`npm test` + `npm run build`，手动测试开始番茄钟 <!-- 2.2 done -->
 
 ### 2.3 迁移 pomodoro.complete（tRPC）
-- [ ] `start` mutation 中删除 `dailyStateService.incrementPomodoroCount()` 和 `updateSystemState('rest')` 和 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'COMPLETE_POMODORO' })`
-- [ ] 验证：手动测试番茄钟完成后状态变为 IDLE（不再是 REST）
+- [x] `complete` mutation 中删除 `dailyStateService.incrementPomodoroCount()` 和 `updateSystemState('rest')` 和 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'COMPLETE_POMODORO' })`
+- [x] 验证：手动测试番茄钟完成后状态变为 IDLE（不再是 REST） <!-- 2.3 done -->
 
 ### 2.4 迁移 pomodoro.abort + interrupt（tRPC）
 - [ ] abort mutation：删除 `updateSystemState('planning')` 和 `broadcastFullState`，改为 `stateEngine.send(userId, { type: 'ABORT_POMODORO' })`
