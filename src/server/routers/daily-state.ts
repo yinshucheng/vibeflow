@@ -11,7 +11,6 @@ import { router, protectedProcedure } from '../trpc';
 import prisma from '@/lib/prisma';
 import {
   dailyStateService,
-  CompleteAirlockSchema,
   OverrideCapSchema
 } from '@/services/daily-state.service';
 import { stateEngineService } from '@/services/state-engine.service';
@@ -43,26 +42,6 @@ export const dailyStateRouter = router({
   getCurrentState: protectedProcedure.query(async ({ ctx }) => {
     return stateEngineService.getState(ctx.user.userId);
   }),
-
-  /**
-   * Complete the morning airlock
-   * Requirements: 3.8, 3.9
-   */
-  completeAirlock: protectedProcedure
-    .input(CompleteAirlockSchema)
-    .mutation(async ({ ctx, input }) => {
-      const result = await dailyStateService.completeAirlock(ctx.user.userId, input);
-      
-      if (!result.success) {
-        throw new TRPCError({
-          code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
-          message: result.error?.message ?? 'Failed to complete airlock',
-          cause: result.error?.details,
-        });
-      }
-      
-      return result.data;
-    }),
 
   /**
    * Check if user can start a pomodoro
@@ -137,40 +116,6 @@ export const dailyStateRouter = router({
     return result.data;
   }),
 
-
-  /**
-   * Skip airlock for new users
-   * Allows new users without tasks to bypass the airlock
-   */
-  skipAirlockForNewUser: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await dailyStateService.skipAirlockForNewUser(ctx.user.userId);
-
-    if (!result.success) {
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: result.error?.message ?? 'Failed to skip airlock',
-      });
-    }
-
-    return result.data;
-  }),
-
-  /**
-   * Skip airlock and go directly to PLANNING
-   * Available when airlockMode is not 'required'
-   */
-  skipAirlock: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await dailyStateService.skipAirlock(ctx.user.userId);
-
-    if (!result.success) {
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: result.error?.message ?? 'Failed to skip airlock',
-      });
-    }
-
-    return result.data;
-  }),
 
   /**
    * Get daily progress with predictions

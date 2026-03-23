@@ -49,7 +49,6 @@ export type {
 
 export { dailyStateService } from './daily-state.service';
 export type {
-  CompleteAirlockInput,
   OverrideCapInput,
   DailyStateWithProgress,
 } from './daily-state.service';

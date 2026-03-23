@@ -61,7 +61,6 @@ export const UpdateSettingsSchema = z.object({
   longRestDuration: z.number().min(5).max(60).optional(),
   longRestInterval: z.number().min(1).max(10).optional(),
   dailyCap: z.number().min(1).max(20).optional(),
-  airlockMode: z.enum(['required', 'optional', 'disabled']).optional(),
   blacklist: z.array(z.string()).optional(),
   whitelist: z.array(z.string()).optional(),
   codingStandards: z.array(z.string()).optional(),

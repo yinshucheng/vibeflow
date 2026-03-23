@@ -52,7 +52,7 @@ describe('dailyStateService.getOrCreateToday', () => {
     expect(call.create.systemState).toBe('IDLE');
   });
 
-  it('should not query airlockMode from userSettings', async () => {
+  it('should not query userSettings during creation', async () => {
     mockPrisma.dailyState.upsert.mockResolvedValue({
       id: 'ds-new',
       userId: TEST_USER_ID,
@@ -62,7 +62,7 @@ describe('dailyStateService.getOrCreateToday', () => {
 
     await dailyStateService.getOrCreateToday(TEST_USER_ID);
 
-    // airlockMode lookup should NOT happen — no userSettings query
+    // getOrCreateToday should NOT query userSettings — only dailyState upsert
     expect(mockPrisma.userSettings.findUnique).not.toHaveBeenCalled();
   });
 

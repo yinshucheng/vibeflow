@@ -11,18 +11,12 @@ import prisma from '@/lib/prisma';
 import type { DailyState } from '@prisma/client';
 
 
-// Validation schemas
-export const CompleteAirlockSchema = z.object({
-  top3TaskIds: z.array(z.string().uuid()).min(0).max(3, 'Maximum 3 tasks can be selected'),
-});
-
 export const OverrideCapSchema = z.object({
   confirmation: z.literal(true, {
     errorMap: () => ({ message: 'Must explicitly confirm override' }),
   }),
 });
 
-export type CompleteAirlockInput = z.infer<typeof CompleteAirlockSchema>;
 export type OverrideCapInput = z.infer<typeof OverrideCapSchema>;
 
 // Service result type
@@ -175,97 +169,6 @@ export const dailyStateService = {
       };
     }
   },
-
-
-  /**
-   * Complete the morning airlock
-   * Requirements: 3.8, 3.9, 6.7
-   */
-  async completeAirlock(
-    userId: string,
-    data: CompleteAirlockInput
-  ): Promise<ServiceResult<DailyState>> {
-    try {
-      const validated = CompleteAirlockSchema.parse(data);
-      const today = getTodayDate();
-
-      // Verify all tasks exist and belong to user (if any tasks selected)
-      if (validated.top3TaskIds.length > 0) {
-        const tasks = await prisma.task.findMany({
-          where: {
-            id: { in: validated.top3TaskIds },
-            userId,
-          },
-        });
-
-        if (tasks.length !== validated.top3TaskIds.length) {
-          return {
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'One or more selected tasks not found or do not belong to user',
-            },
-          };
-        }
-
-        // Update tasks to have today's plan date
-        await prisma.task.updateMany({
-          where: {
-            id: { in: validated.top3TaskIds },
-            userId,
-          },
-          data: {
-            planDate: today,
-          },
-        });
-      }
-
-      // Update daily state
-      const dailyState = await prisma.dailyState.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
-          },
-        },
-        update: {
-          systemState: 'PLANNING',
-          top3TaskIds: validated.top3TaskIds,
-          airlockCompleted: true,
-        },
-        create: {
-          userId,
-          date: today,
-          systemState: 'PLANNING',
-          top3TaskIds: validated.top3TaskIds,
-          pomodoroCount: 0,
-          capOverrideCount: 0,
-          airlockCompleted: true,
-        },
-      });
-
-      return { success: true, data: dailyState };
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return {
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid airlock data',
-            details: error.flatten().fieldErrors as Record<string, string[]>,
-          },
-        };
-      }
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to complete airlock',
-        },
-      };
-    }
-  },
-
 
 
   /**
@@ -453,32 +356,6 @@ export const dailyStateService = {
   },
 
   /**
-   * Check if airlock is completed for today
-   */
-  async isAirlockCompleted(userId: string): Promise<ServiceResult<boolean>> {
-    try {
-      const stateResult = await this.getOrCreateToday(userId);
-      if (!stateResult.success || !stateResult.data) {
-        return {
-          success: false,
-          error: stateResult.error,
-        };
-      }
-
-      return { success: true, data: stateResult.data.airlockCompleted };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to check airlock status',
-        },
-      };
-    }
-  },
-
-
-  /**
    * Reset daily state (for testing or manual reset)
    * Requirements: 6.7
    */
@@ -549,56 +426,6 @@ export const dailyStateService = {
     }
   },
 
-  /**
-   * Skip airlock for new users (no tasks/projects)
-   * Sets system state to PLANNING without requiring Top 3 selection
-   */
-  async skipAirlockForNewUser(userId: string): Promise<ServiceResult<DailyState>> {
-    return this.skipAirlock(userId);
-  },
-
-  /**
-   * Skip airlock and go directly to PLANNING state.
-   * Works for any user regardless of whether they have tasks.
-   */
-  async skipAirlock(userId: string): Promise<ServiceResult<DailyState>> {
-    try {
-      const today = getTodayDate();
-
-      const dailyState = await prisma.dailyState.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
-          },
-        },
-        update: {
-          systemState: 'PLANNING',
-          top3TaskIds: [],
-          airlockCompleted: true,
-        },
-        create: {
-          userId,
-          date: today,
-          systemState: 'PLANNING',
-          top3TaskIds: [],
-          pomodoroCount: 0,
-          capOverrideCount: 0,
-          airlockCompleted: true,
-        },
-      });
-
-      return { success: true, data: dailyState };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to skip airlock',
-        },
-      };
-    }
-  }
 };
 
 export default dailyStateService;

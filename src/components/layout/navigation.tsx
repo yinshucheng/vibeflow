@@ -18,7 +18,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: 'home' },
-  { href: '/airlock', label: 'Airlock', icon: 'airlock' },
   { href: '/pomodoro', label: 'Pomodoro', icon: 'pomodoro' },
   { href: '/projects', label: 'Projects', icon: 'projects' },
   { href: '/tasks', label: 'Tasks', icon: 'tasks' },

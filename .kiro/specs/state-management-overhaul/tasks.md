@@ -155,16 +155,16 @@
 ## Phase 4: Airlock 移除
 
 ### 4.1 删除 Airlock 服务端代码
-- [ ] 删除 `completeAirlock()` 方法（`src/services/daily-state.service.ts`）
-- [ ] 删除 `skipAirlock()` 方法
-- [ ] 删除 `isAirlockCompleted()` 方法
-- [ ] 删除 tRPC `dailyState.completeAirlock` 和 `dailyState.skipAirlock` mutations（`src/server/routers/daily-state.ts`）
-- [ ] 删除 `airlockMode` 相关设置逻辑（`src/services/user.service.ts`）
-- [ ] 验证：`npm run build` + `npm test`
+- [x] 删除 `completeAirlock()` 方法（`src/services/daily-state.service.ts`）
+- [x] 删除 `skipAirlock()` 方法
+- [x] 删除 `isAirlockCompleted()` 方法
+- [x] 删除 tRPC `dailyState.completeAirlock` 和 `dailyState.skipAirlock` mutations（`src/server/routers/daily-state.ts`）
+- [x] 删除 `airlockMode` 相关设置逻辑（`src/services/user.service.ts`）
+- [x] 验证：`npm run build` + `npm test` <!-- 4.1 done -->
 
 ### 4.2 删除 Airlock 前端代码
-- [ ] 删除 `src/app/airlock/` 目录
-- [ ] 删除或简化 Airlock 相关组件（如有）
+- [x] 删除 `src/app/airlock/` 目录
+- [x] 删除或简化 Airlock 相关组件（如有）
 - [ ] Settings 页面：删除 `airlockMode` 配置项
 - [ ] 验证：`npm run build`
 
