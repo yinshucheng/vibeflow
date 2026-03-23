@@ -89,10 +89,10 @@
 - [x] 验证：`npm test`（986 passed）+ `npx tsc --noEmit` 通过 <!-- 2.10 done -->
 
 ### 2.11 标记旧函数 deprecated
-- [ ] `updateSystemState()` 加 `@deprecated` + console.warn（此时应已无调用方）
-- [ ] `incrementPomodoroCount()` 加 `@deprecated`
-- [ ] `getCurrentState()` 加 `@deprecated`
-- [ ] 验证：`npm run build` + `npm test`，grep 确认无非 deprecated 调用
+- [x] `updateSystemState()` 加 `@deprecated` + console.warn（此时应已无调用方）
+- [x] `incrementPomodoroCount()` 加 `@deprecated`
+- [x] `getCurrentState()` 加 `@deprecated`
+- [x] 验证：`npm run build` + `npm test`，grep 确认无非 deprecated 调用 <!-- 2.11 done -->
 
 ### 2.12 Phase 2 完整验证
 - [ ] `npm run build` 通过

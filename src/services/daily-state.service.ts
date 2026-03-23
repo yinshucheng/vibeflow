@@ -219,11 +219,13 @@ export const dailyStateService = {
   /**
    * Update system state
    * Requirements: 5.1, 5.2, 6.7
+   * @deprecated Use stateEngine.send() instead. Will be removed after full migration.
    */
   async updateSystemState(
     userId: string,
     state: SystemState
   ): Promise<ServiceResult<DailyState>> {
+    console.warn('[DEPRECATED] dailyStateService.updateSystemState() called — use stateEngine.send() instead');
     try {
       const today = getTodayDate();
 
@@ -405,8 +407,10 @@ export const dailyStateService = {
   /**
    * Increment pomodoro count
    * Requirements: 12.2
+   * @deprecated pomodoroCount is now managed by stateEngine via COMPLETE_POMODORO action. Will be removed after full migration.
    */
   async incrementPomodoroCount(userId: string): Promise<ServiceResult<DailyState>> {
+    console.warn('[DEPRECATED] dailyStateService.incrementPomodoroCount() called — pomodoroCount is now managed by stateEngine');
     try {
       const today = getTodayDate();
 
@@ -654,8 +658,10 @@ export const dailyStateService = {
 
   /**
    * Get current system state
+   * @deprecated Use stateEngine.getState() instead. Will be removed after full migration.
    */
   async getCurrentState(userId: string): Promise<ServiceResult<SystemState>> {
+    console.warn('[DEPRECATED] dailyStateService.getCurrentState() called — use stateEngine.getState() instead');
     try {
       const stateResult = await this.getOrCreateToday(userId);
       if (!stateResult.success || !stateResult.data) {
