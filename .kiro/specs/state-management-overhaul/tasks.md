@@ -113,9 +113,9 @@
 - [x] 验证：`npm run build` + `npm test` <!-- 3.1 done -->
 
 ### 3.2 getOrCreateToday 适配
-- [ ] `getOrCreateToday()` 初始状态从 LOCKED/PLANNING 改为 IDLE
-- [ ] 删除 `airlockMode` 判断逻辑
-- [ ] 验证：新一天首次访问状态为 IDLE
+- [x] `getOrCreateToday()` 初始状态从 LOCKED/PLANNING 改为 IDLE
+- [x] 删除 `airlockMode` 判断逻辑
+- [x] 验证：新一天首次访问状态为 IDLE <!-- 3.2 done -->
 
 ### 3.3 前端兼容层
 - [ ] 创建 `src/lib/state-utils.ts` 的前端版本（或共享）

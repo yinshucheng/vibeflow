@@ -91,16 +91,6 @@ export const dailyStateService = {
     try {
       const today = getTodayDate();
 
-      // Check user's airlockMode setting to determine initial state
-      const settings = await prisma.userSettings.findUnique({
-        where: { userId },
-        select: { airlockMode: true },
-      });
-      const airlockMode = settings?.airlockMode ?? 'optional';
-
-      // When airlock is disabled, skip LOCKED and go directly to PLANNING
-      const skipAirlock = airlockMode === 'disabled';
-
       // Use upsert to avoid race conditions from concurrent requests
       const dailyState = await prisma.dailyState.upsert({
         where: {
@@ -114,11 +104,11 @@ export const dailyStateService = {
         create: {
           userId,
           date: today,
-          systemState: skipAirlock ? 'PLANNING' : 'LOCKED',
+          systemState: 'IDLE',
           top3TaskIds: [],
           pomodoroCount: 0,
           capOverrideCount: 0,
-          airlockCompleted: skipAirlock,
+          airlockCompleted: false,
         },
       });
 
