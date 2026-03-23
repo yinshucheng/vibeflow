@@ -8,14 +8,14 @@
 - [x] `npm run db:generate && npm run db:push`
 - [x] 验证：`npx tsc --noEmit` 通过，现有功能不受影响 <!-- 1.1 done -->
 
-### 1.2 工具函数 ✅
+### 1.2 工具函数 ✅ `46686b1`
 - [x] 创建 `src/lib/state-utils.ts`
   - `normalizeState(raw: string): SystemState` — 旧值映射（locked/planning/rest→idle）
   - `serializeState(state: SystemState): string` — 写 DB 时大写（IDLE/FOCUS/OVER_REST）
   - `SystemState` 类型导出：`'idle' | 'focus' | 'over_rest'`
 - [x] 写单元测试：覆盖所有旧值映射（locked→idle, LOCKED→idle, planning→idle, REST→idle, focus→focus, over_rest→over_rest, 未知值→idle）
 
-### 1.3 重写 XState 状态机 ✅
+### 1.3 重写 XState 状态机 ✅ `46686b1`
 - [x] 重写 `src/machines/vibeflow.machine.ts`：3 状态（idle/focus/over_rest）、9 事件、2 guards、9 actions
 - [x] 更新 `VibeFlowContext`：删除 top3TaskIds/airlockStep/restStartTime/restDuration/overRestStartTime/currentTimeSliceId，新增 lastPomodoroEndTime/overRestEnteredAt/overRestExitCount
 - [x] 更新 `VibeFlowEvent`：删除 COMPLETE_AIRLOCK/SET_AIRLOCK_STEP/START_TASKLESS_POMODORO/SYNC_STATE/SET_DAILY_CAP/ASSOCIATE_TASK，新增 WORK_TIME_ENDED
