@@ -127,17 +127,19 @@ export const CORE_TOOLS: ReadonlyArray<string> = [
   'flow_start_pomodoro',
 ];
 
-/** Extra tools by system state */
+/** Extra tools by system state (3-state model: IDLE/FOCUS/OVER_REST) */
 const STATE_EXTRA_TOOLS: Record<string, string[]> = {
   FOCUS: ['flow_switch_task', 'flow_complete_current_task', 'flow_report_blocker'],
-  REST: ['flow_start_pomodoro', 'flow_record_pomodoro'],
-  PLANNING: [
+  IDLE: [
+    'flow_start_pomodoro',
+    'flow_record_pomodoro',
     'flow_get_overdue_tasks',
     'flow_get_backlog_tasks',
     'flow_batch_update_tasks',
     'flow_set_plan_date',
     'flow_move_task',
   ],
+  OVER_REST: ['flow_start_pomodoro'],
 };
 
 /** Extra tools by intent */

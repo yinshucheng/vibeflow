@@ -32,12 +32,12 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     refetchInterval: 60000,
   });
 
-  // Get rest status for tray display (when in rest or over_rest state)
+  // Get rest status for tray display (when in over_rest state)
   const currentState = socketState || dailyState?.systemState?.toLowerCase();
-  const isInRestState = currentState === 'rest' || currentState === 'over_rest';
+  const isInRestState = currentState === 'over_rest';
 
   const { data: overRestStatus } = trpc.overRest.checkStatus.useQuery(undefined, {
-    refetchInterval: isInRestState ? 5000 : 30000, // Higher frequency only when in rest/over_rest
+    refetchInterval: isInRestState ? 5000 : 30000, // Higher frequency only when in over_rest
   });
   const { data: restStatus } = trpc.dailyState.getRestStatus.useQuery(undefined, {
     refetchInterval: 5000,

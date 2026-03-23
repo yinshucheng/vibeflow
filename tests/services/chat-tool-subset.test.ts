@@ -2,7 +2,8 @@
  * S6.5 Tests: Tool Subset Strategy
  *
  * - FOCUS state → includes switch_task, does NOT include batch_update
- * - PLANNING state → includes batch_update, set_plan_date
+ * - IDLE state → includes batch_update, set_plan_date, start_pomodoro, record_pomodoro
+ * - OVER_REST state → includes start_pomodoro
  * - Core 9 tools always present
  * - Intent=project → includes project management tools
  * - Intent=review → includes generate_daily_summary
@@ -18,7 +19,7 @@ describe('getToolSubset (S6.2)', () => {
   // ── Core tools always present ──
   describe('core tools', () => {
     it('always includes all 9 core tools regardless of state/intent', () => {
-      const states = ['FOCUS', 'REST', 'PLANNING', 'LOCKED', 'OVER_REST'];
+      const states = ['FOCUS', 'IDLE', 'OVER_REST'];
       const intents: ChatIntent[] = ['quick_action', 'planning', 'review', 'task_mgmt', 'project', 'default'];
 
       for (const state of states) {
@@ -48,10 +49,12 @@ describe('getToolSubset (S6.2)', () => {
     });
   });
 
-  // ── PLANNING state ──
-  describe('PLANNING state', () => {
-    it('includes batch_update, set_plan_date, overdue, backlog, move', () => {
-      const tools = getToolSubset('PLANNING', 'default');
+  // ── IDLE state ──
+  describe('IDLE state', () => {
+    it('includes start_pomodoro, record_pomodoro, batch_update, set_plan_date, overdue, backlog, move', () => {
+      const tools = getToolSubset('IDLE', 'default');
+      expect(tools.has('flow_start_pomodoro')).toBe(true);
+      expect(tools.has('flow_record_pomodoro')).toBe(true);
       expect(tools.has('flow_get_overdue_tasks')).toBe(true);
       expect(tools.has('flow_get_backlog_tasks')).toBe(true);
       expect(tools.has('flow_batch_update_tasks')).toBe(true);
@@ -60,24 +63,23 @@ describe('getToolSubset (S6.2)', () => {
     });
 
     it('does NOT include switch_task (FOCUS-only)', () => {
-      const tools = getToolSubset('PLANNING', 'default');
+      const tools = getToolSubset('IDLE', 'default');
       expect(tools.has('flow_switch_task')).toBe(false);
     });
   });
 
-  // ── REST state ──
-  describe('REST state', () => {
-    it('includes start_pomodoro and record_pomodoro', () => {
-      const tools = getToolSubset('REST', 'default');
+  // ── OVER_REST state ──
+  describe('OVER_REST state', () => {
+    it('includes start_pomodoro', () => {
+      const tools = getToolSubset('OVER_REST', 'default');
       expect(tools.has('flow_start_pomodoro')).toBe(true);
-      expect(tools.has('flow_record_pomodoro')).toBe(true);
     });
   });
 
   // ── Intent: project ──
   describe('intent=project', () => {
     it('includes all 5 project management tools', () => {
-      const tools = getToolSubset('PLANNING', 'project');
+      const tools = getToolSubset('IDLE', 'project');
       expect(tools.has('flow_create_project')).toBe(true);
       expect(tools.has('flow_update_project')).toBe(true);
       expect(tools.has('flow_get_project')).toBe(true);
@@ -89,7 +91,7 @@ describe('getToolSubset (S6.2)', () => {
   // ── Intent: review ──
   describe('intent=review', () => {
     it('includes generate_daily_summary', () => {
-      const tools = getToolSubset('PLANNING', 'review');
+      const tools = getToolSubset('IDLE', 'review');
       expect(tools.has('flow_generate_daily_summary')).toBe(true);
     });
   });

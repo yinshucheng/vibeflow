@@ -363,7 +363,7 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
 
   /**
    * Confirm break and transition to rest
-   * Server already set state to 'rest' during the complete mutation,
+   * Server already set state to 'idle' during the complete mutation,
    * so we just update local phase.
    */
   const confirmBreak = useCallback(async (_summary?: string) => {

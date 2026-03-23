@@ -292,13 +292,8 @@ export async function handleDailyStateChanged(
   const newState = payload.newState as string | undefined;
   const previousState = payload.previousState as string | undefined;
 
-  if (newState === 'planning') {
+  if (newState === 'idle' && previousState !== 'idle') {
     await handlePlanningEnter(userId);
-  }
-
-  if (newState === 'rest' && previousState === 'focus') {
-    // Also check for pomodoro completion context — the pomodoro.completed event
-    // is the primary trigger for on_rest_enter (see handlePomodoroCompleted)
   }
 
   if (newState === 'over_rest') {

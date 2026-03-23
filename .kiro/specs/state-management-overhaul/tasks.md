@@ -118,16 +118,16 @@
 - [x] 验证：新一天首次访问状态为 IDLE <!-- 3.2 done -->
 
 ### 3.3 前端兼容层
-- [ ] 创建 `src/lib/state-utils.ts` 的前端版本（或共享）
-- [ ] `src/hooks/use-socket.ts`：接收 STATE_CHANGE 后经过 `normalizeState()` 处理
-- [ ] `src/hooks/use-pomodoro-machine.ts`：状态判断适配 idle/focus/over_rest
+- [x] 创建 `src/lib/state-utils.ts` 的前端版本（或共享）
+- [x] `src/hooks/use-socket.ts`：接收 STATE_CHANGE 后经过 `normalizeState()` 处理
+- [x] `src/hooks/use-pomodoro-machine.ts`：状态判断适配 idle/focus/over_rest <!-- 3.3 done -->
 
 ### 3.4 前端状态值替换
-- [ ] 搜索前端代码中所有 `'locked'`/`'planning'`/`'rest'` 字符串，逐个替换为 `'idle'`
-- [ ] `src/components/layout/header.tsx`：状态显示适配 3 状态（IDLE/FOCUS/OVER_REST）
-- [ ] `src/app/page.tsx`：删除 LOCKED 状态重定向到 /airlock 的逻辑
-- [ ] `src/components/pomodoro/rest-mode.tsx`：REST 不再是独立状态，该组件改为在 IDLE 且 lastPomodoroEndTime 近期时显示（由 usePomodoroMachine 的 phase 控制）
-- [ ] 验证：`npm run build` + `npm run lint`
+- [x] 搜索前端代码中所有 `'locked'`/`'planning'`/`'rest'` 字符串，逐个替换为 `'idle'`
+- [x] `src/components/layout/header.tsx`：状态显示适配 3 状态（IDLE/FOCUS/OVER_REST）
+- [x] `src/app/page.tsx`：删除 LOCKED 状态重定向到 /airlock 的逻辑
+- [x] `src/components/pomodoro/rest-mode.tsx`：REST 不再是独立状态，该组件改为在 IDLE 且 lastPomodoroEndTime 近期时显示（由 usePomodoroMachine 的 phase 控制）
+- [x] 验证：`npm run build` + `npm run lint` <!-- 3.4 done -->
 
 ### 3.5 服务端 Policy 广播适配
 - [ ] `policyDistributionService.compilePolicy()` 适配新状态：当 `systemState === 'over_rest'`（DB 真实值）时直接构建 `overRest` policy，不再依赖 `overRestService.checkOverRestStatus()` 的动态计算

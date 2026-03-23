@@ -374,7 +374,7 @@ export const smartSuggestionService = {
       // Get suggestions
       const context: SuggestionContext = {
         trigger: 'idle_detected',
-        currentState: 'PLANNING',
+        currentState: 'IDLE',
         timeOfDay: getTimeOfDay(),
         dayOfWeek: new Date().getDay(),
       };
@@ -435,7 +435,7 @@ export const smartSuggestionService = {
       // Get task suggestions
       const context: SuggestionContext = {
         trigger: 'airlock_entry',
-        currentState: 'LOCKED',
+        currentState: 'IDLE',
         timeOfDay: getTimeOfDay(),
         dayOfWeek,
       };
