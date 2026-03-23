@@ -59,6 +59,9 @@ model User {
 
   // Screen Time Temporary Unblock
   screenTimeExemptions     ScreenTimeExemption[]
+
+  // State Management
+  stateTransitionLogs      StateTransitionLog[]
 }
 
 model UserSettings {
@@ -352,14 +355,35 @@ model DailyState {
   userId           String
   user             User     @relation(fields: [userId], references: [id])
   date             DateTime @db.Date
-  systemState      String // LOCKED, PLANNING, FOCUS, REST
+  systemState      String // IDLE, FOCUS, OVER_REST (legacy: LOCKED, PLANNING, REST)
   top3TaskIds      String[]
   pomodoroCount    Int      @default(0)
   capOverrideCount Int      @default(0)
   airlockCompleted Boolean  @default(false)
   adjustedGoal     Int?     // temporary goal adjustment for today only (Requirements 23.1, 23.2, 23.3)
 
+  // State engine context persistence fields
+  lastPomodoroEndTime DateTime?  // Last pomodoro completion time, used for rest duration → OVER_REST trigger
+  overRestEnteredAt   DateTime?  // Time when OVER_REST was entered, used for cooldown calculation
+  overRestExitCount   Int       @default(0)  // Today's count of voluntary OVER_REST exits (max 3)
+
   @@unique([userId, date])
+}
+
+// State Transition Log for state management observability
+// Records every state transition for debugging and analytics (30-day retention)
+model StateTransitionLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  fromState String
+  toState   String
+  event     String
+  context   String?  // JSON, event-related context (e.g. pomodoroId)
+  timestamp DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([userId, fromState, toState])
 }
 
 // Timeline Event model for activity tracking (Requirements 6.1, 8.1, 8.2)
