@@ -26,6 +26,7 @@ import { overRestService } from '@/services/over-rest.service';
 import { pomodoroService } from '@/services/pomodoro.service';
 import { timeSliceService } from '@/services/time-slice.service';
 import { dailyStateService, getTodayDate } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 import { chatService } from '@/services/chat.service';
 import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
@@ -1274,16 +1275,22 @@ export class VibeFlowSocketServer {
           const taskId = data.taskId as string | undefined;
           const result = await pomodoroService.start(userId, { taskId: taskId ?? null });
           if (result.success && result.data) {
-            success = true;
-            const pom = result.data as { id: string };
-            resultData = { pomodoroId: pom.id };
-            // Update system state to FOCUS
-            await dailyStateService.updateSystemState(userId, 'focus');
-            // Broadcast state change and policy to all clients
-            this.broadcastStateChange(userId, 'focus');
-            await this.broadcastPolicyUpdate(userId);
-            // Re-send full state snapshot so all clients get the activePomodoro
-            await this.broadcastFullStateToUser(userId);
+            const pom = result.data as { id: string; taskId: string | null };
+            // Transition state via StateEngine (handles state write, broadcast,
+            // policy update, MCP event, logging, and OVER_REST timer scheduling)
+            const transition = await stateEngineService.send(userId, {
+              type: 'START_POMODORO',
+              pomodoroId: pom.id,
+              taskId: pom.taskId,
+            });
+            if (transition.success) {
+              success = true;
+              resultData = { pomodoroId: pom.id };
+            } else {
+              // Guard rejected — clean up the created pomodoro
+              await pomodoroService.abort(pom.id, userId).catch(() => {});
+              error = { code: 'FORBIDDEN', message: transition.message };
+            }
           } else {
             error = result.error ?? { code: 'UNKNOWN', message: 'Failed to start pomodoro' };
           }

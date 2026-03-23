@@ -72,8 +72,8 @@
 - [x] 验证：手动等待番茄钟超时自动完成，确认状态变为 IDLE <!-- 2.6 done -->
 
 ### 2.7 迁移 Socket POMODORO_START handler
-- [ ] `src/server/socket.ts` 的 `POMODORO_START` 处理：删除重复的 start 逻辑，改为调用 stateEngine（或直接调用 pomodoro service 让其走 stateEngine 路径）
-- [ ] 验证：通过 Socket 启动番茄钟，确认状态正确
+- [x] `src/server/socket.ts` 的 `POMODORO_START` 处理：删除重复的 start 逻辑，改为调用 stateEngine（或直接调用 pomodoro service 让其走 stateEngine 路径）
+- [x] 验证：通过 Socket 启动番茄钟，确认状态正确 <!-- 2.7 done -->
 
 ### 2.8 迁移 chatToolsService
 - [ ] `src/services/chat-tools.service.ts`：删除独立的 `updateSystemState('focus')`，改为 `stateEngine.send(userId, { type: 'START_POMODORO', ... })`
