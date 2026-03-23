@@ -102,7 +102,8 @@ const IS_DEVELOPMENT = process.env.NODE_ENV !== 'production';
 
 // Default configuration
 const DEFAULT_CONFIG: ElectronMainConfig = {
-  serverUrl: process.env.VIBEFLOW_SERVER_URL || 'http://localhost:3000',
+  serverUrl: process.env.VIBEFLOW_SERVER_URL
+    || (IS_DEVELOPMENT ? 'http://localhost:3000' : 'http://39.105.213.147:4000'),
   isDevelopment: IS_DEVELOPMENT,
   autoLaunch: false,
 };
