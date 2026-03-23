@@ -380,20 +380,36 @@ export class VibeFlowSocketServer {
       }
     }, 60000);
 
-    // Check over rest status for all connected users every 30 seconds
-    // This ensures over rest enforcement is triggered even without user actions
+    // Fallback: check over rest status for all connected users every 30 seconds
+    // Primary trigger is StateEngine's delayed timer (scheduleOverRestTimer).
+    // This interval serves as a fallback for timer loss (e.g., server restart)
+    // and also handles WORK_TIME_ENDED (OVER_REST → IDLE when work hours end).
     this.overRestCheckInterval = setInterval(async () => {
       try {
         const connectedUserIds = this.getConnectedUserIds();
         for (const userId of connectedUserIds) {
-          // Broadcast policy update which will include over rest status
-          await this.broadcastPolicyUpdate(userId);
-        }
-        if (connectedUserIds.length > 0) {
-          console.log(`[Socket.io] Broadcast policy updates to ${connectedUserIds.length} connected users`);
+          try {
+            const currentState = await stateEngineService.getState(userId);
+            if (currentState === 'idle') {
+              // Attempt ENTER_OVER_REST — engine validates lastPomodoroEndTime + work hours
+              await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
+            } else if (currentState === 'over_rest') {
+              // Attempt WORK_TIME_ENDED — engine validates work hours ended
+              const { isWithinWorkHours } = await import('@/services/idle.service');
+              const settings = await prisma.userSettings.findFirst({ where: { userId } });
+              const workTimeSlots = (settings?.workTimeSlots as unknown as { id: string; startTime: string; endTime: string; enabled: boolean }[]) || [];
+              if (!isWithinWorkHours(workTimeSlots)) {
+                await stateEngineService.send(userId, { type: 'WORK_TIME_ENDED' });
+              }
+            }
+            // Always broadcast policy update for iOS UPDATE_POLICY channel
+            await this.broadcastPolicyUpdate(userId);
+          } catch {
+            // Individual user errors don't stop the loop
+          }
         }
       } catch (error) {
-        console.error('[Socket.io] Error checking over rest status:', error);
+        console.error('[Socket.io] Error in overRestCheck interval:', error);
       }
     }, 30000);
   }

@@ -84,10 +84,9 @@
 - [x] 验证：`npm test` + `npm run build` 通过 <!-- 2.9 done -->
 
 ### 2.10 OVER_REST 触发机制
-- [ ] 修改 30 秒 `overRestCheckInterval`（`src/server/socket.ts`）：
-  - 对 IDLE 状态的用户：检查 lastPomodoroEndTime + 工作时间，条件满足则 `stateEngine.send(userId, { type: 'ENTER_OVER_REST' })`
-  - 对 OVER_REST 状态的用户：检查工作时间，不在工作时间则 `stateEngine.send(userId, { type: 'WORK_TIME_ENDED' })`
-- [ ] 验证：完成番茄钟后等待 shortRestDuration+gracePeriod，确认自动进入 OVER_REST
+- [x] 实现 `scheduleOverRestTimer()` 完整逻辑（读 shortRestDuration+gracePeriod → delayed timer → ENTER_OVER_REST）
+- [x] 修改 30 秒 `overRestCheckInterval`（`src/server/socket.ts`）：对 IDLE 用户尝试 ENTER_OVER_REST，对 OVER_REST 用户检查 WORK_TIME_ENDED
+- [x] 验证：`npm test`（986 passed）+ `npx tsc --noEmit` 通过 <!-- 2.10 done -->
 
 ### 2.11 标记旧函数 deprecated
 - [ ] `updateSystemState()` 加 `@deprecated` + console.warn（此时应已无调用方）

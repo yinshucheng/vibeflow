@@ -155,16 +155,51 @@ function clearOverRestTimer(userId: string): void {
  * Schedule OVER_REST entry after a completed pomodoro.
  * Only sets a timer when state is IDLE and lastPomodoroEndTime is set
  * (i.e., pomodoro was completed, not aborted).
- *
- * Full implementation in Phase 2 (task 2.1). This is the skeleton.
  */
 function scheduleOverRestTimer(
-  _userId: string,
-  _state: SystemState,
-  _context: VibeFlowContext,
+  userId: string,
+  state: SystemState,
+  context: VibeFlowContext,
 ): void {
-  // Phase 2: will read shortRestDuration + gracePeriod from settings,
-  // set a delayed timer, and call stateEngine.send(userId, { type: 'ENTER_OVER_REST' })
+  clearOverRestTimer(userId);
+
+  // Only schedule when transitioning to IDLE after a completed pomodoro
+  if (state !== 'idle' || !context.lastPomodoroEndTime) return;
+
+  // Read shortRestDuration + gracePeriod from DB asynchronously
+  (async () => {
+    try {
+      const settings = await prisma.userSettings.findFirst({ where: { userId } });
+      const settingsAny = settings as Record<string, unknown> | null;
+      const shortRestDuration = (settingsAny?.shortRestDuration as number) ?? 5;
+      const gracePeriod = (settingsAny?.overRestGracePeriod as number) ?? 5;
+      const delayMs = (shortRestDuration + gracePeriod) * 60 * 1000;
+
+      // Calculate actual delay from lastPomodoroEndTime
+      const elapsed = Date.now() - context.lastPomodoroEndTime!;
+      const remaining = delayMs - elapsed;
+
+      if (remaining <= 0) {
+        // Already past the threshold — trigger immediately
+        await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
+        return;
+      }
+
+      const timer = setTimeout(async () => {
+        overRestTimers.delete(userId);
+        try {
+          // Engine will validate: must be IDLE + guard checks work hours
+          await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
+        } catch (err) {
+          console.error(`[StateEngine] ENTER_OVER_REST timer error for ${userId}:`, err);
+        }
+      }, remaining);
+
+      overRestTimers.set(userId, timer);
+    } catch (err) {
+      console.error(`[StateEngine] scheduleOverRestTimer error for ${userId}:`, err);
+    }
+  })();
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
