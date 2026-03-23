@@ -54,6 +54,13 @@ export type {
   DailyStateWithProgress,
 } from './daily-state.service';
 
+export { stateEngineService } from './state-engine.service';
+export type { TransitionResult, SendOptions } from './state-engine.service';
+export {
+  registerFullStateBroadcaster,
+  registerStateEnginePolicyBroadcaster,
+} from './state-engine.service';
+
 export { activityLogService } from './activity-log.service';
 export type {
   CreateActivityLogInput,
