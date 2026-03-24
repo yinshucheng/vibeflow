@@ -49,25 +49,46 @@ export async function POST(request: NextRequest) {
     }
 
     // Method 2: Authenticate via email + password in body
-    if (!userId && parsed.email && parsed.password) {
+    if (!userId && parsed.email) {
       const user = await prisma.user.findUnique({
         where: { email: parsed.email },
       });
-      if (!user || user.password === 'dev_mode_no_password') {
+
+      if (user) {
+        // DEV_MODE: allow passwordless login for dev users
+        if (process.env.DEV_MODE === 'true' && user.password === 'dev_mode_no_password') {
+          userId = user.id;
+          userEmail = user.email;
+        } else if (parsed.password) {
+          const valid = await verifyPassword(parsed.password, user.password);
+          if (valid) {
+            userId = user.id;
+            userEmail = user.email;
+          }
+        }
+      }
+
+      // Auto-create user in DEV_MODE if not found
+      if (!userId && process.env.DEV_MODE === 'true' && parsed.email) {
+        const newUser = await prisma.user.upsert({
+          where: { email: parsed.email },
+          update: {},
+          create: {
+            email: parsed.email,
+            password: 'dev_mode_no_password',
+            settings: { create: {} },
+          },
+        });
+        userId = newUser.id;
+        userEmail = newUser.email;
+      }
+
+      if (!userId) {
         return NextResponse.json(
           { success: false, error: { code: 'AUTH_ERROR', message: 'Invalid credentials' } },
           { status: 401 }
         );
       }
-      const valid = await verifyPassword(parsed.password, user.password);
-      if (!valid) {
-        return NextResponse.json(
-          { success: false, error: { code: 'AUTH_ERROR', message: 'Invalid credentials' } },
-          { status: 401 }
-        );
-      }
-      userId = user.id;
-      userEmail = user.email;
     }
 
     if (!userId || !userEmail) {
