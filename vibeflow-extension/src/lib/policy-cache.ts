@@ -26,7 +26,7 @@ const PRESET_ENTERTAINMENT_WHITELIST: string[] = [
 ];
 
 const DEFAULT_POLICY: PolicyCache = {
-  globalState: 'PLANNING',
+  globalState: 'IDLE',
   blacklist: [],
   whitelist: [],
   sessionWhitelist: [],

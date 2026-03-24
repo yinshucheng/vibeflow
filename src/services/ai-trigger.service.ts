@@ -94,7 +94,7 @@ export const BUILTIN_TRIGGERS: TriggerDefinition[] = [
     id: 'on_planning_enter',
     sourceType: 'state_transition',
     promptTemplate: [
-      '你是 VibeFlow 助手。用户刚刚完成 Airlock 进入 PLANNING 状态。',
+      '你是 VibeFlow 助手。用户刚刚开始新的一天。',
       '请根据以下上下文生成一段简洁的每日规划建议，推荐 Top 3 任务。',
       '',
       '上下文：',

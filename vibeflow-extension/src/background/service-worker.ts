@@ -3,6 +3,7 @@ import { policyCache } from '../lib/policy-cache.js';
 import { activityTracker } from '../lib/activity-tracker.js';
 import { getWorkStartTracker } from '../lib/work-start-tracker.js';
 import { entertainmentManager } from '../lib/entertainment-manager.js';
+import { normalizeSystemState } from '../types/index.js';
 import type { PolicyCache, SystemState, ActivityLog, ExecuteCommand, TimelineEvent, BlockEvent, InterruptionEvent, EnhancedUrlCheckResult, WorkStartPayload, EntertainmentModePayload } from '../types/index.js';
 
 // Global state
@@ -148,8 +149,8 @@ const wsHandlers: WebSocketEventHandler = {
   },
 
   onStateChange: async (state: SystemState) => {
-    // Normalize state to uppercase (server sends lowercase, extension uses uppercase)
-    const normalizedState = state.toUpperCase() as SystemState;
+    // Normalize state: server may send legacy values (locked/planning/rest) or new values (idle)
+    const normalizedState = normalizeSystemState(state);
     console.log('[ServiceWorker] State changed:', state, '-> normalized:', normalizedState);
     await policyCache.updateState(normalizedState);
     

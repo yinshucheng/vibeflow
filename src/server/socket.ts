@@ -2255,41 +2255,6 @@ export class VibeFlowSocketServer {
   // ============================================================================
 
   /**
-   * Broadcast state change to all user's connected clients
-   * Requirements: 1.4
-   */
-  broadcastStateChange(userId: string, state: SystemState): void {
-    if (!this.io) return;
-    
-    const userRoom = `user:${userId}`;
-    
-    // Send legacy format
-    this.io.to(userRoom).emit('STATE_CHANGE', { state });
-    
-    // Also send as Octopus SYNC_STATE command (delta)
-    const syncCommand: SyncStateCommand = {
-      commandId: crypto.randomUUID(),
-      commandType: 'SYNC_STATE',
-      targetClient: 'all',
-      priority: 'high',
-      requiresAck: false,
-      createdAt: Date.now(),
-      payload: {
-        syncType: 'delta',
-        version: Date.now(),
-        delta: {
-          changes: [
-            { path: 'systemState.state', operation: 'set', value: state },
-          ],
-        },
-      },
-    };
-    
-    this.io.to(userRoom).emit('OCTOPUS_COMMAND', syncCommand);
-    console.log(`[Socket.io] Broadcast state change to user ${userId}: ${state}`);
-  }
-
-  /**
    * Broadcast policy update to all user's connected clients
    * Requirements: 10.2, 10.3
    */
