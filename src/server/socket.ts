@@ -390,17 +390,25 @@ export class VibeFlowSocketServer {
         for (const userId of connectedUserIds) {
           try {
             const currentState = await stateEngineService.getState(userId);
-            if (currentState === 'idle') {
-              // Attempt ENTER_OVER_REST — engine validates lastPomodoroEndTime + work hours
-              await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
-            } else if (currentState === 'over_rest') {
-              // Attempt WORK_TIME_ENDED — engine validates work hours ended
-              const { isWithinWorkHours } = await import('@/services/idle.service');
-              const settings = await prisma.userSettings.findFirst({ where: { userId } });
-              const workTimeSlots = (settings?.workTimeSlots as unknown as { id: string; startTime: string; endTime: string; enabled: boolean }[]) || [];
-              if (!isWithinWorkHours(workTimeSlots)) {
-                await stateEngineService.send(userId, { type: 'WORK_TIME_ENDED' });
+            const { isWithinWorkHours } = await import('@/services/idle.service');
+            const settings = await prisma.userSettings.findFirst({ where: { userId } });
+            const workTimeSlots = (settings?.workTimeSlots as unknown as { id: string; startTime: string; endTime: string; enabled: boolean }[]) || [];
+            const withinWorkHours = isWithinWorkHours(workTimeSlots);
+
+            if (currentState === 'idle' && withinWorkHours) {
+              // Only attempt ENTER_OVER_REST during work hours and when rest is truly overdue
+              const dailyState = await dailyStateService.getOrCreateToday(userId);
+              if (dailyState.success && dailyState.data?.lastPomodoroEndTime) {
+                const shortRestDuration = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
+                const gracePeriod = (settings as Record<string, unknown> | null)?.overRestGracePeriod as number ?? 5;
+                const elapsed = (Date.now() - dailyState.data!.lastPomodoroEndTime!.getTime()) / 60000;
+                if (elapsed >= shortRestDuration + gracePeriod) {
+                  await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
+                }
               }
+            } else if (currentState === 'over_rest' && !withinWorkHours) {
+              // Work hours ended — unconditionally exit OVER_REST
+              await stateEngineService.send(userId, { type: 'WORK_TIME_ENDED' });
             }
             // Always broadcast policy update for iOS UPDATE_POLICY channel
             await this.broadcastPolicyUpdate(userId);
