@@ -68,23 +68,39 @@ Goals (1 week–5 years)
               └── Pomodoros (10–120 min focus sessions, always tied to a task)
 ```
 
-### Daily State Machine
+### Daily State Machine (3-state model)
 
 ```
-LOCKED → PLANNING → FOCUS ↔ REST → LOCKED
-                              ↓
-                          OVER_REST
+IDLE ──START_POMODORO──→ FOCUS ──COMPLETE/ABORT──→ IDLE
+  ↑                                                  │
+  └──RETURN_TO_IDLE/START_POMODORO── OVER_REST ←─────┘
+                                     (rest exceeded)
 ```
 
-| State | User Can Do |
-|-------|-------------|
-| `LOCKED` | Complete airlock only |
-| `PLANNING` | Start pomodoro, manage tasks |
-| `FOCUS` | Complete/abort active pomodoro, switch tasks |
-| `REST` | Complete rest, override daily cap |
-| `OVER_REST` | Forced return after exceeding rest time |
+| State | DB Value | User Can Do |
+|-------|----------|-------------|
+| `idle` | `IDLE` | Start pomodoro, manage tasks, plan day |
+| `focus` | `FOCUS` | Complete/abort active pomodoro, switch tasks |
+| `over_rest` | `OVER_REST` | Start pomodoro (forced return) or acknowledge |
 
-Machine: `src/machines/vibeflow.machine.ts`. Daily reset at 04:00 AM. Default cap: 8 pomodoros/day. Top 3 task selection during airlock (0–3 tasks).
+REST is a **sub-phase of IDLE** — determined by `lastPomodoroEndTime` (recent completion = resting). Desktop tray shows `READY` or `RESTING` accordingly.
+
+**OVER_REST trigger conditions** (`scheduleOverRestTimer` + 30s fallback):
+- State is `idle` AND `lastPomodoroEndTime` exists (pomodoro was completed, not aborted)
+- AND (`isWithinWorkHours` OR `inFocusSession`) — without either, OVER_REST does not trigger
+- Timer delay = `shortRestDuration + overRestGracePeriod` (default: 5+5 = 10 min)
+
+**Time windows and their effects:**
+
+| Window | Can start pomodoro? | OVER_REST triggers? | Enforcement |
+|--------|--------------------|--------------------|-------------|
+| Work time | ✅ | ✅ | Distraction apps blocked during FOCUS |
+| Non-work, no Focus Session | ✅ | ❌ | No enforcement |
+| Non-work + Focus Session (overtime) | ✅ | ✅ | Distraction + sleep apps blocked |
+| Sleep time, no Focus Session | ✅ | ❌ | Sleep enforcement active |
+| Sleep time + Focus Session | ✅ | ✅ | Sleep enforcement overridden |
+
+Machine: `src/machines/vibeflow.machine.ts`. StateEngine: `src/services/state-engine.service.ts`. Daily reset at 04:00 AM. Default cap: 8 pomodoros/day.
 
 ### Service Layer Pattern
 
