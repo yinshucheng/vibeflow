@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VibeFlow is an AI-Native Output Engine — a productivity and focus management system built around the Pomodoro technique. It has four clients sharing one backend:
+VibeFlow is an AI-Native Output Engine — 帮助用户心想事成的系统。核心理念：**用户有预期状态（工作、休息、睡眠、目标达成），现实往往偏离，系统持续校正帮用户回归预期。** 目标管理、任务拆解、番茄钟、休息保护、睡眠管理、AI 建议都是手段。
+
+It has four clients sharing one backend:
 
 | Client | Path | Stack |
 |--------|------|-------|
