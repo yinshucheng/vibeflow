@@ -55,16 +55,21 @@ class NotificationTriggerService {
       return;
     }
 
-    // Initialize the notification service first
-    await notificationService.initialize();
+    try {
+      // Initialize the notification service first
+      await notificationService.initialize();
 
-    // Request notification permission
-    const hasPermission = await notificationService.requestPermission();
-    if (!hasPermission) {
-      console.warn('[NotificationTrigger] Notification permission denied');
+      // Request notification permission
+      const hasPermission = await notificationService.requestPermission();
+      if (!hasPermission) {
+        console.warn('[NotificationTrigger] Notification permission denied');
+      }
+    } catch (error) {
+      // Native module may not be available (e.g. missing PushNotificationIOS link)
+      console.warn('[NotificationTrigger] Notification init failed, continuing without notifications:', error);
     }
 
-    // Subscribe to store changes
+    // Subscribe to store changes regardless of notification permission
     this.setupStoreSubscription();
     this.isInitialized = true;
 
