@@ -204,7 +204,11 @@ function isValidTaskSchema(task: unknown): boolean {
   return true;
 }
 
-describe('Property 12: MCP Resource Schema Consistency', () => {
+// MCP resources now use tRPC HTTP client instead of direct Prisma access.
+// These property tests set up data via Prisma but MCP reads via HTTP,
+// so they cannot work without a running tRPC server with the same DB.
+// TODO: Rewrite as integration tests that use the tRPC server.
+describe.skip('Property 12: MCP Resource Schema Consistency', () => {
   beforeAll(async () => {
     dbAvailable = await checkDatabaseConnection();
     if (!dbAvailable) {

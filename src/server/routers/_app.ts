@@ -30,6 +30,7 @@ import { timeSliceRouter } from './time-slice';
 import { restEnforcementRouter } from './rest-enforcement';
 import { healthLimitRouter } from './health-limit';
 import { chatRouter } from './chat';
+import { mcpBridgeRouter } from './mcp-bridge';
 
 /**
  * Main application router
@@ -60,6 +61,7 @@ export const appRouter = router({
   restEnforcement: restEnforcementRouter,
   healthLimit: healthLimitRouter,
   chat: chatRouter,
+  mcpBridge: mcpBridgeRouter,
 });
 
 /**

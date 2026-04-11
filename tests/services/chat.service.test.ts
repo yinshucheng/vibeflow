@@ -244,4 +244,57 @@ describe('chatService.handleMessage', () => {
       });
       expect(convs.length).toBe(1);
     }));
+
+  it('should exclude empty-content history messages from LLM call', () =>
+    skipIfNoDb(async () => {
+      // Setup: create a conversation with an empty assistant message (simulates failed LLM call residue)
+      const convResult = await chatService.getOrCreateDefaultConversation(getTestUserId());
+      expect(convResult.success).toBe(true);
+      const convId = convResult.data!.id;
+
+      // Insert normal user message + empty assistant message (as if prior LLM call failed mid-stream)
+      await prisma.chatMessage.createMany({
+        data: [
+          { conversationId: convId, role: 'user', content: 'first question' },
+          { conversationId: convId, role: 'assistant', content: '' },  // empty — should be filtered
+        ],
+      });
+
+      // Capture messages passed to streamText
+      let capturedMessages: Array<{ role: string; content: string }> = [];
+      vi.mocked(streamText).mockImplementation((opts: Record<string, unknown>) => {
+        capturedMessages = (opts.messages as Array<{ role: string; content: string }>) ?? [];
+        if (typeof opts.onFinish === 'function') {
+          (opts.onFinish as (r: { text: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number } }) => void)({
+            text: 'response',
+            usage: { inputTokens: 10, outputTokens: 8, totalTokens: 18 },
+          });
+        }
+        // Return minimal mock stream
+        return {
+          textStream: (async function* () { yield 'response'; })(),
+          fullStream: (async function* () { yield { type: 'finish' as const }; })(),
+          text: Promise.resolve('response'),
+          usage: Promise.resolve({ inputTokens: 10, outputTokens: 8, totalTokens: 18 }),
+          toolCalls: Promise.resolve([]),
+          toolResults: Promise.resolve([]),
+          finishReason: Promise.resolve('stop' as const),
+          warnings: Promise.resolve([]),
+        };
+      });
+
+      const result = await chatService.handleMessage(getTestUserId(), 'second question');
+      expect(result.success).toBe(true);
+
+      // Verify: the empty assistant message should NOT appear in captured messages
+      const assistantMessages = capturedMessages.filter(m => m.role === 'assistant');
+      for (const msg of assistantMessages) {
+        expect(msg.content).toBeTruthy();  // no empty content
+      }
+
+      // The user's first question should still be in history
+      const userMessages = capturedMessages.filter(m => m.role === 'user');
+      expect(userMessages.some(m => m.content.includes('first question'))).toBe(true);
+      expect(userMessages.some(m => m.content.includes('second question'))).toBe(true);
+    }));
 });

@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc';
 import { useSocket } from '@/hooks/use-socket';
 import { trayIntegrationService } from '@/services/tray-integration.service';
 import { normalizeState } from '@/lib/state-utils';
+import { showBrowserNotification } from '@/services/notification.service';
 
 /**
  * Global provider that syncs app state to desktop tray
@@ -116,6 +117,62 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
       trayIntegrationService.updateSystemState(state, restData, progress);
     }
   }, [currentPomodoro, socketState, dailyState?.systemState, dailyProgress, isInSleepTime, overRestStatus, restStatus]);
+
+  // Health limit notification — poll health limit status and show browser notifications
+  const { data: healthLimitData } = trpc.healthLimit.checkLimit.useQuery(undefined, {
+    refetchInterval: 60000, // Check every minute
+  });
+
+  const healthLimitTypeRef = useRef<string | null>(null);
+  const healthLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (healthLimitData?.exceeded && healthLimitData.type) {
+      const type = healthLimitData.type;
+      const message = type === '2hours'
+        ? "You've been working for 2+ hours continuously. Consider a longer break."
+        : "You've worked over 10 hours today. Please take care of yourself.";
+
+      // Show notification on first trigger or type change
+      if (type !== healthLimitTypeRef.current) {
+        showBrowserNotification('⏰ Health Reminder', {
+          body: message,
+          tag: 'health-limit',
+        });
+        healthLimitTypeRef.current = type;
+
+        // Set up repeating notifications (every 10 minutes)
+        if (healthLimitTimerRef.current) {
+          clearInterval(healthLimitTimerRef.current);
+        }
+        healthLimitTimerRef.current = setInterval(() => {
+          showBrowserNotification('⏰ Health Reminder', {
+            body: message,
+            tag: 'health-limit',
+          });
+        }, 10 * 60 * 1000);
+      }
+    } else {
+      healthLimitTypeRef.current = null;
+      if (healthLimitTimerRef.current) {
+        clearInterval(healthLimitTimerRef.current);
+        healthLimitTimerRef.current = null;
+      }
+    }
+    // NOTE: No cleanup here — timer is managed by refs and cleared in the else branch
+    // or by the unmount-only effect below. Returning cleanup would kill the repeating
+    // timer every time healthLimitData re-fetches (every 60s).
+  }, [healthLimitData]);
+
+  // Cleanup repeating timer only on component unmount
+  useEffect(() => {
+    return () => {
+      if (healthLimitTimerRef.current) {
+        clearInterval(healthLimitTimerRef.current);
+        healthLimitTimerRef.current = null;
+      }
+    };
+  }, []);
 
   return <>{children}</>;
 }

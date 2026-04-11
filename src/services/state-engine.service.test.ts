@@ -49,6 +49,27 @@ vi.mock('./mcp-event.service', () => ({
   },
 }));
 
+// ── Mock idle.service (isWithinWorkHours) ─────────────────────────────
+
+const mockIsWithinWorkHours = vi.hoisted(() => vi.fn().mockReturnValue(true));
+
+vi.mock('./idle.service', () => ({
+  isWithinWorkHours: mockIsWithinWorkHours,
+  parseTimeToMinutes: vi.fn(),
+  getCurrentTimeMinutes: vi.fn(),
+}));
+
+// ── Mock focus-session.service ────────────────────────────────────────
+
+const mockIsInFocusSession = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, data: false }));
+
+vi.mock('./focus-session.service', () => ({
+  focusSessionService: {
+    isInFocusSession: mockIsInFocusSession,
+    getActiveSession: vi.fn().mockResolvedValue({ success: true, data: null }),
+  },
+}));
+
 // ── Import after mocks ────────────────────────────────────────────────
 
 import { stateEngineService, type TransitionResult } from './state-engine.service';
@@ -355,7 +376,7 @@ describe('StateEngineService', () => {
       });
     });
 
-    it('should reject START_POMODORO when daily cap is reached', async () => {
+    it('should reject START_POMODORO when daily cap is reached (GUARD_FAILED)', async () => {
       const dailyState = makeDailyState({ pomodoroCount: 8 });
 
       mockDailyStateService.getOrCreateToday.mockResolvedValue({
@@ -373,7 +394,8 @@ describe('StateEngineService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('INVALID_TRANSITION');
+        // START_POMODORO is a valid event in idle, but guard (canStartPomodoro) fails
+        expect(result.error).toBe('GUARD_FAILED');
         expect(result.currentState).toBe('idle');
       }
     });
@@ -740,6 +762,93 @@ describe('StateEngineService', () => {
 
       // Clean up: reset broadcaster
       stateEngineService.registerFullStateBroadcaster(null as unknown as (userId: string) => Promise<void>);
+    });
+  });
+
+  // ── scheduleOverRestTimer work hours + focus session checks ──────
+
+  describe('scheduleOverRestTimer (work hours + focus session)', () => {
+    /**
+     * Helper: complete a pomodoro so that scheduleOverRestTimer fires.
+     * Uses stateful mocks so the IDLE transition triggers the timer.
+     */
+    async function triggerOverRestSchedule(opts: {
+      withinWorkHours: boolean;
+      inFocusSession: boolean;
+      shortRestDuration?: number;
+      overRestGracePeriod?: number;
+    }) {
+      const { withinWorkHours, inFocusSession, shortRestDuration = 5, overRestGracePeriod = 5 } = opts;
+
+      mockIsWithinWorkHours.mockReturnValue(withinWorkHours);
+      mockIsInFocusSession.mockResolvedValue({ success: true, data: inFocusSession });
+
+      let currentSystemState = 'FOCUS';
+      let currentLastPomodoroEndTime: Date | null = null;
+
+      mockDailyStateService.getOrCreateToday.mockImplementation(async () => ({
+        success: true,
+        data: makeDailyState({
+          systemState: currentSystemState,
+          pomodoroCount: 1,
+          lastPomodoroEndTime: currentLastPomodoroEndTime,
+        }),
+      }));
+
+      mockPrisma.userSettings.findFirst.mockResolvedValue(
+        makeSettings({
+          shortRestDuration,
+          overRestGracePeriod,
+          workTimeSlots: [{ id: '1', startTime: '09:00', endTime: '18:00', enabled: true }],
+        }),
+      );
+      mockPrisma.pomodoro.findFirst.mockResolvedValue(null);
+
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+        const mockUpdate = vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+          if (data.systemState) currentSystemState = data.systemState as string;
+          if (data.lastPomodoroEndTime !== undefined) {
+            currentLastPomodoroEndTime = data.lastPomodoroEndTime as Date | null;
+          }
+        });
+        await fn({
+          dailyState: { update: mockUpdate },
+          stateTransitionLog: { create: vi.fn() },
+        });
+      });
+
+      // COMPLETE_POMODORO transitions FOCUS→IDLE and triggers scheduleOverRestTimer
+      const result = await stateEngineService.send(TEST_USER_ID, {
+        type: 'COMPLETE_POMODORO',
+      });
+
+      expect(result.success).toBe(true);
+      return result;
+    }
+
+    it('should schedule timer when within work hours (no focus session)', async () => {
+      await triggerOverRestSchedule({ withinWorkHours: true, inFocusSession: false });
+
+      // Give async scheduleOverRestTimer a tick to run
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(stateEngineService._overRestTimers.has(TEST_USER_ID)).toBe(true);
+    });
+
+    it('should schedule timer when in focus session (not within work hours)', async () => {
+      await triggerOverRestSchedule({ withinWorkHours: false, inFocusSession: true });
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(stateEngineService._overRestTimers.has(TEST_USER_ID)).toBe(true);
+    });
+
+    it('should NOT schedule timer when outside work hours and no focus session', async () => {
+      await triggerOverRestSchedule({ withinWorkHours: false, inFocusSession: false });
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(stateEngineService._overRestTimers.has(TEST_USER_ID)).toBe(false);
     });
   });
 });

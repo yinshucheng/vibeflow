@@ -206,6 +206,7 @@ export const policyDistributionService = {
           active: true,
           endTime: session.plannedEndTime.getTime(),
           overridesSleepTime: session.overridesSleepTime,
+          overridesWorkHours: session.overridesWorkHours,
         };
       }
 
@@ -326,14 +327,20 @@ export const policyDistributionService = {
       }
 
       // Compile health limit notification
-      let healthLimit: { type: '2hours' | 'daily'; message: string } | undefined;
+      let healthLimit: { type: '2hours' | 'daily'; message: string; repeating?: boolean; intervalMinutes?: number } | undefined;
       const healthLimitResult = await healthLimitService.checkHealthLimit(userId);
       if (healthLimitResult.exceeded && healthLimitResult.type) {
+        // Read user's health notification preferences
+        const overWorkInterval = (settings as Record<string, unknown>)?.overWorkReminderInterval as number ?? 10;
+        const healthNotificationsEnabled = (settings as Record<string, unknown>)?.healthNotificationsEnabled as boolean ?? true;
+
         healthLimit = {
           type: healthLimitResult.type,
           message: healthLimitResult.type === '2hours'
             ? "You've been working for 2+ hours continuously. Consider a longer break."
             : "You've worked over 10 hours today. Please take care of yourself.",
+          repeating: healthNotificationsEnabled,
+          intervalMinutes: overWorkInterval,
         };
       }
 

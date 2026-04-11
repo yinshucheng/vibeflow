@@ -127,7 +127,8 @@ describe('Property 2: State Display Consistency', () => {
           }
           
           // Property: System state should be correctly set
-          const expectedTrayState = isOverRest ? 'OVER_REST' : 'PLANNING';
+          // idle without lastPomodoroEndTime → READY; with rest data but not overRest → READY
+          const expectedTrayState = isOverRest ? 'OVER_REST' : 'READY';
           expect(update.state.systemState).toBe(expectedTrayState);
         }
       ),
@@ -297,12 +298,12 @@ describe('Property 2: State Display Consistency', () => {
 function mapSystemStateToExpected(systemState: string): string {
   switch (systemState) {
     case 'idle':
-      return 'PLANNING';
+      return 'READY'; // idle without lastPomodoroEndTime maps to READY
     case 'focus':
       return 'FOCUS';
     case 'over_rest':
       return 'OVER_REST';
     default:
-      return 'PLANNING';
+      return 'READY';
   }
 }

@@ -135,7 +135,9 @@ export const dailyStateService = {
       const dailyState = stateResult.data;
 
       // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
-      const effectiveSystemState = dailyState.systemState;
+      // Normalize to lowercase 3-state value for consistent API responses
+      const { normalizeState } = await import('@/lib/state-utils');
+      const effectiveSystemState = normalizeState(dailyState.systemState);
 
       // Get user's daily cap setting
       const settings = await prisma.userSettings.findUnique({

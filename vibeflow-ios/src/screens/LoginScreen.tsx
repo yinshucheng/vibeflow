@@ -25,7 +25,7 @@ import { serverConfigService } from '@/services/server-config.service';
 import { useTheme } from '@/theme';
 
 const SERVER_PRESETS = [
-  { label: '公网', url: 'http://39.105.213.147:7080' },
+  { label: '公网', url: 'http://39.105.213.147:4000' },
   { label: '本地', url: `http://${process.env.EXPO_PUBLIC_SERVER_HOST || '172.20.10.4'}:3000` },
 ] as const;
 
@@ -131,6 +131,14 @@ export function LoginScreen({ onAuthSuccess }: LoginScreenProps): React.JSX.Elem
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.appName, { color: colors.primary }]}>VibeFlow</Text>
+            {/* Remote server badge */}
+            {!/localhost|127\.0\.0\.1|192\.168\.|10\.\d|172\.(1[6-9]|2\d|3[01])\./.test(serverUrl) && (
+              <View style={styles.remoteBadge}>
+                <Text style={styles.remoteBadgeText}>
+                  远程: {(() => { try { return new URL(serverUrl).host; } catch { return serverUrl; } })()}
+                </Text>
+              </View>
+            )}
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </Text>
@@ -322,6 +330,18 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     marginTop: 8,
+  },
+  remoteBadge: {
+    backgroundColor: '#3B82F620',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  remoteBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
   form: {
     borderRadius: 16,

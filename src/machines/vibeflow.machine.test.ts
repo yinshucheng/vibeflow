@@ -367,6 +367,15 @@ describe('VibeFlow 3-State Machine', () => {
 
       expect(actor.getSnapshot().value).toBe('idle');
     });
+
+    it('should NOT increment overRestExitCount (system-initiated, not user-initiated)', () => {
+      const actor = createOverRestActor();
+      const exitCountBefore = actor.getSnapshot().context.overRestExitCount;
+
+      actor.send({ type: 'WORK_TIME_ENDED' });
+
+      expect(actor.getSnapshot().context.overRestExitCount).toBe(exitCountBefore);
+    });
   });
 
   describe('OVER_REST → IDLE (DAILY_RESET)', () => {

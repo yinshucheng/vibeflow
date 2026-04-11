@@ -175,7 +175,10 @@ Production runs on Alibaba Cloud ECS via Docker. Key commands:
 ```bash
 ./deploy/deploy.sh              # Deploy to production (one command)
 ./scripts/start-remote.sh ios   # Start iOS connected to remote server
-./scripts/start-remote.sh desktop  # Start Desktop connected to remote server
+./scripts/start-remote.sh desktop  # Start Desktop connected to remote server (dev mode)
+
+# Desktop release build (packaged .app auto-connects to remote server)
+cd vibeflow-desktop && npm run build:mac && open release/mac-arm64/VibeFlow.app
 ```
 
 Local `npm run dev` connects to local DB — isolated from production.
@@ -243,10 +246,12 @@ Each spec has a status label. When working on a spec, update the table below.
 | `public-network-deployment` | requirements | Public network deployment plan |
 | `state-aware-enforcement` | requirements | State-aware enforcement rules |
 | `task-categorization` | requirements | Task categorization system |
-| `pomodoro-state-transition` | requirements | Architecture refactor docs |
+| `pomodoro-state-transition` | deprecated | Superseded by state-management-overhaul |
+| `state-management-overhaul` | not-started | 状态管理系统重构：3 状态模型、统一转换引擎、OVER_REST 显式化 |
 | `ios-screen-time` | requirements | Has design + pipeline config, no tasks |
 | `mobile-app` | deprecated | Superseded by ios-mvp |
 | `dashboard-command-center` | not-started | Dashboard 指挥部改造，内嵌番茄钟+任务操作 |
+| `work-rhythm-enhancement` | tested | OVER_REST 一致性、UI 显示修复、加班模式、健康提醒、跨客户端通知 |
 
 ## Environment Setup
 

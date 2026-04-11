@@ -487,3 +487,32 @@ describe('storePendingConfirmation + handleToolConfirmation', () => {
     expect(result.error?.code).toBe('NOT_FOUND');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tool Schema Compatibility — no nullable types (LLM provider compat)
+// ---------------------------------------------------------------------------
+
+describe('tool schema LLM provider compatibility', () => {
+  it('should not use nullable types in tool schemas (Kimi/Moonshot rejects them)', () => {
+    // Bug: Zod .nullable() generates JSON Schema "type": ["string", "null"]
+    // which Kimi API rejects with "invalid scalar type [string null]".
+    // All tool schemas should use .optional() instead of .nullable().
+    const defs = getChatToolDefinitions();
+    for (const def of defs) {
+      const jsonSchema = JSON.stringify(def.inputSchema);
+      // Check that no schema contains nullable union types like ["string","null"]
+      expect(jsonSchema).not.toContain('"nullable":true');
+      // Also verify through Zod's internal shape: walk the schema to find .nullable()
+      if (def.inputSchema._def?.typeName === 'ZodObject') {
+        const shape = def.inputSchema.shape;
+        for (const [fieldName, fieldSchema] of Object.entries(shape)) {
+          const innerDef = (fieldSchema as { _def?: { typeName?: string } })._def;
+          expect(
+            innerDef?.typeName,
+            `${def.name}.${fieldName} uses ZodNullable — change to .optional() for LLM provider compatibility`
+          ).not.toBe('ZodNullable');
+        }
+      }
+    }
+  });
+});

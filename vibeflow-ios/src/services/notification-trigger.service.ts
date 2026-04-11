@@ -27,6 +27,7 @@ interface PreviousState {
   dailyState: DailyStateData['state'] | null;
   activePomodoro: ActivePomodoroData | null;
   completedPomodoros: number;
+  healthLimitType: string | null;
 }
 
 // =============================================================================
@@ -40,7 +41,9 @@ class NotificationTriggerService {
     dailyState: null,
     activePomodoro: null,
     completedPomodoros: 0,
+    healthLimitType: null,
   };
+  private healthLimitTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Initialize the notification trigger service.
@@ -81,7 +84,13 @@ class NotificationTriggerService {
       dailyState: null,
       activePomodoro: null,
       completedPomodoros: 0,
+      healthLimitType: null,
     };
+
+    if (this.healthLimitTimer) {
+      clearInterval(this.healthLimitTimer);
+      this.healthLimitTimer = null;
+    }
 
     this.isInitialized = false;
     console.log('[NotificationTrigger] Cleaned up');
@@ -108,6 +117,7 @@ class NotificationTriggerService {
       dailyState: currentState.dailyState?.state ?? null,
       activePomodoro: currentState.activePomodoro,
       completedPomodoros: currentState.dailyState?.completedPomodoros ?? 0,
+      healthLimitType: null,
     };
 
     // Subscribe to store changes
@@ -136,11 +146,15 @@ class NotificationTriggerService {
     // Requirements: 8.3 - WHEN rest period ends on server
     this.checkRestPeriodEnd(currentDailyState);
 
+    // Check for health limit notifications
+    this.checkHealthLimit(state);
+
     // Update previous state
     this.previousState = {
       dailyState: currentDailyState,
       activePomodoro: currentPomodoro,
       completedPomodoros: currentCompletedPomodoros,
+      healthLimitType: this.previousState.healthLimitType,
     };
   }
 
@@ -211,6 +225,57 @@ class NotificationTriggerService {
     if (restEnded) {
       console.log('[NotificationTrigger] Rest period ended, sending notification');
       this.triggerRestCompleteNotification();
+    }
+  }
+
+  /**
+   * Check if health limit has been reached and trigger notification.
+   */
+  private checkHealthLimit(state: AppState): void {
+    const policy = (state as { policy?: { healthLimit?: { type: string; message: string; repeating?: boolean; intervalMinutes?: number } } }).policy;
+    const healthLimit = policy?.healthLimit;
+
+    if (healthLimit) {
+      if (healthLimit.type !== this.previousState.healthLimitType) {
+        // New or changed health limit — send notification
+        this.triggerHealthLimitNotification(healthLimit.message);
+        this.previousState.healthLimitType = healthLimit.type;
+
+        // Clear existing repeat timer
+        if (this.healthLimitTimer) {
+          clearInterval(this.healthLimitTimer);
+          this.healthLimitTimer = null;
+        }
+
+        // Set up repeating notifications if configured
+        if (healthLimit.repeating) {
+          const intervalMs = (healthLimit.intervalMinutes ?? 10) * 60 * 1000;
+          this.healthLimitTimer = setInterval(() => {
+            this.triggerHealthLimitNotification(healthLimit.message);
+          }, intervalMs);
+        }
+      }
+    } else {
+      this.previousState.healthLimitType = null;
+      if (this.healthLimitTimer) {
+        clearInterval(this.healthLimitTimer);
+        this.healthLimitTimer = null;
+      }
+    }
+  }
+
+  /**
+   * Trigger health limit notification.
+   */
+  private async triggerHealthLimitNotification(message: string): Promise<void> {
+    try {
+      await notificationService.scheduleNotification({
+        title: '⏰ Health Reminder',
+        body: message,
+        data: { type: 'health_limit' },
+      });
+    } catch (error) {
+      console.error('[NotificationTrigger] Failed to show health limit notification:', error);
     }
   }
 

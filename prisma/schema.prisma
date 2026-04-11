@@ -171,8 +171,10 @@ model UserSettings {
   sleepEnforcementActions String[]           @default(["force_quit"])  // Actions for SLEEP state
 
   // Health Limits Configuration
-  healthLimit2Hours       Int                @default(110) // 2-hour pomodoro time limit (minutes)
-  healthLimitDaily        Int                @default(600) // Daily pomodoro time limit (minutes, 10 hours)
+  healthLimit2Hours          Int                @default(110) // 2-hour pomodoro time limit (minutes)
+  healthLimitDaily           Int                @default(600) // Daily pomodoro time limit (minutes, 10 hours)
+  healthNotificationsEnabled Boolean            @default(true) // Whether health reminders are enabled
+  overWorkReminderInterval   Int                @default(10)   // Minutes between repeated health reminders
 
   // Skip Token Configuration
   skipTokenWeeklyLimit    Int                @default(5)   // Weekly skip token quota
@@ -607,8 +609,9 @@ model FocusSession {
   actualEndTime    DateTime?
   duration         Int       // planned duration in minutes (15-240)
   status           String    @default("active") // 'active' | 'completed' | 'cancelled'
-  overridesSleepTime Boolean @default(false)
-  createdAt        DateTime  @default(now())
+  overridesSleepTime  Boolean @default(false)
+  overridesWorkHours Boolean @default(false)
+  createdAt          DateTime  @default(now())
 
   sleepExemptions  SleepExemption[]
 

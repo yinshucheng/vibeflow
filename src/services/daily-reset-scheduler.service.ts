@@ -9,9 +9,11 @@
  * and execute the necessary reset operations.
  */
 
+import prisma from '@/lib/prisma';
 import { entertainmentService } from './entertainment.service';
 import { mcpEventService } from './mcp-event.service';
 import { chatArchiveService } from './chat-archive.service';
+import { stateEngineService } from './state-engine.service';
 
 // ============================================================================
 // Constants
@@ -19,6 +21,8 @@ import { chatArchiveService } from './chat-archive.service';
 
 const DAILY_RESET_HOUR = 4; // 04:00 AM
 const CHECK_INTERVAL_MS = 60 * 1000; // Check every minute
+
+const STATE_TRANSITION_LOG_RETENTION_DAYS = 30;
 
 // ============================================================================
 // Types
@@ -28,6 +32,18 @@ interface SchedulerState {
   isRunning: boolean;
   lastResetDate: string | null;
   intervalId: ReturnType<typeof setInterval> | null;
+}
+
+// Late-bound function to get connected user IDs (registered by socket-init at startup)
+type GetConnectedUserIds = () => string[];
+let getConnectedUserIds: GetConnectedUserIds | null = null;
+
+/**
+ * Register the function to get connected user IDs (called by socket-init at startup).
+ * Avoids circular dependency with socket server module.
+ */
+export function registerConnectedUserIdsProvider(provider: GetConnectedUserIds): void {
+  getConnectedUserIds = provider;
 }
 
 // ============================================================================

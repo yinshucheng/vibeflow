@@ -14,6 +14,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui';
 import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
+import { isWithinWorkHours } from '@/services/idle.service';
+import type { WorkTimeSlot } from '@/services/user.service';
 
 // Preset durations in minutes (Requirements: 7.1)
 const PRESET_DURATIONS = [
@@ -59,6 +61,31 @@ export function FocusSessionControl({
 
   // Get duration config
   const { data: durationConfig } = trpc.focusSession.getDurationConfig.useQuery();
+
+  // Get user settings to detect work hours
+  const { data: userSettings } = trpc.settings.get.useQuery();
+
+  // Tick every minute so outsideWorkHours updates at time boundaries
+  const [minuteTick, setMinuteTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setMinuteTick((t) => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const outsideWorkHours = useMemo(() => {
+    void minuteTick; // force re-evaluation on minute tick
+    if (!userSettings) return false;
+    const s = userSettings as { workTimeSlots?: WorkTimeSlot[] | string };
+    let slots: WorkTimeSlot[] = [];
+    if (s.workTimeSlots) {
+      if (typeof s.workTimeSlots === 'string') {
+        try { slots = JSON.parse(s.workTimeSlots); } catch { /* empty */ }
+      } else if (Array.isArray(s.workTimeSlots)) {
+        slots = s.workTimeSlots;
+      }
+    }
+    return slots.length > 0 && !isWithinWorkHours(slots);
+  }, [userSettings, minuteTick]);
 
   // Mutations
   const startMutation = trpc.focusSession.startSession.useMutation({
@@ -152,7 +179,11 @@ export function FocusSessionControl({
   const handleStart = async (duration: number, overrideSleepTime = false) => {
     try {
       setPendingDuration(duration);
-      await startMutation.mutateAsync({ duration, overrideSleepTime });
+      await startMutation.mutateAsync({
+        duration,
+        overrideSleepTime,
+        overrideWorkHours: outsideWorkHours,
+      });
     } catch (error) {
       // Error handling is done in onError callback
       console.error('Failed to start focus session:', error);
@@ -163,7 +194,11 @@ export function FocusSessionControl({
   const handleConfirmSleepOverride = async () => {
     if (pendingDuration !== null) {
       try {
-        await startMutation.mutateAsync({ duration: pendingDuration, overrideSleepTime: true });
+        await startMutation.mutateAsync({
+          duration: pendingDuration,
+          overrideSleepTime: true,
+          overrideWorkHours: outsideWorkHours,
+        });
       } catch (error) {
         console.error('Failed to start focus session with sleep override:', error);
       }
@@ -266,6 +301,9 @@ export function FocusSessionControl({
           {activeSession.overridesSleepTime && (
             <span className="text-xs text-notion-accent-orange ml-1">(overriding sleep time)</span>
           )}
+          {(activeSession as { overridesWorkHours?: boolean }).overridesWorkHours && (
+            <span className="text-xs text-notion-accent-orange ml-1">(overtime)</span>
+          )}
         </div>
 
         {/* Timer Display */}
@@ -356,9 +394,15 @@ export function FocusSessionControl({
     <div className={`flex flex-col items-center gap-4 ${compact ? 'py-4' : 'py-6'}`}>
       {/* Icon and Title */}
       <div className="text-center">
-        <GoalIcon className="w-10 h-10 mx-auto text-notion-accent-blue" />
-        <h3 className="mt-2 font-medium text-notion-text">Start Focus Session</h3>
-        <p className="text-sm text-notion-text-secondary">Block distractions and stay focused</p>
+        <GoalIcon className={`w-10 h-10 mx-auto ${outsideWorkHours ? 'text-notion-accent-orange' : 'text-notion-accent-blue'}`} />
+        <h3 className="mt-2 font-medium text-notion-text">
+          {outsideWorkHours ? 'Start Overtime Session' : 'Start Focus Session'}
+        </h3>
+        <p className="text-sm text-notion-text-secondary">
+          {outsideWorkHours
+            ? 'Outside work hours — enables OVER_REST protection'
+            : 'Block distractions and stay focused'}
+        </p>
       </div>
 
       {/* Preset Duration Buttons (Requirements: 7.1, 7.2) */}

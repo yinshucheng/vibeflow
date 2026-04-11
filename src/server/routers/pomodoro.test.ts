@@ -46,7 +46,6 @@ import { stateEngineService } from '@/services/state-engine.service';
 vi.mock('@/services/daily-state.service', () => ({
   dailyStateService: {
     isDailyCapped: vi.fn(),
-    updateSystemState: vi.fn(),
   },
 }));
 
@@ -69,7 +68,6 @@ const mockPomodoroService = pomodoroService as unknown as {
 
 const mockDailyStateService = dailyStateService as unknown as {
   isDailyCapped: ReturnType<typeof vi.fn>;
-  updateSystemState: ReturnType<typeof vi.fn>;
 };
 
 const mockStateEngineService = stateEngineService as unknown as {
@@ -85,7 +83,6 @@ describe('pomodoroRouter - Multi-task endpoints', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDailyStateService.isDailyCapped.mockResolvedValue({ success: true, data: false });
-    mockDailyStateService.updateSystemState.mockResolvedValue({ success: true });
     mockStateEngineService.send.mockResolvedValue({ success: true, from: 'idle', to: 'focus', event: 'START_POMODORO' });
   });
 

@@ -21,7 +21,13 @@ class ServerConfigService {
     if (this.cachedUrl !== null) return this.cachedUrl;
 
     try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      let stored = await AsyncStorage.getItem(STORAGE_KEY);
+      // Migrate legacy port 7080 → 4000 (frp tunnel replaced by direct Nginx proxy)
+      if (stored && stored.includes(':7080')) {
+        stored = stored.replace(':7080', ':4000');
+        await AsyncStorage.setItem(STORAGE_KEY, stored);
+        console.log('[ServerConfig] Migrated 7080→4000:', stored);
+      }
       if (stored) {
         console.log('[ServerConfig] Using stored URL:', stored);
         this.cachedUrl = stored;

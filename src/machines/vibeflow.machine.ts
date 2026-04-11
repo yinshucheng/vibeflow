@@ -138,7 +138,19 @@ export const vibeflowMachine = setup({
     returnToIdle: assign(({ context }) => ({
       overRestEnteredAt: null,
       overRestExitCount: context.overRestExitCount + 1,
+      // Clear lastPomodoroEndTime to prevent scheduleOverRestTimer from
+      // immediately re-entering OVER_REST (the old timestamp would make
+      // remaining <= 0, triggering an instant ENTER_OVER_REST loop).
+      lastPomodoroEndTime: null,
     })),
+
+    // System-initiated exit from OVER_REST (work time ended, daily reset).
+    // Does NOT increment overRestExitCount — only user-initiated exits count.
+    exitOverRest: assign({
+      overRestEnteredAt: () => null,
+      // Clear lastPomodoroEndTime — same reason as returnToIdle above.
+      lastPomodoroEndTime: () => null,
+    }),
 
     resetDaily: assign({
       todayPomodoroCount: () => 0,
@@ -243,7 +255,8 @@ export const vibeflowMachine = setup({
         WORK_TIME_ENDED: {
           target: 'idle',
           // No guard — unconditional when work time ends
-          actions: 'returnToIdle',
+          // Uses exitOverRest (not returnToIdle) to avoid incrementing overRestExitCount
+          actions: 'exitOverRest',
         },
         DAILY_RESET: {
           target: 'idle',

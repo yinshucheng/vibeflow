@@ -84,7 +84,7 @@ const updateTaskSchema = z.object({
   description: z.string().optional().describe('New description for the task'),
   priority: z.enum(['P1', 'P2', 'P3']).optional().describe('New priority level'),
   estimated_minutes: z.number().optional().describe('Estimated time in minutes'),
-  plan_date: z.string().nullable().optional().describe('Plan date in ISO format (YYYY-MM-DD) or null to clear'),
+  plan_date: z.string().optional().describe('Plan date in ISO format (YYYY-MM-DD) or omit to clear'),
 });
 
 const getTaskSchema = z.object({
@@ -110,12 +110,12 @@ const quickCreateInboxTaskSchema = z.object({
 // S1.2 Pomodoro control schemas
 const switchTaskSchema = z.object({
   pomodoro_id: z.string().describe('The UUID of the active pomodoro'),
-  new_task_id: z.string().nullable().describe('The UUID of the task to switch to, or null for taskless'),
+  new_task_id: z.string().optional().describe('The UUID of the task to switch to, or omit for taskless'),
 });
 
 const completeCurrentTaskSchema = z.object({
   pomodoro_id: z.string().describe('The UUID of the active pomodoro'),
-  next_task_id: z.string().nullable().optional().describe('Optional task to switch to after completing current task'),
+  next_task_id: z.string().optional().describe('Optional task to switch to after completing current task'),
 });
 
 const startTasklessPomodoroSchema = z.object({
@@ -151,7 +151,7 @@ const batchUpdateTasksSchema = z.object({
 
 const setPlanDateSchema = z.object({
   task_id: z.string().describe('The UUID of the task'),
-  plan_date: z.string().nullable().describe('Plan date in ISO format (YYYY-MM-DD) or null to clear'),
+  plan_date: z.string().optional().describe('Plan date in ISO format (YYYY-MM-DD) or omit to clear'),
 });
 
 const moveTaskSchema = z.object({
@@ -397,7 +397,7 @@ async function executeSwitchTask(userId: string, params: Record<string, unknown>
     return { success: false, error: { code: 'NOT_FOUND', message: 'Active pomodoro not found' } };
   }
   const currentSliceId = pomodoro.timeSlices[0]?.id ?? null;
-  const result = await timeSliceService.switchTask(pomodoro_id, currentSliceId, new_task_id);
+  const result = await timeSliceService.switchTask(pomodoro_id, currentSliceId, new_task_id ?? null);
   if (!result.success) {
     return { success: false, error: result.error ?? { code: 'INTERNAL_ERROR', message: 'Failed to switch task' } };
   }

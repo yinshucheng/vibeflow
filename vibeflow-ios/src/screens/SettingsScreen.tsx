@@ -28,6 +28,7 @@ import {
 } from '@/store/app.store';
 import { blockingService } from '@/services/blocking.service';
 import { screenTimeService } from '@/services/screen-time.service';
+import { notificationTriggerService } from '@/services/notification-trigger.service';
 import { serverConfigService } from '@/services/server-config.service';
 import { websocketService } from '@/services/websocket.service';
 import { useTheme } from '@/theme';
@@ -284,7 +285,7 @@ export function SettingsScreen(): React.JSX.Element {
 
   // Preset server URLs for quick switching
   const SERVER_PRESETS = [
-    { label: '公网 (frp)', url: 'http://39.105.213.147:7080' },
+    { label: '公网', url: 'http://39.105.213.147:4000' },
     { label: '本地开发', url: `http://${process.env.EXPO_PUBLIC_SERVER_HOST || '172.20.10.4'}:3000` },
     { label: '自定义...', url: '__custom__' },
   ];
@@ -413,7 +414,7 @@ export function SettingsScreen(): React.JSX.Element {
       return;
     }
     if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-      Alert.alert('格式错误', '请输入完整地址，如 http://39.105.213.147:7080');
+      Alert.alert('格式错误', '请输入完整地址，如 http://39.105.213.147:4000');
       return;
     }
     await serverConfigService.setServerUrl(trimmed);
@@ -601,6 +602,23 @@ export function SettingsScreen(): React.JSX.Element {
           {/* Current server URL display */}
           <Row label="当前地址" value={serverUrl} />
           <Row label="连接状态" value={connectionStatusText[connectionStatus]} isLast />
+        </Section>
+
+        {/* Notification Section */}
+        <Section title="通知">
+          <Row
+            label="通知权限"
+            value={notificationTriggerService.isReady() ? '已开启' : '未初始化'}
+          />
+          <TouchableOpacity
+            onPress={() => {
+              import('react-native').then(({ Linking }) => {
+                Linking.openSettings();
+              });
+            }}
+          >
+            <Row label="打开系统设置" value=">" isLast />
+          </TouchableOpacity>
         </Section>
 
         {/* App Info Section */}

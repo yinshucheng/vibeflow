@@ -17,6 +17,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useSocket } from '@/hooks/use-socket';
 import { normalizeState, type SystemState } from '@/lib/state-utils';
+import { RESTING_WINDOW_MINUTES } from '@/services/tray-integration.service';
 
 /**
  * Pomodoro workflow phases
@@ -220,13 +221,26 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
         console.log('[PomodoroMachine] Phase -> resting (systemState:', systemState, ')');
         setPhase('resting');
       }
+    } else if (systemState === 'idle' && dailyState?.lastPomodoroEndTime) {
+      // Auto-enter resting phase if a pomodoro was recently completed (within 30 min)
+      const endTime = new Date(dailyState.lastPomodoroEndTime).getTime();
+      const elapsedMinutes = (Date.now() - endTime) / 60000;
+      if (elapsedMinutes < RESTING_WINDOW_MINUTES) {
+        if (phase !== 'resting') {
+          console.log('[PomodoroMachine] Phase -> resting (recent pomodoro completion, elapsed:', Math.round(elapsedMinutes), 'min)');
+          setPhase('resting');
+        }
+      } else if (phase !== 'idle') {
+        console.log('[PomodoroMachine] Phase -> idle (systemState:', systemState, ')');
+        setPhase('idle');
+      }
     } else {
       if (phase !== 'idle') {
         console.log('[PomodoroMachine] Phase -> idle (systemState:', systemState, ')');
         setPhase('idle');
       }
     }
-  }, [isLoading, currentPomodoro, systemState, phase, userIntentPhase]);
+  }, [isLoading, currentPomodoro, systemState, phase, userIntentPhase, dailyState?.lastPomodoroEndTime]);
 
   // Refresh data when WebSocket state changes
   useEffect(() => {

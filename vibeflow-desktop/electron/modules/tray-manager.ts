@@ -37,10 +37,14 @@ export interface TrayMenuState {
   appMode?: AppMode;
   /** Whether demo mode is active */
   isInDemoMode?: boolean;
+  /** Whether connected to a remote server (via VIBEFLOW_SERVER_URL) */
+  isRemoteMode?: boolean;
+  /** Remote server URL (e.g. http://39.105.213.147:4000) */
+  serverUrl?: string;
 
   // New fields for enhanced functionality
   /** Current system state for non-pomodoro display */
-  systemState: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
+  systemState: 'READY' | 'RESTING' | 'FOCUS' | 'OVER_REST';
   /** Rest countdown time in MM:SS format (pre-formatted) */
   restTimeRemaining?: string;
   /** Over-rest duration display (e.g., "15 min") (pre-formatted) */
@@ -99,7 +103,7 @@ export interface PomodoroStateEvent {
 export interface SystemStateEvent {
   type: 'system:stateChange';
   payload: {
-    state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
+    state: 'READY' | 'RESTING' | 'FOCUS' | 'OVER_REST';
     restTimeRemaining?: string; // Pre-formatted MM:SS
     overRestDuration?: string; // Pre-formatted duration (e.g., "15 min")
   };
@@ -142,7 +146,7 @@ export class TrayManager {
       appMode: modeResult.mode,
       isInDemoMode: modeResult.isInDemoMode,
       // Initialize new fields
-      systemState: 'PLANNING', // Default to PLANNING state
+      systemState: 'READY', // Default to READY state
       restTimeRemaining: undefined,
       overRestDuration: undefined,
     };
@@ -175,12 +179,13 @@ export class TrayManager {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) {
       return;
     }
-    
+
     const modeDetector = getModeDetector();
     const suffix = modeDetector.getWindowTitleSuffix();
     const baseTitle = 'VibeFlow';
-    
-    this.mainWindow.setTitle(baseTitle + suffix);
+    const remoteSuffix = this.menuState.isRemoteMode ? ' [远程]' : '';
+
+    this.mainWindow.setTitle(baseTitle + suffix + remoteSuffix);
   }
 
   /**
@@ -378,15 +383,17 @@ export class TrayManager {
    * Requirements: 2.4, 6.5, 10.5, 2.1-2.4, 8.1-8.3
    */
   private buildMenuTemplate(): MenuItemConstructorOptions[] {
-    const { 
-      pomodoroActive, 
-      pomodoroTimeRemaining, 
+    const {
+      pomodoroActive,
+      pomodoroTimeRemaining,
       currentTask,
       isWithinWorkHours,
       skipTokensRemaining,
       enforcementMode,
       appMode,
       isInDemoMode,
+      isRemoteMode,
+      serverUrl,
       systemState,
       restTimeRemaining,
       overRestDuration,
@@ -396,19 +403,30 @@ export class TrayManager {
 
     // App name header with mode indicator
     // Requirements: 2.4, 6.5, 10.5
+    const remoteSuffix = isRemoteMode ? ' [远程]' : '';
     let headerLabel = 'VibeFlow';
     if (isInDemoMode) {
-      headerLabel = '🟣 VibeFlow [DEMO MODE]';
+      headerLabel = '🟣 VibeFlow [DEMO MODE]' + remoteSuffix;
     } else if (appMode === 'development') {
-      headerLabel = '🟢 VibeFlow [DEV MODE]';
+      headerLabel = '🟢 VibeFlow [DEV MODE]' + remoteSuffix;
     } else if (appMode === 'staging') {
-      headerLabel = '🟠 VibeFlow [STAGING]';
+      headerLabel = '🟠 VibeFlow [STAGING]' + remoteSuffix;
+    } else if (isRemoteMode) {
+      headerLabel = '🔵 VibeFlow [远程]';
     }
-    
+
     template.push({
       label: headerLabel,
       enabled: false,
     });
+
+    // Show server URL when in remote mode
+    if (isRemoteMode && serverUrl) {
+      template.push({
+        label: `   ${serverUrl}`,
+        enabled: false,
+      });
+    }
 
     template.push({ type: 'separator' });
 
@@ -433,21 +451,21 @@ export class TrayManager {
       // System state display when no pomodoro is active
       // Requirements: 2.1-2.4, 8.1-8.3
       switch (systemState) {
-        case 'PLANNING':
+        case 'READY':
           template.push({
-            label: '📋 Planning',
+            label: '✅ Ready',
             enabled: false,
           });
           break;
-        case 'REST':
+        case 'RESTING':
           if (restTimeRemaining) {
             template.push({
-              label: `☕ Rest (${restTimeRemaining} elapsed)`,
+              label: `☕ Resting (${restTimeRemaining})`,
               enabled: false,
             });
           } else {
             template.push({
-              label: '☕ Rest Mode',
+              label: '☕ Resting',
               enabled: false,
             });
           }
@@ -464,12 +482,6 @@ export class TrayManager {
               enabled: false,
             });
           }
-          break;
-        case 'LOCKED':
-          template.push({
-            label: '🔒 Locked',
-            enabled: false,
-          });
           break;
         case 'FOCUS':
           // FOCUS state should typically have an active pomodoro, but handle edge case
@@ -598,19 +610,21 @@ export class TrayManager {
   private updateTooltip(): void {
     if (!this.tray) return;
 
-    const { 
-      pomodoroActive, 
-      pomodoroTimeRemaining, 
-      currentTask, 
-      isInDemoMode, 
+    const {
+      pomodoroActive,
+      pomodoroTimeRemaining,
+      currentTask,
+      isInDemoMode,
       appMode,
+      isRemoteMode,
+      serverUrl,
       systemState,
       restTimeRemaining,
       overRestDuration,
     } = this.menuState;
 
     let tooltip = 'VibeFlow';
-    
+
     // Add mode suffix to tooltip
     // Requirements: 10.5
     const modeDetector = getModeDetector();
@@ -625,14 +639,14 @@ export class TrayManager {
       // System state display when no pomodoro is active
       // Requirements: 1.3, 8.3
       switch (systemState) {
-        case 'PLANNING':
-          tooltip = 'VibeFlow - Planning';
+        case 'READY':
+          tooltip = 'VibeFlow - Ready';
           break;
-        case 'REST':
+        case 'RESTING':
           if (restTimeRemaining) {
-            tooltip = `VibeFlow - Rest (${restTimeRemaining} elapsed)`;
+            tooltip = `VibeFlow - Resting (${restTimeRemaining})`;
           } else {
-            tooltip = 'VibeFlow - Rest Mode';
+            tooltip = 'VibeFlow - Resting';
           }
           break;
         case 'OVER_REST':
@@ -642,15 +656,12 @@ export class TrayManager {
             tooltip = 'VibeFlow - Over Rest';
           }
           break;
-        case 'LOCKED':
-          tooltip = 'VibeFlow - Locked';
-          break;
         case 'FOCUS':
           tooltip = 'VibeFlow - Focus Mode';
           break;
       }
     }
-    
+
     // Add demo mode indicator
     // Requirements: 6.5
     if (isInDemoMode) {
@@ -659,6 +670,11 @@ export class TrayManager {
       tooltip += '\n🟢 Development Mode';
     } else if (appMode === 'staging') {
       tooltip += '\n🟠 Staging Mode';
+    }
+
+    // Add remote mode indicator
+    if (isRemoteMode && serverUrl) {
+      tooltip += `\n🔵 远程: ${serverUrl}`;
     }
 
     this.tray.setToolTip(tooltip);
@@ -706,7 +722,7 @@ export class TrayManager {
           // Focus without active pomodoro (shouldn't happen often)
           title = currentTask ? `🎯 ${currentTask}` : '🎯 专注中';
           break;
-        case 'REST':
+        case 'RESTING': {
           // Show rest time + progress + fun tips
           const restTips = [
             '站起来活动一下',
@@ -724,6 +740,7 @@ export class TrayManager {
             title = `☕ ${restTips[restTipIndex]}`;
           }
           break;
+        }
         case 'OVER_REST':
           // Elon Musk quotes about action (original English)
           if (overRestDuration) {
@@ -739,27 +756,19 @@ export class TrayManager {
             title = '⚠️ 休息超时了';
           }
           break;
-        case 'PLANNING':
-          const planningTips = [
+        case 'READY': {
+          const readyTips = [
             '选择最重要的任务',
             '一次只做一件事',
             '先完成最难的',
             '设定清晰的目标',
           ];
-          const planTipIndex = Math.floor(Date.now() / 30000) % planningTips.length;
+          const readyTipIndex = Math.floor(Date.now() / 30000) % readyTips.length;
           title = dailyProgress
-            ? `📋 ${dailyProgress} ${planningTips[planTipIndex]}`
-            : `📋 ${planningTips[planTipIndex]}`;
+            ? `✅ ${dailyProgress} ${readyTips[readyTipIndex]}`
+            : `✅ ${readyTips[readyTipIndex]}`;
           break;
-        case 'LOCKED':
-          const lockedTips = [
-            '新的一天，新的开始',
-            '准备好迎接挑战了吗？',
-            '今天要完成什么？',
-          ];
-          const lockedTipIndex = Math.floor(Date.now() / 30000) % lockedTips.length;
-          title = `🔒 ${lockedTips[lockedTipIndex]}`;
-          break;
+        }
       }
     }
 

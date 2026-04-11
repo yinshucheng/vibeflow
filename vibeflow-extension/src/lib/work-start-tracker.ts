@@ -1,9 +1,9 @@
 /**
  * Work Start Tracker
- * 
- * Tracks when users complete Airlock (LOCKED → PLANNING transition) to record work start times.
+ *
+ * Tracks when users start their first pomodoro (IDLE → FOCUS transition) to record work start times.
  * Used to analyze work avoidance patterns and improve discipline.
- * 
+ *
  * Requirements: 14.1, 14.2, 14.10
  */
 
@@ -165,22 +165,22 @@ export class WorkStartTracker {
   }
 
   /**
-   * Handle state change and detect LOCKED → PLANNING transition
+   * Handle state change and detect first IDLE → FOCUS transition (work start)
    * Requirements: 14.1, 14.2, 14.10
    */
   async handleStateChange(newState: SystemState): Promise<void> {
     await this.checkDailyReset();
-    
-    // Detect LOCKED → PLANNING transition (Airlock completion)
-    if (this.previousState === 'LOCKED' && newState === 'PLANNING') {
+
+    // Detect first pomodoro start of the day (IDLE → FOCUS)
+    if (this.previousState === 'IDLE' && newState === 'FOCUS') {
       await this.recordWorkStart();
     }
-    
+
     this.previousState = newState;
   }
 
   /**
-   * Record work start when Airlock is completed
+   * Record work start when first pomodoro is started
    * Requirements: 14.1, 14.2
    */
   private async recordWorkStart(): Promise<void> {

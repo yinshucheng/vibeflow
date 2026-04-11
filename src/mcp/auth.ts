@@ -1,12 +1,13 @@
 /**
  * MCP Authentication Module
- * 
+ *
  * Handles API token authentication for MCP connections.
- * 
+ * Uses tRPC HTTP client instead of direct Prisma access.
+ *
  * Requirements: 9.2
  */
 
-import prisma from '../lib/prisma';
+import { trpcClient } from './trpc-client';
 
 /**
  * MCP Context containing authenticated user information
@@ -27,109 +28,66 @@ export interface AuthResult {
   error?: string;
 }
 
+// In-process cache for userId (avoids repeated whoami calls)
+let cachedContext: MCPContext | null = null;
+
 /**
  * Authenticate an API token and return the user context
- * 
+ *
  * Token format: vibeflow_<userId>_<secret>
  * In development mode, accepts: dev_<email> format
- * 
+ *
  * Requirements: 9.2
  */
 export async function authenticateToken(token?: string): Promise<AuthResult> {
-  // Development mode: allow simplified token format
+  // If we already have a cached context, return it
+  if (cachedContext) {
+    return { success: true, context: cachedContext };
+  }
+
   const isDev = process.env.NODE_ENV === 'development' || process.env.DEV_MODE === 'true';
-  
+
   if (!token) {
     if (isDev) {
-      // In dev mode, use default user if no token provided
-      return authenticateDevUser(process.env.DEV_USER_EMAIL || 'dev@vibeflow.local');
+      return authenticateViaRemote(process.env.DEV_USER_EMAIL || process.env.MCP_USER_EMAIL || 'dev@vibeflow.local');
     }
-    return {
-      success: false,
-      error: 'API token required',
-    };
+    return { success: false, error: 'API token required' };
   }
 
   // Check for dev token format: dev_<email>
   if (isDev && token.startsWith('dev_')) {
     const email = token.substring(4);
-    return authenticateDevUser(email);
+    return authenticateViaRemote(email);
   }
 
   // Production token format: vibeflow_<userId>_<secret>
   if (token.startsWith('vibeflow_')) {
     const parts = token.split('_');
     if (parts.length >= 3) {
-      const userId = parts[1];
-      return authenticateByUserId(userId);
+      // For production tokens, we still call whoami to validate
+      return authenticateViaRemote();
     }
   }
 
-  return {
-    success: false,
-    error: 'Invalid token format',
-  };
+  return { success: false, error: 'Invalid token format' };
 }
 
 /**
- * Authenticate a development user by email
+ * Authenticate by calling the remote server's whoami endpoint
  */
-async function authenticateDevUser(email: string): Promise<AuthResult> {
+async function authenticateViaRemote(email?: string): Promise<AuthResult> {
   try {
-    let user = await prisma.user.findUnique({
-      where: { email },
-    });
+    // The tRPC client already sends x-dev-user-email header from MCP_USER_EMAIL env var
+    // If a specific email is provided, we trust the header set in trpc-client.ts
+    const whoami = await trpcClient.mcpBridge.whoami.query();
 
-    if (!user) {
-      // Create dev user if doesn't exist
-      user = await prisma.user.create({
-        data: {
-          email,
-          password: 'dev_mode_no_password',
-        },
-      });
-    }
-
-    return {
-      success: true,
-      context: {
-        userId: user.id,
-        email: user.email,
-        isAuthenticated: true,
-      },
+    cachedContext = {
+      userId: whoami.userId,
+      email: email || whoami.email,
+      isAuthenticated: true,
     };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Authentication failed',
-    };
-  }
-}
 
-/**
- * Authenticate by user ID (for production tokens)
- */
-async function authenticateByUserId(userId: string): Promise<AuthResult> {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      return {
-        success: false,
-        error: 'User not found',
-      };
-    }
-
-    return {
-      success: true,
-      context: {
-        userId: user.id,
-        email: user.email,
-        isAuthenticated: true,
-      },
-    };
+    return { success: true, context: cachedContext };
   } catch (error) {
     return {
       success: false,

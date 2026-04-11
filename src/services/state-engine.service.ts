@@ -14,11 +14,15 @@ import type { SystemState } from '@/lib/state-utils';
 import { getNextSnapshot } from 'xstate';
 import {
   vibeflowMachine,
+  isEventAllowed,
   type VibeFlowContext,
   type VibeFlowEvent,
 } from '@/machines/vibeflow.machine';
 import { mcpEventService } from './mcp-event.service';
 import { dailyStateService } from './daily-state.service';
+import { isWithinWorkHours } from './idle.service';
+import { focusSessionService } from './focus-session.service';
+import type { WorkTimeSlot } from './user.service';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -171,6 +175,23 @@ function scheduleOverRestTimer(
     try {
       const settings = await prisma.userSettings.findFirst({ where: { userId } });
       const settingsAny = settings as Record<string, unknown> | null;
+
+      // Check work hours and focus session — only schedule when within work hours OR in focus session
+      const workTimeSlots = (settingsAny?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
+      const withinWorkHours = isWithinWorkHours(workTimeSlots);
+      const focusSessionResult = await focusSessionService.isInFocusSession(userId);
+      const inFocusSession = focusSessionResult.success && focusSessionResult.data === true;
+
+      if (!withinWorkHours && !inFocusSession) {
+        return; // Don't schedule OVER_REST outside work hours without focus session
+      }
+
+      // Re-validate state after async operations — user may have started a new pomodoro
+      const currentState = await stateEngineService.getState(userId);
+      if (currentState !== 'idle') {
+        return; // State changed during async queries, abort scheduling
+      }
+
       const shortRestDuration = (settingsAny?.shortRestDuration as number) ?? 5;
       const gracePeriod = (settingsAny?.overRestGracePeriod as number) ?? 5;
       const delayMs = (shortRestDuration + gracePeriod) * 60 * 1000;
@@ -323,10 +344,14 @@ async function send(
 
       // Check if the transition was rejected (same state and not a self-transition event)
       if (nextValue === currentState && !SELF_TRANSITION_EVENTS.has(event.type)) {
+        // Distinguish: is the event defined for this state (guard failed) or not (invalid transition)?
+        const eventHandled = isEventAllowed(currentState, event.type);
         return {
           success: false as const,
-          error: 'INVALID_TRANSITION' as const,
-          message: `Event ${event.type} not allowed in state ${currentState}`,
+          error: eventHandled ? 'GUARD_FAILED' as const : 'INVALID_TRANSITION' as const,
+          message: eventHandled
+            ? `Event ${event.type} rejected by guard in state ${currentState}`
+            : `Event ${event.type} not allowed in state ${currentState}`,
           currentState,
         };
       }

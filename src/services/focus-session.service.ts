@@ -2,6 +2,8 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import type { FocusSession } from '@prisma/client';
 import { sleepTimeService } from './sleep-time.service';
+import { isWithinWorkHours } from './idle.service';
+import type { WorkTimeSlot } from './user.service';
 
 // Duration constraints (Requirements: 1.4)
 const MIN_SESSION_DURATION = 15; // minutes
@@ -17,6 +19,7 @@ export const StartSessionSchema = z.object({
     .min(MIN_SESSION_DURATION, `Duration must be at least ${MIN_SESSION_DURATION} minutes`)
     .max(MAX_SESSION_DURATION, `Duration must be at most ${MAX_SESSION_DURATION} minutes`),
   overrideSleepTime: z.boolean().optional().default(false),
+  overrideWorkHours: z.boolean().optional().default(false),
 });
 
 export const ExtendSessionSchema = z.object({
@@ -93,6 +96,14 @@ export const focusSessionService = {
       const startTime = new Date();
       const plannedEndTime = new Date(startTime.getTime() + validated.duration * 60 * 1000);
 
+      // Server-side validation: only set overridesWorkHours when actually outside work hours
+      let actuallyOverridesWorkHours = false;
+      if (validated.overrideWorkHours) {
+        const settings = await prisma.userSettings.findFirst({ where: { userId } });
+        const workTimeSlots = ((settings as Record<string, unknown> | null)?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
+        actuallyOverridesWorkHours = workTimeSlots.length > 0 && !isWithinWorkHours(workTimeSlots);
+      }
+
       // Create the session (Requirements: 1.1)
       const session = await prisma.focusSession.create({
         data: {
@@ -102,6 +113,7 @@ export const focusSessionService = {
           duration: validated.duration,
           status: 'active',
           overridesSleepTime: isInSleepTime && validated.overrideSleepTime,
+          overridesWorkHours: actuallyOverridesWorkHours,
         },
       });
 

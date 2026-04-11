@@ -479,7 +479,7 @@ export const smartSuggestionService = {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get airlock suggestions',
+          message: error instanceof Error ? error.message : 'Failed to get daily planning suggestions',
         },
       };
     }

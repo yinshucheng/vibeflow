@@ -118,8 +118,8 @@ describe('Property 6: State Transition Logic', () => {
           expect(update.state.pomodoroTimeRemaining).toBeUndefined();
           expect(update.state.currentTask).toBeUndefined();
 
-          // Property: System state should map to PLANNING for 'idle'
-          expect(update.state.systemState).toBe('PLANNING');
+          // Property: System state should map to READY for 'idle' (no lastPomodoroEndTime passed)
+          expect(update.state.systemState).toBe('READY');
 
           // Property: Should clear all rest-related data
           expect(update.state.restTimeRemaining).toBeUndefined();
@@ -295,7 +295,7 @@ describe('Property 6: State Transition Logic', () => {
           expect(lastUpdate.state.currentTask).toBeUndefined();
           
           // Property: System state should be valid
-          expect(['PLANNING', 'FOCUS', 'OVER_REST']).toContain(lastUpdate.state.systemState);
+          expect(['READY', 'RESTING', 'FOCUS', 'OVER_REST']).toContain(lastUpdate.state.systemState);
           
           // Property: Rest-related data should be consistent with system state
           if (lastUpdate.state.systemState === 'OVER_REST') {

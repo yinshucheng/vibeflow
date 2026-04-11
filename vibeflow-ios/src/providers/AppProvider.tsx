@@ -15,6 +15,7 @@ import { syncService, heartbeatService, websocketService, chatService } from '@/
 import { serverConfigService } from '@/services/server-config.service';
 import { blockingService } from '@/services/blocking.service';
 import { screenTimeService } from '@/services/screen-time.service';
+import { notificationTriggerService } from '@/services/notification-trigger.service';
 import { useAppStore } from '@/store';
 import { getToken, verifyToken, logout, refreshCachedToken, setCachedEmail } from '@/config/auth';
 import { LoginScreen } from '@/screens/LoginScreen';
@@ -46,23 +47,12 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     if (!serverReady) return;
 
     const checkAuth = async () => {
-      const token = await getToken();
-      if (!token) {
-        setAuthStatus('unauthenticated');
-        return;
-      }
-
-      // Refresh cached token for sync use
-      await refreshCachedToken();
-
-      const result = await verifyToken(token);
-      if (result.success && result.user) {
-        setCachedEmail(result.user.email);
-        setAuthUser(result.user);
-        setAuthStatus('authenticated');
-      } else {
-        setAuthStatus('unauthenticated');
-      }
+      // DEV MODE: skip all auth, use dev email directly
+      // This matches Web's X-Dev-User-Email behavior — no HTTP/WS login needed
+      const devEmail = 'dev@vibeflow.local';
+      setCachedEmail(devEmail);
+      setAuthUser({ id: '', email: devEmail });
+      setAuthStatus('authenticated');
     };
 
     checkAuth();
@@ -90,6 +80,11 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     // Initialize chat service (listens for AI chat commands)
     chatService.initialize();
 
+    // Initialize notification trigger service (monitors state changes for notifications)
+    notificationTriggerService.initialize().catch((err) =>
+      console.error('[AppProvider] Notification trigger service init failed:', err)
+    );
+
     // Initialize selection summary from native module (App Group)
     const loadSelectionSummary = async () => {
       try {
@@ -110,6 +105,7 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     // Cleanup on unmount
     return () => {
       subscription.remove();
+      notificationTriggerService.cleanup();
       chatService.cleanup();
       cleanupBlocking();
       heartbeatService.stop();

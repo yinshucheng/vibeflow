@@ -29,6 +29,8 @@ import { dailyStateService, getTodayDate } from '@/services/daily-state.service'
 import { stateEngineService } from '@/services/state-engine.service';
 import { chatService } from '@/services/chat.service';
 import { handleToolConfirmation } from '@/services/chat-tools.service';
+import { isWithinWorkHours } from '@/services/idle.service';
+import { focusSessionService } from '@/services/focus-session.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -390,13 +392,21 @@ export class VibeFlowSocketServer {
         for (const userId of connectedUserIds) {
           try {
             const currentState = await stateEngineService.getState(userId);
-            const { isWithinWorkHours } = await import('@/services/idle.service');
+            // isWithinWorkHours and focusSessionService imported at top of file
             const settings = await prisma.userSettings.findFirst({ where: { userId } });
             const workTimeSlots = (settings?.workTimeSlots as unknown as { id: string; startTime: string; endTime: string; enabled: boolean }[]) || [];
             const withinWorkHours = isWithinWorkHours(workTimeSlots);
 
-            if (currentState === 'idle' && withinWorkHours) {
-              // Only attempt ENTER_OVER_REST during work hours and when rest is truly overdue
+            // Check focus session status (used for both entry and exit conditions)
+            const focusSessionResult = await focusSessionService.isInFocusSession(userId);
+            if (!focusSessionResult.success) {
+              // DB error — skip this user to avoid wrong state transitions
+              continue;
+            }
+            const inFocusSession = focusSessionResult.data === true;
+
+            if (currentState === 'idle' && (withinWorkHours || inFocusSession)) {
+              // Attempt ENTER_OVER_REST during work hours OR when in focus session
               const dailyState = await dailyStateService.getOrCreateToday(userId);
               if (dailyState.success && dailyState.data?.lastPomodoroEndTime) {
                 const shortRestDuration = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
@@ -406,8 +416,8 @@ export class VibeFlowSocketServer {
                   await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
                 }
               }
-            } else if (currentState === 'over_rest' && !withinWorkHours) {
-              // Work hours ended — unconditionally exit OVER_REST
+            } else if (currentState === 'over_rest' && !withinWorkHours && !inFocusSession) {
+              // Work hours ended AND no focus session — exit OVER_REST
               await stateEngineService.send(userId, { type: 'WORK_TIME_ENDED' });
             }
             // Always broadcast policy update for iOS UPDATE_POLICY channel
@@ -727,11 +737,13 @@ export class VibeFlowSocketServer {
       if (registerResult.success && registerResult.data) {
         socket.data.clientId = registerResult.data.clientId;
         console.log(`[Socket.io] Registered client: ${registerResult.data.clientId}`);
-        
+
         // Send registration confirmation to client (for desktop/mobile clients)
+        // Include userId so DEV_MODE clients can resolve their identity
         socket.emit('client:registered' as keyof ServerToClientEvents, {
           success: true,
           clientId: registerResult.data.clientId,
+          userId,
         } as never);
       } else {
         console.error('[Socket.io] Failed to register client:', registerResult.error);
