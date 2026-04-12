@@ -156,6 +156,15 @@ export function FocusZone() {
     }
   }, [selectedTaskId, actions]);
 
+  // Start taskless pomodoro handler
+  const handleStartTaskless = useCallback(async () => {
+    try {
+      await actions.startTasklessPomodoro();
+    } catch {
+      // Error is handled by the machine
+    }
+  }, [actions]);
+
   // Sync selected task from active pomodoro's task (when coming back to idle)
   useEffect(() => {
     if (phase === 'idle' && pomodoro?.taskId) {
@@ -263,8 +272,8 @@ export function FocusZone() {
         <Card className="border-notion-border">
           <CardContent>
             <div className="flex flex-col gap-4">
-              {/* Task selector + start button row */}
-              <div className="flex items-end gap-3">
+              {/* Task selector + start buttons row */}
+              <div className="flex items-end gap-2">
                 <div className="flex-1">
                   <TaskSelector
                     tasks={availableTasks}
@@ -281,7 +290,16 @@ export function FocusZone() {
                   className="shrink-0"
                 >
                   <PlayIcon className="w-4 h-4" />
-                  <span className="ml-1.5">Start Focus</span>
+                  <span className="ml-1.5">Start</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleStartTaskless}
+                  disabled={!canStart}
+                  className="shrink-0"
+                >
+                  <Icons.clock className="w-4 h-4" />
+                  <span className="ml-1.5">Focus Time</span>
                 </Button>
               </div>
 
