@@ -4,18 +4,13 @@
  * Home Page / Dashboard — Command Center
  *
  * Single-column layout with priority-ordered sections:
- * 1. Airlock Prompt (conditional)
- * 2. FocusZone — embedded pomodoro controls
- * 3. TodayTaskList — today's tasks with inline actions
- * 4. Auxiliary dual-column: DailyProgressCard + FocusSessionControl
- * 5. Suggestions (collapsible): GoalRiskSuggestions + TaskSuggestions
- *
- * Redirects to Airlock when system is in LOCKED state (respects airlockMode setting).
+ * 1. FocusZone — embedded pomodoro controls
+ * 2. TodayTaskList — today's tasks with inline actions
+ * 3. Auxiliary dual-column: DailyProgressCard + FocusSessionControl
+ * 4. Suggestions (collapsible): GoalRiskSuggestions + TaskSuggestions
  */
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import {
   MainLayout,
   PageHeader,
@@ -32,42 +27,18 @@ import {
   TodayTaskList,
 } from '@/components/dashboard';
 import { TaskDetailPanel } from '@/components/tasks/task-detail-panel';
-import { Button } from '@/components/ui/button';
 import { Icons } from '@/lib/icons';
 import { trpc } from '@/lib/trpc';
-import type { SystemState } from '@/machines/vibeflow.machine';
 
 export default function Home() {
-  const router = useRouter();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const { data: dailyState, isLoading: stateLoading } = trpc.dailyState.getToday.useQuery();
-  const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
-
-  const systemState = dailyState?.systemState?.toLowerCase() as SystemState | undefined;
-  const isLocked = systemState === 'locked';
-  const airlockCompleted = dailyState?.airlockCompleted ?? false;
-  const airlockMode = (settings?.airlockMode ?? 'optional') as 'required' | 'optional' | 'disabled';
-
-  // Redirect to Airlock when system is locked and airlock not completed
-  // Only redirect if airlockMode is 'required'
-  useEffect(() => {
-    if (
-      !stateLoading &&
-      !settingsLoading &&
-      isLocked &&
-      !airlockCompleted &&
-      airlockMode === 'required'
-    ) {
-      router.push('/airlock');
-    }
-  }, [stateLoading, settingsLoading, isLocked, airlockCompleted, airlockMode, router]);
+  const { isLoading: stateLoading } = trpc.dailyState.getToday.useQuery();
 
   const LoaderIcon = Icons.loader;
-  const SunriseIcon = Icons.airlock;
 
   // Show loading while checking state
-  if (stateLoading || settingsLoading) {
+  if (stateLoading) {
     return (
       <MainLayout title="Dashboard">
         <div className="flex items-center justify-center h-64">
@@ -77,26 +48,9 @@ export default function Home() {
     );
   }
 
-  // Show redirect message if locked and required mode
-  if (isLocked && !airlockCompleted && airlockMode === 'required') {
-    return (
-      <MainLayout title="Dashboard">
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <SunriseIcon className="w-10 h-10 text-notion-accent-orange" />
-          <p className="text-notion-text-secondary">Redirecting to Morning Airlock...</p>
-        </div>
-      </MainLayout>
-    );
-  }
-
   return (
     <MainLayout title="Dashboard">
       <PageHeader title="Dashboard" description="Your command center" />
-
-      {/* Airlock prompt (conditional — locked but not required) */}
-      {isLocked && !airlockCompleted && airlockMode === 'optional' && (
-        <AirlockPromptBanner />
-      )}
 
       <div className="space-y-6">
         {/* FocusZone — full width */}
@@ -150,44 +104,5 @@ export default function Home() {
 
       <TaskDetailPanel taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} />
     </MainLayout>
-  );
-}
-
-/** Banner shown when airlock is optional and not yet completed */
-function AirlockPromptBanner() {
-  const utils = trpc.useUtils();
-  const skipMutation = trpc.dailyState.skipAirlock.useMutation({
-    onSuccess: () => {
-      utils.dailyState.getToday.invalidate();
-    },
-  });
-  const SunriseIcon = Icons.airlock;
-
-  return (
-    <div className="mb-6 p-4 bg-notion-accent-purple-bg border border-notion-border rounded-notion-lg">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <SunriseIcon className="w-6 h-6 text-notion-accent-purple" />
-          <div>
-            <h3 className="font-medium text-notion-text">Start your day with intention</h3>
-            <p className="text-sm text-notion-text-secondary">
-              Complete the Morning Airlock to plan your day
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => skipMutation.mutate()}
-            disabled={skipMutation.isPending}
-          >
-            {skipMutation.isPending ? 'Skipping...' : 'Skip'}
-          </Button>
-          <Link href="/airlock">
-            <Button variant="primary">Open Airlock</Button>
-          </Link>
-        </div>
-      </div>
-    </div>
   );
 }

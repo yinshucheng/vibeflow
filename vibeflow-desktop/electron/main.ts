@@ -96,9 +96,11 @@ const store = new Store<{
   hasShownPermissionSetup: boolean;
 }>();
 
-// Detect development mode - true if NODE_ENV is not 'production'
-// This ensures development mode is the default when NODE_ENV is not set
-const IS_DEVELOPMENT = process.env.NODE_ENV !== 'production';
+// Detect development mode:
+// - When running via `npm run dev` (NODE_ENV=development), it's dev mode
+// - When packaged by electron-builder (app.isPackaged=true), it's production
+// - Fallback: NODE_ENV not set + not packaged = dev mode (local `electron .`)
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development' || (!app.isPackaged && process.env.NODE_ENV !== 'production');
 
 // Default configuration
 const DEFAULT_CONFIG: ElectronMainConfig = {
@@ -311,6 +313,15 @@ function createTray(): void {
     console.warn('[Main] TrayManager created without main window reference');
   }
 
+  // Propagate remote mode to tray manager
+  if (isRemoteMode) {
+    const config = store.get('config', DEFAULT_CONFIG);
+    trayManager.updateState({
+      isRemoteMode: true,
+      serverUrl: config.serverUrl,
+    });
+  }
+
   trayManager.create();
   console.log('[Main] System tray created and ready for state updates');
 }
@@ -423,7 +434,7 @@ function startRestTimer(): void {
     pomodoroActive: false,
     pomodoroTimeRemaining: undefined,
     currentTask: undefined,
-    systemState: 'REST',
+    systemState: 'RESTING',
     restTimeRemaining: '+0:00',
     overRestDuration: undefined,
   });
@@ -597,13 +608,13 @@ function setupIpcHandlers(): void {
   
   // Handle system state changes
   ipcMain.on('system:stateChange', (_, payload: {
-    state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
+    state: string; // 3-state model: IDLE/FOCUS/OVER_REST (may also receive legacy values)
     restTimeRemaining?: string; // Pre-formatted MM:SS
     overRestDuration?: string; // Pre-formatted duration (e.g., "15 min")
   }) => {
     console.log('[Main] System state change received:', payload);
     updateTrayMenu({
-      systemState: payload.state,
+      systemState: payload.state as TrayMenuState['systemState'],
       restTimeRemaining: payload.restTimeRemaining,
       overRestDuration: payload.overRestDuration,
     });
@@ -1095,7 +1106,7 @@ app.whenReady().then(async () => {
   }
 
   // Initialize auth manager and authenticate before connecting
-  const authManager = initializeAuthManager({ serverUrl: config.serverUrl });
+  const authManager = initializeAuthManager({ serverUrl: config.serverUrl, isRemoteMode });
   let isAuthenticated = false;
 
   if (authManager.getToken()) {
@@ -1104,8 +1115,13 @@ app.whenReady().then(async () => {
     isAuthenticated = await authManager.validateToken();
   }
 
-  if (!isAuthenticated) {
-    // No valid token — open login window
+  if (!isAuthenticated && config.isDevelopment) {
+    // In development mode, skip login window — the server runs DEV_MODE=true
+    // and socket auth accepts email-only fallback (dev@vibeflow.local).
+    // This avoids blocking the connection when the user dismisses the login window.
+    console.log('[Main] Dev mode — skipping login window, will use email fallback for socket auth');
+  } else if (!isAuthenticated) {
+    // Production: open login window to get a proper API token
     console.log('[Main] No valid token, opening login window…');
     isAuthenticated = await authManager.openLoginWindow();
   }
@@ -1121,7 +1137,7 @@ app.whenReady().then(async () => {
     }
     console.log('[Main] Authenticated as:', authState.email);
   } else {
-    console.warn('[Main] User did not authenticate, connection may fail');
+    console.log('[Main] No auth token — socket will use email fallback');
   }
 
   // Start connection monitoring
@@ -1130,8 +1146,9 @@ app.whenReady().then(async () => {
   // Focus time app monitor for pomodoro/focus session enforcement
   let focusTimeMonitor: AppMonitor | null = null;
 
-  // Track health limit notification to avoid repeating
+  // Track health limit notification timing
   let lastHealthLimitNotified: string | null = null;
+  let healthLimitRepeatTimer: ReturnType<typeof setInterval> | null = null;
 
   // Connect sleep enforcer to policy updates (Requirements: 11.1, 11.2)
   connectionManager.onPolicyUpdate((policy) => {
@@ -1319,19 +1336,45 @@ app.whenReady().then(async () => {
       }
     }
 
-    // Handle health limit notifications (informational, show once per type)
-    if (policy.healthLimit && policy.healthLimit.type !== lastHealthLimitNotified) {
-      getNotificationManager().show({
-        title: '⏰ 健康提醒',
-        body: policy.healthLimit.message,
-        type: 'info',
-        urgency: 'normal',
-      });
-      lastHealthLimitNotified = policy.healthLimit.type;
-      console.log('[Main] Health limit notification shown:', policy.healthLimit.type);
-    }
-    if (!policy.healthLimit) {
+    // Handle health limit notifications with repeating support
+    if (policy.healthLimit) {
+      const hl = policy.healthLimit as { type: string; message: string; repeating?: boolean; intervalMinutes?: number };
+      const intervalMs = (hl.intervalMinutes ?? 10) * 60 * 1000;
+
+      // Show notification on first trigger or type change
+      if (hl.type !== lastHealthLimitNotified) {
+        getNotificationManager().show({
+          title: '⏰ 健康提醒',
+          body: hl.message,
+          type: 'info',
+          urgency: 'normal',
+        });
+        lastHealthLimitNotified = hl.type;
+        console.log('[Main] Health limit notification shown:', hl.type);
+
+        // Set up repeating timer if enabled
+        if (healthLimitRepeatTimer) {
+          clearInterval(healthLimitRepeatTimer);
+          healthLimitRepeatTimer = null;
+        }
+        if (hl.repeating) {
+          healthLimitRepeatTimer = setInterval(() => {
+            getNotificationManager().show({
+              title: '⏰ 健康提醒',
+              body: hl.message,
+              type: 'info',
+              urgency: 'normal',
+            });
+            console.log('[Main] Health limit repeat notification:', hl.type);
+          }, intervalMs);
+        }
+      }
+    } else {
       lastHealthLimitNotified = null;
+      if (healthLimitRepeatTimer) {
+        clearInterval(healthLimitRepeatTimer);
+        healthLimitRepeatTimer = null;
+      }
     }
 
     // Update quit prevention config with work time slots (Requirements: 1.6)
@@ -1354,18 +1397,23 @@ app.whenReady().then(async () => {
     console.log('[Main] Received STATE_CHANGE from server:', state);
 
     // Map server state to tray menu state format
-    const stateMapping: Record<string, 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST'> = {
-      'locked': 'LOCKED',
-      'planning': 'PLANNING',
+    // Server now sends 3-state model (idle/focus/over_rest).
+    // Legacy values mapped for backward compat during transition.
+    const stateMapping: Record<string, 'READY' | 'RESTING' | 'FOCUS' | 'OVER_REST'> = {
+      // New 3-state values (server sends these)
+      'idle': 'READY',          // IDLE maps to READY (rest detection handled by startRestTimer)
+      'IDLE': 'READY',
       'focus': 'FOCUS',
-      'rest': 'REST',
-      'over_rest': 'OVER_REST',
-      // Handle uppercase versions too
-      'LOCKED': 'LOCKED',
-      'PLANNING': 'PLANNING',
       'FOCUS': 'FOCUS',
-      'REST': 'REST',
+      'over_rest': 'OVER_REST',
       'OVER_REST': 'OVER_REST',
+      // Legacy values (may still arrive during transition)
+      'locked': 'READY',
+      'planning': 'READY',
+      'rest': 'READY',
+      'LOCKED': 'READY',
+      'PLANNING': 'READY',
+      'REST': 'READY',
     };
 
     const mappedState = stateMapping[state];
@@ -1379,7 +1427,11 @@ app.whenReady().then(async () => {
       }
 
       // Handle rest timer based on state transitions
-      if (mappedState === 'REST') {
+      // In 3-state model, REST is gone. Start rest timer when transitioning
+      // from FOCUS to non-FOCUS (i.e., IDLE/PLANNING after pomodoro complete).
+      const prevTrayState = getTrayState()?.systemState;
+      const wasInFocus = prevTrayState === 'FOCUS';
+      if (wasInFocus && mappedState !== 'FOCUS' && mappedState !== 'OVER_REST') {
         startRestTimer();
       } else if (mappedState === 'OVER_REST') {
         if (restTimer?.active && !restTimer.isOverRest) {
@@ -1390,11 +1442,14 @@ app.whenReady().then(async () => {
           transitionToOverRest();
         }
       } else {
-        // Any other state: stop rest timer and update tray
+        // Any other state: update tray, but preserve active rest timer
         if (restTimer?.active) {
-          stopRestTimer();
+          // Rest timer is running — don't stop it, don't override tray state
+          // (subsequent idle STATE_CHANGE events should not kill the rest timer)
+          console.log('[Main] Preserving active rest timer, ignoring state:', mappedState);
+        } else {
+          updateTrayMenu({ systemState: mappedState });
         }
-        updateTrayMenu({ systemState: mappedState });
       }
     } else {
       console.warn('[Main] Unknown state received:', state);

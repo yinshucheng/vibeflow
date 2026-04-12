@@ -297,7 +297,7 @@ test.describe('MCP AI-Native Enhancement Event Subscription', () => {
           userId: testUser.id,
           type: 'daily_state.changed',
           payload: {
-            previousState: 'PLANNING',
+            previousState: 'IDLE',
             newState: 'FOCUS',
             timestamp: new Date().toISOString(),
           },

@@ -3,15 +3,16 @@
  * MCP Server Entry Point
  *
  * Run this file to start the VibeFlow MCP server.
+ * Connects to the remote VibeFlow server via tRPC HTTP client.
  *
  * Usage:
- *   npx ts-node src/mcp/run.ts
+ *   npx tsx src/mcp/run.ts
  *   # or after building:
  *   node dist/mcp/run.js
  */
 
 import { startMCPServer } from './server';
-import { prisma } from '@/lib/prisma';
+import { trpcClient, serverUrl } from './trpc-client';
 
 let isShuttingDown = false;
 
@@ -20,12 +21,6 @@ async function shutdown(reason: string): Promise<void> {
   isShuttingDown = true;
 
   console.error(`[MCP] Shutting down (${reason})...`);
-
-  try {
-    await prisma.$disconnect();
-  } catch {
-    // Ignore disconnect errors during shutdown
-  }
 
   process.exit(0);
 }
@@ -40,8 +35,20 @@ process.stdin.resume();
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+// Optional health check on startup
+async function healthCheck(): Promise<void> {
+  try {
+    const whoami = await trpcClient.mcpBridge.whoami.query();
+    console.error(`[MCP] Connected to ${serverUrl} as ${whoami.email} (${whoami.userId})`);
+  } catch (error) {
+    console.error(`[MCP] Warning: health check failed (${error instanceof Error ? error.message : 'unknown error'}). Server may be unreachable.`);
+  }
+}
+
 // Start the server
-startMCPServer().catch((error) => {
-  console.error('[MCP] Failed to start server:', error);
-  process.exit(1);
-});
+healthCheck()
+  .then(() => startMCPServer())
+  .catch((error) => {
+    console.error('[MCP] Failed to start server:', error);
+    process.exit(1);
+  });

@@ -2,8 +2,8 @@
  * Chat Cron Trigger Tests (S9.5)
  *
  * Tests for:
- * - morning_greeting: LOCKED + weekday 9:00 → trigger
- * - morning_greeting: user already in PLANNING → don't trigger
+ * - morning_greeting: IDLE + weekday 9:00 → trigger
+ * - morning_greeting: user already in non-IDLE state → don't trigger
  * - morning_greeting: weekend → don't trigger
  * - evening_summary: end-of-day time → trigger + message includes stats
  * - progress_check: FOCUS state → don't interrupt (shouldFire returns false)
@@ -33,13 +33,13 @@ vi.mock('@/lib/prisma', () => ({
   prisma: mockPrismaClient,
 }));
 
-// ---------- Mock daily state ----------
+// ---------- Mock state engine ----------
 
-const mockGetCurrentState = vi.hoisted(() => vi.fn());
+const mockGetState = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services/daily-state.service', () => ({
-  dailyStateService: {
-    getCurrentState: mockGetCurrentState,
+vi.mock('@/services/state-engine.service', () => ({
+  stateEngineService: {
+    getState: mockGetState,
   },
 }));
 
@@ -109,8 +109,8 @@ describe('Chat Cron Triggers (S9)', () => {
       broadcastedCommands.push({ userId, command });
     });
 
-    // Default: user in LOCKED state (for morning_greeting)
-    mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+    // Default: user in IDLE state (for morning_greeting)
+    mockGetState.mockResolvedValue('idle');
 
     // Default: no quiet hours (avoids time-of-day dependency in tests)
     mockPrismaClient.userSettings.findUnique.mockResolvedValue({
@@ -127,8 +127,8 @@ describe('Chat Cron Triggers (S9)', () => {
   // =====================================================================
 
   describe('morning_greeting (S9.1)', () => {
-    it('should fire when user is LOCKED on a weekday morning', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+    it('should fire when user is IDLE on a weekday morning', async () => {
+      mockGetState.mockResolvedValue('idle');
 
       await chatTriggersCronService.handleMorningGreeting(TEST_USER);
 
@@ -140,8 +140,8 @@ describe('Chat Cron Triggers (S9)', () => {
       expect(payload.triggerId).toBe('morning_greeting');
     });
 
-    it('should NOT fire when user is already in PLANNING', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'planning' });
+    it('should NOT fire when user is in FOCUS', async () => {
+      mockGetState.mockResolvedValue('focus');
 
       await chatTriggersCronService.handleMorningGreeting(TEST_USER);
 
@@ -149,8 +149,8 @@ describe('Chat Cron Triggers (S9)', () => {
       expect(broadcastedCommands).toHaveLength(0);
     });
 
-    it('should NOT fire when user is in FOCUS', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'focus' });
+    it('should NOT fire when user is in OVER_REST', async () => {
+      mockGetState.mockResolvedValue('over_rest');
 
       await chatTriggersCronService.handleMorningGreeting(TEST_USER);
 
@@ -158,7 +158,7 @@ describe('Chat Cron Triggers (S9)', () => {
     });
 
     it('should include task counts in the message', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+      mockGetState.mockResolvedValue('idle');
       mockPrismaClient.task.findMany
         .mockResolvedValueOnce([{ id: 't1' }, { id: 't2' }, { id: 't3' }]) // today tasks
         .mockResolvedValueOnce([{ id: 'ot1' }]); // overdue tasks
@@ -171,7 +171,7 @@ describe('Chat Cron Triggers (S9)', () => {
     });
 
     it('should respect cooldown (once per day)', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'locked' });
+      mockGetState.mockResolvedValue('idle');
 
       await chatTriggersCronService.handleMorningGreeting(TEST_USER);
       expect(broadcastedCommands).toHaveLength(1);
@@ -189,7 +189,7 @@ describe('Chat Cron Triggers (S9)', () => {
   describe('evening_summary (S9.2)', () => {
     it('should fire and use LLM to generate summary', async () => {
       // evening_summary is normal priority, so we need non-focus state
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'rest' });
+      mockGetState.mockResolvedValue('idle');
 
       await chatTriggersCronService.handleEveningSummary(TEST_USER);
 
@@ -199,7 +199,7 @@ describe('Chat Cron Triggers (S9)', () => {
     });
 
     it('should include today completion stats in context', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'rest' });
+      mockGetState.mockResolvedValue('idle');
       mockPrismaClient.pomodoro.count.mockResolvedValueOnce(5);
       mockPrismaClient.task.count
         .mockResolvedValueOnce(3)  // completed tasks
@@ -220,7 +220,7 @@ describe('Chat Cron Triggers (S9)', () => {
 
   describe('progress_check (S9.3)', () => {
     it('should NOT fire when user is in FOCUS state (low priority)', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'focus' });
+      mockGetState.mockResolvedValue('focus');
 
       // Enable progress_check (disabled by default)
       aiTriggerService._triggers.get('progress_check')!.defaultEnabled = true;
@@ -231,8 +231,8 @@ describe('Chat Cron Triggers (S9)', () => {
       expect(chatService.persistMessage).not.toHaveBeenCalled();
     });
 
-    it('should fire when user is in PLANNING state and trigger is enabled via user config', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'planning' });
+    it('should fire when user is in IDLE state and trigger is enabled via user config', async () => {
+      mockGetState.mockResolvedValue('idle');
 
       // Enable progress_check via user config (overrides default disabled)
       mockPrismaClient.userSettings.findUnique.mockResolvedValue({
@@ -256,7 +256,7 @@ describe('Chat Cron Triggers (S9)', () => {
 
   describe('midday_check (S9.4)', () => {
     it('should NOT fire by default (disabled)', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'rest' });
+      mockGetState.mockResolvedValue('idle');
 
       await chatTriggersCronService.handleMiddayCheck(TEST_USER);
 
@@ -266,7 +266,7 @@ describe('Chat Cron Triggers (S9)', () => {
     });
 
     it('should fire when explicitly enabled via user config', async () => {
-      mockGetCurrentState.mockResolvedValue({ success: true, data: 'rest' });
+      mockGetState.mockResolvedValue('idle');
 
       // Enable midday_check via user config (overrides default disabled)
       mockPrismaClient.userSettings.findUnique.mockResolvedValue({

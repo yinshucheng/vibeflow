@@ -390,7 +390,7 @@ generate_prompt() {
   prompt+=$'\n'
   prompt+="- 遵循现有代码模式和项目约定 (参考 CLAUDE.md)"
   prompt+=$'\n'
-  prompt+="- 完成后更新 ${PIPELINE_TASKS_MD} 中对应任务的 checkbox 为 [x] 并附上 commit hash"
+  prompt+="- 完成后更新 ${PIPELINE_TASKS_MD} 中对应任务的 checkbox 为 [x]。**重要**：在该 section 最后一个 [x] 行末尾追加 HTML 注释标记，格式为 <!-- SECTION_NUMBER done -->（如 <!-- 2.3 done -->），SECTION_NUMBER 取自 section 标题的编号（如 '### 2.3 迁移...' 则写 '2.3'）。这是 pipeline 自动检测任务完成状态的必要标记。"
   prompt+=$'\n'
   prompt+="- 确保相关测试通过后 commit"
   prompt+=$'\n'

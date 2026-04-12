@@ -98,9 +98,22 @@ The app requires the following macOS permissions:
 The app stores configuration in the user's app data directory using `electron-store`.
 
 Default configuration:
-- `serverUrl`: `http://localhost:3000` (or `VIBEFLOW_SERVER_URL` env var)
-- `isDevelopment`: Based on `NODE_ENV`
+- `serverUrl`: Determined by priority:
+  1. `VIBEFLOW_SERVER_URL` env var (highest priority)
+  2. Development mode (`npm run dev` / unpackaged) → `http://localhost:3000`
+  3. Production mode (packaged `.app`) → `http://39.105.213.147:4000`
+- `isDevelopment`: `true` when `NODE_ENV=development` or app is not packaged; `false` when packaged by electron-builder (`app.isPackaged`)
 - `autoLaunch`: `false`
+
+### Server Connection Modes
+
+| Mode | How to run | Connects to |
+|------|-----------|-------------|
+| Local dev | `npm run dev` | `localhost:3000` |
+| Remote dev | `VIBEFLOW_SERVER_URL=http://... npm run dev` | Custom URL |
+| Release build | Open `VibeFlow.app` from `release/` | `39.105.213.147:4000` |
+
+When `VIBEFLOW_SERVER_URL` is set, the app runs with a separate app name (`vibeflow-desktop-remote`) and separate userData directory, allowing local and remote instances to run simultaneously.
 
 ## License
 

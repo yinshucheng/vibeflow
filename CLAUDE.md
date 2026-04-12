@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VibeFlow is an AI-Native Output Engine — a productivity and focus management system built around the Pomodoro technique. It has four clients sharing one backend:
+VibeFlow is an AI-Native Output Engine — 帮助用户心想事成的系统。核心理念：**用户有预期状态（工作、休息、睡眠、目标达成），现实往往偏离，系统持续校正帮用户回归预期。** 目标管理、任务拆解、番茄钟、休息保护、睡眠管理、AI 建议都是手段。
+
+It has four clients sharing one backend:
 
 | Client | Path | Stack |
 |--------|------|-------|
@@ -68,23 +70,39 @@ Goals (1 week–5 years)
               └── Pomodoros (10–120 min focus sessions, always tied to a task)
 ```
 
-### Daily State Machine
+### Daily State Machine (3-state model)
 
 ```
-LOCKED → PLANNING → FOCUS ↔ REST → LOCKED
-                              ↓
-                          OVER_REST
+IDLE ──START_POMODORO──→ FOCUS ──COMPLETE/ABORT──→ IDLE
+  ↑                                                  │
+  └──RETURN_TO_IDLE/START_POMODORO── OVER_REST ←─────┘
+                                     (rest exceeded)
 ```
 
-| State | User Can Do |
-|-------|-------------|
-| `LOCKED` | Complete airlock only |
-| `PLANNING` | Start pomodoro, manage tasks |
-| `FOCUS` | Complete/abort active pomodoro, switch tasks |
-| `REST` | Complete rest, override daily cap |
-| `OVER_REST` | Forced return after exceeding rest time |
+| State | DB Value | User Can Do |
+|-------|----------|-------------|
+| `idle` | `IDLE` | Start pomodoro, manage tasks, plan day |
+| `focus` | `FOCUS` | Complete/abort active pomodoro, switch tasks |
+| `over_rest` | `OVER_REST` | Start pomodoro (forced return) or acknowledge |
 
-Machine: `src/machines/vibeflow.machine.ts`. Daily reset at 04:00 AM. Default cap: 8 pomodoros/day. Top 3 task selection during airlock (0–3 tasks).
+REST is a **sub-phase of IDLE** — determined by `lastPomodoroEndTime` (recent completion = resting). Desktop tray shows `READY` or `RESTING` accordingly.
+
+**OVER_REST trigger conditions** (`scheduleOverRestTimer` + 30s fallback):
+- State is `idle` AND `lastPomodoroEndTime` exists (pomodoro was completed, not aborted)
+- AND (`isWithinWorkHours` OR `inFocusSession`) — without either, OVER_REST does not trigger
+- Timer delay = `shortRestDuration + overRestGracePeriod` (default: 5+5 = 10 min)
+
+**Time windows and their effects:**
+
+| Window | Can start pomodoro? | OVER_REST triggers? | Enforcement |
+|--------|--------------------|--------------------|-------------|
+| Work time | ✅ | ✅ | Distraction apps blocked during FOCUS |
+| Non-work, no Focus Session | ✅ | ❌ | No enforcement |
+| Non-work + Focus Session (overtime) | ✅ | ✅ | Distraction + sleep apps blocked |
+| Sleep time, no Focus Session | ✅ | ❌ | Sleep enforcement active |
+| Sleep time + Focus Session | ✅ | ✅ | Sleep enforcement overridden |
+
+Machine: `src/machines/vibeflow.machine.ts`. StateEngine: `src/services/state-engine.service.ts`. Daily reset at 04:00 AM. Default cap: 8 pomodoros/day.
 
 ### Service Layer Pattern
 
@@ -175,7 +193,10 @@ Production runs on Alibaba Cloud ECS via Docker. Key commands:
 ```bash
 ./deploy/deploy.sh              # Deploy to production (one command)
 ./scripts/start-remote.sh ios   # Start iOS connected to remote server
-./scripts/start-remote.sh desktop  # Start Desktop connected to remote server
+./scripts/start-remote.sh desktop  # Start Desktop connected to remote server (dev mode)
+
+# Desktop release build (packaged .app auto-connects to remote server)
+cd vibeflow-desktop && npm run build:mac && open release/mac-arm64/VibeFlow.app
 ```
 
 Local `npm run dev` connects to local DB — isolated from production.
@@ -243,10 +264,12 @@ Each spec has a status label. When working on a spec, update the table below.
 | `public-network-deployment` | requirements | Public network deployment plan |
 | `state-aware-enforcement` | requirements | State-aware enforcement rules |
 | `task-categorization` | requirements | Task categorization system |
-| `pomodoro-state-transition` | requirements | Architecture refactor docs |
+| `pomodoro-state-transition` | deprecated | Superseded by state-management-overhaul |
+| `state-management-overhaul` | not-started | 状态管理系统重构：3 状态模型、统一转换引擎、OVER_REST 显式化 |
 | `ios-screen-time` | requirements | Has design + pipeline config, no tasks |
 | `mobile-app` | deprecated | Superseded by ios-mvp |
 | `dashboard-command-center` | not-started | Dashboard 指挥部改造，内嵌番茄钟+任务操作 |
+| `work-rhythm-enhancement` | tested | OVER_REST 一致性、UI 显示修复、加班模式、健康提醒、跨客户端通知 |
 
 ## Environment Setup
 

@@ -6,7 +6,6 @@
  */
 
 import { pomodoroService } from './pomodoro.service';
-import { broadcastPolicyUpdate } from './socket-broadcast.service';
 import { socketServer } from '@/server/socket';
 import prisma from '@/lib/prisma';
 
@@ -65,10 +64,9 @@ class PomodoroSchedulerService {
           if (result.success && result.data && result.data > 0) {
             console.log(`Auto-completed ${result.data} expired pomodoro(s) for user ${userId}`);
 
-            // Broadcast policy update to update desktop clients
-            await broadcastPolicyUpdate(userId);
-
-            // Notify desktop app so tray updates even when window is in background
+            // StateEngine (called inside completeExpiredPomodoros) already handles
+            // broadcastFullState + broadcastPolicyUpdate. Only send Browser Sentinel
+            // command here as it's not managed by StateEngine.
             socketServer.sendExecuteCommand(userId, {
               action: 'POMODORO_COMPLETE',
               params: { autoCompleted: true },

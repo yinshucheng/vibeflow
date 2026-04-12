@@ -15,11 +15,11 @@ import {
   RecordPomodoroSchema,
 } from '@/services/pomodoro.service';
 import { dailyStateService } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 import { statsService, GetStatsSchema } from '@/services/stats.service';
 import { socketServer } from '@/server/socket';
 import { broadcastPolicyUpdate } from '@/services/socket-broadcast.service';
 import { trayIntegrationService } from '@/services/tray-integration.service';
-import prisma from '@/lib/prisma';
 
 export const pomodoroRouter = router({
   /**
@@ -122,7 +122,7 @@ export const pomodoroRouter = router({
   start: protectedProcedure
     .input(StartPomodoroSchema)
     .mutation(async ({ ctx, input }) => {
-      // Check if daily cap is reached
+      // Pre-check daily cap (fast-fail before creating pomodoro; stateEngine guard is authoritative)
       const cappedResult = await dailyStateService.isDailyCapped(ctx.user.userId);
       if (cappedResult.success && cappedResult.data) {
         throw new TRPCError({
@@ -132,13 +132,13 @@ export const pomodoroRouter = router({
       }
 
       const result = await pomodoroService.start(ctx.user.userId, input);
-      
+
       if (!result.success) {
-        const code = 
+        const code =
           result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' :
           result.error?.code === 'CONFLICT' ? 'CONFLICT' :
           'INTERNAL_SERVER_ERROR';
-          
+
         throw new TRPCError({
           code,
           message: result.error?.message ?? 'Failed to start pomodoro',
@@ -146,30 +146,39 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Update system state to FOCUS
-      await dailyStateService.updateSystemState(ctx.user.userId, 'focus');
-      
-      // Update tray with pomodoro start
-      if (result.data) {
-        const pomodoroData = result.data as {
-          id: string;
-          taskId: string | null;
-          duration: number;
-          startTime: Date;
-          task?: { title: string } | null;
-        };
-        trayIntegrationService.updatePomodoroState({
-          id: pomodoroData.id,
-          taskId: pomodoroData.taskId,
-          duration: pomodoroData.duration,
-          startTime: pomodoroData.startTime,
-          task: pomodoroData.task,
+      // Transition state via StateEngine (handles state write, broadcast, policy update, MCP event, logging)
+      const pomodoroData = result.data as {
+        id: string;
+        taskId: string | null;
+        duration: number;
+        startTime: Date;
+        task?: { title: string } | null;
+      };
+
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'START_POMODORO',
+        pomodoroId: pomodoroData.id,
+        taskId: pomodoroData.taskId,
+      });
+
+      if (!transition.success) {
+        // Guard rejected — clean up the created pomodoro
+        await pomodoroService.abort(pomodoroData.id, ctx.user.userId).catch(() => {});
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: transition.message,
         });
       }
-      
-      // Broadcast policy update to stop over rest enforcement on desktop
-      await broadcastPolicyUpdate(ctx.user.userId);
-      
+
+      // Update tray with pomodoro start (tray is not managed by StateEngine)
+      trayIntegrationService.updatePomodoroState({
+        id: pomodoroData.id,
+        taskId: pomodoroData.taskId,
+        duration: pomodoroData.duration,
+        startTime: pomodoroData.startTime,
+        task: pomodoroData.task,
+      });
+
       return result.data;
     }),
 
@@ -190,46 +199,36 @@ export const pomodoroRouter = router({
         ctx.user.userId,
         input.summary ? { summary: input.summary } : undefined
       );
-      
+
       if (!result.success) {
-        const code = 
+        const code =
           result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' :
           result.error?.code === 'CONFLICT' ? 'CONFLICT' :
           'INTERNAL_SERVER_ERROR';
-          
+
         throw new TRPCError({
           code,
           message: result.error?.message ?? 'Failed to complete pomodoro',
         });
       }
 
-      // Increment pomodoro count
-      await dailyStateService.incrementPomodoroCount(ctx.user.userId);
-
-      // Always transition to rest state on completion
-      await dailyStateService.updateSystemState(ctx.user.userId, 'rest');
-
-      // Get user settings for rest duration
-      const settings = await prisma.userSettings.findUnique({
-        where: { userId: ctx.user.userId },
+      // Transition state via StateEngine (handles state write, pomodoroCount increment,
+      // broadcast, policy update, MCP event, logging, and OVER_REST timer scheduling)
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'COMPLETE_POMODORO',
       });
-      const restDuration = settings?.shortRestDuration ?? 5;
 
-      const restData = {
-        startTime: new Date(),
-        duration: restDuration,
-        isOverRest: false,
-      };
+      if (!transition.success) {
+        console.error('[pomodoro.complete] StateEngine transition failed:', transition.message);
+        // Pomodoro is already marked COMPLETED in DB, so we don't roll back.
+        // Log the error but still return success to the client.
+      }
 
-      // Update tray with completion state
+      // Update tray with completion state (tray is not managed by StateEngine)
       trayIntegrationService.handlePomodoroCompletion({
         wasInOverRest: false,
-        newState: 'rest',
-        restData,
+        newState: 'idle',
       });
-
-      // Broadcast policy update to update desktop clients
-      await broadcastPolicyUpdate(ctx.user.userId);
 
       // Send WebSocket event to Browser Sentinel (Requirement 4.6)
       if (result.data) {
@@ -249,9 +248,6 @@ export const pomodoroRouter = router({
           },
         });
       }
-
-      // Broadcast full state so all clients receive activePomodoro = null
-      await socketServer.broadcastFullState(ctx.user.userId);
 
       return result.data;
     }),
@@ -277,14 +273,17 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Update system state back to PLANNING
-      await dailyStateService.updateSystemState(ctx.user.userId, 'planning');
+      // Transition state via StateEngine (handles state write, broadcast,
+      // policy update, MCP event, and logging)
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'ABORT_POMODORO',
+      });
 
-      // Broadcast policy update to update over rest status on desktop
-      await broadcastPolicyUpdate(ctx.user.userId);
-
-      // Broadcast full state so all clients receive activePomodoro = null
-      await socketServer.broadcastFullState(ctx.user.userId);
+      if (!transition.success) {
+        console.error('[pomodoro.abort] StateEngine transition failed:', transition.message);
+        // Pomodoro is already marked ABORTED in DB, so we don't roll back.
+        // Log the error but still return success to the client.
+      }
 
       return result.data;
     }),
@@ -318,14 +317,17 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Update system state back to PLANNING
-      await dailyStateService.updateSystemState(ctx.user.userId, 'planning');
+      // Transition state via StateEngine (handles state write, broadcast,
+      // policy update, MCP event, and logging — same as abort)
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'ABORT_POMODORO',
+      });
 
-      // Broadcast policy update to update over rest status on desktop
-      await broadcastPolicyUpdate(ctx.user.userId);
-
-      // Broadcast full state so all clients receive activePomodoro = null
-      await socketServer.broadcastFullState(ctx.user.userId);
+      if (!transition.success) {
+        console.error('[pomodoro.interrupt] StateEngine transition failed:', transition.message);
+        // Pomodoro is already marked INTERRUPTED in DB, so we don't roll back.
+        // Log the error but still return success to the client.
+      }
 
       return result.data;
     }),
@@ -337,6 +339,7 @@ export const pomodoroRouter = router({
   startTaskless: protectedProcedure
     .input(z.object({ label: z.string().max(100).optional() }))
     .mutation(async ({ ctx, input }) => {
+      // Pre-check daily cap (fast-fail before creating pomodoro; stateEngine guard is authoritative)
       const cappedResult = await dailyStateService.isDailyCapped(ctx.user.userId);
       if (cappedResult.success && cappedResult.data) {
         throw new TRPCError({
@@ -354,8 +357,39 @@ export const pomodoroRouter = router({
         });
       }
 
-      await dailyStateService.updateSystemState(ctx.user.userId, 'focus');
-      await broadcastPolicyUpdate(ctx.user.userId);
+      // Transition state via StateEngine (handles state write, broadcast, policy update, MCP event, logging)
+      const pomodoroData = result.data as {
+        id: string;
+        taskId: string | null;
+        duration: number;
+        startTime: Date;
+        task?: { title: string } | null;
+      };
+
+      const transition = await stateEngineService.send(ctx.user.userId, {
+        type: 'START_POMODORO',
+        pomodoroId: pomodoroData.id,
+        taskId: pomodoroData.taskId,
+        isTaskless: true,
+      });
+
+      if (!transition.success) {
+        // Guard rejected — clean up the created pomodoro
+        await pomodoroService.abort(pomodoroData.id, ctx.user.userId).catch(() => {});
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: transition.message,
+        });
+      }
+
+      // Update tray with pomodoro start (tray is not managed by StateEngine)
+      trayIntegrationService.updatePomodoroState({
+        id: pomodoroData.id,
+        taskId: pomodoroData.taskId,
+        duration: pomodoroData.duration,
+        startTime: pomodoroData.startTime,
+        task: pomodoroData.task,
+      });
 
       return result.data;
     }),
@@ -436,8 +470,13 @@ export const pomodoroRouter = router({
         });
       }
 
-      // Increment pomodoro count for the day of completion
-      await dailyStateService.incrementPomodoroCount(ctx.user.userId);
+      // Increment pomodoro count for the retroactively recorded day
+      const { getTodayDate } = await import('@/services/daily-state.service');
+      const today = getTodayDate();
+      await (await import('@/lib/prisma')).default.dailyState.updateMany({
+        where: { userId: ctx.user.userId, date: today },
+        data: { pomodoroCount: { increment: 1 } },
+      });
 
       return result.data;
     }),

@@ -49,10 +49,16 @@ export type {
 
 export { dailyStateService } from './daily-state.service';
 export type {
-  CompleteAirlockInput,
   OverrideCapInput,
   DailyStateWithProgress,
 } from './daily-state.service';
+
+export { stateEngineService } from './state-engine.service';
+export type { TransitionResult, SendOptions } from './state-engine.service';
+export {
+  registerFullStateBroadcaster,
+  registerStateEnginePolicyBroadcaster,
+} from './state-engine.service';
 
 export { activityLogService } from './activity-log.service';
 export type {
@@ -64,7 +70,6 @@ export type {
 
 export { socketBroadcastService } from './socket-broadcast.service';
 export {
-  broadcastStateChange,
   broadcastPolicyUpdate,
   sendExecuteCommand,
   broadcastIdleAlert,

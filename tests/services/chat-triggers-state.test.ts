@@ -38,10 +38,10 @@ vi.mock('@/lib/prisma', () => ({
   prisma: mockPrismaClient,
 }));
 
-// Mock daily state service
-vi.mock('@/services/daily-state.service', () => ({
-  dailyStateService: {
-    getCurrentState: vi.fn().mockResolvedValue({ success: true, data: 'planning' }),
+// Mock state engine service
+vi.mock('@/services/state-engine.service', () => ({
+  stateEngineService: {
+    getState: vi.fn().mockResolvedValue('idle'),
   },
 }));
 
@@ -129,10 +129,10 @@ describe('Chat State Transition Triggers (S5)', () => {
   // =====================================================================
 
   describe('on_planning_enter (S5.1)', () => {
-    it('should fire when daily_state.changed with newState=planning', async () => {
+    it('should fire when daily_state.changed with newState=idle (from non-idle)', async () => {
       await handleDailyStateChanged(TEST_USER, {
-        previousState: 'locked',
-        newState: 'planning',
+        previousState: 'focus',
+        newState: 'idle',
       });
 
       expect(chatService.persistMessage).toHaveBeenCalled();
@@ -144,9 +144,9 @@ describe('Chat State Transition Triggers (S5)', () => {
       expect(payload.triggerId).toBe('on_planning_enter');
     });
 
-    it('should not fire when newState is not planning', async () => {
+    it('should not fire when newState is not idle', async () => {
       await handleDailyStateChanged(TEST_USER, {
-        previousState: 'rest',
+        previousState: 'idle',
         newState: 'focus',
       });
 

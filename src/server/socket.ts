@@ -16,17 +16,21 @@ import prisma from '@/lib/prisma';
 import { userService } from '@/services/user.service';
 import { authService } from '@/services/auth.service';
 import { parseSystemState } from '@/machines/vibeflow.machine';
+import type { SystemState } from '@/lib/state-utils';
 import { activityLogService } from '@/services/activity-log.service';
 import { timelineService, type TimelineEventTypeValue } from '@/services/timeline.service';
 import { clientRegistryService } from '@/services/client-registry.service';
 import { policyDistributionService } from '@/services/policy-distribution.service';
 import { commandQueueService } from '@/services/command-queue.service';
-import { overRestService } from '@/services/over-rest.service';
+
 import { pomodoroService } from '@/services/pomodoro.service';
 import { timeSliceService } from '@/services/time-slice.service';
 import { dailyStateService, getTodayDate } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 import { chatService } from '@/services/chat.service';
 import { handleToolConfirmation } from '@/services/chat-tools.service';
+import { isWithinWorkHours } from '@/services/idle.service';
+import { focusSessionService } from '@/services/focus-session.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -60,11 +64,8 @@ import {
 // Types and Schemas
 // ============================================================================
 
-/**
- * System state type (matches vibeflow.machine.ts)
- * Note: over_rest is a computed state when rest exceeds grace period
- */
-export type SystemState = 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
+// Re-export SystemState from canonical source
+export type { SystemState } from '@/lib/state-utils';
 
 /**
  * Policy cache sent to clients (legacy format for backward compatibility)
@@ -381,20 +382,52 @@ export class VibeFlowSocketServer {
       }
     }, 60000);
 
-    // Check over rest status for all connected users every 30 seconds
-    // This ensures over rest enforcement is triggered even without user actions
+    // Fallback: check over rest status for all connected users every 30 seconds
+    // Primary trigger is StateEngine's delayed timer (scheduleOverRestTimer).
+    // This interval serves as a fallback for timer loss (e.g., server restart)
+    // and also handles WORK_TIME_ENDED (OVER_REST → IDLE when work hours end).
     this.overRestCheckInterval = setInterval(async () => {
       try {
         const connectedUserIds = this.getConnectedUserIds();
         for (const userId of connectedUserIds) {
-          // Broadcast policy update which will include over rest status
-          await this.broadcastPolicyUpdate(userId);
-        }
-        if (connectedUserIds.length > 0) {
-          console.log(`[Socket.io] Broadcast policy updates to ${connectedUserIds.length} connected users`);
+          try {
+            const currentState = await stateEngineService.getState(userId);
+            // isWithinWorkHours and focusSessionService imported at top of file
+            const settings = await prisma.userSettings.findFirst({ where: { userId } });
+            const workTimeSlots = (settings?.workTimeSlots as unknown as { id: string; startTime: string; endTime: string; enabled: boolean }[]) || [];
+            const withinWorkHours = isWithinWorkHours(workTimeSlots);
+
+            // Check focus session status (used for both entry and exit conditions)
+            const focusSessionResult = await focusSessionService.isInFocusSession(userId);
+            if (!focusSessionResult.success) {
+              // DB error — skip this user to avoid wrong state transitions
+              continue;
+            }
+            const inFocusSession = focusSessionResult.data === true;
+
+            if (currentState === 'idle' && (withinWorkHours || inFocusSession)) {
+              // Attempt ENTER_OVER_REST during work hours OR when in focus session
+              const dailyState = await dailyStateService.getOrCreateToday(userId);
+              if (dailyState.success && dailyState.data?.lastPomodoroEndTime) {
+                const shortRestDuration = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
+                const gracePeriod = (settings as Record<string, unknown> | null)?.overRestGracePeriod as number ?? 5;
+                const elapsed = (Date.now() - dailyState.data!.lastPomodoroEndTime!.getTime()) / 60000;
+                if (elapsed >= shortRestDuration + gracePeriod) {
+                  await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
+                }
+              }
+            } else if (currentState === 'over_rest' && !withinWorkHours && !inFocusSession) {
+              // Work hours ended AND no focus session — exit OVER_REST
+              await stateEngineService.send(userId, { type: 'WORK_TIME_ENDED' });
+            }
+            // Always broadcast policy update for iOS UPDATE_POLICY channel
+            await this.broadcastPolicyUpdate(userId);
+          } catch {
+            // Individual user errors don't stop the loop
+          }
         }
       } catch (error) {
-        console.error('[Socket.io] Error checking over rest status:', error);
+        console.error('[Socket.io] Error in overRestCheck interval:', error);
       }
     }, 30000);
   }
@@ -704,11 +737,13 @@ export class VibeFlowSocketServer {
       if (registerResult.success && registerResult.data) {
         socket.data.clientId = registerResult.data.clientId;
         console.log(`[Socket.io] Registered client: ${registerResult.data.clientId}`);
-        
+
         // Send registration confirmation to client (for desktop/mobile clients)
+        // Include userId so DEV_MODE clients can resolve their identity
         socket.emit('client:registered' as keyof ServerToClientEvents, {
           success: true,
           clientId: registerResult.data.clientId,
+          userId,
         } as never);
       } else {
         console.error('[Socket.io] Failed to register client:', registerResult.error);
@@ -1276,16 +1311,22 @@ export class VibeFlowSocketServer {
           const taskId = data.taskId as string | undefined;
           const result = await pomodoroService.start(userId, { taskId: taskId ?? null });
           if (result.success && result.data) {
-            success = true;
-            const pom = result.data as { id: string };
-            resultData = { pomodoroId: pom.id };
-            // Update system state to FOCUS
-            await dailyStateService.updateSystemState(userId, 'focus');
-            // Broadcast state change and policy to all clients
-            this.broadcastStateChange(userId, 'focus');
-            await this.broadcastPolicyUpdate(userId);
-            // Re-send full state snapshot so all clients get the activePomodoro
-            await this.broadcastFullStateToUser(userId);
+            const pom = result.data as { id: string; taskId: string | null };
+            // Transition state via StateEngine (handles state write, broadcast,
+            // policy update, MCP event, logging, and OVER_REST timer scheduling)
+            const transition = await stateEngineService.send(userId, {
+              type: 'START_POMODORO',
+              pomodoroId: pom.id,
+              taskId: pom.taskId,
+            });
+            if (transition.success) {
+              success = true;
+              resultData = { pomodoroId: pom.id };
+            } else {
+              // Guard rejected — clean up the created pomodoro
+              await pomodoroService.abort(pom.id, userId).catch(() => {});
+              error = { code: 'FORBIDDEN', message: transition.message };
+            }
           } else {
             error = result.error ?? { code: 'UNKNOWN', message: 'Failed to start pomodoro' };
           }
@@ -1331,7 +1372,7 @@ export class VibeFlowSocketServer {
             await prisma.dailyState.upsert({
               where: { userId_date: { userId, date: today } },
               update: { top3TaskIds: taskIds },
-              create: { userId, date: today, systemState: 'PLANNING', top3TaskIds: taskIds },
+              create: { userId, date: today, systemState: 'IDLE', top3TaskIds: taskIds },
             });
             success = true;
             await this.broadcastFullStateToUser(userId);
@@ -1735,17 +1776,8 @@ export class VibeFlowSocketServer {
         }),
       ]);
 
-      let systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
-      
-      // Check for over_rest state only when in REST (not planning)
-      // If user moved to planning, they explicitly chose to exit rest — respect that choice
-      // This aligns with dailyStateService.getTodayWithProgress() behavior
-      if (systemState === 'rest') {
-        const overRestResult = await overRestService.checkOverRestStatus(userId);
-        if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
-          systemState = 'over_rest';
-        }
-      }
+      // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
+      const systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
 
       // Get top 3 tasks from IDs if available, otherwise fall back to today's planned tasks
       let top3Tasks: { id: string; title: string; status: string; priority: string }[] = [];
@@ -1890,17 +1922,8 @@ export class VibeFlowSocketServer {
       },
     });
 
-    // Determine the effective state (including over_rest)
-    let effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'locked';
-    
-    // Check for over_rest state only when in REST (not planning)
-    // If user moved to planning, they explicitly chose to exit rest — respect that choice
-    if (effectiveState === 'rest') {
-      const overRestResult = await overRestService.checkOverRestStatus(userId);
-      if (overRestResult.success && overRestResult.data?.isOverRest && overRestResult.data?.shouldTriggerActions) {
-        effectiveState = 'over_rest';
-      }
-    }
+    // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
+    const effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
 
     return {
       globalState: effectiveState,
@@ -2242,41 +2265,6 @@ export class VibeFlowSocketServer {
   // ============================================================================
   // Public API for broadcasting
   // ============================================================================
-
-  /**
-   * Broadcast state change to all user's connected clients
-   * Requirements: 1.4
-   */
-  broadcastStateChange(userId: string, state: SystemState): void {
-    if (!this.io) return;
-    
-    const userRoom = `user:${userId}`;
-    
-    // Send legacy format
-    this.io.to(userRoom).emit('STATE_CHANGE', { state });
-    
-    // Also send as Octopus SYNC_STATE command (delta)
-    const syncCommand: SyncStateCommand = {
-      commandId: crypto.randomUUID(),
-      commandType: 'SYNC_STATE',
-      targetClient: 'all',
-      priority: 'high',
-      requiresAck: false,
-      createdAt: Date.now(),
-      payload: {
-        syncType: 'delta',
-        version: Date.now(),
-        delta: {
-          changes: [
-            { path: 'systemState.state', operation: 'set', value: state },
-          ],
-        },
-      },
-    };
-    
-    this.io.to(userRoom).emit('OCTOPUS_COMMAND', syncCommand);
-    console.log(`[Socket.io] Broadcast state change to user ${userId}: ${state}`);
-  }
 
   /**
    * Broadcast policy update to all user's connected clients

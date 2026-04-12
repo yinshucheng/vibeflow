@@ -11,9 +11,9 @@ import { router, protectedProcedure } from '../trpc';
 import prisma from '@/lib/prisma';
 import {
   dailyStateService,
-  CompleteAirlockSchema,
   OverrideCapSchema
 } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 import { progressCalculationService } from '@/services/progress-calculation.service';
 import { parseSystemState } from '@/machines/vibeflow.machine';
 
@@ -40,37 +40,8 @@ export const dailyStateRouter = router({
    * Requirements: 5.1, 5.7
    */
   getCurrentState: protectedProcedure.query(async ({ ctx }) => {
-    const result = await dailyStateService.getCurrentState(ctx.user.userId);
-    
-    if (!result.success) {
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: result.error?.message ?? 'Failed to get current state',
-      });
-    }
-    
-    return result.data;
+    return stateEngineService.getState(ctx.user.userId);
   }),
-
-  /**
-   * Complete the morning airlock
-   * Requirements: 3.8, 3.9
-   */
-  completeAirlock: protectedProcedure
-    .input(CompleteAirlockSchema)
-    .mutation(async ({ ctx, input }) => {
-      const result = await dailyStateService.completeAirlock(ctx.user.userId, input);
-      
-      if (!result.success) {
-        throw new TRPCError({
-          code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
-          message: result.error?.message ?? 'Failed to complete airlock',
-          cause: result.error?.details,
-        });
-      }
-      
-      return result.data;
-    }),
 
   /**
    * Check if user can start a pomodoro
@@ -145,74 +116,6 @@ export const dailyStateRouter = router({
     return result.data;
   }),
 
-  /**
-   * Update system state
-   * Requirements: 5.1, 5.2
-   */
-  updateSystemState: protectedProcedure
-    .input(z.enum(['locked', 'planning', 'focus', 'rest']))
-    .mutation(async ({ ctx, input }) => {
-      // Guard: reject rest/over_rest → planning transition
-      // Users should start a pomodoro directly from rest, not go through planning
-      if (input === 'planning') {
-        const currentState = await dailyStateService.getCurrentState(ctx.user.userId);
-        if (currentState.success && currentState.data) {
-          const state = parseSystemState(currentState.data);
-          if (state === 'rest' || state === 'over_rest') {
-            console.warn(`[DailyState] Rejecting ${state} → planning transition for user ${ctx.user.userId}. Start a pomodoro instead.`);
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Cannot transition from rest to planning. Start a pomodoro to continue.',
-            });
-          }
-        }
-      }
-
-      const result = await dailyStateService.updateSystemState(ctx.user.userId, input);
-
-      if (!result.success) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: result.error?.message ?? 'Failed to update system state',
-        });
-      }
-
-      return result.data;
-    }),
-
-  /**
-   * Skip airlock for new users
-   * Allows new users without tasks to bypass the airlock
-   */
-  skipAirlockForNewUser: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await dailyStateService.skipAirlockForNewUser(ctx.user.userId);
-
-    if (!result.success) {
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: result.error?.message ?? 'Failed to skip airlock',
-      });
-    }
-
-    return result.data;
-  }),
-
-  /**
-   * Skip airlock and go directly to PLANNING
-   * Available when airlockMode is not 'required'
-   */
-  skipAirlock: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await dailyStateService.skipAirlock(ctx.user.userId);
-
-    if (!result.success) {
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: result.error?.message ?? 'Failed to skip airlock',
-      });
-    }
-
-    return result.data;
-  }),
 
   /**
    * Get daily progress with predictions
@@ -351,22 +254,25 @@ export const dailyStateRouter = router({
       return null;
     }
 
-    // Return data if in rest or over_rest state (over_rest is still a rest period)
+    // Return data if in idle (rest sub-phase) or over_rest state
     const currentState = parseSystemState(dailyState.data.systemState);
-    if (currentState !== 'rest' && currentState !== 'over_rest') {
+    if (currentState !== 'idle' && currentState !== 'over_rest') {
       return null;
     }
 
-    // Get last completed pomodoro to calculate rest start time and suggest next task
+    // Use lastPomodoroEndTime from DailyState (set by state engine on COMPLETE_POMODORO)
+    // This is scoped to today's daily cycle, avoiding stale data from previous days
+    const restStartTime = dailyState.data.lastPomodoroEndTime;
+    if (!restStartTime) {
+      return null;
+    }
+
+    // Get last completed pomodoro for task suggestion
     const lastPomodoro = await prisma.pomodoro.findFirst({
       where: { userId, status: 'COMPLETED' },
       orderBy: { endTime: 'desc' },
       include: { task: { select: { id: true, title: true } } },
     });
-
-    if (!lastPomodoro?.endTime) {
-      return null;
-    }
 
     // Get user settings for rest duration calculation
     const settings = await prisma.userSettings.findUnique({
@@ -382,13 +288,13 @@ export const dailyStateRouter = router({
       : (settings?.shortRestDuration ?? 5);
 
     return {
-      restStartTime: lastPomodoro.endTime.toISOString(),
+      restStartTime: new Date(restStartTime).toISOString(),
       restDuration, // in minutes
       isLongRest,
       pomodoroCount,
       isOverRest: currentState === 'over_rest',
-      lastTaskId: lastPomodoro.taskId ?? undefined,
-      lastTaskTitle: lastPomodoro.task?.title ?? undefined,
+      lastTaskId: lastPomodoro?.taskId ?? undefined,
+      lastTaskTitle: lastPomodoro?.task?.title ?? undefined,
     };
   }),
 });

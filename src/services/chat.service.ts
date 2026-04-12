@@ -518,9 +518,9 @@ export const chatService = {
       const timePrefix = `[${now.toLocaleDateString('zh-CN')} ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}]\n`;
 
       const llmMessages: ModelMessage[] = [
-        // Convert history to LLM format
+        // Convert history to LLM format (filter out empty content — some LLM providers reject it)
         ...historyMessages
-          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content)
           .map((m) => ({
             role: m.role as 'user' | 'assistant',
             content: m.content,

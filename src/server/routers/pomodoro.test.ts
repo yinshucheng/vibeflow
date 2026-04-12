@@ -41,16 +41,22 @@ vi.mock('@/services/over-rest.service', () => ({ overRestService: { checkOverRes
 import { pomodoroRouter } from './pomodoro';
 import { pomodoroService } from '@/services/pomodoro.service';
 import { dailyStateService } from '@/services/daily-state.service';
+import { stateEngineService } from '@/services/state-engine.service';
 
 vi.mock('@/services/daily-state.service', () => ({
   dailyStateService: {
     isDailyCapped: vi.fn(),
-    updateSystemState: vi.fn(),
   },
 }));
 
 vi.mock('@/services/socket-broadcast.service', () => ({
   broadcastPolicyUpdate: vi.fn(),
+}));
+
+vi.mock('@/services/state-engine.service', () => ({
+  stateEngineService: {
+    send: vi.fn(),
+  },
 }));
 
 const mockPomodoroService = pomodoroService as unknown as {
@@ -62,7 +68,10 @@ const mockPomodoroService = pomodoroService as unknown as {
 
 const mockDailyStateService = dailyStateService as unknown as {
   isDailyCapped: ReturnType<typeof vi.fn>;
-  updateSystemState: ReturnType<typeof vi.fn>;
+};
+
+const mockStateEngineService = stateEngineService as unknown as {
+  send: ReturnType<typeof vi.fn>;
 };
 
 const createCaller = () => {
@@ -74,21 +83,36 @@ describe('pomodoroRouter - Multi-task endpoints', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDailyStateService.isDailyCapped.mockResolvedValue({ success: true, data: false });
-    mockDailyStateService.updateSystemState.mockResolvedValue({ success: true });
+    mockStateEngineService.send.mockResolvedValue({ success: true, from: 'idle', to: 'focus', event: 'START_POMODORO' });
   });
 
   describe('startTaskless', () => {
     it('should start a taskless pomodoro', async () => {
+      const pomodoroData = {
+        id: 'pomo-1',
+        isTaskless: true,
+        label: 'Deep work',
+        taskId: null,
+        duration: 25,
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        task: null,
+      };
       mockPomodoroService.startTaskless.mockResolvedValue({
         success: true,
-        data: { id: 'pomo-1', isTaskless: true, label: 'Deep work' },
+        data: pomodoroData,
       });
 
       const caller = createCaller();
       const result = await caller.startTaskless({ label: 'Deep work' });
 
-      expect(result).toEqual({ id: 'pomo-1', isTaskless: true, label: 'Deep work' });
+      expect(result).toEqual(pomodoroData);
       expect(mockPomodoroService.startTaskless).toHaveBeenCalledWith('test-user', 'Deep work');
+      expect(mockStateEngineService.send).toHaveBeenCalledWith('test-user', {
+        type: 'START_POMODORO',
+        pomodoroId: 'pomo-1',
+        taskId: null,
+        isTaskless: true,
+      });
     });
 
     it('should reject when daily cap reached', async () => {

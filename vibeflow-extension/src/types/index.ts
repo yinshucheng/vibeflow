@@ -1,5 +1,21 @@
-// System state types matching the main VibeFlow application
-export type SystemState = 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
+// System state types matching the main VibeFlow application (3-state model)
+// Legacy values (LOCKED, PLANNING, REST) may still arrive during transition — normalize to IDLE.
+export type SystemState = 'IDLE' | 'FOCUS' | 'OVER_REST';
+
+/** Normalize legacy 5-state values to 3-state model */
+export function normalizeSystemState(raw: string): SystemState {
+  const upper = raw.toUpperCase();
+  switch (upper) {
+    case 'FOCUS': return 'FOCUS';
+    case 'OVER_REST': return 'OVER_REST';
+    case 'IDLE':
+    case 'LOCKED':
+    case 'PLANNING':
+    case 'REST':
+    default:
+      return 'IDLE';
+  }
+}
 
 // Enforcement mode types (Requirements 4.1)
 export type EnforcementMode = 'strict' | 'gentle';
@@ -346,7 +362,7 @@ export interface WorkStartPayload {
   configuredStartTime: string;   // HH:mm
   actualStartTime: number;       // Unix timestamp
   delayMinutes: number;          // 0 if on-time or early, positive if late
-  trigger: 'airlock_complete';   // What triggered the work start
+  trigger: 'first_pomodoro';     // What triggered the work start
 }
 
 /**

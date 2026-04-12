@@ -9,20 +9,7 @@
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import type { DailyState } from '@prisma/client';
-import { 
-  SystemState, 
-  parseSystemState, 
-  serializeSystemState,
-} from '@/machines/vibeflow.machine';
-import { broadcastStateChange } from '@/services/socket-broadcast.service';
-import { mcpEventService } from './mcp-event.service';
-import { overRestService } from './over-rest.service';
-import { chatTriggersStateService } from './chat-triggers-state.service';
 
-// Validation schemas
-export const CompleteAirlockSchema = z.object({
-  top3TaskIds: z.array(z.string().uuid()).min(0).max(3, 'Maximum 3 tasks can be selected'),
-});
 
 export const OverrideCapSchema = z.object({
   confirmation: z.literal(true, {
@@ -30,7 +17,6 @@ export const OverrideCapSchema = z.object({
   }),
 });
 
-export type CompleteAirlockInput = z.infer<typeof CompleteAirlockSchema>;
 export type OverrideCapInput = z.infer<typeof OverrideCapSchema>;
 
 // Service result type
@@ -99,16 +85,6 @@ export const dailyStateService = {
     try {
       const today = getTodayDate();
 
-      // Check user's airlockMode setting to determine initial state
-      const settings = await prisma.userSettings.findUnique({
-        where: { userId },
-        select: { airlockMode: true },
-      });
-      const airlockMode = settings?.airlockMode ?? 'optional';
-
-      // When airlock is disabled, skip LOCKED and go directly to PLANNING
-      const skipAirlock = airlockMode === 'disabled';
-
       // Use upsert to avoid race conditions from concurrent requests
       const dailyState = await prisma.dailyState.upsert({
         where: {
@@ -122,11 +98,11 @@ export const dailyStateService = {
         create: {
           userId,
           date: today,
-          systemState: skipAirlock ? 'PLANNING' : 'LOCKED',
+          systemState: 'IDLE',
           top3TaskIds: [],
           pomodoroCount: 0,
           capOverrideCount: 0,
-          airlockCompleted: skipAirlock,
+          airlockCompleted: false,
         },
       });
 
@@ -158,30 +134,10 @@ export const dailyStateService = {
 
       const dailyState = stateResult.data;
 
-      // Determine effective system state
-      // Priority: Active pomodoro > Stored state > Over-rest check (only for rest state)
-      let effectiveSystemState = dailyState.systemState;
-      const currentState = parseSystemState(dailyState.systemState);
-
-      // First check if there's an active pomodoro - if so, state should be FOCUS
-      // This prevents race conditions during state transitions
-      const activePomodoro = await prisma.pomodoro.findFirst({
-        where: { userId, status: 'IN_PROGRESS' },
-      });
-
-      if (activePomodoro) {
-        // There's an active pomodoro, state should be FOCUS regardless of stored state
-        effectiveSystemState = 'FOCUS';
-      } else if (currentState === 'rest') {
-        // Only check over-rest if state is explicitly 'rest'
-        // Do NOT check for planning - user has explicitly chosen to exit rest
-        const overRestResult = await overRestService.checkOverRestStatus(userId);
-        if (overRestResult.success && overRestResult.data?.isOverRest) {
-          console.log(`[DailyState] REST → OVER_REST transition detected for user ${userId}: restDuration=${overRestResult.data.restDurationMinutes}min, overRestMinutes=${overRestResult.data.overRestMinutes}min, shouldTriggerActions=${overRestResult.data.shouldTriggerActions}, timestamp=${new Date().toISOString()}`);
-          effectiveSystemState = 'OVER_REST';
-        }
-      }
-      // For 'planning' state, respect the user's choice - don't override to over_rest
+      // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
+      // Normalize to lowercase 3-state value for consistent API responses
+      const { normalizeState } = await import('@/lib/state-utils');
+      const effectiveSystemState = normalizeState(dailyState.systemState);
 
       // Get user's daily cap setting
       const settings = await prisma.userSettings.findUnique({
@@ -216,232 +172,6 @@ export const dailyStateService = {
     }
   },
 
-  /**
-   * Update system state
-   * Requirements: 5.1, 5.2, 6.7
-   */
-  async updateSystemState(
-    userId: string,
-    state: SystemState
-  ): Promise<ServiceResult<DailyState>> {
-    try {
-      const today = getTodayDate();
-
-      // Get previous state for event payload
-      const previousState = await prisma.dailyState.findUnique({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
-          },
-        },
-      });
-
-      const dailyState = await prisma.dailyState.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
-          },
-        },
-        update: {
-          systemState: serializeSystemState(state),
-        },
-        create: {
-          userId,
-          date: today,
-          systemState: serializeSystemState(state),
-          top3TaskIds: [],
-          pomodoroCount: 0,
-          capOverrideCount: 0,
-          airlockCompleted: false,
-        },
-      });
-
-      // Broadcast state change to connected clients
-      broadcastStateChange(userId, state);
-
-      // Publish daily_state.changed event (Requirement 10.3)
-      const previousSystemState = previousState 
-        ? parseSystemState(previousState.systemState) 
-        : 'locked';
-      
-      await mcpEventService.publish({
-        type: 'daily_state.changed',
-        userId,
-        payload: {
-          previousState: previousSystemState,
-          newState: state,
-          date: today.toISOString(),
-          pomodoroCount: dailyState.pomodoroCount,
-          airlockCompleted: dailyState.airlockCompleted,
-        },
-      });
-
-      // S4.2: Publish over_rest_entered event if transitioning to over_rest
-      if (state === 'over_rest' && previousSystemState !== 'over_rest') {
-        console.log(`[DailyState] State transition to OVER_REST for user ${userId}: previousState=${previousSystemState}, timestamp=${new Date().toISOString()}`);
-        mcpEventService.publish({
-          type: 'daily_state.over_rest_entered',
-          userId,
-          payload: { previousState: previousSystemState, date: today.toISOString() },
-        }).catch((err) => console.error('[MCP Event] over_rest_entered publish error:', err));
-      }
-
-      // S4/S5: Fire proactive AI triggers on state transitions (async, non-blocking)
-      chatTriggersStateService.handleDailyStateChanged(userId, {
-        previousState: previousSystemState,
-        newState: state,
-        date: today.toISOString(),
-        pomodoroCount: dailyState.pomodoroCount,
-        airlockCompleted: dailyState.airlockCompleted,
-      }).catch((err) => console.error('[AI Trigger] handleDailyStateChanged error:', err));
-
-      return { success: true, data: dailyState };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to update system state',
-        },
-      };
-    }
-  },
-
-  /**
-   * Complete the morning airlock
-   * Requirements: 3.8, 3.9, 6.7
-   */
-  async completeAirlock(
-    userId: string,
-    data: CompleteAirlockInput
-  ): Promise<ServiceResult<DailyState>> {
-    try {
-      const validated = CompleteAirlockSchema.parse(data);
-      const today = getTodayDate();
-
-      // Verify all tasks exist and belong to user (if any tasks selected)
-      if (validated.top3TaskIds.length > 0) {
-        const tasks = await prisma.task.findMany({
-          where: {
-            id: { in: validated.top3TaskIds },
-            userId,
-          },
-        });
-
-        if (tasks.length !== validated.top3TaskIds.length) {
-          return {
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'One or more selected tasks not found or do not belong to user',
-            },
-          };
-        }
-
-        // Update tasks to have today's plan date
-        await prisma.task.updateMany({
-          where: {
-            id: { in: validated.top3TaskIds },
-            userId,
-          },
-          data: {
-            planDate: today,
-          },
-        });
-      }
-
-      // Update daily state
-      const dailyState = await prisma.dailyState.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
-          },
-        },
-        update: {
-          systemState: 'PLANNING',
-          top3TaskIds: validated.top3TaskIds,
-          airlockCompleted: true,
-        },
-        create: {
-          userId,
-          date: today,
-          systemState: 'PLANNING',
-          top3TaskIds: validated.top3TaskIds,
-          pomodoroCount: 0,
-          capOverrideCount: 0,
-          airlockCompleted: true,
-        },
-      });
-
-      // Broadcast state change to connected clients
-      broadcastStateChange(userId, 'planning');
-
-      return { success: true, data: dailyState };
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return {
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid airlock data',
-            details: error.flatten().fieldErrors as Record<string, string[]>,
-          },
-        };
-      }
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to complete airlock',
-        },
-      };
-    }
-  },
-
-
-  /**
-   * Increment pomodoro count
-   * Requirements: 12.2
-   */
-  async incrementPomodoroCount(userId: string): Promise<ServiceResult<DailyState>> {
-    try {
-      const today = getTodayDate();
-
-      const dailyState = await prisma.dailyState.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
-          },
-        },
-        update: {
-          pomodoroCount: { increment: 1 },
-        },
-        create: {
-          userId,
-          date: today,
-          systemState: 'PLANNING',
-          top3TaskIds: [],
-          pomodoroCount: 1,
-          capOverrideCount: 0,
-          airlockCompleted: false,
-        },
-      });
-
-      return { success: true, data: dailyState };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to increment pomodoro count',
-        },
-      };
-    }
-  },
 
   /**
    * Check if daily cap is reached
@@ -532,7 +262,7 @@ export const dailyStateService = {
         create: {
           userId,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [],
           pomodoroCount: 0,
           capOverrideCount: 1,
@@ -628,93 +358,36 @@ export const dailyStateService = {
   },
 
   /**
-   * Check if airlock is completed for today
-   */
-  async isAirlockCompleted(userId: string): Promise<ServiceResult<boolean>> {
-    try {
-      const stateResult = await this.getOrCreateToday(userId);
-      if (!stateResult.success || !stateResult.data) {
-        return {
-          success: false,
-          error: stateResult.error,
-        };
-      }
-
-      return { success: true, data: stateResult.data.airlockCompleted };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to check airlock status',
-        },
-      };
-    }
-  },
-
-  /**
-   * Get current system state
-   */
-  async getCurrentState(userId: string): Promise<ServiceResult<SystemState>> {
-    try {
-      const stateResult = await this.getOrCreateToday(userId);
-      if (!stateResult.success || !stateResult.data) {
-        return {
-          success: false,
-          error: stateResult.error,
-        };
-      }
-
-      return { 
-        success: true, 
-        data: parseSystemState(stateResult.data.systemState) 
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get current state',
-        },
-      };
-    }
-  },
-
-  /**
    * Reset daily state (for testing or manual reset)
    * Requirements: 6.7
    */
   async resetToday(userId: string): Promise<ServiceResult<DailyState>> {
     try {
-      const today = getTodayDate();
-
-      const dailyState = await prisma.dailyState.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
+      // Use StateEngine for state transition (DAILY_RESET event)
+      const { stateEngineService } = await import('./state-engine.service');
+      const result = await stateEngineService.send(userId, { type: 'DAILY_RESET' });
+      if (!result.success) {
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: `State transition failed: ${result.message}`,
           },
+        };
+      }
+
+      // Also reset non-state fields (top3, capOverride, airlock)
+      const today = getTodayDate();
+      const dailyState = await prisma.dailyState.update({
+        where: {
+          userId_date: { userId, date: today },
         },
-        update: {
-          systemState: 'LOCKED',
+        data: {
           top3TaskIds: [],
-          pomodoroCount: 0,
-          capOverrideCount: 0,
-          airlockCompleted: false,
-        },
-        create: {
-          userId,
-          date: today,
-          systemState: 'LOCKED',
-          top3TaskIds: [],
-          pomodoroCount: 0,
           capOverrideCount: 0,
           airlockCompleted: false,
         },
       });
-
-      // Broadcast state change to connected clients
-      broadcastStateChange(userId, 'locked');
 
       return { success: true, data: dailyState };
     } catch (error) {
@@ -741,30 +414,9 @@ export const dailyStateService = {
    */
   async isInOverRest(userId: string): Promise<ServiceResult<boolean>> {
     try {
-      // Check current system state
-      const currentStateResult = await this.getCurrentState(userId);
-      if (!currentStateResult.success) {
-        return {
-          success: false,
-          error: currentStateResult.error,
-        };
-      }
-
-      // If already in over_rest state, return true
-      if (currentStateResult.data === 'over_rest') {
-        return { success: true, data: true };
-      }
-
-      // Check if user should be in over-rest based on over-rest service
-      const overRestResult = await overRestService.checkOverRestStatus(userId);
-      if (!overRestResult.success) {
-        return {
-          success: false,
-          error: overRestResult.error,
-        };
-      }
-
-      return { success: true, data: overRestResult.data?.isOverRest ?? false };
+      const { stateEngineService } = await import('./state-engine.service');
+      const currentState = await stateEngineService.getState(userId);
+      return { success: true, data: currentState === 'over_rest' };
     } catch (error) {
       return {
         success: false,
@@ -776,59 +428,6 @@ export const dailyStateService = {
     }
   },
 
-  /**
-   * Skip airlock for new users (no tasks/projects)
-   * Sets system state to PLANNING without requiring Top 3 selection
-   */
-  async skipAirlockForNewUser(userId: string): Promise<ServiceResult<DailyState>> {
-    return this.skipAirlock(userId);
-  },
-
-  /**
-   * Skip airlock and go directly to PLANNING state.
-   * Works for any user regardless of whether they have tasks.
-   */
-  async skipAirlock(userId: string): Promise<ServiceResult<DailyState>> {
-    try {
-      const today = getTodayDate();
-
-      const dailyState = await prisma.dailyState.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
-          },
-        },
-        update: {
-          systemState: 'PLANNING',
-          top3TaskIds: [],
-          airlockCompleted: true,
-        },
-        create: {
-          userId,
-          date: today,
-          systemState: 'PLANNING',
-          top3TaskIds: [],
-          pomodoroCount: 0,
-          capOverrideCount: 0,
-          airlockCompleted: true,
-        },
-      });
-
-      // Broadcast state change to connected clients
-      broadcastStateChange(userId, 'planning');
-
-      return { success: true, data: dailyState };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to skip airlock',
-        },
-      };
-    }
-  }
 };
 
 export default dailyStateService;

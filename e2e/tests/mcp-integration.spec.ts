@@ -215,7 +215,7 @@ test.describe('MCP Integration', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [task1.id, task2.id, task3.id],
           pomodoroCount: 0,
           capOverrideCount: 0,
@@ -385,7 +385,7 @@ test.describe('MCP Integration', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 0,
           capOverrideCount: 0,
@@ -586,7 +586,7 @@ test.describe('MCP Integration', () => {
         data: {
           userId: testUser.id,
           date: today,
-          systemState: 'PLANNING',
+          systemState: 'IDLE',
           top3TaskIds: [task.id],
           pomodoroCount: 0,
           capOverrideCount: 0,

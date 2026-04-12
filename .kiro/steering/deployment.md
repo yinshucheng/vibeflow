@@ -60,15 +60,55 @@ When deploying from overseas (e.g., after migrating to Fly.io), override the reg
 docker compose build --build-arg REGISTRY=""
 ```
 
+## Clients Overview
+
+All clients share the same backend (Next.js + Socket.io + PostgreSQL). The server is the single deployment unit; clients are distributed separately.
+
+### When to use which client
+
+| Client | Scope | Unique capabilities | When to use |
+|--------|-------|-------------------|-------------|
+| **Web** | Primary UI | Full task/project/goal CRUD, statistics, settings, pomodoro control | All management operations — this is where you do everything |
+| **Desktop** (macOS) | OS-level enforcement | Quit/hide distraction apps (AppleScript), sleep enforcement, quit prevention, system tray with live countdown, offline policy cache (24h), idle detection | You want the system to **force you to focus** — auto-close distracting apps, prevent quitting VibeFlow, enforce sleep time |
+| **Extension** (Chrome) | Browser-level enforcement | URL blocking (declarativeNetRequest), entertainment mode with daily quota, page overlay warnings, browser activity tracking (scroll/clicks/search), screensaver redirect | You want to **block distracting websites** and track browsing behavior during work |
+
+**In short**: Web = the brain (manage everything). Desktop = app-level enforcement (close WeChat, games). Extension = browser-level enforcement (block Twitter, YouTube). All three together = full-spectrum focus protection.
+
+### Architecture
+
+```
+                    ┌─────────────────────────┐
+                    │   Server (port 4000)     │
+                    │   Next.js + Socket.io    │
+                    │   tRPC API + Web UI      │
+                    └────┬──────┬──────┬───────┘
+                         │      │      │
+              ┌──────────┘      │      └──────────┐
+              ▼                 ▼                  ▼
+     ┌────────────────┐ ┌─────────────┐ ┌─────────────────┐
+     │ Desktop (.app) │ │  Browser    │ │ Extension       │
+     │ Loads web UI   │ │  (direct)   │ │ (Chrome popup)  │
+     │ + OS enforce   │ │             │ │ + URL blocking  │
+     └────────────────┘ └─────────────┘ └─────────────────┘
+```
+
+- Desktop loads the web UI via `mainWindow.loadURL(serverUrl)` — no separate UI
+- Extension has its own minimal popup; management is done in the web UI
+- All clients communicate via Socket.io (Octopus protocol)
+
 ## Client Connection
 
 ### Local development (default)
 All clients connect to `localhost:3000`, using local PostgreSQL. No special config needed.
 
-### Remote server
+### Remote server (current production)
 
 ```bash
-# Desktop
+# Desktop (release build — double-click .app, auto-connects to remote)
+open vibeflow-desktop/release/mac-arm64/VibeFlow.app
+# Desktop (rebuild first if code changed)
+cd vibeflow-desktop && npm run build:mac && open release/mac-arm64/VibeFlow.app
+# Desktop (dev mode with remote server — for debugging)
 ./scripts/start-remote.sh desktop
 # or: VIBEFLOW_SERVER_URL=http://39.105.213.147:4000 npm run dev (in vibeflow-desktop/)
 
@@ -89,9 +129,52 @@ All clients connect to `localhost:3000`, using local PostgreSQL. No special conf
 | Client | Config mechanism | Env var / setting |
 |--------|-----------------|-------------------|
 | Web | `.env` `NEXTAUTH_URL` | N/A (runs on same server) |
-| Desktop | electron-store + env var | `VIBEFLOW_SERVER_URL` |
+| Desktop | `app.isPackaged` + env var | Packaged `.app` → remote; dev → localhost; `VIBEFLOW_SERVER_URL` overrides both |
 | Extension | chrome.storage.local | Popup UI "Server URL" field |
 | iOS | Expo env vars (baked at build) | `EXPO_PUBLIC_SERVER_HOST`, `EXPO_PUBLIC_SERVER_PORT` |
+
+### Custom deployment (deploy to your own server)
+
+**Step 1: Deploy the server** (required — all clients depend on it)
+
+Prerequisites: Linux server with Docker + Docker Compose + Nginx.
+
+```bash
+# 1. Clone repo to server, or use deploy.sh to push from local
+# 2. Create .env.production (copy from .env.production.example)
+#    Required: DATABASE_URL, NEXTAUTH_URL=http://YOUR_IP:4000, NEXTAUTH_SECRET
+#    For dev/testing: DEV_MODE=true, DEV_USER_EMAIL=your@email.com
+# 3. Deploy
+./deploy/deploy.sh
+# Or manually on server:
+docker compose build && docker compose up -d
+npx prisma db push
+```
+
+After deployment, `http://YOUR_IP:4000` serves the web UI + API + WebSocket — all on one port.
+
+**Step 2: Connect Desktop** (optional — for macOS app enforcement)
+
+```bash
+# Option A: Modify the hardcoded remote IP and build a release .app
+# Edit vibeflow-desktop/electron/main.ts line ~106: change 39.105.213.147 to YOUR_IP
+cd vibeflow-desktop && npm run build:mac
+open release/mac-arm64/VibeFlow.app
+
+# Option B: Use env var (no code change needed)
+cd vibeflow-desktop
+VIBEFLOW_SERVER_URL=http://YOUR_IP:4000 npm run dev
+```
+
+**Step 3: Connect Extension** (optional — for browser enforcement)
+
+1. Load extension in Chrome (Developer Mode → Load Unpacked → select `vibeflow-extension/`)
+2. Click popup → Server URL → enter `http://YOUR_IP:4000` → Connect
+
+**Important notes**:
+- Server must open port 4000 (or your configured port) and support WebSocket long connections
+- Nginx config: see `deploy/nginx-vibeflow.conf` for WebSocket/Socket.io proxy settings
+- **No production auth yet** (`DEV_MODE=true` = passwordless login) — do not expose to public internet without completing `production-auth` spec
 
 ## Server Operations
 

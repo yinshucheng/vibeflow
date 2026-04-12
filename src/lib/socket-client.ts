@@ -10,7 +10,8 @@
 import { io, Socket } from 'socket.io-client';
 
 // Re-export types locally (avoid importing from server in client code)
-export type SystemState = 'locked' | 'planning' | 'focus' | 'rest' | 'over_rest';
+// 3-state model: idle (was locked/planning/rest), focus, over_rest
+export type SystemState = 'idle' | 'focus' | 'over_rest';
 
 export interface PolicyCache {
   globalState: SystemState;

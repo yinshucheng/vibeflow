@@ -19,8 +19,7 @@ import { projectService } from './project.service';
 import { timeSliceService } from './time-slice.service';
 import { activityLogService } from './activity-log.service';
 import { efficiencyAnalysisService } from './efficiency-analysis.service';
-import { dailyStateService } from './daily-state.service';
-import { broadcastStateChange } from './socket-broadcast.service';
+import { stateEngineService } from './state-engine.service';
 import { screenTimeExemptionService } from './screen-time-exemption.service';
 import { pomodoroService as pomodoroServiceDirect } from './pomodoro.service';
 import { sleepTimeService } from './sleep-time.service';
@@ -85,7 +84,7 @@ const updateTaskSchema = z.object({
   description: z.string().optional().describe('New description for the task'),
   priority: z.enum(['P1', 'P2', 'P3']).optional().describe('New priority level'),
   estimated_minutes: z.number().optional().describe('Estimated time in minutes'),
-  plan_date: z.string().nullable().optional().describe('Plan date in ISO format (YYYY-MM-DD) or null to clear'),
+  plan_date: z.string().optional().describe('Plan date in ISO format (YYYY-MM-DD) or omit to clear'),
 });
 
 const getTaskSchema = z.object({
@@ -111,12 +110,12 @@ const quickCreateInboxTaskSchema = z.object({
 // S1.2 Pomodoro control schemas
 const switchTaskSchema = z.object({
   pomodoro_id: z.string().describe('The UUID of the active pomodoro'),
-  new_task_id: z.string().nullable().describe('The UUID of the task to switch to, or null for taskless'),
+  new_task_id: z.string().optional().describe('The UUID of the task to switch to, or omit for taskless'),
 });
 
 const completeCurrentTaskSchema = z.object({
   pomodoro_id: z.string().describe('The UUID of the active pomodoro'),
-  next_task_id: z.string().nullable().optional().describe('Optional task to switch to after completing current task'),
+  next_task_id: z.string().optional().describe('Optional task to switch to after completing current task'),
 });
 
 const startTasklessPomodoroSchema = z.object({
@@ -152,7 +151,7 @@ const batchUpdateTasksSchema = z.object({
 
 const setPlanDateSchema = z.object({
   task_id: z.string().describe('The UUID of the task'),
-  plan_date: z.string().nullable().describe('Plan date in ISO format (YYYY-MM-DD) or null to clear'),
+  plan_date: z.string().optional().describe('Plan date in ISO format (YYYY-MM-DD) or omit to clear'),
 });
 
 const moveTaskSchema = z.object({
@@ -254,9 +253,22 @@ async function executeStartPomodoro(userId: string, params: Record<string, unkno
   if (!result.success) {
     return { success: false, error: result.error ?? { code: 'INTERNAL_ERROR', message: 'Failed to start pomodoro' } };
   }
-  // Transition to FOCUS state and broadcast SYNC_STATE to all devices (BUG-4)
-  await dailyStateService.updateSystemState(userId, 'focus');
-  return { success: true, data: { id: result.data?.id, taskId: result.data?.taskId, duration: result.data?.duration, startTime: result.data?.startTime, status: result.data?.status } };
+
+  // Transition state via StateEngine (handles state write, broadcast, policy update, MCP event, logging)
+  const pomodoroData = result.data!;
+  const transition = await stateEngineService.send(userId, {
+    type: 'START_POMODORO',
+    pomodoroId: pomodoroData.id,
+    taskId: pomodoroData.taskId,
+  });
+
+  if (!transition.success) {
+    // Guard rejected — clean up the created pomodoro
+    await pomodoroService.abort(pomodoroData.id, userId).catch(() => {});
+    return { success: false, error: { code: 'CONFLICT', message: transition.message } };
+  }
+
+  return { success: true, data: { id: pomodoroData.id, taskId: pomodoroData.taskId, duration: pomodoroData.duration, startTime: pomodoroData.startTime, status: pomodoroData.status } };
 }
 
 // S1.1 Task management execute helpers
@@ -354,7 +366,7 @@ async function executeSetTop3(userId: string, params: Record<string, unknown>): 
   await prisma.dailyState.upsert({
     where: { userId_date: { userId, date: today } },
     update: { top3TaskIds: task_ids },
-    create: { userId, date: today, systemState: 'PLANNING', top3TaskIds: task_ids },
+    create: { userId, date: today, systemState: 'IDLE', top3TaskIds: task_ids },
   });
   await prisma.task.updateMany({ where: { id: { in: task_ids }, userId }, data: { planDate: today } });
   const sorted = task_ids.map((id, index) => { const t = tasks.find(t => t.id === id); return t ? { id: t.id, title: t.title, priority: t.priority, projectTitle: t.project.title, order: index + 1 } : null; }).filter(Boolean);
@@ -385,7 +397,7 @@ async function executeSwitchTask(userId: string, params: Record<string, unknown>
     return { success: false, error: { code: 'NOT_FOUND', message: 'Active pomodoro not found' } };
   }
   const currentSliceId = pomodoro.timeSlices[0]?.id ?? null;
-  const result = await timeSliceService.switchTask(pomodoro_id, currentSliceId, new_task_id);
+  const result = await timeSliceService.switchTask(pomodoro_id, currentSliceId, new_task_id ?? null);
   if (!result.success) {
     return { success: false, error: result.error ?? { code: 'INTERNAL_ERROR', message: 'Failed to switch task' } };
   }
@@ -407,7 +419,23 @@ async function executeStartTasklessPomodoro(userId: string, params: Record<strin
   if (!result.success) {
     return { success: false, error: result.error ?? { code: 'INTERNAL_ERROR', message: 'Failed to start taskless pomodoro' } };
   }
-  return { success: true, data: { id: result.data?.id, label: result.data?.label, startTime: result.data?.startTime, isTaskless: true } };
+
+  // Transition state via StateEngine (handles state write, broadcast, policy update, MCP event, logging)
+  const pomodoroData = result.data!;
+  const transition = await stateEngineService.send(userId, {
+    type: 'START_POMODORO',
+    pomodoroId: pomodoroData.id,
+    taskId: pomodoroData.taskId,
+    isTaskless: true,
+  });
+
+  if (!transition.success) {
+    // Guard rejected — clean up the created pomodoro
+    await pomodoroService.abort(pomodoroData.id, userId).catch(() => {});
+    return { success: false, error: { code: 'CONFLICT', message: transition.message } };
+  }
+
+  return { success: true, data: { id: pomodoroData.id, label: pomodoroData.label, startTime: pomodoroData.startTime, isTaskless: true } };
 }
 
 async function executeRecordPomodoro(userId: string, params: Record<string, unknown>): Promise<ChatToolResult> {

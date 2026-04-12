@@ -3,8 +3,8 @@
  *
  * Monitors state changes from server sync and triggers appropriate notifications.
  * This service listens to the Zustand store and sends notifications when:
- * - A pomodoro completes (state changes from FOCUS to REST)
- * - Rest period ends (state changes from REST to PLANNING/FOCUS)
+ * - A pomodoro completes (state changes from FOCUS to IDLE)
+ * - Rest period ends (state changes from IDLE to FOCUS, i.e. new pomodoro started)
  *
  * All notifications are read-only reminders with no action buttons.
  *
@@ -27,6 +27,7 @@ interface PreviousState {
   dailyState: DailyStateData['state'] | null;
   activePomodoro: ActivePomodoroData | null;
   completedPomodoros: number;
+  healthLimitType: string | null;
 }
 
 // =============================================================================
@@ -40,7 +41,9 @@ class NotificationTriggerService {
     dailyState: null,
     activePomodoro: null,
     completedPomodoros: 0,
+    healthLimitType: null,
   };
+  private healthLimitTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Initialize the notification trigger service.
@@ -52,16 +55,21 @@ class NotificationTriggerService {
       return;
     }
 
-    // Initialize the notification service first
-    await notificationService.initialize();
+    try {
+      // Initialize the notification service first
+      await notificationService.initialize();
 
-    // Request notification permission
-    const hasPermission = await notificationService.requestPermission();
-    if (!hasPermission) {
-      console.warn('[NotificationTrigger] Notification permission denied');
+      // Request notification permission
+      const hasPermission = await notificationService.requestPermission();
+      if (!hasPermission) {
+        console.warn('[NotificationTrigger] Notification permission denied');
+      }
+    } catch (error) {
+      // Native module may not be available (e.g. missing PushNotificationIOS link)
+      console.warn('[NotificationTrigger] Notification init failed, continuing without notifications:', error);
     }
 
-    // Subscribe to store changes
+    // Subscribe to store changes regardless of notification permission
     this.setupStoreSubscription();
     this.isInitialized = true;
 
@@ -81,7 +89,13 @@ class NotificationTriggerService {
       dailyState: null,
       activePomodoro: null,
       completedPomodoros: 0,
+      healthLimitType: null,
     };
+
+    if (this.healthLimitTimer) {
+      clearInterval(this.healthLimitTimer);
+      this.healthLimitTimer = null;
+    }
 
     this.isInitialized = false;
     console.log('[NotificationTrigger] Cleaned up');
@@ -108,6 +122,7 @@ class NotificationTriggerService {
       dailyState: currentState.dailyState?.state ?? null,
       activePomodoro: currentState.activePomodoro,
       completedPomodoros: currentState.dailyState?.completedPomodoros ?? 0,
+      healthLimitType: null,
     };
 
     // Subscribe to store changes
@@ -136,18 +151,22 @@ class NotificationTriggerService {
     // Requirements: 8.3 - WHEN rest period ends on server
     this.checkRestPeriodEnd(currentDailyState);
 
+    // Check for health limit notifications
+    this.checkHealthLimit(state);
+
     // Update previous state
     this.previousState = {
       dailyState: currentDailyState,
       activePomodoro: currentPomodoro,
       completedPomodoros: currentCompletedPomodoros,
+      healthLimitType: this.previousState.healthLimitType,
     };
   }
 
   /**
    * Check if a pomodoro has completed and trigger notification.
    * A pomodoro is considered complete when:
-   * - State changes from FOCUS to REST, OR
+   * - State changes from FOCUS to IDLE, OR
    * - Active pomodoro becomes null while in FOCUS state, OR
    * - Completed pomodoro count increases
    *
@@ -167,9 +186,9 @@ class NotificationTriggerService {
       return;
     }
 
-    // Condition 1: State changed from FOCUS to REST
-    const stateChangedToRest =
-      previousDailyState === 'FOCUS' && currentDailyState === 'REST';
+    // Condition 1: State changed from FOCUS to IDLE (pomodoro completed)
+    const stateChangedToIdle =
+      previousDailyState === 'FOCUS' && currentDailyState === 'IDLE';
 
     // Condition 2: Pomodoro count increased (most reliable indicator)
     const pomodoroCountIncreased =
@@ -181,7 +200,7 @@ class NotificationTriggerService {
       currentPomodoro === null &&
       previousDailyState === 'FOCUS';
 
-    if (stateChangedToRest || pomodoroCountIncreased || pomodoroEndedInFocus) {
+    if (stateChangedToIdle || pomodoroCountIncreased || pomodoroEndedInFocus) {
       console.log('[NotificationTrigger] Pomodoro completed, sending notification');
       this.triggerPomodoroCompleteNotification();
     }
@@ -189,8 +208,8 @@ class NotificationTriggerService {
 
   /**
    * Check if rest period has ended and trigger notification.
-   * Rest period is considered ended when:
-   * - State changes from REST to PLANNING or FOCUS
+   * In 3-state model, rest is a sub-phase of IDLE. Rest ends when user starts
+   * a new pomodoro (IDLE → FOCUS).
    *
    * Requirements: 8.3
    */
@@ -204,14 +223,64 @@ class NotificationTriggerService {
       return;
     }
 
-    // Check if state changed from REST to PLANNING or FOCUS
+    // Check if state changed from IDLE to FOCUS (user started new pomodoro after rest)
     const restEnded =
-      previousDailyState === 'REST' &&
-      (currentDailyState === 'PLANNING' || currentDailyState === 'FOCUS');
+      previousDailyState === 'IDLE' && currentDailyState === 'FOCUS';
 
     if (restEnded) {
       console.log('[NotificationTrigger] Rest period ended, sending notification');
       this.triggerRestCompleteNotification();
+    }
+  }
+
+  /**
+   * Check if health limit has been reached and trigger notification.
+   */
+  private checkHealthLimit(state: AppState): void {
+    const policy = (state as { policy?: { healthLimit?: { type: string; message: string; repeating?: boolean; intervalMinutes?: number } } }).policy;
+    const healthLimit = policy?.healthLimit;
+
+    if (healthLimit) {
+      if (healthLimit.type !== this.previousState.healthLimitType) {
+        // New or changed health limit — send notification
+        this.triggerHealthLimitNotification(healthLimit.message);
+        this.previousState.healthLimitType = healthLimit.type;
+
+        // Clear existing repeat timer
+        if (this.healthLimitTimer) {
+          clearInterval(this.healthLimitTimer);
+          this.healthLimitTimer = null;
+        }
+
+        // Set up repeating notifications if configured
+        if (healthLimit.repeating) {
+          const intervalMs = (healthLimit.intervalMinutes ?? 10) * 60 * 1000;
+          this.healthLimitTimer = setInterval(() => {
+            this.triggerHealthLimitNotification(healthLimit.message);
+          }, intervalMs);
+        }
+      }
+    } else {
+      this.previousState.healthLimitType = null;
+      if (this.healthLimitTimer) {
+        clearInterval(this.healthLimitTimer);
+        this.healthLimitTimer = null;
+      }
+    }
+  }
+
+  /**
+   * Trigger health limit notification.
+   */
+  private async triggerHealthLimitNotification(message: string): Promise<void> {
+    try {
+      await notificationService.scheduleNotification({
+        title: '⏰ Health Reminder',
+        body: message,
+        data: { type: 'health_limit' },
+      });
+    } catch (error) {
+      console.error('[NotificationTrigger] Failed to show health limit notification:', error);
     }
   }
 

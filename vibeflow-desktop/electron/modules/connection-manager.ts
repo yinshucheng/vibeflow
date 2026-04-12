@@ -9,7 +9,7 @@
  * Requirements: 9.4, 9.5, 9.6 - Secure WebSocket connection (WSS) with certificate verification
  */
 
-import { BrowserWindow } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import * as https from 'https';
 import * as tls from 'tls';
 import { io, Socket } from 'socket.io-client';
@@ -77,8 +77,8 @@ const DEFAULT_RETRY_STRATEGY: RetryStrategy = {
   backoffMultiplier: 1.5,
 };
 
-// Detect if running in development mode
-const isDevelopment = process.env.NODE_ENV !== 'production';
+// Detect if running in development mode (consistent with main.ts logic)
+const isDevelopment = process.env.NODE_ENV === 'development' || (!app.isPackaged && process.env.NODE_ENV !== 'production');
 
 // Default security configuration (Requirements: 9.4, 9.5, 9.6)
 // In development, disable secure connection to allow HTTP
@@ -196,6 +196,7 @@ class ConnectionManager {
   private state: ConnectionState;
   private mainWindow: BrowserWindow | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private slowRetryTimer: ReturnType<typeof setInterval> | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private listeners: Set<ConnectionEventListener> = new Set();
@@ -879,14 +880,15 @@ class ConnectionManager {
   disconnect(): void {
     this.state.isManualDisconnect = true;
     this.stopReconnectTimer();
+    this.stopSlowRetry();
     this.stopPingTimer();
     this.stopHeartbeat();
-    
+
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    
+
     this.updateStatus('disconnected');
     this.state.lastDisconnectedAt = Date.now();
     this.state.isSecure = false;
@@ -900,12 +902,13 @@ class ConnectionManager {
   async reconnect(): Promise<void> {
     this.state.reconnectAttempts = 0;
     this.state.isManualDisconnect = false;
-    
+    this.stopSlowRetry();
+
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    
+
     await this.connect();
   }
 
@@ -916,6 +919,7 @@ class ConnectionManager {
     this.state.reconnectAttempts = 0;
     this.state.lastConnectedAt = Date.now();
     this.state.lastError = null;
+    this.stopSlowRetry();
     this.updateStatus('connected');
     this.startPingTimer();
     this.startHeartbeat();
@@ -944,12 +948,15 @@ class ConnectionManager {
     if (this.state.reconnectAttempts < this.config.retryStrategy.maxAttempts) {
       this.scheduleReconnect();
     } else {
+      // Max fast retries exhausted — switch to slow periodic retry (every 60s)
+      // to avoid the dead state where neither heartbeat nor reconnect runs.
       this.updateStatus('error', error);
       this.notifyListeners({
         status: 'error',
         timestamp: Date.now(),
         error: `Max reconnection attempts (${this.config.retryStrategy.maxAttempts}) reached. ${error}`,
       });
+      this.scheduleSlowRetry();
     }
   }
 
@@ -980,6 +987,34 @@ class ConnectionManager {
     this.reconnectTimer = setTimeout(async () => {
       await this.connect();
     }, delay);
+  }
+
+  /**
+   * Schedule a slow periodic retry after fast retries are exhausted.
+   * Tries once every 60 seconds to recover from transient outages
+   * without giving up entirely.
+   */
+  private scheduleSlowRetry(): void {
+    this.stopSlowRetry();
+    const SLOW_RETRY_INTERVAL_MS = 60_000;
+    console.log('[ConnectionManager] Starting slow retry (every 60s)');
+
+    this.slowRetryTimer = setInterval(async () => {
+      if (this.state.status === 'connected' || this.state.status === 'connecting') {
+        this.stopSlowRetry();
+        return;
+      }
+      console.log('[ConnectionManager] Slow retry: attempting reconnect…');
+      this.state.reconnectAttempts = 0;
+      await this.connect();
+    }, SLOW_RETRY_INTERVAL_MS);
+  }
+
+  private stopSlowRetry(): void {
+    if (this.slowRetryTimer) {
+      clearInterval(this.slowRetryTimer);
+      this.slowRetryTimer = null;
+    }
   }
 
   /**
@@ -1107,14 +1142,15 @@ class ConnectionManager {
    */
   destroy(): void {
     this.stopReconnectTimer();
+    this.stopSlowRetry();
     this.stopPingTimer();
     this.stopHeartbeat();
-    
+
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    
+
     this.listeners.clear();
     this.commandHandlers.clear();
     this.policyUpdateHandlers.clear();

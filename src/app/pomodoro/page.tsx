@@ -10,8 +10,6 @@
  * Requirements: 6.7 - Real-time state updates via WebSocket
  */
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { MainLayout, PageHeader, Card, CardContent } from '@/components/layout';
 import { PomodoroTimer } from '@/components/pomodoro';
 import { PomodoroCompletionModal } from '@/components/pomodoro/completion-modal';
@@ -23,21 +21,12 @@ import { trpc } from '@/lib/trpc';
 import { usePomodoroMachine } from '@/hooks/use-pomodoro-machine';
 
 export default function PomodoroPage() {
-  const router = useRouter();
-
   // Use centralized state machine for all pomodoro state management
   const { phase, pomodoro, completedPomodoro, restStatus, systemState, isLoading, actions } =
     usePomodoroMachine();
 
   // Get daily state for progress display and cap checking
   const { data: dailyState } = trpc.dailyState.getToday.useQuery();
-
-  // Redirect to airlock if locked
-  useEffect(() => {
-    if (!isLoading && systemState === 'locked' && !dailyState?.airlockCompleted) {
-      router.push('/airlock');
-    }
-  }, [isLoading, systemState, dailyState?.airlockCompleted, router]);
 
   // Daily cap modal state (kept local as it's UI-only)
   const showCapModal = phase === 'idle' && dailyState?.progress?.isCapped;
@@ -58,7 +47,6 @@ export default function PomodoroPage() {
   };
 
   const LoaderIcon = Icons.loader;
-  const SunriseIcon = Icons.airlock;
   const TimerIcon = Icons.pomodoro;
 
   // Loading state
@@ -72,17 +60,7 @@ export default function PomodoroPage() {
     );
   }
 
-  // Show redirect message if locked
-  if (systemState === 'locked' && !dailyState?.airlockCompleted) {
-    return (
-      <MainLayout title="Pomodoro">
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <SunriseIcon className="w-10 h-10 text-notion-accent-orange" />
-          <p className="text-notion-text-secondary">Redirecting to Morning Airlock...</p>
-        </div>
-      </MainLayout>
-    );
-  }
+  // LOCKED state removed in 3-state model — no airlock redirect needed
 
   return (
     <MainLayout title="Pomodoro">

@@ -44,8 +44,8 @@ function createBlockingService(): BlockingService {
    * Delegates to the pure function in utils/blocking-reason.ts.
    */
   function getBlockingReason(): BlockingReason | null {
-    const { activePomodoro, policy } = useAppStore.getState();
-    return evaluateBlockingReason({ activePomodoro, policy });
+    const { activePomodoro, policy, dailyState } = useAppStore.getState();
+    return evaluateBlockingReason({ activePomodoro, policy, dailyState });
   }
 
   /**

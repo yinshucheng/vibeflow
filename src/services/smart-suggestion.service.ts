@@ -41,7 +41,7 @@ export interface TaskSuggestion {
 
 // Suggestion context interface
 export interface SuggestionContext {
-  trigger: 'pomodoro_complete' | 'idle_detected' | 'airlock_entry' | 'manual';
+  trigger: 'pomodoro_complete' | 'idle_detected' | 'daily_planning' | 'manual';
   currentState: string;
   timeOfDay: 'morning' | 'afternoon' | 'evening';
   dayOfWeek: number;
@@ -60,7 +60,7 @@ export const RecordSuggestionFeedbackSchema = z.object({
   taskId: z.string().uuid().optional(),
   action: z.enum(['accepted', 'dismissed', 'modified']),
   context: z.object({
-    trigger: z.enum(['pomodoro_complete', 'idle_detected', 'airlock_entry', 'manual']),
+    trigger: z.enum(['pomodoro_complete', 'idle_detected', 'daily_planning', 'manual']),
   }).optional(),
 });
 
@@ -374,7 +374,7 @@ export const smartSuggestionService = {
       // Get suggestions
       const context: SuggestionContext = {
         trigger: 'idle_detected',
-        currentState: 'PLANNING',
+        currentState: 'IDLE',
         timeOfDay: getTimeOfDay(),
         dayOfWeek: new Date().getDay(),
       };
@@ -434,8 +434,8 @@ export const smartSuggestionService = {
       
       // Get task suggestions
       const context: SuggestionContext = {
-        trigger: 'airlock_entry',
-        currentState: 'LOCKED',
+        trigger: 'daily_planning',
+        currentState: 'IDLE',
         timeOfDay: getTimeOfDay(),
         dayOfWeek,
       };
@@ -479,7 +479,7 @@ export const smartSuggestionService = {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get airlock suggestions',
+          message: error instanceof Error ? error.message : 'Failed to get daily planning suggestions',
         },
       };
     }

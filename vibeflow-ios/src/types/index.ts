@@ -12,7 +12,7 @@ export * from './chat';
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
 export interface DailyStateData {
-  state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
+  state: 'IDLE' | 'FOCUS' | 'OVER_REST';
   completedPomodoros: number;
   dailyCap: number;
   totalFocusMinutes: number;

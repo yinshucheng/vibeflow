@@ -3,6 +3,7 @@ import { policyCache } from '../lib/policy-cache.js';
 import { activityTracker } from '../lib/activity-tracker.js';
 import { getWorkStartTracker } from '../lib/work-start-tracker.js';
 import { entertainmentManager } from '../lib/entertainment-manager.js';
+import { normalizeSystemState } from '../types/index.js';
 import type { PolicyCache, SystemState, ActivityLog, ExecuteCommand, TimelineEvent, BlockEvent, InterruptionEvent, EnhancedUrlCheckResult, WorkStartPayload, EntertainmentModePayload } from '../types/index.js';
 
 // Global state
@@ -148,8 +149,8 @@ const wsHandlers: WebSocketEventHandler = {
   },
 
   onStateChange: async (state: SystemState) => {
-    // Normalize state to uppercase (server sends lowercase, extension uses uppercase)
-    const normalizedState = state.toUpperCase() as SystemState;
+    // Normalize state: server may send legacy values (locked/planning/rest) or new values (idle)
+    const normalizedState = normalizeSystemState(state);
     console.log('[ServiceWorker] State changed:', state, '-> normalized:', normalizedState);
     await policyCache.updateState(normalizedState);
     
@@ -166,9 +167,8 @@ const wsHandlers: WebSocketEventHandler = {
     // Update blocking rules
     await updateBlockingRules();
     
-    // If entering a restricted state (LOCKED or OVER_REST), enforce restrictions on all tabs
-    // Requirements: 1.1, 1.2, 1.5, 1.6, 1.10
-    if (normalizedState === 'LOCKED' || normalizedState === 'OVER_REST') {
+    // If entering OVER_REST, enforce restrictions on all tabs
+    if (normalizedState === 'OVER_REST') {
       await enforceStateRestrictions();
     }
     
@@ -752,21 +752,20 @@ async function handleEntertainmentBlock(tabId: number, blockedUrl: string): Prom
 }
 
 /**
- * Handle state restriction blocking (LOCKED or OVER_REST)
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.10
+ * Handle state restriction blocking (OVER_REST)
  */
 async function handleStateRestrictionBlock(
-  tabId: number, 
-  blockedUrl: string, 
-  restriction: { blocked: boolean; redirectUrl?: string; reason?: 'locked' | 'over_rest' }
+  tabId: number,
+  blockedUrl: string,
+  restriction: { blocked: boolean; redirectUrl?: string; reason?: 'over_rest' }
 ): Promise<void> {
   const dashboardUrl = policyCache.getDashboardUrl();
-  
+
   // Store blocked URL info
   await chrome.storage.local.set({
     lastBlockedUrl: blockedUrl,
     lastBlockedTime: Date.now(),
-    blockReason: restriction.reason === 'locked' ? 'locked_state' : 'over_rest_state',
+    blockReason: 'over_rest_state',
   });
   
   // Try to find and activate existing Dashboard tab (Requirements 1.3)
@@ -869,8 +868,7 @@ async function closeEntertainmentTabs(): Promise<void> {
 }
 
 /**
- * Enforce state restrictions on all open tabs when entering LOCKED or OVER_REST state
- * Requirements: 1.1, 1.2, 1.5, 1.6, 1.10
+ * Enforce state restrictions on all open tabs when entering OVER_REST state
  */
 async function enforceStateRestrictions(): Promise<void> {
   const dashboardUrl = policyCache.getDashboardUrl();
@@ -932,8 +930,7 @@ async function enforceStateRestrictions(): Promise<void> {
     }
     
     // Close non-Dashboard tabs (redirect to screensaver instead of closing for better UX)
-    const screensaverPath = state === 'LOCKED' ? 'locked-screensaver.html' : 'over-rest-screensaver.html';
-    const screensaverUrl = chrome.runtime.getURL(screensaverPath);
+    const screensaverUrl = chrome.runtime.getURL('over-rest-screensaver.html');
     
     for (const tabId of tabsToClose) {
       try {

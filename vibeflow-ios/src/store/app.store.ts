@@ -135,6 +135,26 @@ const initialState: AppState = {
 // =============================================================================
 
 /**
+ * Normalize server state values to 3-state model (IDLE/FOCUS/OVER_REST).
+ * Handles backward compatibility with legacy 5-state values.
+ */
+function normalizeState(raw: string): DailyStateData['state'] {
+  switch (raw.toUpperCase()) {
+    case 'IDLE':
+    case 'LOCKED':
+    case 'PLANNING':
+    case 'REST':
+      return 'IDLE';
+    case 'FOCUS':
+      return 'FOCUS';
+    case 'OVER_REST':
+      return 'OVER_REST';
+    default:
+      return 'IDLE';
+  }
+}
+
+/**
  * Convert server FullState to app state format
  */
 function mapFullStateToAppState(
@@ -142,8 +162,8 @@ function mapFullStateToAppState(
 ): Partial<AppState> {
   const { systemState, dailyState, activePomodoro, top3Tasks, settings } = fullState;
 
-  // Map daily state (server sends lowercase, app uses uppercase)
-  const normalizedState = systemState.state.toUpperCase() as DailyStateData['state'];
+  // Map daily state (server may send legacy values, normalize to 3-state model)
+  const normalizedState = normalizeState(systemState.state);
   const mappedDailyState: DailyStateData = {
     state: normalizedState,
     completedPomodoros: dailyState.completedPomodoros,
@@ -244,7 +264,7 @@ function applyDeltaChanges(
     switch (pathParts[0]) {
       case 'systemState':
         if (pathParts[1] === 'state' && currentState.dailyState) {
-          const newState = (change.value as string).toUpperCase() as DailyStateData['state'];
+          const newState = normalizeState(change.value as string);
           updates.dailyState = {
             ...currentState.dailyState,
             state: newState,

@@ -389,6 +389,20 @@ class WebSocketService {
       }
     });
 
+    // Listen for client registration (contains server-resolved userId)
+    this.socket.on('client:registered' as never, (data: { success: boolean; clientId?: string; userId?: string }) => {
+      if (data.success && data.userId) {
+        console.log('[WebSocket] Registered with userId:', data.userId);
+        const store = useAppStore.getState();
+        if (!store.userId || store.userId === '') {
+          store.setUserInfo(data.userId, store.userEmail || '');
+        }
+        // Also update heartbeat service so it can send valid heartbeats
+        const { heartbeatService } = require('./heartbeat.service');
+        heartbeatService.setUserId(data.userId);
+      }
+    });
+
     // Listen for Octopus commands
     this.socket.on('OCTOPUS_COMMAND', (command: OctopusCommand) => {
       console.log('[WebSocket] Received OCTOPUS_COMMAND:', command.commandType);

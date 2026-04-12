@@ -27,6 +27,13 @@ vi.mock('../../src/services/pomodoro.service', () => ({
     startTaskless: vi.fn(),
     completeTaskInPomodoro: vi.fn(),
     record: vi.fn(),
+    abort: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/services/state-engine.service', () => ({
+  stateEngineService: {
+    send: vi.fn(),
   },
 }));
 
@@ -79,6 +86,7 @@ vi.mock('../../src/lib/prisma', () => ({
 import { taskService } from '../../src/services/task.service';
 import { pomodoroService } from '../../src/services/pomodoro.service';
 import { nlParserService } from '../../src/services/nl-parser.service';
+import { stateEngineService } from '../../src/services/state-engine.service';
 import {
   createChatTools,
   getChatToolDefinitions,
@@ -314,6 +322,7 @@ describe('flow_start_pomodoro execute', () => {
         status: 'IN_PROGRESS',
       } as never,
     });
+    vi.mocked(stateEngineService.send).mockResolvedValue({ success: true, from: 'idle', to: 'focus', event: 'START_POMODORO' } as never);
 
     const toolSet = createChatTools(TEST_USER_ID);
     const result = await toolSet.flow_start_pomodoro.execute!(
@@ -476,5 +485,34 @@ describe('storePendingConfirmation + handleToolConfirmation', () => {
 
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe('NOT_FOUND');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tool Schema Compatibility — no nullable types (LLM provider compat)
+// ---------------------------------------------------------------------------
+
+describe('tool schema LLM provider compatibility', () => {
+  it('should not use nullable types in tool schemas (Kimi/Moonshot rejects them)', () => {
+    // Bug: Zod .nullable() generates JSON Schema "type": ["string", "null"]
+    // which Kimi API rejects with "invalid scalar type [string null]".
+    // All tool schemas should use .optional() instead of .nullable().
+    const defs = getChatToolDefinitions();
+    for (const def of defs) {
+      const jsonSchema = JSON.stringify(def.inputSchema);
+      // Check that no schema contains nullable union types like ["string","null"]
+      expect(jsonSchema).not.toContain('"nullable":true');
+      // Also verify through Zod's internal shape: walk the schema to find .nullable()
+      if (def.inputSchema._def?.typeName === 'ZodObject') {
+        const shape = def.inputSchema.shape;
+        for (const [fieldName, fieldSchema] of Object.entries(shape)) {
+          const innerDef = (fieldSchema as { _def?: { typeName?: string } })._def;
+          expect(
+            innerDef?.typeName,
+            `${def.name}.${fieldName} uses ZodNullable — change to .optional() for LLM provider compatibility`
+          ).not.toBe('ZodNullable');
+        }
+      }
+    }
   });
 });

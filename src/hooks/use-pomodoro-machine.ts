@@ -16,7 +16,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useSocket } from '@/hooks/use-socket';
-import type { SystemState } from '@/machines/vibeflow.machine';
+import { normalizeState, type SystemState } from '@/lib/state-utils';
+import { RESTING_WINDOW_MINUTES } from '@/services/tray-integration.service';
 
 /**
  * Pomodoro workflow phases
@@ -138,7 +139,7 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
   const {
     data: restStatus,
   } = trpc.dailyState.getRestStatus.useQuery(undefined, {
-    enabled: phase === 'resting' || socketState === 'rest' || socketState === 'over_rest',
+    enabled: phase === 'resting' || socketState === 'over_rest',
   });
 
   // tRPC mutations
@@ -149,7 +150,7 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
 
   // Derive system state from WebSocket or daily state
   const systemState = useMemo(() => {
-    return socketState || (dailyState?.systemState?.toLowerCase() as SystemState | undefined) || null;
+    return socketState || (dailyState?.systemState ? normalizeState(dailyState.systemState) : null);
   }, [socketState, dailyState?.systemState]);
 
   // Determine loading state
@@ -177,10 +178,11 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
     // If user has explicitly set a phase intent, respect it until server catches up
     if (userIntentPhase !== null) {
       // Check if server state now matches user intent - if so, clear the intent
+      // Note: 'resting' matches both 'idle' (rest is a sub-phase of idle) and 'over_rest'
       const serverMatchesIntent =
-        (userIntentPhase === 'idle' && systemState !== 'rest' && systemState !== 'over_rest') ||
+        (userIntentPhase === 'idle' && systemState !== 'over_rest') ||
         (userIntentPhase === 'focus' && currentPomodoro?.status === 'IN_PROGRESS') ||
-        (userIntentPhase === 'resting' && (systemState === 'rest' || systemState === 'over_rest'));
+        (userIntentPhase === 'resting' && (systemState === 'idle' || systemState === 'over_rest'));
 
       if (serverMatchesIntent) {
         console.log('[PomodoroMachine] Server caught up with user intent, clearing');
@@ -214,10 +216,23 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
     }
 
     // PRIORITY 3: System state determines phase when no active pomodoro
-    if (systemState === 'rest' || systemState === 'over_rest') {
+    if (systemState === 'over_rest') {
       if (phase !== 'resting') {
         console.log('[PomodoroMachine] Phase -> resting (systemState:', systemState, ')');
         setPhase('resting');
+      }
+    } else if (systemState === 'idle' && dailyState?.lastPomodoroEndTime) {
+      // Auto-enter resting phase if a pomodoro was recently completed (within 30 min)
+      const endTime = new Date(dailyState.lastPomodoroEndTime).getTime();
+      const elapsedMinutes = (Date.now() - endTime) / 60000;
+      if (elapsedMinutes < RESTING_WINDOW_MINUTES) {
+        if (phase !== 'resting') {
+          console.log('[PomodoroMachine] Phase -> resting (recent pomodoro completion, elapsed:', Math.round(elapsedMinutes), 'min)');
+          setPhase('resting');
+        }
+      } else if (phase !== 'idle') {
+        console.log('[PomodoroMachine] Phase -> idle (systemState:', systemState, ')');
+        setPhase('idle');
       }
     } else {
       if (phase !== 'idle') {
@@ -225,7 +240,7 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
         setPhase('idle');
       }
     }
-  }, [isLoading, currentPomodoro, systemState, phase, userIntentPhase]);
+  }, [isLoading, currentPomodoro, systemState, phase, userIntentPhase, dailyState?.lastPomodoroEndTime]);
 
   // Refresh data when WebSocket state changes
   useEffect(() => {
@@ -363,7 +378,7 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
 
   /**
    * Confirm break and transition to rest
-   * Server already set state to 'rest' during the complete mutation,
+   * Server already set state to 'idle' during the complete mutation,
    * so we just update local phase.
    */
   const confirmBreak = useCallback(async (_summary?: string) => {

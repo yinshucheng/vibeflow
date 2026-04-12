@@ -10,6 +10,9 @@
 import { TimeFormatter } from '@/lib/time-formatter';
 import type { SystemState } from '@/server/socket';
 
+/** Max minutes after pomodoro completion to consider user as "resting" */
+export const RESTING_WINDOW_MINUTES = 30;
+
 // Tray menu state interface (matches desktop app)
 interface TrayMenuState {
   // Existing fields
@@ -23,7 +26,7 @@ interface TrayMenuState {
   isInDemoMode?: boolean;
 
   // New fields for enhanced functionality
-  systemState: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST' | 'OVER_REST';
+  systemState: 'READY' | 'RESTING' | 'FOCUS' | 'OVER_REST';
   restTimeRemaining?: string; // MM:SS format for rest countdown (pre-formatted)
   overRestDuration?: string; // Formatted duration for over-rest display (e.g., "15 min")
   dailyProgress?: string; // e.g., "3/8"
@@ -109,11 +112,11 @@ export class TrayIntegrationService {
    * Update tray with system state
    * Handles non-pomodoro states like PLANNING, LOCKED, etc.
    */
-  updateSystemState(state: SystemState, restData?: RestData, dailyProgress?: string, isInSleepTime?: boolean): void {
+  updateSystemState(state: SystemState, restData?: RestData, dailyProgress?: string, isInSleepTime?: boolean, lastPomodoroEndTime?: Date | string | null): void {
     if (!this.isElectronApp()) return;
 
     const trayState: Partial<TrayMenuState> = {
-      systemState: isInSleepTime ? 'LOCKED' : this.mapSystemStateToTrayState(state),
+      systemState: isInSleepTime ? 'READY' : this.mapSystemStateToTrayState(state, lastPomodoroEndTime),
       dailyProgress,
       isInSleepTime,
     };
@@ -173,6 +176,7 @@ export class TrayIntegrationService {
     wasInOverRest: boolean;
     newState: SystemState;
     restData?: RestData;
+    lastPomodoroEndTime?: Date | string | null;
   }): void {
     if (!this.isElectronApp()) return;
 
@@ -181,7 +185,7 @@ export class TrayIntegrationService {
       pomodoroActive: false,
       pomodoroTimeRemaining: undefined,
       currentTask: undefined,
-      systemState: this.mapSystemStateToTrayState(data.newState),
+      systemState: this.mapSystemStateToTrayState(data.newState, data.lastPomodoroEndTime),
     };
 
     // Handle rest or over-rest state
@@ -220,6 +224,7 @@ export class TrayIntegrationService {
     pomodoro?: PomodoroData | null;
     systemState: SystemState;
     restData?: RestData;
+    lastPomodoroEndTime?: Date | string | null;
     settings?: {
       enforcementMode: 'strict' | 'gentle';
       skipTokensRemaining: number;
@@ -229,7 +234,7 @@ export class TrayIntegrationService {
     if (!this.isElectronApp()) return;
 
     const trayState: Partial<TrayMenuState> = {
-      systemState: this.mapSystemStateToTrayState(data.systemState),
+      systemState: this.mapSystemStateToTrayState(data.systemState, data.lastPomodoroEndTime),
       enforcementMode: data.settings?.enforcementMode ?? 'strict',
       skipTokensRemaining: data.settings?.skipTokensRemaining ?? 0,
       isInDemoMode: data.settings?.isInDemoMode ?? false,
@@ -298,22 +303,35 @@ export class TrayIntegrationService {
   }
 
   /**
-   * Map system state to tray state format
+   * Map system state to tray state format.
+   * @param state System state from backend
+   * @param lastPomodoroEndTime If present and within rest window, maps idle→RESTING
    */
-  private mapSystemStateToTrayState(state: SystemState): TrayMenuState['systemState'] {
+  private mapSystemStateToTrayState(
+    state: SystemState,
+    lastPomodoroEndTime?: Date | string | null,
+  ): TrayMenuState['systemState'] {
     switch (state) {
-      case 'locked':
-        return 'LOCKED';
-      case 'planning':
-        return 'PLANNING';
+      case 'idle': {
+        // If a pomodoro was recently completed, show RESTING
+        if (lastPomodoroEndTime) {
+          const endTime = lastPomodoroEndTime instanceof Date
+            ? lastPomodoroEndTime.getTime()
+            : new Date(lastPomodoroEndTime).getTime();
+          const elapsedMinutes = (Date.now() - endTime) / 60000;
+          // Consider "resting" if within the resting window of pomodoro completion
+          if (elapsedMinutes < RESTING_WINDOW_MINUTES) {
+            return 'RESTING';
+          }
+        }
+        return 'READY';
+      }
       case 'focus':
         return 'FOCUS';
-      case 'rest':
-        return 'REST';
       case 'over_rest':
         return 'OVER_REST';
       default:
-        return 'PLANNING';
+        return 'READY';
     }
   }
 

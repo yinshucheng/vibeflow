@@ -8,9 +8,8 @@
  */
 
 import { Server as HttpServer } from 'http';
-import { socketServer, type SystemState, type MCPEventPayload } from './socket';
-import { 
-  registerStateChangeBroadcaster, 
+import { socketServer, type MCPEventPayload } from './socket';
+import {
   registerPolicyUpdateBroadcaster,
   registerExecuteCommandBroadcaster,
   registerEntertainmentModeChangeBroadcaster,
@@ -19,6 +18,10 @@ import {
 import { registerMCPEventBroadcaster as registerMCPServiceBroadcaster, mcpEventService } from '@/services/mcp-event.service';
 import { dailyResetSchedulerService } from '@/services/daily-reset-scheduler.service';
 import { registerProactiveBroadcaster } from '@/services/ai-trigger.service';
+import {
+  registerFullStateBroadcaster,
+  registerStateEnginePolicyBroadcaster,
+} from '@/services/state-engine.service';
 
 let isInitialized = false;
 let mcpEventCleanupInterval: ReturnType<typeof setInterval> | null = null;
@@ -34,13 +37,17 @@ export function initializeSocketServer(httpServer: HttpServer): void {
   }
 
   socketServer.initialize(httpServer);
-  
+
   // Register broadcasters for use by other services
-  registerStateChangeBroadcaster((userId, state) => {
-    socketServer.broadcastStateChange(userId, state);
-  });
-  
   registerPolicyUpdateBroadcaster(async (userId) => {
+    await socketServer.broadcastPolicyUpdate(userId);
+  });
+
+  // Register StateEngine broadcasters (full state + policy update)
+  registerFullStateBroadcaster(async (userId) => {
+    await socketServer.broadcastFullState(userId);
+  });
+  registerStateEnginePolicyBroadcaster(async (userId) => {
     await socketServer.broadcastPolicyUpdate(userId);
   });
   
@@ -97,18 +104,6 @@ export function initializeSocketServer(httpServer: HttpServer): void {
  */
 export function isSocketServerInitialized(): boolean {
   return isInitialized;
-}
-
-/**
- * Broadcast state change to a user
- * Can be called from anywhere in the application
- */
-export function broadcastStateChange(userId: string, state: SystemState): void {
-  if (!isInitialized) {
-    console.warn('[Socket.io] Server not initialized, cannot broadcast state change');
-    return;
-  }
-  socketServer.broadcastStateChange(userId, state);
 }
 
 /**

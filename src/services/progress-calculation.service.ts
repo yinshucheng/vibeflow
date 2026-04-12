@@ -561,7 +561,7 @@ export const progressCalculationService = {
         create: {
           userId,
           date: today,
-          systemState: 'LOCKED',
+          systemState: 'IDLE',
           top3TaskIds: [],
           pomodoroCount: 0,
           capOverrideCount: 0,

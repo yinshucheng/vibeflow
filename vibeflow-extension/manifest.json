@@ -54,8 +54,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "screensaver.html", 
-        "locked-screensaver.html", 
+        "screensaver.html",
         "over-rest-screensaver.html",
         "dist/content/overlay.css"
       ],

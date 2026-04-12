@@ -18,24 +18,24 @@ export const CAPABILITIES = ['sensor:heartbeat', 'action:app_block'] as const;
 // Example: EXPO_PUBLIC_SERVER_URL=http://39.105.213.147:7080
 const SERVER_URL_OVERRIDE = process.env.EXPO_PUBLIC_SERVER_URL;
 
-// Fallback: host + port for local dev
-// Use EXPO_PUBLIC_SERVER_HOST to override (e.g., local Mac IP for LAN dev)
-const SERVER_HOST = process.env.EXPO_PUBLIC_SERVER_HOST || '39.105.213.147';
-const SERVER_PORT = process.env.EXPO_PUBLIC_SERVER_PORT || '7080';
+// Host + port for dev / staging / self-hosted
+// Works in both debug and release builds (env vars are baked at build time)
+const SERVER_HOST = process.env.EXPO_PUBLIC_SERVER_HOST;
+const SERVER_PORT = process.env.EXPO_PUBLIC_SERVER_PORT || '4000';
 
 /**
  * Server Configuration
- * Priority: EXPO_PUBLIC_SERVER_URL > host:port > production URL
+ * Priority: EXPO_PUBLIC_SERVER_URL > EXPO_PUBLIC_SERVER_HOST:PORT > production default
  *
- * Default (dev):  http://39.105.213.147:7080  (public frp tunnel)
- * LAN override:   EXPO_PUBLIC_SERVER_HOST=192.168.1.4 EXPO_PUBLIC_SERVER_PORT=3000
- * Full override:  EXPO_PUBLIC_SERVER_URL=https://vibe.yourdomain.com
- * Production:     https://vibeflow.app
+ * Remote:    EXPO_PUBLIC_SERVER_HOST=39.105.213.147 EXPO_PUBLIC_SERVER_PORT=4000
+ * LAN:      EXPO_PUBLIC_SERVER_HOST=192.168.1.4 EXPO_PUBLIC_SERVER_PORT=3000
+ * Full URL: EXPO_PUBLIC_SERVER_URL=https://vibe.yourdomain.com
+ * Default:  http://39.105.213.147:4000 (production server)
  */
 export const SERVER_URL = SERVER_URL_OVERRIDE
-  || (__DEV__
+  || (SERVER_HOST
     ? `http://${SERVER_HOST}:${SERVER_PORT}`
-    : 'https://vibeflow.app');
+    : 'http://39.105.213.147:4000');
 
 // Socket.io uses HTTP URL (auto-upgrades to WebSocket)
 export const WEBSOCKET_URL = SERVER_URL;

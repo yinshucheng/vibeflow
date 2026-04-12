@@ -107,29 +107,34 @@ describe('TrayIntegrationService', () => {
   });
 
   describe('updateSystemState', () => {
-    it('should handle PLANNING state', () => {
-      service.updateSystemState('planning');
+    it('should handle IDLE state without recent pomodoro as READY', () => {
+      service.updateSystemState('idle');
 
       expect(mockTrayUpdate).toHaveBeenCalledWith({
-        systemState: 'PLANNING',
+        systemState: 'READY',
         restTimeRemaining: undefined,
         overRestDuration: undefined,
       });
     });
 
-    it('should handle REST state with countdown', () => {
-      const restStartTime = new Date(Date.now() - 2 * 60 * 1000); // 2 minutes ago
-      const restData = {
-        startTime: restStartTime,
-        duration: 5, // 5 minutes rest
-        isOverRest: false,
-      };
-
-      service.updateSystemState('rest', restData);
+    it('should handle IDLE state with recent pomodoro as RESTING', () => {
+      const recentEndTime = new Date(Date.now() - 5 * 60 * 1000); // 5 min ago
+      service.updateSystemState('idle', undefined, undefined, undefined, recentEndTime);
 
       expect(mockTrayUpdate).toHaveBeenCalledWith({
-        systemState: 'REST',
-        restTimeRemaining: '03:00', // 5 - 2 = 3 minutes remaining
+        systemState: 'RESTING',
+        restTimeRemaining: undefined,
+        overRestDuration: undefined,
+      });
+    });
+
+    it('should handle IDLE state with old pomodoro as READY', () => {
+      const oldEndTime = new Date(Date.now() - 60 * 60 * 1000); // 60 min ago
+      service.updateSystemState('idle', undefined, undefined, undefined, oldEndTime);
+
+      expect(mockTrayUpdate).toHaveBeenCalledWith({
+        systemState: 'READY',
+        restTimeRemaining: undefined,
         overRestDuration: undefined,
       });
     });

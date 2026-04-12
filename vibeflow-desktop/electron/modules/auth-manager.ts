@@ -36,6 +36,8 @@ export type AuthChangeHandler = (state: AuthState) => void;
 export interface AuthManagerConfig {
   /** Base URL of the VibeFlow server (e.g. http://localhost:3000) */
   serverUrl: string;
+  /** Whether connected to a remote server (via VIBEFLOW_SERVER_URL) */
+  isRemoteMode?: boolean;
 }
 
 interface AuthStoreSchema {
@@ -162,10 +164,14 @@ class AuthManager {
         return;
       }
 
+      const loginTitle = this.config.isRemoteMode
+        ? `VibeFlow — Login (远程: ${new URL(this.config.serverUrl).host})`
+        : 'VibeFlow — Login';
+
       this.loginWindow = new BrowserWindow({
         width: 480,
         height: 640,
-        title: 'VibeFlow — Login',
+        title: loginTitle,
         resizable: false,
         minimizable: false,
         maximizable: false,

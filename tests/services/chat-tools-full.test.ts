@@ -26,6 +26,13 @@ vi.mock('../../src/services/pomodoro.service', () => ({
     startTaskless: vi.fn(),
     completeTaskInPomodoro: vi.fn(),
     record: vi.fn(),
+    abort: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/services/state-engine.service', () => ({
+  stateEngineService: {
+    send: vi.fn(),
   },
 }));
 
@@ -118,6 +125,7 @@ import { pomodoroService } from '../../src/services/pomodoro.service';
 import { timeSliceService } from '../../src/services/time-slice.service';
 import { activityLogService } from '../../src/services/activity-log.service';
 import { efficiencyAnalysisService } from '../../src/services/efficiency-analysis.service';
+import { stateEngineService } from '../../src/services/state-engine.service';
 import {
   createChatTools,
   getChatToolDefinitions,
@@ -353,6 +361,7 @@ describe('S1.2 Pomodoro control tools', () => {
         success: true,
         data: { id: 'pom-1', label: 'Misc', startTime: new Date() } as never,
       });
+      vi.mocked(stateEngineService.send).mockResolvedValue({ success: true, from: 'idle', to: 'focus', event: 'START_POMODORO' } as never);
 
       const tools = createChatTools(TEST_USER_ID);
       const result = await tools.flow_start_taskless_pomodoro.execute!({ label: 'Misc' }, TOOL_CALL_CTX);

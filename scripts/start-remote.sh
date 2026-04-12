@@ -32,17 +32,27 @@ start_ios() {
     export EXPO_PUBLIC_SERVER_HOST="$SERVER_IP"
     export EXPO_PUBLIC_SERVER_PORT="$SERVER_PORT"
 
+    # Auto-detect available iOS device name for non-interactive mode
+    # Matches "connected" (USB) or "available (paired)" (WiFi) — excludes "unavailable"
+    local device_name
+    device_name=$(xcrun devicectl list devices 2>/dev/null | grep -E 'connected|available' | grep -v 'unavailable' | grep -i 'iphone' | head -1 | awk -F'  +' '{print $1}' | xargs)
+    local device_flag="--device"
+    if [ -n "$device_name" ]; then
+        device_flag="--device \"$device_name\""
+        echo "  Device: $device_name"
+    fi
+
     case "$flag" in
         --release)
             # Release build: JS bundle embedded, works without Metro/computer
             echo "  Building RELEASE → device (standalone, no Metro needed)"
             echo "  This takes a few minutes..."
-            npx expo run:ios --device --configuration Release
+            eval npx expo run:ios $device_flag --configuration Release
             ;;
         --build)
             # Debug build: needs Metro but native code is fresh
             echo "  Building DEBUG → device (needs Metro on same network)"
-            npx expo run:ios --device --port 8081
+            eval npx expo run:ios $device_flag --port 8081
             ;;
         *)
             # Dev server only: fastest, Dev Client already on device

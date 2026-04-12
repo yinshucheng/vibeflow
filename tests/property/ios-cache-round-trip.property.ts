@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 // =============================================================================
 
 interface DailyStateData {
-  state: 'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST';
+  state: 'IDLE' | 'FOCUS' | 'OVER_REST';
   completedPomodoros: number;
   dailyCap: number;
   totalFocusMinutes: number;
@@ -182,11 +182,10 @@ class MockCacheService {
 // GENERATORS
 // =============================================================================
 
-const dailyStateArb = fc.constantFrom<'LOCKED' | 'PLANNING' | 'FOCUS' | 'REST'>(
-  'LOCKED',
-  'PLANNING',
+const dailyStateArb = fc.constantFrom<'IDLE' | 'FOCUS' | 'OVER_REST'>(
+  'IDLE',
   'FOCUS',
-  'REST'
+  'OVER_REST'
 );
 
 const dailyStateDataArb = fc.record({

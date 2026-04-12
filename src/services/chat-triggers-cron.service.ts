@@ -12,7 +12,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { aiTriggerService } from './ai-trigger.service';
-import { dailyStateService } from './daily-state.service';
+import { stateEngineService } from './state-engine.service';
 import type { TriggerDefinition } from './ai-trigger.service';
 
 // ---------------------------------------------------------------------------
@@ -106,9 +106,9 @@ export const chatTriggersCronService = {
     const trigger = aiTriggerService.getTrigger('morning_greeting');
     if (!trigger) return;
 
-    // Condition: user must be in LOCKED state (hasn't started work)
-    const stateResult = await dailyStateService.getCurrentState(userId);
-    if (!stateResult.success || stateResult.data !== 'locked') return;
+    // Condition: user must be in IDLE state (hasn't started work)
+    const currentState = await stateEngineService.getState(userId);
+    if (currentState !== 'idle') return;
 
     const canFire = await aiTriggerService.shouldFire(userId, trigger);
     if (!canFire) return;

@@ -10,12 +10,14 @@
 import type {
   ActivePomodoroData,
   PolicyData,
+  DailyStateData,
   BlockingReason,
 } from '@/types';
 
 export interface BlockingReasonInput {
   activePomodoro: ActivePomodoroData | null;
   policy: PolicyData | null;
+  dailyState?: DailyStateData | null;
 }
 
 /**
@@ -24,7 +26,7 @@ export interface BlockingReasonInput {
  * Returns the reason to block, or null if no blocking needed.
  */
 export function evaluateBlockingReason(input: BlockingReasonInput): BlockingReason | null {
-  const { activePomodoro, policy } = input;
+  const { activePomodoro, policy, dailyState } = input;
 
   // 0. Temporary unblock — overrides ALL blocking reasons
   if (
@@ -39,8 +41,13 @@ export function evaluateBlockingReason(input: BlockingReasonInput): BlockingReas
     return 'focus';
   }
 
-  // 2. Over rest — server says user exceeded rest time
+  // 2. Over rest — server says user exceeded rest time (via policy)
   if (policy?.overRest?.isOverRest) {
+    return 'over_rest';
+  }
+
+  // 2b. Over rest fallback — systemState is OVER_REST but policy hasn't updated yet
+  if (dailyState?.state === 'OVER_REST') {
     return 'over_rest';
   }
 

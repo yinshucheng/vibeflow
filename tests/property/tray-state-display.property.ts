@@ -39,28 +39,28 @@ describe('Property 2: State Display Consistency', () => {
     fc.assert(
       fc.property(
         // Generate valid system states
-        fc.constantFrom('locked', 'planning', 'focus', 'rest', 'over_rest'),
+        fc.constantFrom('idle', 'focus', 'over_rest'),
         (systemState) => {
           mockTrayUpdate.clear();
           const service = new TrayIntegrationService();
-          
+
           // Update system state
           service.updateSystemState(systemState as any);
-          
+
           // Property: Should have made exactly one tray update call
           expect(mockTrayUpdate.calls.length).toBe(1);
-          
+
           const update = mockTrayUpdate.calls[0];
-          
+
           // Property: Update should contain systemState field
           expect(update.state).toHaveProperty('systemState');
-          
+
           // Property: System state mapping should be consistent
           const expectedTrayState = mapSystemStateToExpected(systemState);
           expect(update.state.systemState).toBe(expectedTrayState);
-          
-          // Property: Update should clear rest-related data when not in rest states
-          if (systemState !== 'rest' && systemState !== 'over_rest') {
+
+          // Property: Update should clear rest-related data when not in over_rest state
+          if (systemState !== 'over_rest') {
             expect(update.state.restTimeRemaining).toBeUndefined();
             expect(update.state.overRestDuration).toBeUndefined();
           }
@@ -94,7 +94,7 @@ describe('Property 2: State Display Consistency', () => {
           };
           
           // Update system state with rest data
-          const systemState = isOverRest ? 'over_rest' : 'rest';
+          const systemState = isOverRest ? 'over_rest' : 'idle';
           service.updateSystemState(systemState as any, restData);
           
           // Property: Should have made exactly one tray update call
@@ -127,7 +127,8 @@ describe('Property 2: State Display Consistency', () => {
           }
           
           // Property: System state should be correctly set
-          const expectedTrayState = isOverRest ? 'OVER_REST' : 'REST';
+          // idle without lastPomodoroEndTime → READY; with rest data but not overRest → READY
+          const expectedTrayState = isOverRest ? 'OVER_REST' : 'READY';
           expect(update.state.systemState).toBe(expectedTrayState);
         }
       ),
@@ -205,9 +206,9 @@ describe('Property 2: State Display Consistency', () => {
     fc.assert(
       fc.property(
         // Generate initial state
-        fc.constantFrom('locked', 'planning', 'focus', 'rest', 'over_rest'),
+        fc.constantFrom('idle', 'focus', 'over_rest'),
         // Generate target state
-        fc.constantFrom('locked', 'planning', 'focus', 'rest', 'over_rest'),
+        fc.constantFrom('idle', 'focus', 'over_rest'),
         (initialState, targetState) => {
           mockTrayUpdate.clear();
           const service = new TrayIntegrationService();
@@ -228,8 +229,8 @@ describe('Property 2: State Display Consistency', () => {
           const expectedTrayState = mapSystemStateToExpected(targetState);
           expect(update.state.systemState).toBe(expectedTrayState);
           
-          // Property: Non-rest states should clear rest-related data
-          if (targetState !== 'rest' && targetState !== 'over_rest') {
+          // Property: Non-over_rest states should clear rest-related data
+          if (targetState !== 'over_rest') {
             expect(update.state.restTimeRemaining).toBeUndefined();
             expect(update.state.overRestDuration).toBeUndefined();
           }
@@ -296,17 +297,13 @@ describe('Property 2: State Display Consistency', () => {
  */
 function mapSystemStateToExpected(systemState: string): string {
   switch (systemState) {
-    case 'locked':
-      return 'LOCKED';
-    case 'planning':
-      return 'PLANNING';
+    case 'idle':
+      return 'READY'; // idle without lastPomodoroEndTime maps to READY
     case 'focus':
       return 'FOCUS';
-    case 'rest':
-      return 'REST';
     case 'over_rest':
       return 'OVER_REST';
     default:
-      return 'PLANNING';
+      return 'READY';
   }
 }

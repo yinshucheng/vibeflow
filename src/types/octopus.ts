@@ -428,7 +428,7 @@ export interface WorkStartPayload {
   configuredStartTime: string;   // HH:mm
   actualStartTime: number;       // Unix timestamp
   delayMinutes: number;          // 0 if on-time or early, positive if late
-  trigger: 'airlock_complete';   // What triggered the work start
+  trigger: 'first_pomodoro' | 'airlock_complete';   // What triggered the work start
 }
 
 /**
@@ -824,6 +824,8 @@ export interface AdhocFocusSession {
   endTime: number;
   /** Whether this session overrides sleep time enforcement */
   overridesSleepTime?: boolean;
+  /** Whether this session overrides work hours (enables OVER_REST outside work hours) */
+  overridesWorkHours?: boolean;
 }
 
 /**
@@ -914,7 +916,14 @@ export interface Policy {
   /** REST enforcement configuration (optional) */
   restEnforcement?: RestEnforcementPolicy;
   /** Health limit notification (optional) */
-  healthLimit?: { type: '2hours' | 'daily'; message: string };
+  healthLimit?: {
+    type: '2hours' | 'daily';
+    message: string;
+    /** Whether to repeat the notification at intervals */
+    repeating?: boolean;
+    /** Interval in minutes between repeated notifications */
+    intervalMinutes?: number;
+  };
 }
 
 // =============================================================================
@@ -1282,7 +1291,7 @@ export const WorkStartPayloadSchema = z.object({
   configuredStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format. Use HH:mm'),
   actualStartTime: z.number().int().positive(),
   delayMinutes: z.number().int().nonnegative(),
-  trigger: z.literal('airlock_complete'),
+  trigger: z.literal('first_pomodoro'),
 });
 
 // Work start event schema
@@ -1482,6 +1491,7 @@ export const AdhocFocusSessionSchema = z.object({
   active: z.boolean(),
   endTime: z.number().int().positive(),
   overridesSleepTime: z.boolean().optional(),
+  overridesWorkHours: z.boolean().optional(),
 });
 
 // Sleep enforcement app schema for policy
@@ -1533,6 +1543,8 @@ export const RestEnforcementPolicySchema = z.object({
 export const HealthLimitSchema = z.object({
   type: z.enum(['2hours', 'daily']),
   message: z.string(),
+  repeating: z.boolean().optional(),
+  intervalMinutes: z.number().int().positive().optional(),
 });
 
 // Policy schema

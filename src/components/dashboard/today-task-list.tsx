@@ -106,7 +106,7 @@ export function TodayTaskList({ onTaskSelect }: TodayTaskListProps) {
           <EmptyState
             icon={<Icons.tasks className="w-8 h-8" />}
             title="No Tasks Today"
-            description="Plan your day in the Morning Airlock"
+            description="Add tasks or use daily planning to get started"
           />
         ) : (
           <div className="space-y-1">

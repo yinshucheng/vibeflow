@@ -23,11 +23,13 @@ interface ChatBubbleProps {
 // =============================================================================
 
 const TRIGGER_LABELS: Record<string, string> = {
-  on_planning_enter: '📋 每日规划',
-  on_rest_enter: '🍅 番茄钟完成',
+  on_idle_enter: '🍅 番茄钟完成',
   on_over_rest_enter: '⏰ 休息提醒',
   over_rest_escalation: '⏰ 休息超时',
   task_stuck: '🔧 任务建议',
+  // Legacy trigger IDs (backward compatibility)
+  on_planning_enter: '📋 每日规划',
+  on_rest_enter: '🍅 番茄钟完成',
 };
 
 function getTriggerLabel(triggerId?: string): string | null {

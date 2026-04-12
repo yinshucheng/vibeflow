@@ -7,10 +7,9 @@
  * Requirements: 5.6, 5.7, 6.7
  */
 
-import type { SystemState, ExecuteCommand } from '@/server/socket';
+import type { ExecuteCommand } from '@/server/socket';
 
 // Broadcast function types
-type StateChangeBroadcaster = (userId: string, state: SystemState) => void;
 type PolicyUpdateBroadcaster = (userId: string) => Promise<void>;
 type ExecuteCommandBroadcaster = (userId: string, command: ExecuteCommand) => void;
 type EntertainmentModeChangeBroadcaster = (userId: string, payload: { isActive: boolean; sessionId: string | null; endTime: number | null }) => void;
@@ -26,19 +25,10 @@ export interface MCPEventPayload {
 }
 
 // Registered broadcasters (set by socket-init when server starts)
-let stateChangeBroadcaster: StateChangeBroadcaster | null = null;
 let policyUpdateBroadcaster: PolicyUpdateBroadcaster | null = null;
 let executeCommandBroadcaster: ExecuteCommandBroadcaster | null = null;
 let entertainmentModeChangeBroadcaster: EntertainmentModeChangeBroadcaster | null = null;
 let mcpEventBroadcaster: MCPEventBroadcaster | null = null;
-
-/**
- * Register the state change broadcaster
- * Called by socket-init when the server starts
- */
-export function registerStateChangeBroadcaster(broadcaster: StateChangeBroadcaster): void {
-  stateChangeBroadcaster = broadcaster;
-}
 
 /**
  * Register the policy update broadcaster
@@ -72,18 +62,6 @@ export function registerEntertainmentModeChangeBroadcaster(broadcaster: Entertai
  */
 export function registerMCPEventBroadcaster(broadcaster: MCPEventBroadcaster): void {
   mcpEventBroadcaster = broadcaster;
-}
-
-/**
- * Broadcast a state change to all connected clients for a user
- * Requirements: 6.7
- */
-export function broadcastStateChange(userId: string, state: SystemState): void {
-  if (stateChangeBroadcaster) {
-    stateChangeBroadcaster(userId, state);
-  } else {
-    console.log(`[SocketBroadcast] State change queued (server not ready): ${userId} -> ${state}`);
-  }
 }
 
 /**
@@ -160,16 +138,14 @@ export function broadcastMCPEvent(userId: string, event: MCPEventPayload): void 
  * Check if broadcasters are registered
  */
 export function isBroadcastReady(): boolean {
-  return stateChangeBroadcaster !== null && policyUpdateBroadcaster !== null;
+  return policyUpdateBroadcaster !== null;
 }
 
 export const socketBroadcastService = {
-  registerStateChangeBroadcaster,
   registerPolicyUpdateBroadcaster,
   registerExecuteCommandBroadcaster,
   registerEntertainmentModeChangeBroadcaster,
   registerMCPEventBroadcaster,
-  broadcastStateChange,
   broadcastPolicyUpdate,
   sendExecuteCommand,
   broadcastIdleAlert,

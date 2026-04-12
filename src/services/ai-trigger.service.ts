@@ -8,7 +8,7 @@
 
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
-import { dailyStateService } from './daily-state.service';
+import { stateEngineService } from './state-engine.service';
 import { chatService } from './chat.service';
 import { chatContextService } from './chat-context.service';
 import { llmAdapterService } from './llm-adapter.service';
@@ -94,7 +94,7 @@ export const BUILTIN_TRIGGERS: TriggerDefinition[] = [
     id: 'on_planning_enter',
     sourceType: 'state_transition',
     promptTemplate: [
-      '你是 VibeFlow 助手。用户刚刚完成 Airlock 进入 PLANNING 状态。',
+      '你是 VibeFlow 助手。用户刚刚开始新的一天。',
       '请根据以下上下文生成一段简洁的每日规划建议，推荐 Top 3 任务。',
       '',
       '上下文：',
@@ -270,8 +270,8 @@ export const aiTriggerService = {
 
     // 4. FOCUS state protection — only high priority can interrupt
     if (trigger.priority !== 'high') {
-      const stateResult = await dailyStateService.getCurrentState(userId);
-      if (stateResult.success && stateResult.data === 'focus') {
+      const currentState = await stateEngineService.getState(userId);
+      if (currentState === 'focus') {
         return false;
       }
     }

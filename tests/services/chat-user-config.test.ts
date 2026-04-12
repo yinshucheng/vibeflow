@@ -31,9 +31,9 @@ vi.mock('@/lib/prisma', () => ({
   prisma: mockPrismaClient,
 }));
 
-vi.mock('@/services/daily-state.service', () => ({
-  dailyStateService: {
-    getCurrentState: vi.fn().mockResolvedValue({ success: true, data: 'planning' }),
+vi.mock('@/services/state-engine.service', () => ({
+  stateEngineService: {
+    getState: vi.fn().mockResolvedValue('idle'),
   },
 }));
 

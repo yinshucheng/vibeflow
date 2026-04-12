@@ -96,55 +96,34 @@ describe('Property 6: State Transition Logic', () => {
         // Generate rest duration (1-30 minutes)
         fc.integer({ min: 1, max: 30 }),
         // Generate new state after completion
-        fc.constantFrom('rest', 'planning'), // Could go to rest or back to planning
+        fc.constant('idle'), // New state after completion is always 'idle'
         (restDurationMinutes, newState) => {
           mockTrayUpdate.clear();
           const service = new TrayIntegrationService();
-          
-          let restData = undefined;
-          if (newState === 'rest') {
-            restData = {
-              startTime: new Date(), // Just started rest
-              duration: restDurationMinutes,
-              isOverRest: false
-            };
-          }
-          
+
           // Handle pomodoro completion when not in over-rest
           service.handlePomodoroCompletion({
             wasInOverRest: false,
             newState: newState as any,
-            restData
+            restData: undefined
           });
-          
+
           // Property: Should have made exactly one tray update call
           expect(mockTrayUpdate.calls.length).toBe(1);
-          
+
           const update = mockTrayUpdate.calls[0];
-          
+
           // Property: Should clear pomodoro-related state
           expect(update.state.pomodoroActive).toBe(false);
           expect(update.state.pomodoroTimeRemaining).toBeUndefined();
           expect(update.state.currentTask).toBeUndefined();
-          
-          // Property: System state should match the new state
-          const expectedTrayState = newState === 'rest' ? 'REST' : 'PLANNING';
-          expect(update.state.systemState).toBe(expectedTrayState);
-          
-          if (newState === 'rest' && restData) {
-            // Property: Should show rest countdown, not over-rest duration
-            expect(update.state.restTimeRemaining).toBeDefined();
-            expect(typeof update.state.restTimeRemaining).toBe('string');
-            expect(update.state.overRestDuration).toBeUndefined();
-            
-            // Property: Rest countdown should be valid format (approximately full duration)
-            const countdown = update.state.restTimeRemaining;
-            expect(countdown).toMatch(/^\d+:\d{2}$/);
-          } else {
-            // Property: Should clear all rest-related data
-            expect(update.state.restTimeRemaining).toBeUndefined();
-            expect(update.state.overRestDuration).toBeUndefined();
-          }
+
+          // Property: System state should map to READY for 'idle' (no lastPomodoroEndTime passed)
+          expect(update.state.systemState).toBe('READY');
+
+          // Property: Should clear all rest-related data
+          expect(update.state.restTimeRemaining).toBeUndefined();
+          expect(update.state.overRestDuration).toBeUndefined();
         }
       ),
       { numRuns: 100 }
@@ -161,20 +140,20 @@ describe('Property 6: State Transition Logic', () => {
         // Generate whether was in over-rest
         fc.boolean(),
         // Generate new state
-        fc.constantFrom('rest', 'over_rest', 'planning'),
+        fc.constantFrom('idle', 'over_rest'),
         (wasInOverRest, newState) => {
           mockTrayUpdate.clear();
           const service = new TrayIntegrationService();
-          
+
           const beforeTime = Date.now();
-          
+
           // Create appropriate rest data based on state
           let restData = undefined;
-          if (newState === 'rest' || newState === 'over_rest') {
+          if (newState === 'over_rest') {
             restData = {
               startTime: new Date(),
               duration: 15, // 15 minutes
-              isOverRest: newState === 'over_rest'
+              isOverRest: true
             };
           }
           
@@ -277,7 +256,7 @@ describe('Property 6: State Transition Logic', () => {
         fc.array(
           fc.record({
             wasInOverRest: fc.boolean(),
-            newState: fc.constantFrom('rest', 'over_rest', 'planning'),
+            newState: fc.constantFrom('idle', 'over_rest'),
             restDuration: fc.integer({ min: 5, max: 30 })
           }),
           { minLength: 1, maxLength: 5 }
@@ -290,7 +269,7 @@ describe('Property 6: State Transition Logic', () => {
           
           // Process each completion in sequence
           for (const completion of completionSequence) {
-            const restData = (completion.newState === 'rest' || completion.newState === 'over_rest') ? {
+            const restData = (completion.newState === 'over_rest') ? {
               startTime: new Date(),
               duration: completion.restDuration,
               isOverRest: completion.newState === 'over_rest'
@@ -316,13 +295,10 @@ describe('Property 6: State Transition Logic', () => {
           expect(lastUpdate.state.currentTask).toBeUndefined();
           
           // Property: System state should be valid
-          expect(['LOCKED', 'PLANNING', 'FOCUS', 'REST', 'OVER_REST']).toContain(lastUpdate.state.systemState);
+          expect(['READY', 'RESTING', 'FOCUS', 'OVER_REST']).toContain(lastUpdate.state.systemState);
           
           // Property: Rest-related data should be consistent with system state
-          if (lastUpdate.state.systemState === 'REST') {
-            expect(lastUpdate.state.restTimeRemaining).toBeDefined();
-            expect(lastUpdate.state.overRestDuration).toBeUndefined();
-          } else if (lastUpdate.state.systemState === 'OVER_REST') {
+          if (lastUpdate.state.systemState === 'OVER_REST') {
             expect(lastUpdate.state.overRestDuration).toBeDefined();
             expect(lastUpdate.state.restTimeRemaining).toBeUndefined();
           } else {

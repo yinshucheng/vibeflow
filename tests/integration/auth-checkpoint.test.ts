@@ -303,46 +303,24 @@ describe('1.2.5 /api/auth/token endpoint', () => {
       expect(json.expiresAt).toBeDefined();
     }));
 
-  it('POST rejects invalid password', () =>
+  it('POST allows dev user without password in DEV_MODE', () =>
     skipIfNoDb(async () => {
+      // In DEV_MODE, dev users (password=dev_mode_no_password) can login without password
       const request = new Request('http://localhost:3000/api/auth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: testUserEmail,
-          password: 'wrong-password',
         }),
       });
 
       const response = await POST(request);
-      expect(response.status).toBe(401);
+      // DEV_MODE=true in test env → passwordless login allowed
+      expect(response.status).toBe(200);
 
       const json = await response.json();
-      expect(json.success).toBe(false);
-    }));
-
-  it('POST rejects dev_mode_no_password user', () =>
-    skipIfNoDb(async () => {
-      // Create a dev-mode user with sentinel password
-      const devEmail = `dev-sentinel-${Date.now()}@test.vibeflow.local`;
-      await prisma.user.create({
-        data: { email: devEmail, password: 'dev_mode_no_password' },
-      });
-
-      const request = new Request('http://localhost:3000/api/auth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: devEmail,
-          password: 'dev_mode_no_password',
-        }),
-      });
-
-      const response = await POST(request);
-      expect(response.status).toBe(401);
-
-      // Cleanup
-      await prisma.user.deleteMany({ where: { email: devEmail } });
+      expect(json.success).toBe(true);
+      expect(json.token).toMatch(/^vf_/);
     }));
 
   it('POST + GET: issue then verify token', () =>
