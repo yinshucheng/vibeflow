@@ -13,7 +13,6 @@
 import { useState } from 'react';
 import {
   MainLayout,
-  PageHeader,
   Card,
   CardHeader,
   CardContent,
@@ -50,9 +49,7 @@ export default function Home() {
 
   return (
     <MainLayout title="Dashboard">
-      <PageHeader title="Dashboard" description="Your command center" />
-
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* FocusZone — full width */}
         <FocusZone />
 
@@ -60,7 +57,7 @@ export default function Home() {
         <TodayTaskList onTaskSelect={setSelectedTaskId} />
 
         {/* Auxiliary dual-column: Daily Progress + Focus Session */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader title="Daily Progress" />
             <CardContent>

@@ -31,6 +31,7 @@ import {
   Sun,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Info,
   Star,
   Clock,
@@ -83,6 +84,7 @@ export const Icons = {
   sun: Sun,
   loader: Loader2,
   alert: AlertCircle,
+  alertTriangle: AlertTriangle,
   info: Info,
 } as const;
 

@@ -271,6 +271,7 @@ export function FocusZone() {
                     selectedTaskId={selectedTaskId}
                     onSelect={setSelectedTaskId}
                     disabled={!canStart}
+                    hideLabel
                   />
                 </div>
                 <Button

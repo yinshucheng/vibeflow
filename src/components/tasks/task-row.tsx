@@ -4,14 +4,14 @@
  * TaskRow Component
  *
  * Global reusable task row — full-width horizontal bar displaying:
- * checkbox + title + priority + project + estimate + planDate + pomodoro button.
- * Supports subtask expand/collapse, Top 3 star, hover actions (Edit/Delete),
+ * round checkbox (priority-colored) + title + project + estimate + planDate + pomodoro button.
+ * Supports subtask expand/collapse with progress count, Top 3 star, hover actions (Edit/Delete),
  * optimistic checkbox toggle, and inline delete confirmation.
  *
- * Replaces TaskTreeItem in TaskTree for unified display across Dashboard and /tasks.
+ * Design: Things 3 inspired — round checkbox, breathing row height, color-dot priority.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { Icons } from '@/lib/icons';
@@ -37,10 +37,11 @@ export interface TaskRowProps {
   allTasks?: TaskWithRelations[];
 }
 
-const priorityColors: Record<Priority, string> = {
-  P1: 'bg-notion-accent-red-bg text-notion-accent-red',
-  P2: 'bg-notion-accent-orange-bg text-notion-accent-orange',
-  P3: 'bg-notion-bg-tertiary text-notion-text-tertiary',
+/** Priority → checkbox border/fill color */
+const priorityCheckboxColors: Record<Priority, { border: string; fill: string }> = {
+  P1: { border: 'border-red-400', fill: 'bg-red-400' },
+  P2: { border: 'border-amber-400', fill: 'bg-amber-400' },
+  P3: { border: 'border-notion-border-strong', fill: 'bg-notion-text-tertiary' },
 };
 
 function formatEstimate(minutes: number): string {
@@ -53,6 +54,15 @@ function formatEstimate(minutes: number): string {
 function formatPlanDate(date: Date | string): string {
   const d = new Date(date);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function isOverdue(date: Date | string | null): boolean {
+  if (!date) return false;
+  const d = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return d < today;
 }
 
 export function TaskRow({
@@ -78,8 +88,19 @@ export function TaskRow({
   }, [task.status]);
 
   // Find subtasks
-  const subTasks = allTasks ? allTasks.filter((t) => t.parentId === task.id) : [];
+  const subTasks = useMemo(
+    () => (allTasks ? allTasks.filter((t) => t.parentId === task.id) : []),
+    [allTasks, task.id],
+  );
   const hasSubTasks = subTasks.length > 0;
+
+  // Subtask progress count
+  const subtaskProgress = useMemo(() => {
+    if (!hasSubTasks) return null;
+    const total = subTasks.length;
+    const done = subTasks.filter((t) => t.status === 'DONE').length;
+    return { done, total };
+  }, [subTasks, hasSubTasks]);
 
   // Status toggle mutation with optimistic update
   const updateStatusMutation = trpc.task.updateStatus.useMutation({
@@ -87,6 +108,7 @@ export function TaskRow({
       utils.task.getTodayTasks.invalidate();
       utils.task.getTodayTasksAll.invalidate();
       utils.task.getBacklog.invalidate();
+      utils.task.getOverdue.invalidate();
       utils.task.getByProject.invalidate({ projectId: task.projectId });
       onStatusChange?.();
     },
@@ -102,6 +124,7 @@ export function TaskRow({
       utils.task.getTodayTasks.invalidate();
       utils.task.getTodayTasksAll.invalidate();
       utils.task.getBacklog.invalidate();
+      utils.task.getOverdue.invalidate();
       utils.task.getByProject.invalidate({ projectId: task.projectId });
       onDelete?.();
     },
@@ -150,16 +173,19 @@ export function TaskRow({
   }, [deleteConfirm]);
 
   const isDone = optimisticStatus === 'DONE';
+  const colors = priorityCheckboxColors[task.priority];
+  const isRoot = depth === 0;
+  const overdue = isOverdue(task.planDate);
 
   return (
     <li className="list-none">
       <div
         className={`
-          group flex items-center gap-2 px-2 py-1.5 rounded-notion-md transition-all duration-200
+          group flex items-center gap-2.5 px-3 py-2.5 rounded-notion-md transition-all duration-200
           hover:bg-notion-bg-hover
-          ${isDone ? 'opacity-60' : ''}
+          ${isDone ? 'opacity-50' : ''}
         `}
-        style={{ paddingLeft: depth * 24 + 8 }}
+        style={{ paddingLeft: depth * 28 + 12 }}
       >
         {/* Top 3 Star */}
         {isTop3 && (
@@ -185,16 +211,18 @@ export function TaskRow({
           <span className="w-4 shrink-0" />
         )}
 
-        {/* Status Checkbox */}
+        {/* Round Checkbox with Priority Color */}
         <button
           onClick={handleStatusToggle}
           disabled={updateStatusMutation.isPending}
+          title={`Priority: ${task.priority}`}
           className={`
-            w-4 h-4 flex items-center justify-center rounded-notion-sm border transition-colors shrink-0
+            w-[18px] h-[18px] flex items-center justify-center rounded-full border-[1.5px] transition-all shrink-0
+            hover:scale-110
             ${
               isDone
-                ? 'bg-notion-accent-blue border-notion-accent-blue text-white'
-                : 'border-notion-border-strong hover:border-notion-text-tertiary'
+                ? `${colors.fill} border-transparent text-white`
+                : `${colors.border} hover:opacity-80`
             }
             ${updateStatusMutation.isPending ? 'opacity-50' : ''}
           `}
@@ -202,29 +230,33 @@ export function TaskRow({
           {isDone && <Icons.check className="w-3 h-3" />}
         </button>
 
-        {/* Task Title — clickable area for onSelect */}
+        {/* Task Title */}
         {onSelect ? (
           <button
             onClick={handleTitleClick}
-            className="flex-1 min-w-0 text-left"
+            className="flex-1 min-w-0 text-left overflow-hidden"
           >
             <span
-              className={`text-sm truncate ${
+              className={`block truncate ${
                 isDone
                   ? 'line-through text-notion-text-tertiary'
-                  : 'text-notion-text hover:text-notion-accent-blue'
+                  : isRoot
+                    ? 'text-[15px] leading-snug font-medium text-notion-text hover:text-notion-accent-blue'
+                    : 'text-sm text-notion-text hover:text-notion-accent-blue'
               }`}
             >
               {task.title}
             </span>
           </button>
         ) : (
-          <Link href={`/tasks/${task.id}`} className="flex-1 min-w-0">
+          <Link href={`/tasks/${task.id}`} className="flex-1 min-w-0 overflow-hidden">
             <span
-              className={`text-sm truncate ${
+              className={`block truncate ${
                 isDone
                   ? 'line-through text-notion-text-tertiary'
-                  : 'text-notion-text'
+                  : isRoot
+                    ? 'text-[15px] leading-snug font-medium text-notion-text'
+                    : 'text-sm text-notion-text'
               }`}
             >
               {task.title}
@@ -232,28 +264,27 @@ export function TaskRow({
           </Link>
         )}
 
-        {/* Priority Badge */}
-        <span
-          className={`text-xs px-1.5 py-0.5 rounded-notion-sm shrink-0 ${priorityColors[task.priority]}`}
-        >
-          {task.priority}
-        </span>
+        {/* Subtask Progress Count */}
+        {subtaskProgress && (
+          <span className="text-xs text-notion-text-tertiary tabular-nums shrink-0">
+            {subtaskProgress.done}/{subtaskProgress.total}
+          </span>
+        )}
 
         {/* Project Badge */}
         {showProject && task.project && (
           <Link
             href={`/projects/${task.projectId}`}
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 text-xs text-notion-text-tertiary hover:text-notion-text-secondary truncate max-w-[100px] shrink-0"
+            className="text-[11px] text-notion-text-tertiary opacity-70 hover:text-notion-text-secondary truncate max-w-[100px] shrink-0"
           >
-            <Icons.projects className="w-3 h-3" />
             {task.project.title}
           </Link>
         )}
 
         {/* Estimated Time */}
         {task.estimatedMinutes && task.estimatedMinutes > 0 && (
-          <span className="text-xs px-1.5 py-0.5 rounded-notion-sm bg-notion-accent-blue-bg text-notion-accent-blue shrink-0 hidden sm:inline-flex items-center gap-0.5">
+          <span className="text-xs text-notion-text-tertiary shrink-0 whitespace-nowrap hidden sm:inline-flex items-center gap-0.5">
             <Icons.clock className="w-3 h-3" />
             {formatEstimate(task.estimatedMinutes)}
           </span>
@@ -261,7 +292,13 @@ export function TaskRow({
 
         {/* Plan Date */}
         {showPlanDate && task.planDate && (
-          <span className="text-xs text-notion-text-tertiary shrink-0 hidden sm:inline">
+          <span
+            className={`text-xs shrink-0 hidden sm:inline ${
+              overdue
+                ? 'text-red-500 font-medium'
+                : 'text-notion-text-tertiary'
+            }`}
+          >
             {formatPlanDate(task.planDate)}
           </span>
         )}
@@ -289,21 +326,21 @@ export function TaskRow({
             </button>
           </span>
         ) : (
-          <span className="inline-flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <span className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <Link
               href={`/tasks/${task.id}/edit`}
               onClick={(e) => e.stopPropagation()}
               className="p-1 text-notion-text-tertiary hover:text-notion-text-secondary rounded-notion-sm hover:bg-notion-bg-tertiary"
               title="Edit"
             >
-              <Icons.edit className="w-3.5 h-3.5" />
+              <Icons.edit className="w-4 h-4" />
             </Link>
             <button
               onClick={handleDeleteClick}
               className="p-1 text-notion-text-tertiary hover:text-notion-accent-red rounded-notion-sm hover:bg-notion-accent-red-bg"
               title="Delete"
             >
-              <Icons.trash className="w-3.5 h-3.5" />
+              <Icons.trash className="w-4 h-4" />
             </button>
           </span>
         )}

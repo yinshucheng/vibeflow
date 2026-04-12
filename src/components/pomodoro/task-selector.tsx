@@ -24,6 +24,7 @@ interface TaskSelectorProps {
   selectedTaskId: string | null;
   onSelect: (taskId: string | null) => void;
   disabled?: boolean;
+  hideLabel?: boolean;
 }
 
 const priorityColors = {
@@ -32,11 +33,12 @@ const priorityColors = {
   P3: 'bg-gray-100 text-gray-700',
 };
 
-export function TaskSelector({ 
-  tasks, 
-  selectedTaskId, 
-  onSelect, 
-  disabled = false 
+export function TaskSelector({
+  tasks,
+  selectedTaskId,
+  onSelect,
+  disabled = false,
+  hideLabel = false,
 }: TaskSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,9 +79,11 @@ export function TaskSelector({
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Select Task
-      </label>
+      {!hideLabel && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Select Task
+        </label>
+      )}
       
       {/* Selected Task Display / Input */}
       <div
