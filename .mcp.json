@@ -8,7 +8,7 @@
         "src/mcp/run.ts"
       ],
       "env": {
-        "DATABASE_URL": "postgresql://yinshucheng@localhost:5432/vibeflow?schema=public",
+        "VIBEFLOW_SERVER_URL": "http://39.105.213.147:4000",
         "MCP_USER_EMAIL": "dev@vibeflow.local"
       }
     }
