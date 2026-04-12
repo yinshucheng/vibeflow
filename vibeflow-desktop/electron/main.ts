@@ -1442,11 +1442,14 @@ app.whenReady().then(async () => {
           transitionToOverRest();
         }
       } else {
-        // Any other state: stop rest timer and update tray
+        // Any other state: update tray, but preserve active rest timer
         if (restTimer?.active) {
-          stopRestTimer();
+          // Rest timer is running — don't stop it, don't override tray state
+          // (subsequent idle STATE_CHANGE events should not kill the rest timer)
+          console.log('[Main] Preserving active rest timer, ignoring state:', mappedState);
+        } else {
+          updateTrayMenu({ systemState: mappedState });
         }
-        updateTrayMenu({ systemState: mappedState });
       }
     } else {
       console.warn('[Main] Unknown state received:', state);
