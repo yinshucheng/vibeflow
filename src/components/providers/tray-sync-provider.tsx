@@ -6,6 +6,7 @@ import { useSocket } from '@/hooks/use-socket';
 import { trayIntegrationService } from '@/services/tray-integration.service';
 import { normalizeState } from '@/lib/state-utils';
 import { showBrowserNotification } from '@/services/notification.service';
+import { onExecuteCommand } from '@/lib/socket-client';
 
 /**
  * Global provider that syncs app state to desktop tray
@@ -117,6 +118,30 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
       trayIntegrationService.updateSystemState(state, restData, progress);
     }
   }, [currentPomodoro, socketState, dailyState?.systemState, dailyProgress, isInSleepTime, overRestStatus, restStatus]);
+
+  // Habit reminder notification — listen for HABIT_REMINDER execute command
+  useEffect(() => {
+    const unsub = onExecuteCommand((command) => {
+      if (command.action !== 'HABIT_REMINDER') return;
+      const params = command.params as {
+        title?: string;
+        question?: string;
+        streak?: number;
+        reminderType?: string;
+      };
+      const title = params.title ?? '习惯提醒';
+      const body =
+        params.question ??
+        (params.streak && params.streak > 1
+          ? `「${title}」已连续 ${params.streak} 天，今天还没打卡！`
+          : `该完成「${title}」了`);
+      showBrowserNotification('🔄 ' + title, {
+        body,
+        tag: 'habit-reminder',
+      });
+    });
+    return unsub;
+  }, []);
 
   // Health limit notification — poll health limit status and show browser notifications
   const { data: healthLimitData } = trpc.healthLimit.checkLimit.useQuery(undefined, {

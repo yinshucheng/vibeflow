@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: 'home' },
   { href: '/projects', label: 'Projects', icon: 'projects' },
   { href: '/tasks', label: 'Tasks', icon: 'tasks' },
+  { href: '/habits', label: 'Habits', icon: 'repeat' },
   { href: '/goals', label: 'Goals', icon: 'goals' },
   { href: '/stats', label: 'Stats', icon: 'stats' },
   { href: '/timeline', label: 'Timeline', icon: 'timeline' },

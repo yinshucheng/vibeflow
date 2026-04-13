@@ -165,14 +165,14 @@
 > 改动范围: `src/app/habits/page.tsx`（新建）, 导航菜单
 > 验证: `npm run build && npm run lint`
 
-- [ ] 创建 `src/app/habits/page.tsx` — 习惯管理列表页
+- [x] 创建 `src/app/habits/page.tsx` — 习惯管理列表页
   - 调用 `trpc.habit.list.useQuery()` 列出所有 ACTIVE 习惯
   - 每个习惯卡片：标题 + 类型 + 频率文本 + streak + 提醒时间
   - 支持编辑（弹出编辑 dialog，复用 create dialog 组件）
   - 支持删除（确认弹窗 → `trpc.habit.delete.useMutation()`）
   - 创建按钮复用 `habit-create-dialog.tsx`
-- [ ] 在侧边栏/导航菜单中添加"习惯"入口链接
-- [ ] 监听 EXECUTE 命令 `HABIT_REMINDER`，展示 Browser Notification（参考现有 pomodoro complete 通知的实现方式）
+- [x] 在侧边栏/导航菜单中添加"习惯"入口链接
+- [x] 监听 EXECUTE 命令 `HABIT_REMINDER`，展示 Browser Notification（参考现有 pomodoro complete 通知的实现方式） <!-- 1.8 done -->
 
 ### Task 1.9: iOS — Store + API + 今日习惯
 

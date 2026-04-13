@@ -3,9 +3,11 @@
 /**
  * HabitCreateDialog Component
  *
- * Minimal dialog for creating a new BOOLEAN habit (Phase 1).
+ * Minimal dialog for creating or editing a BOOLEAN habit (Phase 1).
  * Fields: title, frequency (每天/隔天/每周N次), optional reminder time.
  * Type is fixed to BOOLEAN — type selection comes in Phase 2.
+ *
+ * When `habit` prop is provided, operates in edit mode.
  */
 
 import { useState, type FormEvent } from 'react';
@@ -21,25 +23,58 @@ const FREQ_PRESETS = [
   { label: '每周 5 次', freqNum: 5, freqDen: 7 },
 ] as const;
 
+/** Find matching preset index or -1 if custom */
+function findPresetIndex(freqNum: number, freqDen: number): number {
+  return FREQ_PRESETS.findIndex(
+    (p) => p.freqNum === freqNum && p.freqDen === freqDen,
+  );
+}
+
+interface HabitData {
+  id: string;
+  title: string;
+  freqNum: number;
+  freqDen: number;
+  reminderEnabled: boolean;
+  reminderTime: string | null;
+}
+
 interface HabitCreateDialogProps {
+  habit?: HabitData;
   onClose: () => void;
   onCreated: () => void;
 }
 
 export function HabitCreateDialog({
+  habit,
   onClose,
   onCreated,
 }: HabitCreateDialogProps) {
-  const [title, setTitle] = useState('');
-  const [freqIndex, setFreqIndex] = useState(0); // default: 每天
-  const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderTime, setReminderTime] = useState('08:00');
+  const isEdit = !!habit;
+
+  const [title, setTitle] = useState(habit?.title ?? '');
+  const [freqIndex, setFreqIndex] = useState(
+    habit ? Math.max(0, findPresetIndex(habit.freqNum, habit.freqDen)) : 0,
+  );
+  const [reminderEnabled, setReminderEnabled] = useState(
+    habit?.reminderEnabled ?? false,
+  );
+  const [reminderTime, setReminderTime] = useState(
+    habit?.reminderTime ?? '08:00',
+  );
   const [error, setError] = useState('');
 
   const createMutation = trpc.habit.create.useMutation({
     onSuccess: () => onCreated(),
     onError: (err) => setError(err.message),
   });
+
+  const updateMutation = trpc.habit.update.useMutation({
+    onSuccess: () => onCreated(),
+    onError: (err) => setError(err.message),
+  });
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -50,15 +85,19 @@ export function HabitCreateDialog({
     }
 
     const freq = FREQ_PRESETS[freqIndex];
-
-    createMutation.mutate({
+    const payload = {
       title: trimmed,
-      type: 'BOOLEAN',
       freqNum: freq.freqNum,
       freqDen: freq.freqDen,
       reminderEnabled,
       reminderTime: reminderEnabled ? reminderTime : undefined,
-    });
+    };
+
+    if (isEdit) {
+      updateMutation.mutate({ id: habit.id, data: payload });
+    } else {
+      createMutation.mutate({ ...payload, type: 'BOOLEAN' });
+    }
   };
 
   return (
@@ -71,7 +110,9 @@ export function HabitCreateDialog({
       <div className="bg-notion-bg rounded-notion-lg shadow-notion-lg max-w-md w-full mx-4 border border-notion-border">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-notion-border">
-          <h2 className="text-sm font-semibold text-notion-text">创建习惯</h2>
+          <h2 className="text-sm font-semibold text-notion-text">
+            {isEdit ? '编辑习惯' : '创建习惯'}
+          </h2>
           <button
             onClick={onClose}
             className="text-notion-text-tertiary hover:text-notion-text transition-colors duration-fast"
@@ -164,9 +205,9 @@ export function HabitCreateDialog({
               variant="primary"
               size="sm"
               type="submit"
-              isLoading={createMutation.isPending}
+              isLoading={isPending}
             >
-              创建
+              {isEdit ? '保存' : '创建'}
             </Button>
           </div>
         </form>

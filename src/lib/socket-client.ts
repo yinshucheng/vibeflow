@@ -30,7 +30,7 @@ export interface ActivityLogEntry {
 }
 
 export interface ExecuteCommand {
-  action: 'INJECT_TOAST' | 'SHOW_OVERLAY' | 'REDIRECT' | 'POMODORO_COMPLETE' | 'IDLE_ALERT';
+  action: 'INJECT_TOAST' | 'SHOW_OVERLAY' | 'REDIRECT' | 'POMODORO_COMPLETE' | 'IDLE_ALERT' | 'HABIT_REMINDER';
   params: Record<string, unknown>;
 }
 
