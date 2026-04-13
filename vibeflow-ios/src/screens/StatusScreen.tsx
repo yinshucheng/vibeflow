@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PomodoroStatus } from '@/components/PomodoroStatus';
 import { TaskList } from '@/components/TaskList';
+import { TodayHabits } from '@/components/habits/TodayHabits';
 import { TaskEditScreen } from '@/screens/TaskEditScreen';
 import {
   useConnectionStatus,
@@ -141,6 +142,7 @@ const BLOCKING_REASON_ICON: Record<BlockingReason, string> = {
   focus: '🎯',
   over_rest: '⏰',
   sleep: '🌙',
+  work_time: '💼',
 };
 
 function getBlockingLabel(
@@ -166,6 +168,8 @@ function getBlockingLabel(
     }
     case 'over_rest':
       return `超时休息 — ${appPart}`;
+    case 'work_time':
+      return `工作时段 — ${appPart}`;
   }
 }
 
@@ -322,6 +326,11 @@ export function StatusScreen(): React.JSX.Element {
         {/* Pomodoro Status */}
         <View style={styles.section}>
           <PomodoroStatus />
+        </View>
+
+        {/* Today Habits */}
+        <View style={styles.section}>
+          <TodayHabits />
         </View>
 
         {/* Task List */}

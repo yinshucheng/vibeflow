@@ -32,6 +32,7 @@ import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { isWithinWorkHours } from '@/services/idle.service';
 import { focusSessionService } from '@/services/focus-session.service';
 import { habitReminderService } from '@/services/habit-reminder.service';
+import { habitService } from '@/services/habit.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -1450,6 +1451,126 @@ export class VibeFlowSocketServer {
             await this.broadcastFullStateToUser(userId);
           } else {
             error = switchResult.error ?? { code: 'UNKNOWN', message: 'Switch failed' };
+          }
+          break;
+        }
+
+        case 'HABIT_GET_TODAY': {
+          const result = await habitService.getTodayHabits(userId);
+          if (result.success) {
+            success = true;
+            resultData = { habits: result.data } as unknown as Record<string, unknown>;
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to get today habits' };
+          }
+          break;
+        }
+
+        case 'HABIT_LIST': {
+          const statusFilter = data.status as string | undefined;
+          const result = await habitService.listByUser(
+            userId,
+            statusFilter ? { status: statusFilter as 'ACTIVE' | 'PAUSED' | 'ARCHIVED' } : undefined,
+          );
+          if (result.success) {
+            success = true;
+            resultData = { habits: result.data } as unknown as Record<string, unknown>;
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to list habits' };
+          }
+          break;
+        }
+
+        case 'HABIT_CREATE': {
+          const result = await habitService.create(userId, {
+            title: data.title as string,
+            type: (data.type as 'BOOLEAN' | 'MEASURABLE' | 'TIMED') ?? 'BOOLEAN',
+            freqNum: (data.freqNum as number) ?? 1,
+            freqDen: (data.freqDen as number) ?? 1,
+            description: data.description as string | undefined,
+            question: data.question as string | undefined,
+            icon: data.icon as string | undefined,
+            color: data.color as string | undefined,
+            reminderEnabled: data.reminderEnabled as boolean | undefined,
+            reminderTime: data.reminderTime as string | undefined,
+          });
+          if (result.success) {
+            success = true;
+            resultData = { habit: result.data } as unknown as Record<string, unknown>;
+            this.broadcastHabitUpdate(userId, { type: 'habit:created', habit: result.data as unknown as Record<string, unknown> });
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to create habit' };
+          }
+          break;
+        }
+
+        case 'HABIT_UPDATE': {
+          const habitId = data.id as string;
+          const updates = data.updates as Record<string, unknown> | undefined;
+          if (!habitId) {
+            error = { code: 'VALIDATION_ERROR', message: 'id is required' };
+            break;
+          }
+          const result = await habitService.update(userId, habitId, updates ?? {});
+          if (result.success) {
+            success = true;
+            resultData = { habit: result.data } as unknown as Record<string, unknown>;
+            this.broadcastHabitUpdate(userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to update habit' };
+          }
+          break;
+        }
+
+        case 'HABIT_DELETE': {
+          const habitId = data.id as string;
+          if (!habitId) {
+            error = { code: 'VALIDATION_ERROR', message: 'id is required' };
+            break;
+          }
+          const result = await habitService.delete(userId, habitId);
+          if (result.success) {
+            success = true;
+            this.broadcastHabitUpdate(userId, { type: 'habit:deleted', habitId });
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to delete habit' };
+          }
+          break;
+        }
+
+        case 'HABIT_RECORD_ENTRY': {
+          const habitId = data.habitId as string;
+          const date = data.date as string;
+          const value = data.value as number;
+          const note = data.note as string | undefined;
+          if (!habitId || !date || value === undefined) {
+            error = { code: 'VALIDATION_ERROR', message: 'habitId, date, and value are required' };
+            break;
+          }
+          const result = await habitService.recordEntry(userId, habitId, date, value, note);
+          if (result.success) {
+            success = true;
+            resultData = { entry: result.data } as unknown as Record<string, unknown>;
+            this.broadcastHabitUpdate(userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to record entry' };
+          }
+          break;
+        }
+
+        case 'HABIT_DELETE_ENTRY': {
+          const habitId = data.habitId as string;
+          const date = data.date as string;
+          if (!habitId || !date) {
+            error = { code: 'VALIDATION_ERROR', message: 'habitId and date are required' };
+            break;
+          }
+          const result = await habitService.deleteEntry(userId, habitId, date);
+          if (result.success) {
+            success = true;
+            this.broadcastHabitUpdate(userId, { type: 'habit:entry_updated', habitId, date });
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to delete entry' };
           }
           break;
         }

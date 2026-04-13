@@ -17,6 +17,7 @@ import { blockingService } from '@/services/blocking.service';
 import { screenTimeService } from '@/services/screen-time.service';
 import { notificationTriggerService } from '@/services/notification-trigger.service';
 import { useAppStore } from '@/store';
+import { initHabitSocketListeners, cleanupHabitSocketListeners, useHabitStore } from '@/store/habit.store';
 import { getToken, verifyToken, logout, refreshCachedToken, setCachedEmail } from '@/config/auth';
 import { LoginScreen } from '@/screens/LoginScreen';
 
@@ -85,6 +86,19 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
       console.error('[AppProvider] Notification trigger service init failed:', err)
     );
 
+    // Initialize habit socket listeners + fetch today habits once connected
+    const cleanupHabitOnConnect = websocketService.onStatusChange((status) => {
+      if (status === 'connected') {
+        initHabitSocketListeners();
+        useHabitStore.getState().fetchTodayHabits();
+      }
+    });
+    // Also init immediately if already connected
+    if (websocketService.isConnected()) {
+      initHabitSocketListeners();
+      useHabitStore.getState().fetchTodayHabits();
+    }
+
     // Initialize selection summary from native module (App Group)
     const loadSelectionSummary = async () => {
       try {
@@ -105,6 +119,8 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     // Cleanup on unmount
     return () => {
       subscription.remove();
+      cleanupHabitSocketListeners();
+      cleanupHabitOnConnect();
       notificationTriggerService.cleanup();
       chatService.cleanup();
       cleanupBlocking();

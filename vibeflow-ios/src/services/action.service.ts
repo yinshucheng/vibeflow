@@ -106,6 +106,16 @@ class ActionService {
     return this.sendAction('TOP3_SET', { taskIds });
   }
 
+  /**
+   * Send a habit-related action
+   */
+  async sendHabitAction<T = void>(
+    actionType: string,
+    data: Record<string, unknown>
+  ): Promise<ActionResult<T>> {
+    return this.sendAction(actionType as UserActionType, data);
+  }
+
   // ===========================================================================
   // PRIVATE METHODS
   // ===========================================================================

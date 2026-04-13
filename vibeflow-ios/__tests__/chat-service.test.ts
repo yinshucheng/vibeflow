@@ -38,6 +38,8 @@ jest.mock('../src/services/websocket.service', () => ({
         };
       }
     ),
+    onActionResult: jest.fn(() => () => {}),
+    onStatusChange: jest.fn(() => () => {}),
     isConnected: jest.fn(() => true),
   },
 }));

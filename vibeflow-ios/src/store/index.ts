@@ -30,3 +30,15 @@ export {
   type ChatState,
   type ChatActions,
 } from './chat.store';
+
+export {
+  useHabitStore,
+  useTodayHabits,
+  useTodayHabitsLoading,
+  useHabits,
+  useHabitsLoading,
+  initHabitSocketListeners,
+  cleanupHabitSocketListeners,
+  type HabitState,
+  type HabitActions,
+} from './habit.store';

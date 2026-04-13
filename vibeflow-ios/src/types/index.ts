@@ -56,6 +56,13 @@ export interface TemporaryUnblockData {
   endTime: number; // Unix timestamp ms
 }
 
+export interface WorkTimePolicyData {
+  enabled: boolean;
+  isCurrentlyActive: boolean;
+  isInRestPeriod: boolean;
+  slots: { startTime: string; endTime: string }[];
+}
+
 export interface PolicyData {
   version: number;
   distractionApps: BlockedApp[];
@@ -63,6 +70,7 @@ export interface PolicyData {
   sleepTime?: SleepTimePolicyData;
   overRest?: OverRestPolicyData;
   temporaryUnblock?: TemporaryUnblockData;
+  workTime?: WorkTimePolicyData;
 }
 
 export interface BlockedApp {
@@ -92,7 +100,7 @@ export type AuthorizationStatus =
   | 'notDetermined'
   | 'restricted';
 
-export type BlockingReason = 'focus' | 'over_rest' | 'sleep';
+export type BlockingReason = 'focus' | 'over_rest' | 'sleep' | 'work_time';
 
 export interface SelectionSummary {
   appCount: number;
@@ -113,6 +121,53 @@ export interface BlockingState {
   pomodoroId: string | null;
   activatedAt: number | null;
   reason: BlockingReason | null;
+}
+
+// =============================================================================
+// HABIT TYPES
+// =============================================================================
+
+export type HabitType = 'BOOLEAN' | 'MEASURABLE' | 'TIMED';
+export type HabitStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
+export type HabitEntryType = 'NO' | 'UNKNOWN' | 'YES_MANUAL' | 'YES_AUTO' | 'SKIP';
+
+export interface HabitData {
+  id: string;
+  title: string;
+  description?: string | null;
+  question?: string | null;
+  type: HabitType;
+  targetValue?: number | null;
+  targetUnit?: string | null;
+  freqNum: number;
+  freqDen: number;
+  icon?: string | null;
+  color?: string | null;
+  sortOrder: number;
+  status: HabitStatus;
+  reminderEnabled: boolean;
+  reminderTime?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HabitEntryData {
+  id: string;
+  habitId: string;
+  userId: string;
+  date: string;
+  value: number;
+  entryType: HabitEntryType;
+  note?: string | null;
+  pomodoroIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TodayHabitData extends HabitData {
+  todayEntry: HabitEntryData | null;
+  streak: { current: number; best: number };
+  isDue: boolean;
 }
 
 // =============================================================================

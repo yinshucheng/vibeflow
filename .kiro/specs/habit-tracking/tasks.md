@@ -181,16 +181,16 @@
 > 验证: `cd vibeflow-ios && npx jest && npx tsc --noEmit`
 > 参考: 查看 `vibeflow-ios/src/stores/app.store.ts` 的 pattern，保持 store 风格一致
 
-- [ ] 创建 `vibeflow-ios/src/stores/habit.store.ts` — Zustand store
+- [x] 创建 `vibeflow-ios/src/stores/habit.store.ts` — Zustand store
   - state: `{ todayHabits: TodayHabit[], habits: Habit[], loading: boolean }`
   - actions: `fetchTodayHabits()`, `fetchHabits()`, `recordEntry(habitId, date, value)`, `deleteEntry(habitId, date)`, `createHabit(data)`, `updateHabit(id, data)`, `deleteHabit(id)`
   - 使用 tRPC client（参考现有 store 中 tRPC 调用方式）
-- [ ] 处理 Socket 事件 `habit:entry_updated`, `habit:created`, `habit:updated`, `habit:deleted`，刷新对应数据
-- [ ] 创建 `vibeflow-ios/src/components/habits/TodayHabits.tsx`
+- [x] 处理 Socket 事件 `habit:entry_updated`, `habit:created`, `habit:updated`, `habit:deleted`，刷新对应数据
+- [x] 创建 `vibeflow-ios/src/components/habits/TodayHabits.tsx`
   - 调用 store 的 `todayHabits`
   - 每个习惯行：图标 + 标题 + streak 数字 + 打卡按钮（tap 完成/取消）
   - 空状态提示
-- [ ] 在 Dashboard 页面中嵌入 `<TodayHabits />`
+- [x] 在 Dashboard 页面中嵌入 `<TodayHabits />` <!-- 1.9 done -->
 
 ### Task 1.10: iOS — 创建/列表/编辑 + 本地提醒
 

@@ -219,6 +219,13 @@ export interface AdhocFocusSession {
   overridesSleepTime?: boolean;
 }
 
+export interface WorkTimePolicy {
+  enabled: boolean;
+  isCurrentlyActive: boolean;
+  isInRestPeriod: boolean;
+  slots: { startTime: string; endTime: string }[];
+}
+
 export interface Policy {
   version: number;
   blacklist: string[];
@@ -235,6 +242,7 @@ export interface Policy {
     active: boolean;
     endTime: number;
   };
+  workTime?: WorkTimePolicy;
 }
 
 export interface UpdatePolicyPayload {
@@ -265,7 +273,14 @@ export type UserActionType =
   | 'POMODORO_SWITCH_TASK'
   | 'TOP3_SET'
   | 'POLICY_UPDATE'
-  | 'SLEEP_TIME_UPDATE';
+  | 'SLEEP_TIME_UPDATE'
+  | 'HABIT_GET_TODAY'
+  | 'HABIT_LIST'
+  | 'HABIT_CREATE'
+  | 'HABIT_UPDATE'
+  | 'HABIT_DELETE'
+  | 'HABIT_RECORD_ENTRY'
+  | 'HABIT_DELETE_ENTRY';
 
 export interface UserActionPayload {
   actionType: UserActionType;
