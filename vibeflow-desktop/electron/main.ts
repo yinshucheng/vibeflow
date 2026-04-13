@@ -1470,6 +1470,17 @@ app.whenReady().then(async () => {
         stopPomodoroCountdown();
         break;
       }
+      case 'HABIT_REMINDER': {
+        const title = command.params?.title as string | undefined;
+        const question = command.params?.question as string | undefined;
+        const streak = command.params?.streak as number | undefined;
+        const body = question
+          ?? (streak && streak > 1
+            ? `「${title}」已连续 ${streak} 天，今天还没打卡！`
+            : `该完成「${title}」了`);
+        notificationManager.showReminder(body);
+        break;
+      }
       // IDLE_ALERT is handled by focusEnforcer.onIntervention
     }
   });
