@@ -463,4 +463,55 @@ describe('HabitService', () => {
       expect(deleteResult.success).toBe(true);
     });
   });
+
+  describe('integration: create → recordEntry → getTodayHabits(completed) → deleteEntry → getTodayHabits(not completed)', () => {
+    it('should reflect completion state changes in getTodayHabits', async () => {
+      const habit = fakeHabit({ freqNum: 1, freqDen: 1 });
+      const entry = fakeEntry({ date: d('2025-03-10'), value: 1, entryType: 'YES_MANUAL' });
+
+      // 1. Create habit
+      mockPrisma.habit.aggregate.mockResolvedValue({ _max: { sortOrder: 0 } });
+      mockPrisma.habit.create.mockResolvedValue(habit);
+      const createResult = await habitService.create(UID, { title: '冥想' });
+      expect(createResult.success).toBe(true);
+
+      // 2. Record entry for today
+      mockPrisma.habit.findFirst.mockResolvedValue(habit);
+      mockPrisma.habitEntry.upsert.mockResolvedValue(entry);
+      const recordResult = await habitService.recordEntry(UID, H1, '2025-03-10', 1);
+      expect(recordResult.success).toBe(true);
+      expect(recordResult.data?.entryType).toBe('YES_MANUAL');
+
+      // 3. getTodayHabits — should show completed (todayEntry present)
+      mockPrisma.habit.findMany.mockResolvedValue([habit]);
+      mockPrisma.habitEntry.findMany
+        .mockResolvedValueOnce([entry])  // today entries → has entry
+        .mockResolvedValueOnce([entry])  // recent entries
+        .mockResolvedValueOnce([entry]); // all entries for streak
+      const todayCompleted = await habitService.getTodayHabits(UID);
+      expect(todayCompleted.success).toBe(true);
+      expect(todayCompleted.data).toHaveLength(1);
+      expect(todayCompleted.data![0].todayEntry).toEqual(entry);
+      expect(todayCompleted.data![0].todayEntry?.entryType).toBe('YES_MANUAL');
+
+      // 4. Delete the entry
+      mockPrisma.habit.findFirst.mockResolvedValue(habit);
+      mockPrisma.habitEntry.findUnique.mockResolvedValue(entry);
+      mockPrisma.habitEntry.delete.mockResolvedValue(entry);
+      const deleteEntryResult = await habitService.deleteEntry(UID, H1, '2025-03-10');
+      expect(deleteEntryResult.success).toBe(true);
+
+      // 5. getTodayHabits — should show not completed (todayEntry null)
+      mockPrisma.habit.findMany.mockResolvedValue([habit]);
+      mockPrisma.habitEntry.findMany
+        .mockResolvedValueOnce([])  // today entries → no entry
+        .mockResolvedValueOnce([])  // recent entries
+        .mockResolvedValueOnce([]); // all entries for streak
+      const todayNotCompleted = await habitService.getTodayHabits(UID);
+      expect(todayNotCompleted.success).toBe(true);
+      expect(todayNotCompleted.data).toHaveLength(1);
+      expect(todayNotCompleted.data![0].todayEntry).toBeNull();
+      expect(todayNotCompleted.data![0].streak).toEqual({ current: 0, best: 0 });
+    });
+  });
 });

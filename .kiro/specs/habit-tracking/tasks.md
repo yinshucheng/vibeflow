@@ -223,11 +223,11 @@
 > 改动范围: `src/services/habit.service.test.ts`（补充）, `src/services/habit-reminder.service.test.ts`（补充）
 > 验证: `npm test`
 
-- [ ] 补充 HabitService 集成测试：create → recordEntry → getTodayHabits 返回已完成状态 → deleteEntry → getTodayHabits 返回未完成
-- [ ] 补充 tRPC router 集成测试：通过 tRPC caller 调用 create/list/getToday/recordEntry
-- [ ] 确保 `npm test` 全部通过
-- [ ] 确保 `npm run build` 无 TypeScript 错误
-- [ ] 确保 `npm run lint` clean
+- [x] 补充 HabitService 集成测试：create → recordEntry → getTodayHabits 返回已完成状态 → deleteEntry → getTodayHabits 返回未完成
+- [x] 补充 tRPC router 集成测试：通过 tRPC caller 调用 create/list/getToday/recordEntry
+- [x] 确保 `npm test` 全部通过
+- [x] 确保 `npm run build` 无 TypeScript 错误
+- [x] 确保 `npm run lint` clean <!-- 1.11 done -->
 
 ---
 
