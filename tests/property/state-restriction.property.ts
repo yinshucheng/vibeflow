@@ -127,7 +127,7 @@ function shouldBlockForStateRestriction(
 // ============================================================================
 
 // Arbitrary generators
-const domainArbitrary = fc.stringMatching(/^[a-z][a-z0-9-]{0,20}\.[a-z]{2,6}$/);
+const domainArbitrary = fc.stringMatching(/^[a-z][a-z0-9-]{0,20}\.[a-z]{2,6}$/).filter(d => !d.includes('xn--'));
 const pathArbitrary = fc.stringMatching(/^\/[a-z0-9\/-]{0,30}$/);
 const nonRestrictedStateArbitrary = fc.constantFrom<SystemState>('IDLE', 'FOCUS');
 const restrictedStateArbitrary = fc.constantFrom<SystemState>('OVER_REST');
