@@ -68,27 +68,27 @@
 
 ### Phase 2: Web + Extension 客户端
 
-- [ ] 5. Web 客户端认证启用
-  - [ ] 5.1 `/login` 页面改造
+- [x] 5. Web 客户端认证启用
+  - [x] 5.1 `/login` 页面改造
     - 生产模式隐藏 Dev Quick Login 区域（`NEXT_PUBLIC_DEV_MODE !== 'true'`）
     - 确保标准 email/password 登录正常工作
     - 添加注册链接指向 `/register`
     - _Requirements: R3.1_
-  - [ ] 5.2 `/register` 页面
+  - [x] 5.2 `/register` 页面
     - 确保注册页面可访问并正常工作（已有端点，可能需要 UI）
     - 注册成功后自动登录并重定向到 Dashboard
     - _Requirements: R3.2_
-  - [ ] 5.3 tRPC Provider 改造
+  - [x] 5.3 tRPC Provider 改造
     - 生产模式不注入 `x-dev-user-email` header
     - 检测 UNAUTHORIZED 响应时重定向到 `/login?returnUrl=<current>`
     - _Requirements: R3.3, R3.5_
-  - [ ] 5.4 Socket Client 改造
+  - [x] 5.4 Socket Client 改造
     - 生产模式不使用 localStorage email
     - 使用 NextAuth session cookie 认证（Web 端 socket 通过同域 cookie 自动携带）
     - _Requirements: R3.4_
-  - [ ] 5.5 登录后重定向
+  - [x] 5.5 登录后重定向
     - 从 URL 参数读取 `returnUrl`，登录成功后重定向
-    - _Requirements: R3.6_
+    - _Requirements: R3.6_ <!-- 5 done -->
 
 - [ ] 6. Extension 认证
   - [ ] 6.1 未认证提示

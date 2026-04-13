@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { httpBatchLink } from '@trpc/client';
 import { TRPCClientError } from '@trpc/client';
 import superjson from 'superjson';
@@ -22,6 +22,14 @@ function isUnauthorizedError(error: unknown): boolean {
     error instanceof TRPCClientError &&
     error.data?.code === 'UNAUTHORIZED'
   );
+}
+
+function redirectToLogin() {
+  const currentPath = window.location.pathname;
+  const loginUrl = currentPath && currentPath !== '/login'
+    ? `/login?callbackUrl=${encodeURIComponent(currentPath)}`
+    : '/login';
+  window.location.href = loginUrl;
 }
 
 function getBaseUrl() {
@@ -37,6 +45,20 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        queryCache: new QueryCache({
+          onError: (error) => {
+            if (isUnauthorizedError(error)) {
+              redirectToLogin();
+            }
+          },
+        }),
+        mutationCache: new MutationCache({
+          onError: (error) => {
+            if (isUnauthorizedError(error)) {
+              redirectToLogin();
+            }
+          },
+        }),
         defaultOptions: {
           queries: {
             staleTime: 5 * 1000, // 5 seconds
@@ -44,13 +66,6 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
             retry: (failureCount, error) => {
               if (isUnauthorizedError(error)) return false;
               return failureCount < 3;
-            },
-          },
-          mutations: {
-            onError: (error) => {
-              if (isUnauthorizedError(error)) {
-                window.location.href = '/login';
-              }
             },
           },
         },
@@ -64,16 +79,16 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           url: `${getBaseUrl()}/api/trpc`,
           transformer: superjson,
           headers() {
-            // Include dev user email header if in dev mode
+            // Include dev user email header only when dev mode is explicitly enabled
             const headers: Record<string, string> = {};
-            
-            if (process.env.NODE_ENV === 'development') {
+
+            if (process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
               const devEmail = localStorage.getItem('dev-user-email');
               if (devEmail) {
                 headers['x-dev-user-email'] = devEmail;
               }
             }
-            
+
             return headers;
           },
         }),

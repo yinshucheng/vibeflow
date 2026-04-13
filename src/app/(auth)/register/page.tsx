@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
 
@@ -18,7 +18,17 @@ const registerSchema = z
   });
 
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -88,7 +98,7 @@ export default function RegisterPage() {
       if (signInResult?.error) {
         setGlobalError('Account created but sign-in failed. Please sign in manually.');
       } else {
-        router.push('/');
+        router.push(callbackUrl);
       }
     } catch {
       setGlobalError('An unexpected error occurred');
@@ -191,7 +201,7 @@ export default function RegisterPage() {
         <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
           Already have an account?{' '}
           <Link
-            href="/login"
+            href={callbackUrl !== '/' ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/login'}
             className="text-[var(--accent-blue)] hover:underline"
           >
             Sign in
