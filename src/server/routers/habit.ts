@@ -14,6 +14,7 @@ import {
   UpdateHabitSchema,
   RecordEntrySchema,
 } from '@/services/habit.service';
+import { socketServer } from '../socket';
 
 export const habitRouter = router({
   /**
@@ -32,8 +33,7 @@ export const habitRouter = router({
         });
       }
 
-      // TODO: broadcastHabitUpdate(ctx.user.userId, { type: 'habit:created', habit: result.data })
-      // → To be implemented in Task 1.5 (src/server/socket.ts)
+      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:created', habit: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -68,8 +68,7 @@ export const habitRouter = router({
         });
       }
 
-      // TODO: broadcastHabitUpdate(ctx.user.userId, { type: 'habit:updated', habit: result.data })
-      // → To be implemented in Task 1.5 (src/server/socket.ts)
+      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -98,8 +97,7 @@ export const habitRouter = router({
         });
       }
 
-      // TODO: broadcastHabitUpdate(ctx.user.userId, { type: 'habit:updated', habit: result.data })
-      // → To be implemented in Task 1.5 (src/server/socket.ts)
+      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -119,8 +117,7 @@ export const habitRouter = router({
         });
       }
 
-      // TODO: broadcastHabitUpdate(ctx.user.userId, { type: 'habit:deleted', habitId: input.id })
-      // → To be implemented in Task 1.5 (src/server/socket.ts)
+      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:deleted', habitId: input.id });
 
       return { success: true };
     }),
@@ -152,8 +149,7 @@ export const habitRouter = router({
         });
       }
 
-      // TODO: broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', entry: result.data })
-      // → To be implemented in Task 1.5 (src/server/socket.ts)
+      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -188,8 +184,7 @@ export const habitRouter = router({
         });
       }
 
-      // TODO: broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', entry: result.data })
-      // → To be implemented in Task 1.5 (src/server/socket.ts)
+      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -218,8 +213,7 @@ export const habitRouter = router({
         });
       }
 
-      // TODO: broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', habitId: input.habitId, date: input.date })
-      // → To be implemented in Task 1.5 (src/server/socket.ts)
+      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', habitId: input.habitId, date: input.date });
 
       return { success: true };
     }),

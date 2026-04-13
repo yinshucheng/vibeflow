@@ -92,12 +92,33 @@ export interface ActivityLogEntry {
 /**
  * Execute command types (legacy)
  */
-export type ExecuteAction = 'INJECT_TOAST' | 'SHOW_OVERLAY' | 'REDIRECT' | 'POMODORO_COMPLETE' | 'IDLE_ALERT';
+export type ExecuteAction = 'INJECT_TOAST' | 'SHOW_OVERLAY' | 'REDIRECT' | 'POMODORO_COMPLETE' | 'IDLE_ALERT' | 'HABIT_REMINDER';
 
 export interface ExecuteCommand {
   action: ExecuteAction;
   params: Record<string, unknown>;
 }
+
+/**
+ * HABIT_REMINDER payload for execute commands
+ */
+export interface HabitReminderPayload {
+  habitId: string;
+  title: string;
+  question?: string;
+  streak: number;
+  reminderType: 'fixed_time' | 'streak_protect' | 'daily_summary';
+}
+
+/**
+ * Habit broadcast event payload types
+ */
+export type HabitBroadcastPayload =
+  | { type: 'habit:created'; habit: Record<string, unknown> }
+  | { type: 'habit:updated'; habit: Record<string, unknown> }
+  | { type: 'habit:deleted'; habitId: string }
+  | { type: 'habit:entry_updated'; entry: Record<string, unknown> }
+  | { type: 'habit:entry_updated'; habitId: string; date: string };
 
 /**
  * Idle alert command params
@@ -176,6 +197,12 @@ export interface ServerToClientEvents {
   
   // MCP Event Stream events (Requirements: 10.1, 10.2, 10.3, 10.4)
   MCP_EVENT: (payload: MCPEventPayload) => void;
+
+  // Habit tracking events
+  'habit:entry_updated': (payload: { habitId: string; date: string; entry?: Record<string, unknown> }) => void;
+  'habit:created': (payload: { habit: Record<string, unknown> }) => void;
+  'habit:updated': (payload: { habit: Record<string, unknown> }) => void;
+  'habit:deleted': (payload: { habitId: string }) => void;
 
   // Application-layer keepalive response (ADR-001)
   pong_custom: () => void;
@@ -2343,6 +2370,43 @@ export class VibeFlowSocketServer {
   }
 
   /**
+   * Broadcast habit update to all of a user's connected clients
+   */
+  broadcastHabitUpdate(userId: string, payload: HabitBroadcastPayload): void {
+    if (!this.io) return;
+
+    const userRoom = `user:${userId}`;
+
+    switch (payload.type) {
+      case 'habit:created':
+        this.io.to(userRoom).emit('habit:created', { habit: payload.habit });
+        break;
+      case 'habit:updated':
+        this.io.to(userRoom).emit('habit:updated', { habit: payload.habit });
+        break;
+      case 'habit:deleted':
+        this.io.to(userRoom).emit('habit:deleted', { habitId: payload.habitId });
+        break;
+      case 'habit:entry_updated':
+        if ('entry' in payload) {
+          this.io.to(userRoom).emit('habit:entry_updated', {
+            habitId: (payload.entry as Record<string, unknown>).habitId as string,
+            date: (payload.entry as Record<string, unknown>).date as string,
+            entry: payload.entry,
+          });
+        } else {
+          this.io.to(userRoom).emit('habit:entry_updated', {
+            habitId: payload.habitId,
+            date: payload.date,
+          });
+        }
+        break;
+    }
+
+    console.log(`[Socket.io] Broadcast habit update to user ${userId}: ${payload.type}`);
+  }
+
+  /**
    * Send Octopus command to a specific client
    * Requirements: 2.4
    */
@@ -2479,6 +2543,8 @@ export class VibeFlowSocketServer {
       case 'POMODORO_COMPLETE':
         return 'SHOW_NOTIFICATION';
       case 'IDLE_ALERT':
+        return 'SHOW_NOTIFICATION';
+      case 'HABIT_REMINDER':
         return 'SHOW_NOTIFICATION';
       default:
         return 'SHOW_NOTIFICATION';

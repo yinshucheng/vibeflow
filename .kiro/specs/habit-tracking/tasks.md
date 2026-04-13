@@ -107,11 +107,11 @@
 > 改动范围: `src/server/socket.ts`（ExecuteAction 类型 + 事件类型）, `src/server/routers/habit.ts`（替换 TODO 为广播调用）
 > 验证: `npx tsc --noEmit`
 
-- [ ] 在 `src/server/socket.ts` 中的 `ExecuteAction` type union 添加 `'HABIT_REMINDER'`
-- [ ] 在 socket 事件类型中添加：`habit:entry_updated`, `habit:created`, `habit:updated`, `habit:deleted`
-- [ ] 添加 `broadcastHabitUpdate(userId, payload)` 广播方法（参考现有 broadcastStateChange 实现）
-- [ ] HABIT_REMINDER payload 类型：`{ habitId: string, title: string, question?: string, streak: number, reminderType: 'fixed_time' | 'streak_protect' | 'daily_summary' }`
-- [ ] 在 `src/server/routers/habit.ts` 中，将 TODO 广播注释替换为实际的 `broadcastHabitUpdate()` 调用
+- [x] 在 `src/server/socket.ts` 中的 `ExecuteAction` type union 添加 `'HABIT_REMINDER'`
+- [x] 在 socket 事件类型中添加：`habit:entry_updated`, `habit:created`, `habit:updated`, `habit:deleted`
+- [x] 添加 `broadcastHabitUpdate(userId, payload)` 广播方法（参考现有 broadcastStateChange 实现）
+- [x] HABIT_REMINDER payload 类型：`{ habitId: string, title: string, question?: string, streak: number, reminderType: 'fixed_time' | 'streak_protect' | 'daily_summary' }`
+- [x] 在 `src/server/routers/habit.ts` 中，将 TODO 广播注释替换为实际的 `broadcastHabitUpdate()` 调用 <!-- 1.5 done -->
 
 ### Task 1.6: 提醒服务（服务端 cron）
 
