@@ -168,8 +168,22 @@ export function showBrowserNotification(
   title: string,
   options?: NotificationOptions
 ): Notification | null {
-  if (!isNotificationSupported()) {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
     console.warn('[NotificationService] Notifications not available');
+    return null;
+  }
+
+  // If permission not yet granted, request it first (non-blocking)
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then((perm) => {
+      if (perm === 'granted') {
+        showBrowserNotification(title, options);
+      }
+    });
+    return null;
+  }
+
+  if (Notification.permission !== 'granted') {
     return null;
   }
 

@@ -21,6 +21,10 @@ async function getNotificationService() {
     const mod = await import('@/services/notification.service');
     _notificationService = mod.notificationService;
   }
+  // Ensure hasPermission is up-to-date (checkPermission is idempotent)
+  // This covers the race condition where habit socket listener fires
+  // before notificationTriggerService.initialize() completes
+  await _notificationService.checkPermission();
   return _notificationService;
 }
 
