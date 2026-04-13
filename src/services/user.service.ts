@@ -128,6 +128,7 @@ export interface UserContext {
   userId: string;
   email: string;
   isDevMode: boolean;
+  tokenScopes?: string[];
 }
 
 // Service result types
@@ -182,37 +183,41 @@ export const userService = {
 
   /**
    * Get current user from context
-   * In dev mode, extracts from header or uses default
-   * In production, uses NextAuth session or API token
+   *
+   * Auth chain (4 paths):
+   * 1. DEV_MODE header (only when DEV_MODE=true)
+   * 2. NextAuth session (JWT cookie)
+   * 3. Bearer vf_ API token
+   * 4. DEV_MODE fallback (only when DEV_MODE=true, no auth info at all)
+   *
+   * In dev mode, paths 1 and 4 are active. Dev mode still tries formal auth paths
+   * (2 and 3) so production flows can be tested locally.
    */
   async getCurrentUser(ctx: {
     headers?: Record<string, string | undefined>;
     session?: { user: { id: string; email: string } } | null;
   }): Promise<ServiceResult<UserContext>> {
     try {
-      // 1. DEV_MODE path (existing behavior)
+      // Path 1: DEV_MODE header (only when dev mode enabled)
       if (devModeConfig.enabled) {
-        const email = ctx.headers?.['x-dev-user-email'] || devModeConfig.defaultUserEmail;
-        const result = await this.getOrCreateDevUser(email);
-
-        if (!result.success || !result.data) {
-          return {
-            success: false,
-            error: result.error || { code: 'AUTH_ERROR', message: 'Failed to get dev user' },
-          };
+        const devEmail = ctx.headers?.['x-dev-user-email'];
+        if (devEmail) {
+          const result = await this.getOrCreateDevUser(devEmail);
+          if (result.success && result.data) {
+            return {
+              success: true,
+              data: {
+                userId: result.data.id,
+                email: result.data.email,
+                isDevMode: true,
+              },
+            };
+          }
         }
-
-        return {
-          success: true,
-          data: {
-            userId: result.data.id,
-            email: result.data.email,
-            isDevMode: true,
-          },
-        };
+        // Dev mode still continues to try formal auth paths below
       }
 
-      // 2. Production mode: use passed-in session (from NextAuth getServerSession / getToken)
+      // Path 2: NextAuth session (from JWT cookie)
       if (ctx.session?.user) {
         return {
           success: true,
@@ -224,7 +229,7 @@ export const userService = {
         };
       }
 
-      // 3. API Token authentication (iOS/Desktop)
+      // Path 3: Bearer vf_ API token (iOS/Desktop/MCP/Skill)
       const authHeader = ctx.headers?.['authorization'];
       if (authHeader?.startsWith('Bearer vf_')) {
         const token = authHeader.slice(7); // "Bearer ".length = 7
@@ -242,9 +247,25 @@ export const userService = {
                 userId: user.id,
                 email: user.email,
                 isDevMode: false,
+                tokenScopes: result.data.scopes,
               },
             };
           }
+        }
+      }
+
+      // Path 4: DEV_MODE fallback (only when dev mode enabled, no auth info at all)
+      if (devModeConfig.enabled) {
+        const result = await this.getOrCreateDevUser(devModeConfig.defaultUserEmail);
+        if (result.success && result.data) {
+          return {
+            success: true,
+            data: {
+              userId: result.data.id,
+              email: result.data.email,
+              isDevMode: true,
+            },
+          };
         }
       }
 

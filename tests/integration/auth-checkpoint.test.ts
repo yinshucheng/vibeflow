@@ -477,6 +477,7 @@ async function callProductionAuth(
             userId: user.id,
             email: user.email,
             isDevMode: false,
+            tokenScopes: result.data.scopes,
           },
         };
       }

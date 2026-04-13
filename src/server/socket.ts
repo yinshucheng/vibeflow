@@ -507,11 +507,88 @@ export class VibeFlowSocketServer {
     const { token, email, clientType, clientVersion, platform, capabilities } = socket.handshake.auth;
     const devEmail = socket.handshake.headers['x-dev-user-email'] as string | undefined;
 
-    // Dev mode authentication
+    // Dev mode: accept email-based auth (from auth payload or header)
     if (userService.isDevModeEnabled()) {
-      const userEmail = email || devEmail || userService.getDevModeConfig().defaultUserEmail;
-      const result = await userService.getOrCreateDevUser(userEmail);
-      
+      const userEmail = email || devEmail;
+      if (userEmail) {
+        const result = await userService.getOrCreateDevUser(userEmail);
+        if (result.success && result.data) {
+          return {
+            success: true,
+            data: {
+              userId: result.data.id,
+              email: result.data.email,
+              isDevMode: true,
+              connectedAt: Date.now(),
+              clientType: clientType as ClientType || 'web',
+              clientVersion: clientVersion || '1.0.0',
+              platform: platform || 'unknown',
+              capabilities: capabilities || [],
+            },
+          };
+        }
+      }
+      // Dev mode continues to formal auth paths below (allows testing production flow)
+    }
+
+    // NextAuth cookie authentication (for Web and Browser Extension)
+    // Extension sends empty auth payload — relies on handshake headers cookie
+    try {
+      const jwtToken = await getToken({
+        req: socket.request as Parameters<typeof getToken>[0]['req'],
+        secret: process.env.NEXTAUTH_SECRET,
+      });
+      if (jwtToken?.id && jwtToken?.email) {
+        console.log(`[Socket.io] Authenticated via NextAuth cookie: ${jwtToken.email}`);
+        return {
+          success: true,
+          data: {
+            userId: jwtToken.id as string,
+            email: jwtToken.email as string,
+            isDevMode: false,
+            connectedAt: Date.now(),
+            clientType: clientType as ClientType || 'web',
+            clientVersion: clientVersion || '1.0.0',
+            platform: platform || 'unknown',
+            capabilities: capabilities || [],
+          },
+        };
+      }
+    } catch {
+      // Cookie parsing failed, fall through to API token auth
+    }
+
+    // API token authentication (for Desktop, Mobile, MCP, Skill)
+    if (token && token.startsWith('vf_')) {
+      const validationResult = await authService.validateToken(token);
+
+      if (validationResult.success && validationResult.data?.valid) {
+        const user = await prisma.user.findUnique({
+          where: { id: validationResult.data.userId },
+        });
+
+        if (user) {
+          console.log(`[Socket.io] Authenticated via API token: ${user.email} (${validationResult.data.clientType})`);
+          return {
+            success: true,
+            data: {
+              userId: user.id,
+              email: user.email,
+              isDevMode: false,
+              connectedAt: Date.now(),
+              clientType: validationResult.data.clientType || clientType as ClientType || 'browser_ext',
+              clientVersion: clientVersion || '1.0.0',
+              platform: platform || 'unknown',
+              capabilities: capabilities || [],
+            },
+          };
+        }
+      }
+    }
+
+    // Dev mode fallback: use default dev user when no auth info provided
+    if (userService.isDevModeEnabled()) {
+      const result = await userService.getOrCreateDevUser(userService.getDevModeConfig().defaultUserEmail);
       if (result.success && result.data) {
         return {
           success: true,
@@ -526,91 +603,6 @@ export class VibeFlowSocketServer {
             capabilities: capabilities || [],
           },
         };
-      }
-    }
-
-    // NextAuth cookie authentication (for Web and Browser Extension)
-    if (!userService.isDevModeEnabled()) {
-      try {
-        const jwtToken = await getToken({
-          req: socket.request as Parameters<typeof getToken>[0]['req'],
-          secret: process.env.NEXTAUTH_SECRET,
-        });
-        if (jwtToken?.id && jwtToken?.email) {
-          console.log(`[Socket.io] Authenticated via NextAuth cookie: ${jwtToken.email}`);
-          return {
-            success: true,
-            data: {
-              userId: jwtToken.id as string,
-              email: jwtToken.email as string,
-              isDevMode: false,
-              connectedAt: Date.now(),
-              clientType: clientType as ClientType || 'web',
-              clientVersion: clientVersion || '1.0.0',
-              platform: platform || 'unknown',
-              capabilities: capabilities || [],
-            },
-          };
-        }
-      } catch {
-        // Cookie parsing failed, fall through to API token auth
-      }
-    }
-
-    // API token authentication (for Browser Sentinel, Desktop, Mobile)
-    // Requirements: 1.6, 13.2
-    if (token) {
-      // First try the new secure token format (vf_...)
-      if (token.startsWith('vf_')) {
-        const validationResult = await authService.validateToken(token);
-        
-        if (validationResult.success && validationResult.data?.valid) {
-          const user = await prisma.user.findUnique({
-            where: { id: validationResult.data.userId },
-          });
-          
-          if (user) {
-            console.log(`[Socket.io] Authenticated via API token: ${user.email} (${validationResult.data.clientType})`);
-            return {
-              success: true,
-              data: {
-                userId: user.id,
-                email: user.email,
-                isDevMode: false,
-                connectedAt: Date.now(),
-                clientType: validationResult.data.clientType || clientType as ClientType || 'browser_ext',
-                clientVersion: clientVersion || '1.0.0',
-                platform: platform || 'unknown',
-                capabilities: capabilities || [],
-              },
-            };
-          }
-        }
-      }
-      
-      // Legacy token format support: "vibeflow_<userId>"
-      // This is for backward compatibility during migration
-      const tokenMatch = token.match(/^vibeflow_(.+)$/);
-      if (tokenMatch) {
-        const userId = tokenMatch[1];
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        
-        if (user) {
-          console.log(`[Socket.io] Authenticated via legacy token: ${user.email}`);
-          return {
-            success: true,
-            data: {
-              userId: user.id,
-              email: user.email,
-              isDevMode: false,
-              connectedAt: Date.now(),
-              clientType: clientType as ClientType || 'browser_ext',
-              clientVersion: clientVersion || '1.0.0',
-              platform: platform || 'chrome',
-              capabilities: capabilities || [],
-            },
-          };
-        }
       }
     }
 

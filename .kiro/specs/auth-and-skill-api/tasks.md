@@ -38,30 +38,30 @@
     - `countActiveTokens` 方法（用于限额检查）
     - _Requirements: R7.7, R7.9_ <!-- 2 done -->
 
-- [ ] 3. 服务端认证改造
-  - [ ] 3.1 `userService.getCurrentUser` 改造
+- [x] 3. 服务端认证改造
+  - [x] 3.1 `userService.getCurrentUser` 改造
     - DEV_MODE=false 时跳过 dev header 路径
     - Bearer token 路径返回 tokenScopes
     - DEV_MODE=false 时无 fallback（返回 null）
     - `UserContext` 接口添加 `tokenScopes?: string[]`
     - _Requirements: R2.2_
-  - [ ] 3.2 `middleware.ts` 路由保护
+  - [x] 3.2 `middleware.ts` 路由保护
     - DEV_MODE=false 时对未认证请求重定向 `/login`
     - 白名单：`/login`、`/register`、`/api/auth/*`、`/api/skill/*`、`/_next/*`、`/favicon.ico`
     - _Requirements: R2.3_
-  - [ ] 3.3 Socket.io 认证加固
+  - [x] 3.3 Socket.io 认证加固
     - DEV_MODE=false 时拒绝纯 email 登录
     - 删除 legacy `vibeflow_<userId>` token 支持（DEV_MODE 无关，这个格式无密码验证，直接删）
     - 支持 Bearer `vf_` token、NextAuth session cookie、DEV_MODE email 三种认证
     - **验证 Extension cookie 路径不受影响**：Extension 发送空 auth payload 依赖 handshake headers 中的 cookie，加固逻辑不能要求 auth payload 必须有 token
     - _Requirements: R2.4, R2.5_
-  - [ ] 3.4 Token 端点加固
+  - [x] 3.4 Token 端点加固
     - DEV_MODE=false 时 `POST /api/auth/token` 不允许无密码登录
     - DEV_MODE=false 时不自动创建用户
-    - _Requirements: R2.6_
+    - _Requirements: R2.6_ <!-- 3 done -->
 
 - [ ] 4. Checkpoint — 服务端测试
-  - 运行 `npm test` 确保现有测试通过
+  - [x] 运行 `npm test` 确保现有测试通过
   - 手动测试：DEV_MODE=true 时行为不变
   - 手动测试：DEV_MODE=false 时 API 返回 401
   - _Requirements: R2.7_
