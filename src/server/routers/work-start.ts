@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { workStartService } from '@/services/work-start.service';
 
 export const workStartRouter = router({
@@ -15,7 +15,7 @@ export const workStartRouter = router({
    * Get today's work start record
    * Requirements: 14.2
    */
-  getToday: protectedProcedure.query(async ({ ctx }) => {
+  getToday: readProcedure.query(async ({ ctx }) => {
     const result = await workStartService.getTodayWorkStart(ctx.user.userId);
 
     if (!result.success) {
@@ -32,7 +32,7 @@ export const workStartRouter = router({
    * Record work start (called when Airlock is completed)
    * Requirements: 14.1
    */
-  record: protectedProcedure
+  record: writeProcedure
     .input(
       z.object({
         configuredStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
@@ -61,7 +61,7 @@ export const workStartRouter = router({
    * Get work start history
    * Requirements: 14.5
    */
-  getHistory: protectedProcedure
+  getHistory: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(365).optional().default(30),
@@ -85,7 +85,7 @@ export const workStartRouter = router({
    * Get work start statistics
    * Requirements: 14.5
    */
-  getStats: protectedProcedure
+  getStats: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(365).optional().default(30),
@@ -109,7 +109,7 @@ export const workStartRouter = router({
    * Get work start trend data for charts
    * Requirements: 14.6
    */
-  getTrend: protectedProcedure
+  getTrend: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(365).optional().default(30),

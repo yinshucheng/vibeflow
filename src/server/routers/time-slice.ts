@@ -7,14 +7,14 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { timeSliceService } from '@/services/time-slice.service';
 
 export const timeSliceRouter = router({
   /**
    * Switch to a different task during an active pomodoro
    */
-  switch: protectedProcedure
+  switch: writeProcedure
     .input(z.object({
       pomodoroId: z.string().uuid(),
       currentSliceId: z.string().uuid().nullable(),
@@ -41,7 +41,7 @@ export const timeSliceRouter = router({
   /**
    * Get all time slices for a pomodoro
    */
-  getByPomodoro: protectedProcedure
+  getByPomodoro: readProcedure
     .input(z.object({ pomodoroId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const result = await timeSliceService.getByPomodoro(input.pomodoroId, ctx.user!.userId);
@@ -59,7 +59,7 @@ export const timeSliceRouter = router({
   /**
    * Update a time slice (for retroactive editing)
    */
-  update: protectedProcedure
+  update: writeProcedure
     .input(z.object({
       sliceId: z.string().uuid(),
       taskId: z.string().uuid().nullable(),

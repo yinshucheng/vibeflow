@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { 
   taskService, 
   CreateTaskSchema, 
@@ -18,7 +18,7 @@ export const taskRouter = router({
   /**
    * Get a single task by ID
    */
-  getById: protectedProcedure
+  getById: readProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const result = await taskService.getById(input.id, ctx.user.userId);
@@ -37,7 +37,7 @@ export const taskRouter = router({
    * Get tasks by project with hierarchy
    * Requirements: 2.4
    */
-  getByProject: protectedProcedure
+  getByProject: readProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const result = await taskService.getByProject(input.projectId, ctx.user.userId);
@@ -55,7 +55,7 @@ export const taskRouter = router({
   /**
    * Get today's tasks for the current user
    */
-  getTodayTasks: protectedProcedure.query(async ({ ctx }) => {
+  getTodayTasks: readProcedure.query(async ({ ctx }) => {
     const result = await taskService.getTodayTasks(ctx.user.userId);
 
     if (!result.success) {
@@ -71,7 +71,7 @@ export const taskRouter = router({
   /**
    * Get all today's tasks including completed ones (for Dashboard)
    */
-  getTodayTasksAll: protectedProcedure.query(async ({ ctx }) => {
+  getTodayTasksAll: readProcedure.query(async ({ ctx }) => {
     const result = await taskService.getTodayTasks(ctx.user.userId, true);
 
     if (!result.success) {
@@ -87,7 +87,7 @@ export const taskRouter = router({
   /**
    * Get overdue tasks (past plan date, not completed)
    */
-  getOverdue: protectedProcedure.query(async ({ ctx }) => {
+  getOverdue: readProcedure.query(async ({ ctx }) => {
     const result = await taskService.getOverdue(ctx.user.userId);
     
     if (!result.success) {
@@ -103,7 +103,7 @@ export const taskRouter = router({
   /**
    * Get backlog tasks (no plan date or future date)
    */
-  getBacklog: protectedProcedure.query(async ({ ctx }) => {
+  getBacklog: readProcedure.query(async ({ ctx }) => {
     const result = await taskService.getBacklog(ctx.user.userId);
     
     if (!result.success) {
@@ -120,7 +120,7 @@ export const taskRouter = router({
    * Create a new task
    * Requirements: 2.1, 2.3
    */
-  create: protectedProcedure
+  create: writeProcedure
     .input(CreateTaskSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await taskService.create(ctx.user.userId, input);
@@ -140,7 +140,7 @@ export const taskRouter = router({
    * Update an existing task
    * Requirements: 2.5
    */
-  update: protectedProcedure
+  update: writeProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -174,7 +174,7 @@ export const taskRouter = router({
    * Update task status with optional cascade to subtasks
    * Requirements: 2.5, 2.7
    */
-  updateStatus: protectedProcedure
+  updateStatus: writeProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -204,7 +204,7 @@ export const taskRouter = router({
    * Reorder a task within its project
    * Requirements: 2.6
    */
-  reorder: protectedProcedure
+  reorder: writeProcedure
     .input(
       z.object({
         taskId: z.string().uuid(),
@@ -231,7 +231,7 @@ export const taskRouter = router({
   /**
    * Delete a task
    */
-  delete: protectedProcedure
+  delete: writeProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const result = await taskService.delete(input.id, ctx.user.userId);
@@ -250,7 +250,7 @@ export const taskRouter = router({
    * Get yesterday's incomplete tasks for airlock review
    * Requirements: 3.3
    */
-  getYesterdayIncompleteTasks: protectedProcedure.query(async ({ ctx }) => {
+  getYesterdayIncompleteTasks: readProcedure.query(async ({ ctx }) => {
     const result = await taskService.getYesterdayIncompleteTasks(ctx.user.userId);
     
     if (!result.success) {
@@ -267,7 +267,7 @@ export const taskRouter = router({
    * Defer a task to today (reschedule)
    * Requirements: 3.4
    */
-  deferToToday: protectedProcedure
+  deferToToday: writeProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const result = await taskService.deferToToday(input.id, ctx.user.userId);
@@ -286,7 +286,7 @@ export const taskRouter = router({
    * Set plan date for a task
    * Requirements: 3.6
    */
-  setPlanDate: protectedProcedure
+  setPlanDate: writeProcedure
     .input(z.object({ 
       id: z.string().uuid(),
       planDate: z.coerce.date().nullable(),
@@ -308,7 +308,7 @@ export const taskRouter = router({
    * Get backlog tasks grouped by project
    * Requirements: 3.5
    */
-  getBacklogByProject: protectedProcedure.query(async ({ ctx }) => {
+  getBacklogByProject: readProcedure.query(async ({ ctx }) => {
     const result = await taskService.getBacklogByProject(ctx.user.userId);
     
     if (!result.success) {
@@ -325,7 +325,7 @@ export const taskRouter = router({
    * Get task with estimation details (estimated vs actual time)
    * Requirements: 20.4, 20.5
    */
-  getTaskWithEstimation: protectedProcedure
+  getTaskWithEstimation: readProcedure
     .input(z.object({ 
       id: z.string().uuid(),
       pomodoroDuration: z.number().min(10).max(120).optional(),
@@ -350,7 +350,7 @@ export const taskRouter = router({
   /**
    * Quick create a task in user's first project (inbox-style)
    */
-  quickCreateInbox: protectedProcedure
+  quickCreateInbox: writeProcedure
     .input(z.object({ title: z.string().min(1).max(500) }))
     .mutation(async ({ ctx, input }) => {
       const result = await taskService.quickCreateInboxTask(ctx.user.userId, input.title);

@@ -19,6 +19,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { verifyPassword } from '@/lib/auth';
 import { authService } from '@/services/auth.service';
+import { checkRateLimit, AUTH_RATE_LIMITS } from '@/lib/rate-limit';
 
 const issueTokenBodySchema = z.object({
   email: z.string().email().optional(),
@@ -31,6 +32,10 @@ const issueTokenBodySchema = z.object({
  * POST — Issue a new API token
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 requests per minute per IP
+  const rateLimitResponse = checkRateLimit(request, AUTH_RATE_LIMITS.login);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await request.json().catch(() => ({}));
     const parsed = issueTokenBodySchema.parse(body);

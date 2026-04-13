@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure } from '../trpc';
 import {
   bypassDetectionService,
   GetBypassHistorySchema,
@@ -18,7 +18,7 @@ export const bypassDetectionRouter = router({
    * Get the current bypass score for the user
    * Requirements: 4.3, 4.4
    */
-  getBypassScore: protectedProcedure
+  getBypassScore: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(30).optional().default(7),
@@ -42,7 +42,7 @@ export const bypassDetectionRouter = router({
    * Get bypass attempt history for the user
    * Requirements: 4.5
    */
-  getBypassHistory: protectedProcedure
+  getBypassHistory: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(365).optional().default(30),
@@ -69,7 +69,7 @@ export const bypassDetectionRouter = router({
    * Check if a warning should be shown to the user
    * Requirements: 4.4
    */
-  shouldShowWarning: protectedProcedure.query(async ({ ctx }) => {
+  shouldShowWarning: readProcedure.query(async ({ ctx }) => {
     const result = await bypassDetectionService.shouldShowWarning(ctx.user.userId);
 
     if (!result.success) {
@@ -86,7 +86,7 @@ export const bypassDetectionRouter = router({
    * Get bypass statistics for the user
    * Requirements: 4.5
    */
-  getBypassStats: protectedProcedure
+  getBypassStats: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(365).optional().default(30),
@@ -109,7 +109,7 @@ export const bypassDetectionRouter = router({
   /**
    * Get the most recent bypass event
    */
-  getLastBypassEvent: protectedProcedure.query(async ({ ctx }) => {
+  getLastBypassEvent: readProcedure.query(async ({ ctx }) => {
     const result = await bypassDetectionService.getLastBypassEvent(ctx.user.userId);
 
     if (!result.success) {
@@ -125,7 +125,7 @@ export const bypassDetectionRouter = router({
   /**
    * Get bypass detection configuration
    */
-  getConfig: protectedProcedure.query(() => {
+  getConfig: readProcedure.query(() => {
     return bypassDetectionService.getConfig();
   }),
 });

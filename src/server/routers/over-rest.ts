@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { overRestService, OverRestActionSchema, OverRestAppSchema } from '@/services/over-rest.service';
 
 // Update config schema
@@ -22,7 +22,7 @@ export const overRestRouter = router({
    * Get over rest configuration
    * Requirements: 16.2, 16.3, 16.5
    */
-  getConfig: protectedProcedure.query(async ({ ctx }) => {
+  getConfig: readProcedure.query(async ({ ctx }) => {
     const result = await overRestService.getConfig(ctx.user.userId);
     
     if (!result.success) {
@@ -39,7 +39,7 @@ export const overRestRouter = router({
    * Update over rest configuration
    * Requirements: 16.2, 16.3, 16.5
    */
-  updateConfig: protectedProcedure
+  updateConfig: writeProcedure
     .input(UpdateOverRestConfigSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await overRestService.updateConfig(ctx.user.userId, input);
@@ -58,7 +58,7 @@ export const overRestRouter = router({
    * Check current over rest status
    * Requirements: 15.2, 15.3
    */
-  checkStatus: protectedProcedure.query(async ({ ctx }) => {
+  checkStatus: readProcedure.query(async ({ ctx }) => {
     const result = await overRestService.checkOverRestStatus(ctx.user.userId);
     
     if (!result.success) {
@@ -75,7 +75,7 @@ export const overRestRouter = router({
    * Get actions to execute when over rest is triggered
    * Requirements: 16.1, 16.4
    */
-  getActions: protectedProcedure.query(async ({ ctx }) => {
+  getActions: readProcedure.query(async ({ ctx }) => {
     const result = await overRestService.getOverRestActions(ctx.user.userId);
     
     if (!result.success) {
@@ -92,7 +92,7 @@ export const overRestRouter = router({
    * Add an app to the over rest apps list
    * Requirements: 16.3
    */
-  addApp: protectedProcedure
+  addApp: writeProcedure
     .input(OverRestAppSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await overRestService.addOverRestApp(ctx.user.userId, input);
@@ -114,7 +114,7 @@ export const overRestRouter = router({
    * Remove an app from the over rest apps list
    * Requirements: 16.3
    */
-  removeApp: protectedProcedure
+  removeApp: writeProcedure
     .input(z.object({ bundleId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const result = await overRestService.removeOverRestApp(ctx.user.userId, input.bundleId);
@@ -132,7 +132,7 @@ export const overRestRouter = router({
   /**
    * Get preset apps for over rest
    */
-  getPresetApps: protectedProcedure.query(async () => {
+  getPresetApps: readProcedure.query(async () => {
     return overRestService.getPresetApps();
   }),
 });

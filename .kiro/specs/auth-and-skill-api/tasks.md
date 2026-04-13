@@ -147,20 +147,20 @@
 
 > **依赖**：Phase 4 后端部分（task 11.1, 11.3, 12, 13-REST）可与 Phase 3 并行。Phase 4 UI 部分（task 11.2）依赖 Phase 2（Web 登录）完成。
 
-- [ ] 11. API Key 管理
-  - [ ] 11.1 后端 Router
+- [x] 11. API Key 管理
+  - [x] 11.1 后端 Router
     - 创建 `src/server/routers/api-key.ts`（list/create/revoke）
     - 注册到 root router
     - 依赖 task 2.1（Prisma schema）和 task 2.2（authService scope）
     - _Requirements: R7.2, R7.3, R7.5, R7.6, R7.9_
-  - [ ] 11.2 Settings 页面 UI
+  - [x] 11.2 Settings 页面 UI
     - API Keys tab/section
     - Key 列表（名称、scope、创建时间、最后使用时间、吊销按钮）
     - 创建对话框（名称、描述、scope 选择）
     - 创建成功弹窗（明文 token + 复制按钮 + 安全警告 + "我已复制"确认按钮，点遮罩层不关闭）
     - 吊销确认对话框
     - _Requirements: R7.2, R7.3, R7.4, R7.5, R7.6_
-  - [ ] 11.3 Scope 中间件 + 全面应用
+  - [x] 11.3 Scope 中间件 + 全面应用
     - 创建 `withScope` 中间件，导出 `readProcedure`、`writeProcedure`、`adminProcedure`
     - API Token 请求（`ctx.user.tokenScopes` 存在时）必须匹配 scope，否则 403
     - Session 用户（Web/Extension，无 tokenScopes）拥有全部权限
@@ -172,11 +172,11 @@
     - 修复 `heartbeat.getClientStatus` 数据隔离漏洞：添加 `ctx.user.userId` 验证，防止跨用户查看客户端状态
     - **验证**：完成后 grep 确认无残留 `protectedProcedure.query` / `protectedProcedure.mutation`（应全部替换为 read/write/adminProcedure）
     - _Requirements: R7.7, R7.8_
-  - [ ] 11.4 登录端点 Rate Limiting
+  - [x] 11.4 登录端点 Rate Limiting
     - `POST /api/auth/token`（登录）IP-based 限流：5 次/分钟
     - `POST /api/auth/register`（注册）IP-based 限流：3 次/分钟
     - 超限返回 429 Too Many Requests
-    - 使用内存 store（单实例够用），不引入 Redis
+    - 使用内存 store（单实例够用），不引入 Redis <!-- 11 done -->
 
 - [ ] 12. MCP 认证统一
   - [ ] 12.1 `mcp/auth.ts` 改造

@@ -8,7 +8,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import {
   demoModeService,
   MIN_DEMO_DURATION_MINUTES,
@@ -20,7 +20,7 @@ export const demoModeRouter = router({
    * Get the current demo mode state
    * Requirements: 6.5, 6.6
    */
-  getDemoModeState: protectedProcedure.query(async ({ ctx }) => {
+  getDemoModeState: readProcedure.query(async ({ ctx }) => {
     const result = await demoModeService.getDemoModeState(ctx.user.userId);
 
     if (!result.success) {
@@ -37,7 +37,7 @@ export const demoModeRouter = router({
    * Get remaining demo tokens for the current month
    * Requirements: 6.3
    */
-  getRemainingTokens: protectedProcedure.query(async ({ ctx }) => {
+  getRemainingTokens: readProcedure.query(async ({ ctx }) => {
     const result = await demoModeService.getRemainingTokens(ctx.user.userId);
 
     if (!result.success) {
@@ -54,7 +54,7 @@ export const demoModeRouter = router({
    * Activate demo mode
    * Requirements: 6.1, 6.2, 7.1, 7.2, 7.3, 7.4, 7.5
    */
-  activateDemoMode: protectedProcedure
+  activateDemoMode: writeProcedure
     .input(
       z.object({
         confirmPhrase: z.string().min(1, 'Confirmation phrase is required'),
@@ -96,7 +96,7 @@ export const demoModeRouter = router({
    * Deactivate demo mode (manual exit)
    * Requirements: 6.7
    */
-  deactivateDemoMode: protectedProcedure.mutation(async ({ ctx }) => {
+  deactivateDemoMode: writeProcedure.mutation(async ({ ctx }) => {
     const result = await demoModeService.deactivateDemoMode(ctx.user.userId);
 
     if (!result.success) {
@@ -120,7 +120,7 @@ export const demoModeRouter = router({
    * Get demo mode usage history
    * Requirements: 6.8, 6.11
    */
-  getDemoModeHistory: protectedProcedure
+  getDemoModeHistory: readProcedure
     .input(
       z.object({
         months: z.number().int().min(1).max(12).optional().default(3),
@@ -145,7 +145,7 @@ export const demoModeRouter = router({
    * Returns detailed information about activation eligibility
    * Requirements: 7.2, 7.3, 7.4, 7.5
    */
-  canActivateDemoMode: protectedProcedure.query(async ({ ctx }) => {
+  canActivateDemoMode: readProcedure.query(async ({ ctx }) => {
     const result = await demoModeService.canActivateDemoMode(ctx.user.userId);
 
     if (!result.success) {
@@ -162,7 +162,7 @@ export const demoModeRouter = router({
    * Get demo mode configuration
    * Returns default and user-specific configuration
    */
-  getConfig: protectedProcedure.query(async () => {
+  getConfig: readProcedure.query(async () => {
     const defaultConfig = demoModeService.getDefaultConfig();
     const nextResetDate = demoModeService.getNextTokenResetDate();
 

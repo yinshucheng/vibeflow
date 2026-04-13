@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure } from '../trpc';
 import { heartbeatService } from '@/services/heartbeat.service';
 
 export const heartbeatRouter = router({
@@ -15,7 +15,7 @@ export const heartbeatRouter = router({
    * Get uptime statistics for the user
    * Requirements: 3.6
    */
-  getUptimeStats: protectedProcedure
+  getUptimeStats: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(365).optional().default(30),
@@ -39,7 +39,7 @@ export const heartbeatRouter = router({
    * Get offline event history for the user
    * Requirements: 3.5, 3.6
    */
-  getOfflineHistory: protectedProcedure
+  getOfflineHistory: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(365).optional().default(30),
@@ -62,7 +62,7 @@ export const heartbeatRouter = router({
   /**
    * Get all connected clients for the user
    */
-  getClientsByUser: protectedProcedure.query(async ({ ctx }) => {
+  getClientsByUser: readProcedure.query(async ({ ctx }) => {
     const result = await heartbeatService.getClientsByUser(ctx.user.userId);
 
     if (!result.success) {
@@ -78,13 +78,27 @@ export const heartbeatRouter = router({
   /**
    * Get status of a specific client
    */
-  getClientStatus: protectedProcedure
+  getClientStatus: readProcedure
     .input(
       z.object({
         clientId: z.string().min(1),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      // Verify client belongs to the requesting user (data isolation)
+      const clientsResult = await heartbeatService.getClientsByUser(ctx.user.userId);
+      if (clientsResult.success && clientsResult.data) {
+        const clientBelongsToUser = clientsResult.data.some(
+          (c: { clientId: string }) => c.clientId === input.clientId
+        );
+        if (!clientBelongsToUser) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Client not found',
+          });
+        }
+      }
+
       const result = await heartbeatService.getClientStatus(input.clientId);
 
       if (!result.success) {
@@ -100,7 +114,7 @@ export const heartbeatRouter = router({
   /**
    * Get heartbeat configuration
    */
-  getConfig: protectedProcedure.query(() => {
+  getConfig: readProcedure.query(() => {
     return heartbeatService.getConfig();
   }),
 });

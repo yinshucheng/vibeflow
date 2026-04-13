@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import prisma from '../../lib/prisma';
 import { taskService } from '../../services/task.service';
 import { projectService } from '../../services/project.service';
@@ -26,7 +26,7 @@ export const mcpBridgeRouter = router({
   /**
    * whoami: returns userId and email for the authenticated user
    */
-  whoami: protectedProcedure
+  whoami: readProcedure
     .query(({ ctx }) => {
       return { userId: ctx.user.userId, email: ctx.user.email };
     }),
@@ -34,7 +34,7 @@ export const mcpBridgeRouter = router({
   /**
    * getTaskContext: rich query for a task with project, goals, parent, subtasks, recent pomodoros
    */
-  getTaskContext: protectedProcedure
+  getTaskContext: readProcedure
     .input(z.object({ taskId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const task = await prisma.task.findFirst({
@@ -101,7 +101,7 @@ export const mcpBridgeRouter = router({
   /**
    * batchUpdateTasks: transactional batch update for status/priority/planDate
    */
-  batchUpdateTasks: protectedProcedure
+  batchUpdateTasks: writeProcedure
     .input(z.object({
       updates: z.array(z.object({
         taskId: z.string().uuid(),
@@ -149,7 +149,7 @@ export const mcpBridgeRouter = router({
   /**
    * createProjectFromTemplate: create a project with tasks from a template
    */
-  createProjectFromTemplate: protectedProcedure
+  createProjectFromTemplate: writeProcedure
     .input(z.object({
       templateId: z.string().uuid(),
       projectName: z.string().min(1),
@@ -250,7 +250,7 @@ export const mcpBridgeRouter = router({
   /**
    * analyzeTaskDependencies: dependency graph + topological sort for a project
    */
-  analyzeTaskDependencies: protectedProcedure
+  analyzeTaskDependencies: readProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const project = await prisma.project.findFirst({
@@ -342,7 +342,7 @@ export const mcpBridgeRouter = router({
   /**
    * generateDailySummary: completed tasks, pomodoro stats, efficiency, suggestions
    */
-  generateDailySummary: protectedProcedure
+  generateDailySummary: readProcedure
     .input(z.object({ date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       let targetDate: Date;
@@ -458,7 +458,7 @@ export const mcpBridgeRouter = router({
   /**
    * createBlocker: create a blocker for a task with activity log
    */
-  createBlocker: protectedProcedure
+  createBlocker: writeProcedure
     .input(z.object({
       taskId: z.string().uuid(),
       errorLog: z.string().min(1),
@@ -487,7 +487,7 @@ export const mcpBridgeRouter = router({
   /**
    * getActiveBlockers: get all active blockers for the user
    */
-  getActiveBlockers: protectedProcedure
+  getActiveBlockers: readProcedure
     .query(async ({ ctx }) => {
       const blockers = await prisma.blocker.findMany({
         where: { userId: ctx.user.userId, status: 'active' },
@@ -511,7 +511,7 @@ export const mcpBridgeRouter = router({
   /**
    * getActivityLog: recent 24h activity log
    */
-  getActivityLog: protectedProcedure
+  getActivityLog: readProcedure
     .query(async ({ ctx }) => {
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -550,7 +550,7 @@ export const mcpBridgeRouter = router({
   /**
    * getPomodoroHistory: 7-day pomodoro history with task info
    */
-  getPomodoroHistory: protectedProcedure
+  getPomodoroHistory: readProcedure
     .query(async ({ ctx }) => {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -593,7 +593,7 @@ export const mcpBridgeRouter = router({
   /**
    * moveTask: move a task to a different project
    */
-  moveTask: protectedProcedure
+  moveTask: writeProcedure
     .input(z.object({
       taskId: z.string().uuid(),
       targetProjectId: z.string().uuid(),
@@ -622,7 +622,7 @@ export const mcpBridgeRouter = router({
   /**
    * setTop3: set top 3 task IDs and update their plan dates to today
    */
-  setTop3: protectedProcedure
+  setTop3: writeProcedure
     .input(z.object({
       taskIds: z.array(z.string().uuid()).min(1).max(3),
     }))
@@ -661,7 +661,7 @@ export const mcpBridgeRouter = router({
   /**
    * createTaskFromNl: natural language task parsing + creation
    */
-  createTaskFromNl: protectedProcedure
+  createTaskFromNl: writeProcedure
     .input(z.object({
       description: z.string().min(1),
       projectId: z.string().uuid().optional(),
@@ -738,7 +738,7 @@ export const mcpBridgeRouter = router({
   /**
    * requestTemporaryUnblock: Screen Time temporary unblock
    */
-  requestTemporaryUnblock: protectedProcedure
+  requestTemporaryUnblock: writeProcedure
     .input(z.object({
       reasonText: z.string().min(1),
       duration: z.number().min(1).max(15),
@@ -788,7 +788,7 @@ export const mcpBridgeRouter = router({
   /**
    * logMcpAudit: fire-and-forget audit log for MCP tool calls
    */
-  logMcpAudit: protectedProcedure
+  logMcpAudit: writeProcedure
     .input(z.object({
       agentId: z.string(),
       toolName: z.string(),

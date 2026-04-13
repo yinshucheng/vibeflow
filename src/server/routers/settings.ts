@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure, adminProcedure } from '../trpc';
 import { userService, UpdateSettingsSchema, WorkTimeSlotSchema, IdleAlertActionSchema, WeekdayExpectationSchema } from '@/services/user.service';
 import { settingsLockService, canModifySetting, isLockableSetting, LOCKABLE_SETTINGS } from '@/services/settings-lock.service';
 import { settingsModificationLogService } from '@/services/settings-modification-log.service';
@@ -80,7 +80,7 @@ export const settingsRouter = router({
   /**
    * Get current user settings
    */
-  get: protectedProcedure.query(async ({ ctx }) => {
+  get: readProcedure.query(async ({ ctx }) => {
     const result = await userService.getSettings(ctx.user.userId);
     
     if (!result.success) {
@@ -97,7 +97,7 @@ export const settingsRouter = router({
    * Update all settings at once
    * Requirements: 8.7 - Log all modification attempts
    */
-  update: protectedProcedure
+  update: adminProcedure
     .input(UpdateSettingsSchema)
     .mutation(async ({ ctx, input }) => {
       // Get current settings for lock check and logging
@@ -137,7 +137,7 @@ export const settingsRouter = router({
    * Update timer settings only
    * Requirements: 14.1, 14.2, 14.3
    */
-  updateTimer: protectedProcedure
+  updateTimer: writeProcedure
     .input(TimerSettingsSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await userService.updateSettings(ctx.user.userId, input);
@@ -157,7 +157,7 @@ export const settingsRouter = router({
    * Update work time settings
    * Requirements: 5.1, 5.2, 5.3, 8.7
    */
-  updateWorkTime: protectedProcedure
+  updateWorkTime: adminProcedure
     .input(WorkTimeSettingsSchema)
     .mutation(async ({ ctx, input }) => {
       // Get current settings for lock check
@@ -226,7 +226,7 @@ export const settingsRouter = router({
    * Get blacklist patterns
    * Requirements: 13.1
    */
-  getBlacklist: protectedProcedure.query(async ({ ctx }) => {
+  getBlacklist: readProcedure.query(async ({ ctx }) => {
     const result = await userService.getSettings(ctx.user.userId);
     
     if (!result.success) {
@@ -243,7 +243,7 @@ export const settingsRouter = router({
    * Update blacklist patterns
    * Requirements: 13.1
    */
-  updateBlacklist: protectedProcedure
+  updateBlacklist: adminProcedure
     .input(z.object({ patterns: z.array(UrlPatternSchema) }))
     .mutation(async ({ ctx, input }) => {
       const result = await userService.updateSettings(ctx.user.userId, {
@@ -263,7 +263,7 @@ export const settingsRouter = router({
   /**
    * Add a pattern to blacklist
    */
-  addToBlacklist: protectedProcedure
+  addToBlacklist: adminProcedure
     .input(z.object({ pattern: UrlPatternSchema }))
     .mutation(async ({ ctx, input }) => {
       // Get current settings
@@ -302,7 +302,7 @@ export const settingsRouter = router({
   /**
    * Remove a pattern from blacklist
    */
-  removeFromBlacklist: protectedProcedure
+  removeFromBlacklist: adminProcedure
     .input(z.object({ pattern: UrlPatternSchema }))
     .mutation(async ({ ctx, input }) => {
       // Get current settings
@@ -335,7 +335,7 @@ export const settingsRouter = router({
    * Get whitelist patterns
    * Requirements: 13.1
    */
-  getWhitelist: protectedProcedure.query(async ({ ctx }) => {
+  getWhitelist: readProcedure.query(async ({ ctx }) => {
     const result = await userService.getSettings(ctx.user.userId);
     
     if (!result.success) {
@@ -352,7 +352,7 @@ export const settingsRouter = router({
    * Update whitelist patterns
    * Requirements: 13.1
    */
-  updateWhitelist: protectedProcedure
+  updateWhitelist: adminProcedure
     .input(z.object({ patterns: z.array(UrlPatternSchema) }))
     .mutation(async ({ ctx, input }) => {
       const result = await userService.updateSettings(ctx.user.userId, {
@@ -372,7 +372,7 @@ export const settingsRouter = router({
   /**
    * Add a pattern to whitelist
    */
-  addToWhitelist: protectedProcedure
+  addToWhitelist: adminProcedure
     .input(z.object({ pattern: UrlPatternSchema }))
     .mutation(async ({ ctx, input }) => {
       // Get current settings
@@ -411,7 +411,7 @@ export const settingsRouter = router({
   /**
    * Remove a pattern from whitelist
    */
-  removeFromWhitelist: protectedProcedure
+  removeFromWhitelist: adminProcedure
     .input(z.object({ pattern: UrlPatternSchema }))
     .mutation(async ({ ctx, input }) => {
       // Get current settings
@@ -443,7 +443,7 @@ export const settingsRouter = router({
   /**
    * Get coding standards
    */
-  getCodingStandards: protectedProcedure.query(async ({ ctx }) => {
+  getCodingStandards: readProcedure.query(async ({ ctx }) => {
     const result = await userService.getSettings(ctx.user.userId);
     
     if (!result.success) {
@@ -459,7 +459,7 @@ export const settingsRouter = router({
   /**
    * Update coding standards
    */
-  updateCodingStandards: protectedProcedure
+  updateCodingStandards: writeProcedure
     .input(z.object({ standards: z.array(z.string().min(1).max(1000)) }))
     .mutation(async ({ ctx, input }) => {
       const result = await userService.updateSettings(ctx.user.userId, {
@@ -479,7 +479,7 @@ export const settingsRouter = router({
   /**
    * Get preferences
    */
-  getPreferences: protectedProcedure.query(async ({ ctx }) => {
+  getPreferences: readProcedure.query(async ({ ctx }) => {
     const result = await userService.getSettings(ctx.user.userId);
     
     if (!result.success) {
@@ -495,7 +495,7 @@ export const settingsRouter = router({
   /**
    * Update preferences
    */
-  updatePreferences: protectedProcedure
+  updatePreferences: writeProcedure
     .input(z.object({ preferences: z.record(z.string(), z.unknown()) }))
     .mutation(async ({ ctx, input }) => {
       const result = await userService.updateSettings(ctx.user.userId, {
@@ -516,7 +516,7 @@ export const settingsRouter = router({
    * Update expectation settings
    * Requirements: 10.1, 10.2, 10.10
    */
-  updateExpectations: protectedProcedure
+  updateExpectations: writeProcedure
     .input(z.object({
       expectedWorkMinutes: z.number().min(0).max(1440),
       expectedPomodoroCount: z.number().min(0).max(50),
@@ -551,7 +551,7 @@ export const settingsRouter = router({
    * Update auto-start settings
    * Requirements: 7.1, 7.2
    */
-  updateAutoStart: protectedProcedure
+  updateAutoStart: writeProcedure
     .input(z.object({
       autoStartBreak: z.boolean(),
       autoStartNextPomodoro: z.boolean(),

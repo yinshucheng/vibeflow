@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure } from '../trpc';
 import { settingsModificationLogService } from '@/services/settings-modification-log.service';
 
 // Query options schema
@@ -26,7 +26,7 @@ export const settingsLogsRouter = router({
    * Get settings modification logs
    * Requirements: 8.7
    */
-  list: protectedProcedure
+  list: readProcedure
     .input(GetLogsOptionsSchema.optional())
     .query(async ({ ctx, input }) => {
       const result = await settingsModificationLogService.getLogs(ctx.user.userId, input);
@@ -44,7 +44,7 @@ export const settingsLogsRouter = router({
   /**
    * Get a single log entry by ID
    */
-  getById: protectedProcedure
+  getById: readProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const result = await settingsModificationLogService.getById(ctx.user.userId, input.id);
@@ -70,7 +70,7 @@ export const settingsLogsRouter = router({
    * Get modification summary
    * Requirements: 8.7
    */
-  summary: protectedProcedure
+  summary: readProcedure
     .input(z.object({
       startDate: z.string().datetime().optional().transform(val => val ? new Date(val) : undefined),
       endDate: z.string().datetime().optional().transform(val => val ? new Date(val) : undefined),
@@ -92,7 +92,7 @@ export const settingsLogsRouter = router({
    * Get logs for a specific setting
    * Requirements: 8.7
    */
-  forSetting: protectedProcedure
+  forSetting: readProcedure
     .input(z.object({
       settingKey: z.string(),
       limit: z.number().min(1).max(100).optional().default(20),
@@ -118,7 +118,7 @@ export const settingsLogsRouter = router({
    * Get failed modification attempts
    * Requirements: 8.7
    */
-  failedAttempts: protectedProcedure
+  failedAttempts: readProcedure
     .input(z.object({
       startDate: z.string().datetime().optional().transform(val => val ? new Date(val) : undefined),
       endDate: z.string().datetime().optional().transform(val => val ? new Date(val) : undefined),
@@ -140,7 +140,7 @@ export const settingsLogsRouter = router({
   /**
    * Count total logs
    */
-  count: protectedProcedure
+  count: readProcedure
     .input(z.object({
       settingKey: z.string().optional(),
       successOnly: z.boolean().optional(),

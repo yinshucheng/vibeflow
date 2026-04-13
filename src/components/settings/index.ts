@@ -26,3 +26,4 @@ export { OverRestSettings } from './over-rest-settings';
 export { EntertainmentSitesSettings } from './entertainment-sites-settings';
 export { DemoModeSettings } from './demo-mode-settings';
 export { RestEnforcementSettings } from './rest-enforcement-settings';
+export { ApiKeysSettings } from './api-keys-settings';

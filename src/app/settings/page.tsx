@@ -24,11 +24,12 @@ import {
   OverRestSettings,
   EntertainmentSitesSettings,
   DemoModeSettings,
-  RestEnforcementSettings
+  RestEnforcementSettings,
+  ApiKeysSettings
 } from '@/components/settings';
 import { WorkAppsSettings } from '@/components/settings/work-apps-settings';
 
-type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'restenforce' | 'workapps' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices' | 'demomode';
+type SettingsTab = 'timer' | 'autostart' | 'worktime' | 'sleeptime' | 'overrest' | 'restenforce' | 'workapps' | 'expectations' | 'notifications' | 'earlywarning' | 'browser' | 'entertainment' | 'principles' | 'devices' | 'demomode' | 'apikeys';
 
 interface TabConfig {
   id: SettingsTab;
@@ -122,11 +123,17 @@ const tabs: TabConfig[] = [
     icon: '📝',
     description: 'Coding standards and preferences'
   },
-  { 
-    id: 'devices', 
-    label: 'Devices', 
+  {
+    id: 'devices',
+    label: 'Devices',
     icon: '📱',
     description: 'Manage connected devices and clients'
+  },
+  {
+    id: 'apikeys',
+    label: 'API Keys',
+    icon: '🔑',
+    description: 'Manage API keys for MCP, Skill, and external integrations'
   },
 ];
 
@@ -187,6 +194,7 @@ export default function SettingsPage() {
         {activeTab === 'demomode' && <DemoModeSettings />}
         {activeTab === 'principles' && <CodingPrinciplesSettings />}
         {activeTab === 'devices' && <ConnectedDevices />}
+        {activeTab === 'apikeys' && <ApiKeysSettings />}
       </div>
     </MainLayout>
   );
