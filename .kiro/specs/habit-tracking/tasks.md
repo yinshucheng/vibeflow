@@ -57,28 +57,28 @@
 > 改动范围: `src/services/habit.service.ts`（新建）, `src/services/habit.service.test.ts`（新建）, `src/services/index.ts`
 > 验证: `npx vitest run src/services/habit.service.test.ts && npx tsc --noEmit`
 
-- [ ] 创建 `src/services/habit.service.ts`
-- [ ] 定义 Zod schemas（在文件内）：
+- [x] 创建 `src/services/habit.service.ts`
+- [x] 定义 Zod schemas（在文件内）：
   - `CreateHabitSchema`: title(string,1-100), type(enum,默认BOOLEAN), freqNum(int,1-31,默认1), freqDen(int,1-31,默认1), description?(string,0-500), question?(string,0-200), icon?(string), color?(string), reminderEnabled?(boolean), reminderTime?(string,HH:mm regex)
   - `UpdateHabitSchema`: 所有字段 optional
   - `RecordEntrySchema`: habitId(uuid), date(string,YYYY-MM-DD), value(number,>=0), note?(string,0-200)
-- [ ] 实现 CRUD 方法（所有方法返回 `ServiceResult<T>`，验证 userId 所有权）：
+- [x] 实现 CRUD 方法（所有方法返回 `ServiceResult<T>`，验证 userId 所有权）：
   - `create(userId, data)` — 创建习惯，返回含 id 的完整对象
   - `update(userId, habitId, data)` — 更新，验证所有权
   - `updateStatus(userId, habitId, status: HabitStatus)` — 变更状态
   - `delete(userId, habitId)` — 删除（级联删除 entries）
   - `listByUser(userId, filter?: { status?: HabitStatus })` — 列表
   - `getById(userId, habitId)` — 单个详情
-- [ ] 实现查询方法：
+- [x] 实现查询方法：
   - `getTodayHabits(userId)` — 查询所有 ACTIVE 习惯，调用 `habitStatsService.isDueToday` 过滤，附带今天的 HabitEntry 和 streak
-- [ ] 实现完成记录方法：
+- [x] 实现完成记录方法：
   - `recordEntry(userId, habitId, date, value, note?)` — upsert：若已存在则更新 value，entryType=YES_MANUAL
   - 按类型校验 value：BOOLEAN → 必须为 1；MEASURABLE → >0；TIMED → >0
   - date 参数由客户端传入 YYYY-MM-DD，服务端校验不超过 7 天前、不是未来日期（对比 getTodayDate()）
   - `skipEntry(userId, habitId, date)` — upsert entryType=SKIP
   - `deleteEntry(userId, habitId, date)` — 删除当天记录
-- [ ] 在 `src/services/index.ts` 导出 habitService
-- [ ] 单元测试：create → list → recordEntry → getTodayHabits → skipEntry → delete 完整 happy path
+- [x] 在 `src/services/index.ts` 导出 habitService
+- [x] 单元测试：create → list → recordEntry → getTodayHabits → skipEntry → delete 完整 happy path <!-- 1.3 done -->
 
 ### Task 1.4: tRPC Router + 注册
 

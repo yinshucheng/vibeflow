@@ -644,3 +644,24 @@ export type {
   ServiceResult as ScreenTimeExemptionServiceResult,
 } from './screen-time-exemption.service';
 export { RequestTemporaryUnblockSchema } from './screen-time-exemption.service';
+
+// Habit Stats Service exports
+export { habitStatsService } from './habit-stats.service';
+export type {
+  HabitFrequency,
+  StreakResult,
+  CalendarDay,
+  HabitForDueCheck,
+  EntryForStats,
+} from './habit-stats.service';
+
+// Habit Service exports
+export { habitService } from './habit.service';
+export type {
+  CreateHabitInput,
+  UpdateHabitInput,
+  RecordEntryInput,
+  TodayHabit,
+  ServiceResult as HabitServiceResult,
+} from './habit.service';
+export { CreateHabitSchema, UpdateHabitSchema, RecordEntrySchema } from './habit.service';
