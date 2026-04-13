@@ -262,7 +262,7 @@ describe('chatService.handleMessage', () => {
 
       // Capture messages passed to streamText
       let capturedMessages: Array<{ role: string; content: string }> = [];
-      vi.mocked(streamText).mockImplementation((opts: Record<string, unknown>) => {
+      vi.mocked(streamText).mockImplementation(((opts: Record<string, unknown>) => {
         capturedMessages = (opts.messages as Array<{ role: string; content: string }>) ?? [];
         if (typeof opts.onFinish === 'function') {
           (opts.onFinish as (r: { text: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number } }) => void)({
@@ -281,7 +281,7 @@ describe('chatService.handleMessage', () => {
           finishReason: Promise.resolve('stop' as const),
           warnings: Promise.resolve([]),
         };
-      });
+      }) as any);
 
       const result = await chatService.handleMessage(getTestUserId(), 'second question');
       expect(result.success).toBe(true);

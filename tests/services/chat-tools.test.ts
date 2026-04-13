@@ -83,6 +83,7 @@ vi.mock('../../src/lib/prisma', () => ({
   },
 }));
 
+import { z } from 'zod';
 import { taskService } from '../../src/services/task.service';
 import { pomodoroService } from '../../src/services/pomodoro.service';
 import { nlParserService } from '../../src/services/nl-parser.service';
@@ -504,7 +505,7 @@ describe('tool schema LLM provider compatibility', () => {
       expect(jsonSchema).not.toContain('"nullable":true');
       // Also verify through Zod's internal shape: walk the schema to find .nullable()
       if (def.inputSchema._def?.typeName === 'ZodObject') {
-        const shape = def.inputSchema.shape;
+        const shape = (def.inputSchema as z.AnyZodObject).shape;
         for (const [fieldName, fieldSchema] of Object.entries(shape)) {
           const innerDef = (fieldSchema as { _def?: { typeName?: string } })._def;
           expect(
