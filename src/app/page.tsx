@@ -24,6 +24,7 @@ import {
   TaskSuggestions,
   FocusZone,
   TodayTaskList,
+  TodayHabits,
 } from '@/components/dashboard';
 import { TaskDetailPanel } from '@/components/tasks/task-detail-panel';
 import { Icons } from '@/lib/icons';
@@ -52,6 +53,9 @@ export default function Home() {
       <div className="space-y-4">
         {/* FocusZone — full width */}
         <FocusZone />
+
+        {/* Today's Habits — full width, above tasks */}
+        <TodayHabits />
 
         {/* Today's Tasks — full width */}
         <TodayTaskList onTaskSelect={setSelectedTaskId} />

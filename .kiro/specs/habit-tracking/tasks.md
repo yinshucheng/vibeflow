@@ -146,18 +146,18 @@
 > 验证: `npm run build && npm run lint`
 > 参考: 查看现有 Dashboard 页面结构和 UI 组件风格，保持一致
 
-- [ ] 创建 `src/components/dashboard/today-habits.tsx`
+- [x] 创建 `src/components/dashboard/today-habits.tsx`
   - 调用 `trpc.habit.getToday.useQuery()` 获取今日习惯列表
   - 每个习惯显示：Lucide 图标（默认 circle-check）+ 标题 + streak 数字 + 打卡按钮
   - 打卡按钮：点击调用 `trpc.habit.recordEntry.useMutation()`，date=今天，value=1
   - 已完成的习惯显示已勾选状态，可点击取消（调用 deleteEntry）
   - 空状态：显示"创建你的第一个习惯"引导
-- [ ] 创建 `src/components/habits/habit-create-dialog.tsx`
+- [x] 创建 `src/components/habits/habit-create-dialog.tsx`
   - 最简表单：标题输入 + 频率选择（每天/隔天/每周N次 下拉 → 转换为 freqNum/freqDen）+ 提醒时间（可选 time picker）
   - 类型固定 BOOLEAN（Phase 1 不暴露类型选择）
   - 调用 `trpc.habit.create.useMutation()`
-- [ ] 在 Dashboard 页面中嵌入 `<TodayHabits />`，位于任务列表上方
-- [ ] 监听 Socket 事件 `habit:entry_updated` 刷新列表
+- [x] 在 Dashboard 页面中嵌入 `<TodayHabits />`，位于任务列表上方
+- [x] 监听 Socket 事件 `habit:entry_updated` 刷新列表 <!-- 1.7 done -->
 
 ### Task 1.8: Web UI — 习惯列表页 + 提醒通知
 

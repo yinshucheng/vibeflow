@@ -35,6 +35,10 @@ import {
   Info,
   Star,
   Clock,
+  CircleCheck,
+  Circle,
+  Flame,
+  Repeat,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -74,6 +78,12 @@ export const Icons = {
   // Task
   star: Star,
   clock: Clock,
+
+  // Habits
+  circleCheck: CircleCheck,
+  circle: Circle,
+  flame: Flame,
+  repeat: Repeat,
 
   // Misc
   logo: Waves,
