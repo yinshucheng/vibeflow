@@ -33,23 +33,23 @@
 > 改动范围: `src/services/habit-stats.service.ts`（新建）, `src/services/habit-stats.service.test.ts`（新建）
 > 验证: `npx vitest run src/services/habit-stats.service.test.ts && npx tsc --noEmit`
 
-- [ ] 创建 `src/services/habit-stats.service.ts`
-- [ ] 定义 TypeScript 类型：`HabitFrequency = { num: number, den: number }`, `StreakResult = { current: number, best: number }`, `CalendarDay = { date: string, value: number, entryType: HabitEntryType, completed: boolean }`
-- [ ] 实现 `isDueToday(habit, thisWeekEntries, today?): boolean`（使用 `getTodayDate()` 作为"今天"）
+- [x] 创建 `src/services/habit-stats.service.ts`
+- [x] 定义 TypeScript 类型：`HabitFrequency = { num: number, den: number }`, `StreakResult = { current: number, best: number }`, `CalendarDay = { date: string, value: number, entryType: HabitEntryType, completed: boolean }`
+- [x] 实现 `isDueToday(habit, thisWeekEntries, today?): boolean`（使用 `getTodayDate()` 作为"今天"）
   - freqNum/freqDen=1/1 → 每天 due
   - freqNum/freqDen=1/2 → 隔天 due（从 createdAt 起算奇偶天）
   - freqNum/freqDen=3/7 → 检查本周（ISO 周，周一起始）已完成次数：已完成 >= freqNum → false（本周已达标），否则 true
-- [ ] 实现 `calculateStreak(entries, freq): StreakResult`
+- [x] 实现 `calculateStreak(entries, freq): StreakResult`
   - 每天习惯：从今天（getTodayDate()）往回扫描；SKIP 跳过不中断也不计入
   - 每周 N 次习惯：按 ISO 周（周一起始）分组，检查每周完成次数 >= freqNum
   - 返回 current（当前连续）和 best（历史最长）
-- [ ] 单元测试覆盖：
+- [x] 单元测试覆盖：
   - 每天习惯：连续 5 天 → current=5
   - 每天习惯：连续 3 天 + SKIP + 连续 2 天 → current=5（SKIP 不中断）
   - 每天习惯：连续 3 天 + 一天缺失 + 连续 2 天 → current=2, best=3
   - 每周 3 次习惯：本周完成 3 次 + 上周完成 4 次 → current=2 周
   - 空 entries → current=0, best=0
-  - isDueToday 测试：每日/隔天/每周3次（含本周已完成3次→返回false）
+  - isDueToday 测试：每日/隔天/每周3次（含本周已完成3次→返回false） <!-- 1.2 done -->
 
 ### Task 1.3: HabitService — CRUD + 完成记录
 
