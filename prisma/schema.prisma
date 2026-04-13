@@ -62,6 +62,10 @@ model User {
 
   // State Management
   stateTransitionLogs      StateTransitionLog[]
+
+  // Habit Tracking
+  habits                   Habit[]
+  habitEntries             HabitEntry[]
 }
 
 model UserSettings {
@@ -189,6 +193,13 @@ model UserSettings {
   tempUnblockDailyLimit  Int @default(3)   // max per day (1-10)
   tempUnblockMaxDuration Int @default(15)  // max minutes per unblock (1-30)
 
+  // Habit reminder settings
+  habitReminderEnabled       Boolean  @default(true)   // global toggle
+  habitStreakProtectEnabled   Boolean  @default(true)   // streak protection reminder
+  habitStreakProtectBefore    Int      @default(120)    // minutes before sleep to remind (default 2 hours)
+  habitDailySummaryEnabled   Boolean  @default(true)   // daily incomplete summary
+  habitDailySummaryTime      String   @default("20:00") // summary reminder time "HH:mm"
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -204,6 +215,7 @@ model Goal {
   userId   String
   user     User          @relation(fields: [userId], references: [id])
   projects ProjectGoal[]
+  habits   HabitGoal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -230,6 +242,7 @@ model Project {
   user   User          @relation(fields: [userId], references: [id])
   tasks  Task[]
   goals  ProjectGoal[]
+  habits Habit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1014,4 +1027,98 @@ model LLMUsageLog {
 
   @@index([userId, createdAt])
   @@index([conversationId])
+}
+
+// ===== Habit Tracking Models =====
+
+enum HabitType {
+  BOOLEAN     // 打卡型：做了/没做
+  MEASURABLE  // 计数型：喝了几杯水
+  TIMED       // 时长型：冥想了多少分钟
+}
+
+enum HabitStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum HabitEntryType {
+  NO           // 明确标记未完成
+  UNKNOWN      // 未操作（历史空白天）
+  YES_MANUAL   // 用户手动打卡
+  YES_AUTO     // 番茄钟自动累计
+  SKIP         // 主动跳过（不中断 streak）
+}
+
+model Habit {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+
+  title       String
+  description String?
+  question    String?     // "今天做了吗？" — 用于通知和 AI 提示
+
+  // 类型与目标
+  type        HabitType   // BOOLEAN | MEASURABLE | TIMED
+  targetValue Float?      // MEASURABLE: 目标数量, TIMED: 目标分钟数, BOOLEAN: null
+  targetUnit  String?     // "杯", "页", "分钟" 等
+
+  // 频率（分数模型）
+  freqNum     Int         @default(1)  // 分子：周期内需完成次数
+  freqDen     Int         @default(1)  // 分母：周期长度（天）
+
+  // 关联
+  projectId   String?
+  project     Project?    @relation(fields: [projectId], references: [id])
+  goals       HabitGoal[]
+
+  // 显示
+  icon        String?     // Lucide icon name
+  color       String?     // hex color
+  sortOrder   Int         @default(0)
+  status      HabitStatus @default(ACTIVE) // ACTIVE | PAUSED | ARCHIVED
+
+  // 提醒设置
+  reminderEnabled  Boolean  @default(false)
+  reminderTime     String?  // "HH:mm" 格式，如 "08:00"
+
+  entries     HabitEntry[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, projectId])
+}
+
+model HabitEntry {
+  id         String          @id @default(uuid())
+  habitId    String
+  habit      Habit           @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
+  date       DateTime        @db.Date    // 使用 getTodayDate() 计算（04:00 AM 重置），客户端传 YYYY-MM-DD
+  value      Float                       // BOOLEAN: 必须为 1, MEASURABLE: 实际数(>0), TIMED: 分钟数(>0)
+  entryType  HabitEntryType  @default(YES_MANUAL)
+  note       String?
+  pomodoroIds String[]       @default([]) // TIMED 类型：累计贡献的番茄钟 ID 列表（可溯源）
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([habitId, date])
+  @@index([habitId, date])
+  @@index([userId, date])
+}
+
+model HabitGoal {
+  id      String @id @default(uuid())
+  habitId String
+  goalId  String
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  goal    Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, goalId])
 }
