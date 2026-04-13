@@ -278,7 +278,7 @@ describe('habitRouter', () => {
       mockService.create.mockResolvedValue({ success: true, data: habit });
       const caller = createCaller();
       const created = await caller.create({ title: '冥想' });
-      expect(created.id).toBe(H1);
+      expect(created!.id).toBe(H1);
 
       // 2. List
       mockService.listByUser.mockResolvedValue({ success: true, data: [habit] });
@@ -301,8 +301,8 @@ describe('habitRouter', () => {
         date: '2025-03-10',
         value: 1,
       });
-      expect(recorded.entryType).toBe('YES_MANUAL');
-      expect(recorded.value).toBe(1);
+      expect(recorded!.entryType).toBe('YES_MANUAL');
+      expect(recorded!.value).toBe(1);
 
       // 5. getToday — now with entry
       const todayHabitCompleted = fakeTodayHabit({ todayEntry: entry });
@@ -345,7 +345,7 @@ describe('habitRouter', () => {
       const caller = createCaller();
       const result = await caller.skipEntry({ habitId: H1, date: '2025-03-10' });
 
-      expect(result.entryType).toBe('SKIP');
+      expect(result!.entryType).toBe('SKIP');
       expect(mockService.skipEntry).toHaveBeenCalledWith(UID, H1, '2025-03-10');
     });
   });
@@ -370,7 +370,7 @@ describe('habitRouter', () => {
       const caller = createCaller();
       const result = await caller.update({ id: H1, data: { title: '冥想 10 分钟' } });
 
-      expect(result.title).toBe('冥想 10 分钟');
+      expect(result!.title).toBe('冥想 10 分钟');
       expect(mockService.update).toHaveBeenCalledWith(UID, H1, { title: '冥想 10 分钟' });
     });
   });
@@ -383,7 +383,7 @@ describe('habitRouter', () => {
       const caller = createCaller();
       const result = await caller.updateStatus({ id: H1, status: 'PAUSED' });
 
-      expect(result.status).toBe('PAUSED');
+      expect(result!.status).toBe('PAUSED');
       expect(mockService.updateStatus).toHaveBeenCalledWith(UID, H1, 'PAUSED');
     });
   });
