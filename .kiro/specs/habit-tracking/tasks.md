@@ -86,8 +86,8 @@
 > 改动范围: `src/server/routers/habit.ts`（新建）, `src/server/routers/_app.ts`
 > 验证: `npx tsc --noEmit && npm run lint`
 
-- [ ] 创建 `src/server/routers/habit.ts`，遵循项目 router pattern（薄路由，委托 service）
-- [ ] 实现 mutations（全部 protectedProcedure）：
+- [x] 创建 `src/server/routers/habit.ts`，遵循项目 router pattern（薄路由，委托 service）
+- [x] 实现 mutations（全部 protectedProcedure）：
   - `create`: input=CreateHabitSchema → habitService.create
   - `update`: input={id: string, ...UpdateHabitSchema} → habitService.update
   - `updateStatus`: input={id: string, status: HabitStatus} → habitService.updateStatus
@@ -95,11 +95,11 @@
   - `recordEntry`: input=RecordEntrySchema → habitService.recordEntry
   - `skipEntry`: input={habitId: string, date: string} → habitService.skipEntry
   - `deleteEntry`: input={habitId: string, date: string} → habitService.deleteEntry
-- [ ] 实现 queries：
+- [x] 实现 queries：
   - `list`: input={status?: HabitStatus} → habitService.listByUser
   - `getToday`: 无 input → habitService.getTodayHabits
-- [ ] 在 `_app.ts` 导入并注册 `habit: habitRouter`
-- [ ] 在 router 的 mutation 方法中，成功后调用 socketBroadcastService 广播（如果已实现；如未实现，留 TODO 注释标明文件路径和方法名）
+- [x] 在 `_app.ts` 导入并注册 `habit: habitRouter`
+- [x] 在 router 的 mutation 方法中，成功后调用 socketBroadcastService 广播（如果已实现；如未实现，留 TODO 注释标明文件路径和方法名） <!-- 1.4 done -->
 
 ### Task 1.5: Socket 广播 + EXECUTE 命令
 

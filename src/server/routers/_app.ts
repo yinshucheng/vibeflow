@@ -31,6 +31,7 @@ import { restEnforcementRouter } from './rest-enforcement';
 import { healthLimitRouter } from './health-limit';
 import { chatRouter } from './chat';
 import { mcpBridgeRouter } from './mcp-bridge';
+import { habitRouter } from './habit';
 
 /**
  * Main application router
@@ -62,6 +63,7 @@ export const appRouter = router({
   healthLimit: healthLimitRouter,
   chat: chatRouter,
   mcpBridge: mcpBridgeRouter,
+  habit: habitRouter,
 });
 
 /**
