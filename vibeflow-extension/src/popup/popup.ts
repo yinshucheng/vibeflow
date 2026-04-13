@@ -6,6 +6,7 @@ import type { EntertainmentStatus } from '../lib/entertainment-manager.js';
 
 // Extended connection status with entertainment info
 interface ExtendedConnectionStatus extends ConnectionStatus {
+  isAuthenticated?: boolean;
   entertainmentStatus?: EntertainmentStatus;
   // Additional connection info (Requirements: 4.5, 4.6)
   reconnectAttempts?: number;
@@ -30,6 +31,9 @@ const connectionStatus = document.getElementById('connection-status') as HTMLEle
 
 // DOM Elements - Auth Expiry Banner
 const authExpiredBanner = document.getElementById('auth-expired-banner') as HTMLElement;
+
+// DOM Elements - Unauthenticated Section (R6.2)
+const unauthSection = document.getElementById('unauth-section') as HTMLElement;
 
 // DOM Elements - Connection Info (Requirements: 4.5, 4.6)
 const connectionInfoSection = document.getElementById('connection-info-section') as HTMLElement;
@@ -85,10 +89,13 @@ async function initialize(): Promise<void> {
   const connInfo = await chrome.runtime.sendMessage({ type: 'GET_CONNECTION_INFO' }) as ConnectionInfo;
   updateConnectionInfo(connInfo);
   
-  if (status.connected) {
+  if (status.connected && status.isAuthenticated) {
     showStatusSection(status);
     // Get entertainment status
     await refreshEntertainmentStatus();
+  } else if (status.connected && !status.isAuthenticated) {
+    // Connected to server but not authenticated — show login prompt (R6.2)
+    showUnauthSection();
   } else {
     // Show connection info section even when disconnected (Requirements: 4.5)
     showLoginSection();
@@ -103,9 +110,11 @@ async function initialize(): Promise<void> {
       // Wait briefly then re-check status.
       setTimeout(async () => {
         const retryStatus = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }) as ExtendedConnectionStatus;
-        if (retryStatus.connected) {
+        if (retryStatus.connected && retryStatus.isAuthenticated) {
           showStatusSection(retryStatus);
           await refreshEntertainmentStatus();
+        } else if (retryStatus.connected && !retryStatus.isAuthenticated) {
+          showUnauthSection();
         }
       }, 2000);
     }
@@ -135,6 +144,18 @@ function setupEventListeners(): void {
   const openWebLoginBtn = document.getElementById('open-web-login');
   if (openWebLoginBtn) {
     openWebLoginBtn.addEventListener('click', handleOpenWebLogin);
+  }
+
+  // Unauthenticated section — open web login button (R6.2)
+  const unauthLoginBtn = document.getElementById('unauth-open-login');
+  if (unauthLoginBtn) {
+    unauthLoginBtn.addEventListener('click', handleOpenWebLogin);
+  }
+
+  // Unauthenticated section — disconnect button (R6.2)
+  const unauthDisconnectBtn = document.getElementById('unauth-disconnect');
+  if (unauthDisconnectBtn) {
+    unauthDisconnectBtn.addEventListener('click', handleDisconnect);
   }
 }
 
@@ -191,10 +212,12 @@ async function handleLogin(event: Event): Promise<void> {
 
     // Check status
     const status = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }) as ExtendedConnectionStatus;
-    
-    if (status.connected) {
+
+    if (status.connected && status.isAuthenticated) {
       showStatusSection(status);
       await refreshEntertainmentStatus();
+    } else if (status.connected && !status.isAuthenticated) {
+      showUnauthSection();
     } else {
       showError('Failed to connect. Check server URL and try again.');
     }
@@ -245,10 +268,12 @@ async function handleReconnect(): Promise<void> {
     
     updateConnectionInfo(connInfo);
     
-    if (status.connected) {
+    if (status.connected && status.isAuthenticated) {
       showStatusSection(status);
       await refreshEntertainmentStatus();
       hideReconnectButton();
+    } else if (status.connected && !status.isAuthenticated) {
+      showUnauthSection();
     } else {
       showReconnectingStatus(connInfo);
     }
@@ -331,10 +356,16 @@ function handleMessage(message: { type: string; payload?: unknown }): void {
           }
         });
       } else {
-        // Connected - refresh status
+        // Connected - refresh status and check auth
         hideReconnectButton();
         reconnectInfoRow.style.display = 'none';
-        refreshStatus();
+        chrome.runtime.sendMessage({ type: 'GET_STATUS' }).then((fullStatus: ExtendedConnectionStatus) => {
+          if (fullStatus.connected && !fullStatus.isAuthenticated) {
+            showUnauthSection();
+          } else {
+            refreshStatus();
+          }
+        });
       }
       break;
 
@@ -346,7 +377,7 @@ function handleMessage(message: { type: string; payload?: unknown }): void {
       break;
 
     case 'POLICY_UPDATED':
-      // Refresh status
+      // Refresh status — user may have just logged in on the web
       refreshStatus();
       refreshEntertainmentStatus();
       break;
@@ -379,13 +410,25 @@ function handleMessage(message: { type: string; payload?: unknown }): void {
 function showLoginSection(): void {
   loginSection.classList.remove('hidden');
   statusSection.classList.add('hidden');
+  unauthSection.classList.add('hidden');
   updateConnectionIndicator(false);
+}
+
+/**
+ * Show unauthenticated section — connected to server but no valid session (R6.2)
+ */
+function showUnauthSection(): void {
+  loginSection.classList.add('hidden');
+  statusSection.classList.add('hidden');
+  unauthSection.classList.remove('hidden');
+  updateConnectionIndicator(true);
 }
 
 // Show status section
 function showStatusSection(status: ExtendedConnectionStatus): void {
   loginSection.classList.add('hidden');
   statusSection.classList.remove('hidden');
+  unauthSection.classList.add('hidden');
   
   // Show connection info section (Requirements: 4.5)
   connectionInfoSection.classList.remove('hidden');
@@ -424,8 +467,10 @@ function updateSystemState(state: SystemState): void {
 // Refresh status from service worker
 async function refreshStatus(): Promise<void> {
   const status = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }) as ExtendedConnectionStatus;
-  if (status.connected) {
+  if (status.connected && status.isAuthenticated) {
     showStatusSection(status);
+  } else if (status.connected && !status.isAuthenticated) {
+    showUnauthSection();
   }
 }
 

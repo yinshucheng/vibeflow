@@ -90,13 +90,13 @@
     - 从 URL 参数读取 `returnUrl`，登录成功后重定向
     - _Requirements: R3.6_ <!-- 5 done -->
 
-- [ ] 6. Extension 认证
-  - [ ] 6.1 未认证提示
+- [x] 6. Extension 认证
+  - [x] 6.1 未认证提示
     - 无 session cookie 时 popup 显示"请先在浏览器中登录 VibeFlow"
     - _Requirements: R6.2_
-  - [ ] 6.2 降级模式
+  - [x] 6.2 降级模式
     - 未认证时不屏蔽网站，只显示登录提示
-    - _Requirements: R6.3_
+    - _Requirements: R6.3_ <!-- 6 done -->
 
 - [ ] 7. Checkpoint — Web + Extension 测试
   - DEV_MODE=false：访问 Dashboard 重定向到 /login
