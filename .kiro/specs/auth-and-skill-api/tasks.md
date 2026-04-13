@@ -25,18 +25,18 @@
     - 验证源用户数据未被修改
     - _Requirements: R1.4, R1.5_ <!-- 1 done -->
 
-- [ ] 2. ApiToken 模型扩展
-  - [ ] 2.1 Prisma schema 添加 `scopes` 和 `description` 字段
+- [x] 2. ApiToken 模型扩展
+  - [x] 2.1 Prisma schema 添加 `scopes` 和 `description` 字段
     - `scopes String[] @default(["read", "write"])`
     - `description String?`
     - 运行 `db:generate` + `db:push`
     - _Requirements: R7.1_
-  - [ ] 2.2 更新 `authService` 支持 scope
+  - [x] 2.2 更新 `authService` 支持 scope
     - `createToken` 接受 scopes 参数
     - `validateToken` 返回值包含 scopes
     - `listTokens` 返回 scope 和 description
     - `countActiveTokens` 方法（用于限额检查）
-    - _Requirements: R7.7, R7.9_
+    - _Requirements: R7.7, R7.9_ <!-- 2 done -->
 
 - [ ] 3. 服务端认证改造
   - [ ] 3.1 `userService.getCurrentUser` 改造

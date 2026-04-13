@@ -33,7 +33,7 @@ export type EventType =
 /**
  * Client types for identifying the source/target of events and commands
  */
-export type ClientType = 'web' | 'desktop' | 'browser_ext' | 'mobile';
+export type ClientType = 'web' | 'desktop' | 'browser_ext' | 'mobile' | 'api';
 
 /**
  * Command types for Command Stream (Vibe Brain → Tentacle)
@@ -892,6 +892,21 @@ export interface RestEnforcementPolicy {
 }
 
 /**
+ * Work time policy — blocks distraction apps during configured work hours.
+ * Suppressed during legitimate rest periods after pomodoro completion.
+ */
+export interface WorkTimePolicy {
+  /** Whether work time blocking is enabled (has enabled slots) */
+  enabled: boolean;
+  /** Whether current time is within a work time slot */
+  isCurrentlyActive: boolean;
+  /** Whether user is in legitimate rest period after completing a pomodoro */
+  isInRestPeriod: boolean;
+  /** Enabled work time slots in "HH:mm" format, for DeviceActivity registration */
+  slots: { startTime: string; endTime: string }[];
+}
+
+/**
  * Policy object distributed to clients
  * Requirements: 10.5, 10.6
  */
@@ -915,6 +930,8 @@ export interface Policy {
   temporaryUnblock?: { active: boolean; endTime: number };
   /** REST enforcement configuration (optional) */
   restEnforcement?: RestEnforcementPolicy;
+  /** Work time blocking configuration (optional) */
+  workTime?: WorkTimePolicy;
   /** Health limit notification (optional) */
   healthLimit?: {
     type: '2hours' | 'daily';
@@ -1539,6 +1556,17 @@ export const RestEnforcementPolicySchema = z.object({
   }),
 });
 
+// Work time policy schema
+export const WorkTimePolicySchema = z.object({
+  enabled: z.boolean(),
+  isCurrentlyActive: z.boolean(),
+  isInRestPeriod: z.boolean(),
+  slots: z.array(z.object({
+    startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
+    endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
+  })),
+});
+
 // Health limit notification schema
 export const HealthLimitSchema = z.object({
   type: z.enum(['2hours', 'daily']),
@@ -1562,6 +1590,7 @@ export const PolicySchema = z.object({
   overRest: OverRestPolicySchema.optional(),
   temporaryUnblock: TemporaryUnblockPolicySchema.optional(),
   restEnforcement: RestEnforcementPolicySchema.optional(),
+  workTime: WorkTimePolicySchema.optional(),
   healthLimit: HealthLimitSchema.optional(),
 });
 
