@@ -178,28 +178,28 @@
     - 超限返回 429 Too Many Requests
     - 使用内存 store（单实例够用），不引入 Redis <!-- 11 done -->
 
-- [ ] 12. MCP 认证统一
-  - [ ] 12.1 `mcp/auth.ts` 改造
+- [x] 12. MCP 认证统一
+  - [x] 12.1 `mcp/auth.ts` 改造
     - 生产模式只接受 `vf_` token
     - 通过 `authService.validateToken` 验证
     - 删除 `vibeflow_<userId>_<secret>` 格式支持
     - DEV_MODE=true 时保留 `dev_<email>` token 支持
     - _Requirements: R8.1, R8.2, R8.4_
-  - [ ] 12.2 `mcp/trpc-client.ts` 改造
+  - [x] 12.2 `mcp/trpc-client.ts` 改造
     - 从 `VIBEFLOW_API_KEY` 环境变量读取 token
     - 从 `VIBEFLOW_SERVER_URL` 读取 server URL（默认 http://localhost:3000）
     - 删除硬编码 IP
     - **DEV_MODE=true 时保留 `x-dev-user-email` header**（不是删除 email，是生产模式不用）
     - _Requirements: R8.3_
-  - [ ] 12.3 更新 `.claude/.mcp.json`
+  - [x] 12.3 更新 `.claude/.mcp.json`
     - MCP server 配置添加 `VIBEFLOW_API_KEY` 环境变量
-    - _Requirements: R8.5_
+    - _Requirements: R8.5_ <!-- 12 done -->
 
-- [ ] 13. Skill REST Adapter
-  - [ ] 13.1 创建 `src/lib/skill-auth.ts`
+- [x] 13. Skill REST Adapter
+  - [x] 13.1 创建 `src/lib/skill-auth.ts`
     - `authenticateRequest(req)` 工具函数：验证 Bearer vf_ token，返回 UserContext
     - _Requirements: R9.6_
-  - [ ] 13.2 创建 REST route handlers `src/app/api/skill/`
+  - [x] 13.2 创建 REST route handlers `src/app/api/skill/`
     - `/api/skill/state` — GET 当前状态
     - `/api/skill/tasks` — GET 今日任务，POST 创建任务
     - `/api/skill/tasks/[id]` — GET 详情，PUT 更新，DELETE 删除
@@ -216,8 +216,8 @@
     - `/api/skill/top3` — GET Top 3，POST 设置 Top 3
     - 全部使用标准 JSON（无 SuperJSON），直接调用 service 层
     - _Requirements: R9.1_
-  - [ ] 13.3 `middleware.ts` 白名单添加 `/api/skill/*`
-    - 已在 task 3.2 中包含
+  - [x] 13.3 `middleware.ts` 白名单添加 `/api/skill/*`
+    - 已在 task 3.2 中包含 <!-- 13 done -->
 
 - [ ] 14. Checkpoint — API Key + MCP + REST 测试
   - Settings 创建 Key → Key 只显示一次
