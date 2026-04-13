@@ -45,3 +45,7 @@ export {
 export {
   serverConfigService,
 } from './server-config.service';
+
+export {
+  habitNotificationService,
+} from './habit-notification.service';

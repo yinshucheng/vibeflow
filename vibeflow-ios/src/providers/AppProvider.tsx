@@ -18,6 +18,7 @@ import { screenTimeService } from '@/services/screen-time.service';
 import { notificationTriggerService } from '@/services/notification-trigger.service';
 import { useAppStore } from '@/store';
 import { initHabitSocketListeners, cleanupHabitSocketListeners, useHabitStore } from '@/store/habit.store';
+import { habitNotificationService } from '@/services/habit-notification.service';
 import { getToken, verifyToken, logout, refreshCachedToken, setCachedEmail } from '@/config/auth';
 import { LoginScreen } from '@/screens/LoginScreen';
 
@@ -91,12 +92,21 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
       if (status === 'connected') {
         initHabitSocketListeners();
         useHabitStore.getState().fetchTodayHabits();
+        // Refresh local habit notifications (3-day rolling window)
+        useHabitStore.getState().fetchHabits().then(() => {
+          const habits = useHabitStore.getState().habits;
+          habitNotificationService.refreshScheduledReminders(habits);
+        });
       }
     });
     // Also init immediately if already connected
     if (websocketService.isConnected()) {
       initHabitSocketListeners();
       useHabitStore.getState().fetchTodayHabits();
+      useHabitStore.getState().fetchHabits().then(() => {
+        const habits = useHabitStore.getState().habits;
+        habitNotificationService.refreshScheduledReminders(habits);
+      });
     }
 
     // Initialize selection summary from native module (App Group)

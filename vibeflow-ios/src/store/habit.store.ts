@@ -12,6 +12,26 @@ import { actionService, type ActionResult } from '@/services/action.service';
 import { websocketService } from '@/services/websocket.service';
 import type { TodayHabitData, HabitData } from '@/types';
 
+// Lazy imports to avoid pulling expo-notifications at module load time (breaks Jest)
+let _notificationService: typeof import('@/services/notification.service').notificationService | null = null;
+let _habitNotificationService: typeof import('@/services/habit-notification.service').habitNotificationService | null = null;
+
+async function getNotificationService() {
+  if (!_notificationService) {
+    const mod = await import('@/services/notification.service');
+    _notificationService = mod.notificationService;
+  }
+  return _notificationService;
+}
+
+async function getHabitNotificationService() {
+  if (!_habitNotificationService) {
+    const mod = await import('@/services/habit-notification.service');
+    _habitNotificationService = mod.habitNotificationService;
+  }
+  return _habitNotificationService;
+}
+
 // =============================================================================
 // STORE STATE
 // =============================================================================
@@ -142,8 +162,10 @@ export const useHabitStore = create<HabitState & HabitActions>((set, get) => ({
     if (!result.success) {
       // Rollback
       set({ todayHabits: previousHabits });
+    } else {
+      // Cancel today's local notification for this habit (prevent duplicate)
+      getHabitNotificationService().then((svc) => svc.cancelTodayReminder(habitId));
     }
-    // On success, the socket broadcast will trigger a refresh
 
     return result;
   },
@@ -270,6 +292,45 @@ export function initHabitSocketListeners(): void {
     socket.on(event, handler);
     socketCleanups.push(() => socket.off(event, handler));
   }
+
+  // Listen for EXECUTE commands (legacy format) for HABIT_REMINDER
+  const handleHabitReminder = async (params: {
+    habitId?: string;
+    title?: string;
+    question?: string;
+    streak?: number;
+  }) => {
+    const notifSvc = await getNotificationService();
+    notifSvc.showCustomNotification({
+      title: `🌱 ${params.title ?? '习惯提醒'}`,
+      body: params.question ?? `该完成「${params.title}」了`,
+      data: { type: 'habit_reminder', habitId: params.habitId ?? '' },
+    });
+    if (params.habitId) {
+      const habitNotifSvc = await getHabitNotificationService();
+      habitNotifSvc.onRemotePushReceived(params.habitId);
+    }
+  };
+
+  const handleExecute = (command: unknown) => {
+    const cmd = command as { action?: string; params?: Record<string, unknown> };
+    if (cmd.action === 'HABIT_REMINDER' && cmd.params) {
+      handleHabitReminder(cmd.params as { habitId?: string; title?: string; question?: string; streak?: number });
+    }
+  };
+  socket.on('EXECUTE', handleExecute);
+  socketCleanups.push(() => socket.off('EXECUTE', handleExecute));
+
+  // Also listen for Octopus EXECUTE_ACTION command
+  const cleanupExecuteAction = websocketService.onCommand<{
+    action: string;
+    params?: Record<string, unknown>;
+  }>('EXECUTE_ACTION', (payload) => {
+    if (payload.action === 'HABIT_REMINDER' && payload.params) {
+      handleHabitReminder(payload.params as { habitId?: string; title?: string; question?: string; streak?: number });
+    }
+  });
+  socketCleanups.push(cleanupExecuteAction);
 
   console.log('[HabitStore] Socket listeners initialized');
 }

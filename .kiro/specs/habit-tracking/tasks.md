@@ -198,24 +198,24 @@
 > 改动范围: `vibeflow-ios/src/screens/HabitsScreen.tsx`（新建）, `vibeflow-ios/src/screens/HabitFormScreen.tsx`（新建）, `vibeflow-ios/src/services/habit-notification.service.ts`（新建）, 导航配置
 > 验证: `cd vibeflow-ios && npx jest && npx tsc --noEmit`
 
-- [ ] 创建 `vibeflow-ios/src/screens/HabitsScreen.tsx` — 习惯列表页
+- [x] 创建 `vibeflow-ios/src/screens/HabitsScreen.tsx` — 习惯列表页
   - 列出所有活跃习惯，卡片式布局
   - 左滑删除（确认弹窗）
   - 创建按钮（导航到 HabitFormScreen）
-- [ ] 创建 `vibeflow-ios/src/screens/HabitFormScreen.tsx` — 创建/编辑
+- [x] 创建 `vibeflow-ios/src/screens/HabitFormScreen.tsx` — 创建/编辑
   - 标题输入
   - 频率选择（每天/隔天/每周N次 picker → freqNum/freqDen）
   - 提醒时间（可选 TimePicker）
   - 类型固定 BOOLEAN（Phase 1）
   - 创建/更新 → store action
-- [ ] 在 Tab 导航或 Dashboard 添加入口跳转到 HabitsScreen
-- [ ] 创建 `vibeflow-ios/src/services/habit-notification.service.ts`
+- [x] 在 Tab 导航或 Dashboard 添加入口跳转到 HabitsScreen
+- [x] 创建 `vibeflow-ios/src/services/habit-notification.service.ts`
   - `scheduleReminders(habit)` — 预约未来 **3 天**（非 7 天）本地定时通知（iOS 上限 64 个 scheduled notifications）
   - `cancelTodayReminder(habitId)` — 打卡后取消当天提醒
   - `onRemotePushReceived(habitId)` — 收到 WebSocket 推送后取消对应本地通知（防重复）
   - `refreshScheduledReminders()` — 刷新 3 天滚动窗口；**App 启动和登录成功时必须调用**（恢复重装后丢失的通知）
   - 在习惯创建/更新/打卡时自动调用对应方法
-- [ ] 监听 WebSocket `HABIT_REMINDER` EXECUTE 命令 → 展示即时通知 + 调用 `onRemotePushReceived`
+- [x] 监听 WebSocket `HABIT_REMINDER` EXECUTE 命令 → 展示即时通知 + 调用 `onRemotePushReceived` <!-- 1.10 done -->
 
 ### Task 1.11: Phase 1 集成测试
 

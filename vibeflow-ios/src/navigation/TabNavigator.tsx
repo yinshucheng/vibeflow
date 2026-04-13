@@ -2,11 +2,13 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 import { StatusScreen } from '@/screens/StatusScreen';
+import { HabitsScreen } from '@/screens/HabitsScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { useTheme } from '@/theme';
 
 export type TabParamList = {
   Status: undefined;
+  Habits: undefined;
   Settings: undefined;
 };
 
@@ -34,6 +36,16 @@ export function TabNavigator(): React.JSX.Element {
           title: '状态',
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>⏱</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Habits"
+        component={HabitsScreen}
+        options={{
+          title: '习惯',
+          tabBarIcon: ({ color, size }) => (
+            <Text style={{ fontSize: size, color }}>🌱</Text>
           ),
         }}
       />

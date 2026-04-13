@@ -2,7 +2,7 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { TabNavigator } from '@/navigation';
+import { RootNavigator } from '@/navigation';
 import { AppProvider } from '@/providers';
 import { ChatFAB, ChatPanel } from '@/components/chat';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -13,7 +13,7 @@ export default function App(): React.JSX.Element {
       <SafeAreaProvider>
         <AppProvider>
           <NavigationContainer>
-            <TabNavigator />
+            <RootNavigator />
             <StatusBar style="auto" />
           </NavigationContainer>
           <ChatFAB />
