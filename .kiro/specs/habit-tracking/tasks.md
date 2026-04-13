@@ -120,24 +120,24 @@
 > 验证: `npx vitest run src/services/habit-reminder.service.test.ts && npx tsc --noEmit`
 > 重要: `chatTriggersCronService.runCronTriggers()` 是死代码（从未被调用），不可复用。需在 socket.ts 新建 interval。
 
-- [ ] 创建 `src/services/habit-reminder.service.ts`
-- [ ] 实现 `tick(connectedUserIds: string[]): Promise<void>` — 遍历在线用户，调用 checkAndSendReminders
-- [ ] 实现 `checkAndSendReminders(userId: string, currentTimeHHmm: string): Promise<void>`
+- [x] 创建 `src/services/habit-reminder.service.ts`
+- [x] 实现 `tick(connectedUserIds: string[]): Promise<void>` — 遍历在线用户，调用 checkAndSendReminders
+- [x] 实现 `checkAndSendReminders(userId: string, currentTimeHHmm: string): Promise<void>`
   - 查询 UserSettings.habitReminderEnabled，为 false 则跳过
   - 查询所有 ACTIVE 且 reminderEnabled=true 且 reminderTime=currentTimeHHmm 的习惯
   - 调用 isDueToday 过滤（含"每周N次本周已达标"判定），使用 getTodayDate() 作为"今天"
   - 查询今天的 HabitEntry，排除已完成（entryType 为 YES_MANUAL 或 YES_AUTO）的习惯
   - 对剩余习惯，通过 sendExecuteCommand 发送 HABIT_REMINDER
-- [ ] 在 `src/server/socket.ts` 的 `startPeriodicTasks()` 方法中新增 `habitReminderInterval = setInterval(() => habitReminderService.tick(getConnectedUserIds()), 60_000)`
-- [ ] 在 `stopPeriodicTasks()` 中清除该 interval
-- [ ] 在 `src/services/index.ts` 导出
-- [ ] 单元测试：
+- [x] 在 `src/server/socket.ts` 的 `startPeriodicTasks()` 方法中新增 `habitReminderInterval = setInterval(() => habitReminderService.tick(getConnectedUserIds()), 60_000)`
+- [x] 在 `stopPeriodicTasks()` 中清除该 interval
+- [x] 在 `src/services/index.ts` 导出
+- [x] 单元测试：
   - 全局开关关闭 → 不发送
   - reminderTime 不匹配 → 不发送
   - 今天已完成 → 不发送
   - 暂停的习惯 → 不发送
   - 非到期日 → 不发送
-  - 正常 case → 调用 sendExecuteCommand
+  - 正常 case → 调用 sendExecuteCommand <!-- 1.6 done -->
 
 ### Task 1.7: Web UI — Dashboard 今日习惯 + 创建
 

@@ -665,3 +665,6 @@ export type {
   ServiceResult as HabitServiceResult,
 } from './habit.service';
 export { CreateHabitSchema, UpdateHabitSchema, RecordEntrySchema } from './habit.service';
+
+// Habit Reminder Service exports
+export { habitReminderService } from './habit-reminder.service';

@@ -31,6 +31,7 @@ import { chatService } from '@/services/chat.service';
 import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { isWithinWorkHours } from '@/services/idle.service';
 import { focusSessionService } from '@/services/focus-session.service';
+import { habitReminderService } from '@/services/habit-reminder.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -323,6 +324,7 @@ export class VibeFlowSocketServer {
   private staleClientCheckInterval: ReturnType<typeof setInterval> | null = null;
   private commandCleanupInterval: ReturnType<typeof setInterval> | null = null;
   private overRestCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private habitReminderInterval: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Initialize the Socket.io server
@@ -457,6 +459,16 @@ export class VibeFlowSocketServer {
         console.error('[Socket.io] Error in overRestCheck interval:', error);
       }
     }, 30000);
+
+    // Check habit reminders every 60 seconds
+    this.habitReminderInterval = setInterval(async () => {
+      try {
+        const connectedUserIds = this.getConnectedUserIds();
+        await habitReminderService.tick(connectedUserIds);
+      } catch (error) {
+        console.error('[Socket.io] Error in habitReminder interval:', error);
+      }
+    }, 60_000);
   }
 
   /**
@@ -474,6 +486,10 @@ export class VibeFlowSocketServer {
     if (this.overRestCheckInterval) {
       clearInterval(this.overRestCheckInterval);
       this.overRestCheckInterval = null;
+    }
+    if (this.habitReminderInterval) {
+      clearInterval(this.habitReminderInterval);
+      this.habitReminderInterval = null;
     }
   }
 
