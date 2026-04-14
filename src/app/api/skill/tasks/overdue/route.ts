@@ -3,12 +3,12 @@
  */
 
 import { NextRequest } from 'next/server';
-import { authenticateRequest, unauthorizedResponse, serviceResultResponse, errorResponse } from '@/lib/skill-auth';
+import { authenticateRequest, resolveAuth, unauthorizedResponse, serviceResultResponse, errorResponse } from '@/lib/skill-auth';
 import { taskService } from '@/services/task.service';
 
 export async function GET(req: NextRequest) {
-  const user = await authenticateRequest(req, 'read');
-  if (!user) return unauthorizedResponse();
+  const { user, error } = resolveAuth(await authenticateRequest(req, 'read'));
+  if (error) return error;
 
   try {
     const result = await taskService.getOverdue(user.userId);

@@ -6,12 +6,12 @@
  */
 
 import { NextRequest } from 'next/server';
-import { authenticateRequest, unauthorizedResponse, serviceResultResponse, errorResponse } from '@/lib/skill-auth';
+import { authenticateRequest, resolveAuth, unauthorizedResponse, serviceResultResponse, errorResponse } from '@/lib/skill-auth';
 import { timelineService } from '@/services/timeline.service';
 
 export async function GET(req: NextRequest) {
-  const user = await authenticateRequest(req, 'read');
-  if (!user) return unauthorizedResponse();
+  const { user, error } = resolveAuth(await authenticateRequest(req, 'read'));
+  if (error) return error;
 
   try {
     const dateParam = req.nextUrl.searchParams.get('date');

@@ -3,14 +3,14 @@
  */
 
 import { NextRequest } from 'next/server';
-import { authenticateRequest, unauthorizedResponse, errorResponse } from '@/lib/skill-auth';
+import { authenticateRequest, resolveAuth, unauthorizedResponse, errorResponse } from '@/lib/skill-auth';
 import { stateEngineService } from '@/services/state-engine.service';
 import { dailyStateService } from '@/services/daily-state.service';
 import { pomodoroService } from '@/services/pomodoro.service';
 
 export async function GET(req: NextRequest) {
-  const user = await authenticateRequest(req, 'read');
-  if (!user) return unauthorizedResponse();
+  const { user, error } = resolveAuth(await authenticateRequest(req, 'read'));
+  if (error) return error;
 
   try {
     const [systemState, dailyStateResult, currentPomodoro] = await Promise.all([

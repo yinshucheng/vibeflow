@@ -5,12 +5,12 @@
  */
 
 import { NextRequest } from 'next/server';
-import { authenticateRequest, unauthorizedResponse, serviceResultResponse, errorResponse } from '@/lib/skill-auth';
+import { authenticateRequest, resolveAuth, unauthorizedResponse, serviceResultResponse, errorResponse } from '@/lib/skill-auth';
 import { pomodoroService } from '@/services/pomodoro.service';
 
 export async function POST(req: NextRequest) {
-  const user = await authenticateRequest(req, 'write');
-  if (!user) return unauthorizedResponse();
+  const { user, error } = resolveAuth(await authenticateRequest(req, 'write'));
+  if (error) return error;
 
   try {
     // Find the active pomodoro first

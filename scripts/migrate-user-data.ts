@@ -15,6 +15,13 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Prisma's JsonValue (from findMany reads) is not directly assignable to InputJsonValue
+// (for create writes). Since we copy data within the same schema, the cast is safe.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createData<T extends Record<string, unknown>>(data: T, overrides: Record<string, unknown>): any {
+  return { ...data, ...overrides };
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────
 
 interface MigrateOptions {
@@ -373,7 +380,7 @@ async function migrateUserSettings(
 
   const { id: _id, userId: _userId, ...data } = settings;
   await tx.userSettings.create({
-    data: { ...data, userId: targetId },
+    data: createData(data, { userId: targetId }),
   });
   report.push({ model: 'UserSettings', count: 1 });
   console.log('  UserSettings: 1');
@@ -390,7 +397,7 @@ async function migrateGoals(
   for (const goal of goals) {
     const { id: oldId, userId: _userId, ...data } = goal;
     const newGoal = await tx.goal.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
     idMap.set(oldId, newGoal.id);
   }
@@ -409,7 +416,7 @@ async function migrateProjects(
   for (const project of projects) {
     const { id: oldId, userId: _userId, ...data } = project;
     const newProject = await tx.project.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
     idMap.set(oldId, newProject.id);
   }
@@ -464,7 +471,7 @@ async function migrateTasks(
       throw new Error(`Task '${task.title}' references unmapped project ${projectId}`);
     }
     const newTask = await tx.task.create({
-      data: { ...data, projectId: newProjectId, parentId: null, userId: targetId },
+      data: createData(data, { projectId: newProjectId, parentId: null, userId: targetId }),
     });
     idMap.set(oldId, newTask.id);
   }
@@ -498,7 +505,7 @@ async function migratePomodoros(
     const { id: oldId, userId: _userId, taskId, ...data } = pom;
     const newTaskId = taskId ? idMap.get(taskId) ?? null : null;
     const newPom = await tx.pomodoro.create({
-      data: { ...data, taskId: newTaskId, userId: targetId },
+      data: createData(data, { taskId: newTaskId, userId: targetId }),
     });
     idMap.set(oldId, newPom.id);
   }
@@ -527,7 +534,7 @@ async function migrateTaskTimeSlices(
     if (!newPomodoroId) continue;
     const newTaskId = taskId ? idMap.get(taskId) ?? null : null;
     await tx.taskTimeSlice.create({
-      data: { ...data, pomodoroId: newPomodoroId, taskId: newTaskId },
+      data: createData(data, { pomodoroId: newPomodoroId, taskId: newTaskId }),
     });
   }
   report.push({ model: 'TaskTimeSlice', count: slices.length });
@@ -546,7 +553,7 @@ async function migrateHabits(
     const { id: oldId, userId: _userId, projectId, ...data } = habit;
     const newProjectId = projectId ? idMap.get(projectId) ?? null : null;
     const newHabit = await tx.habit.create({
-      data: { ...data, projectId: newProjectId, userId: targetId },
+      data: createData(data, { projectId: newProjectId, userId: targetId }),
     });
     idMap.set(oldId, newHabit.id);
   }
@@ -596,7 +603,7 @@ async function migrateHabitEntries(
     const newHabitId = idMap.get(habitId);
     if (!newHabitId) continue;
     await tx.habitEntry.create({
-      data: { ...data, habitId: newHabitId, userId: targetId },
+      data: createData(data, { habitId: newHabitId, userId: targetId }),
     });
   }
   report.push({ model: 'HabitEntry', count: entries.length });
@@ -613,7 +620,7 @@ async function migrateDailyStates(
   for (const state of states) {
     const { id: _id, userId: _userId, ...data } = state;
     await tx.dailyState.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'DailyState', count: states.length });
@@ -631,7 +638,7 @@ async function migrateFocusSessions(
   for (const session of sessions) {
     const { id: oldId, userId: _userId, ...data } = session;
     const newSession = await tx.focusSession.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
     idMap.set(oldId, newSession.id);
   }
@@ -652,7 +659,7 @@ async function migrateBlockers(
     const newTaskId = idMap.get(taskId);
     if (!newTaskId) continue;
     await tx.blocker.create({
-      data: { ...data, taskId: newTaskId, userId: targetId },
+      data: createData(data, { taskId: newTaskId, userId: targetId }),
     });
   }
   report.push({ model: 'Blocker', count: blockers.length });
@@ -669,7 +676,7 @@ async function migrateDailyReviews(
   for (const review of reviews) {
     const { id: _id, userId: _userId, ...data } = review;
     await tx.dailyReview.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'DailyReview', count: reviews.length });
@@ -686,7 +693,7 @@ async function migratePolicyVersions(
   for (const ver of versions) {
     const { id: _id, userId: _userId, ...data } = ver;
     await tx.policyVersion.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'PolicyVersion', count: versions.length });
@@ -704,7 +711,7 @@ async function migrateConversations(
   for (const conv of conversations) {
     const { id: oldId, userId: _userId, ...data } = conv;
     const newConv = await tx.conversation.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
     idMap.set(oldId, newConv.id);
   }
@@ -733,7 +740,7 @@ async function migrateChatMessages(
     const newConversationId = idMap.get(conversationId);
     if (!newConversationId) continue;
     await tx.chatMessage.create({
-      data: { ...data, conversationId: newConversationId },
+      data: createData(data, { conversationId: newConversationId }),
     });
   }
   report.push({ model: 'ChatMessage', count: messages.length });
@@ -753,7 +760,7 @@ async function migrateProjectTemplates(
   for (const tmpl of templates) {
     const { id: _id, userId: _userId, ...data } = tmpl;
     await tx.projectTemplate.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'ProjectTemplate', count: templates.length });
@@ -770,7 +777,7 @@ async function migrateActivityAggregates(
   for (const agg of aggregates) {
     const { id: _id, userId: _userId, ...data } = agg;
     await tx.activityAggregate.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'ActivityAggregate', count: aggregates.length });
@@ -787,7 +794,7 @@ async function migrateWorkStartRecords(
   for (const rec of records) {
     const { id: _id, userId: _userId, ...data } = rec;
     await tx.workStartRecord.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'WorkStartRecord', count: records.length });
@@ -804,7 +811,7 @@ async function migrateDailyEntertainmentStates(
   for (const state of states) {
     const { id: _id, userId: _userId, ...data } = state;
     await tx.dailyEntertainmentState.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'DailyEntertainmentState', count: states.length });
@@ -821,7 +828,7 @@ async function migrateSkipTokenUsages(
   for (const usage of usages) {
     const { id: _id, userId: _userId, ...data } = usage;
     await tx.skipTokenUsage.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'SkipTokenUsage', count: usages.length });
@@ -838,7 +845,7 @@ async function migrateSuggestionFeedbacks(
   for (const fb of feedbacks) {
     const { id: _id, userId: _userId, ...data } = fb;
     await tx.suggestionFeedback.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'SuggestionFeedback', count: feedbacks.length });
@@ -859,7 +866,7 @@ async function migrateTaskDecompositionFeedbacks(
     const newTaskId = idMap.get(taskId);
     if (!newTaskId) continue;
     await tx.taskDecompositionFeedback.create({
-      data: { ...data, taskId: newTaskId, userId: targetId },
+      data: createData(data, { taskId: newTaskId, userId: targetId }),
     });
     migrated++;
   }
@@ -877,7 +884,7 @@ async function migrateDemoTokens(
   for (const token of tokens) {
     const { id: _id, userId: _userId, ...data } = token;
     await tx.demoToken.create({
-      data: { ...data, userId: targetId },
+      data: createData(data, { userId: targetId }),
     });
   }
   report.push({ model: 'DemoToken', count: tokens.length });

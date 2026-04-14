@@ -58,7 +58,7 @@ describe('Skill Auth — authenticateRequest', () => {
   it('returns null when no Authorization header', async () => {
     const req = makeRequest();
     const result = await authenticateRequest(req);
-    expect(result).toBeNull();
+    expect(result.status).toBe('unauthorized');
   });
 
   it('returns null when Authorization header is not Bearer vf_', async () => {
@@ -66,7 +66,7 @@ describe('Skill Auth — authenticateRequest', () => {
       headers: { authorization: 'Bearer sk_abc123' },
     });
     const result = await authenticateRequest(req);
-    expect(result).toBeNull();
+    expect(result.status).toBe('unauthorized');
   });
 
   it('returns null when token validation fails', async () => {
@@ -79,7 +79,7 @@ describe('Skill Auth — authenticateRequest', () => {
       headers: { authorization: 'Bearer vf_invalid123' },
     });
     const result = await authenticateRequest(req);
-    expect(result).toBeNull();
+    expect(result.status).toBe('unauthorized');
   });
 
   it('returns null when token is valid but lacks required scope', async () => {
@@ -98,7 +98,7 @@ describe('Skill Auth — authenticateRequest', () => {
       headers: { authorization: 'Bearer vf_valid123' },
     });
     const result = await authenticateRequest(req, 'write');
-    expect(result).toBeNull();
+    expect(result.status).toBe('forbidden');
   });
 
   it('returns UserContext when token is valid with matching scope', async () => {
@@ -118,10 +118,13 @@ describe('Skill Auth — authenticateRequest', () => {
     });
     const result = await authenticateRequest(req, 'read');
     expect(result).toEqual({
-      userId: 'user-1',
-      email: 'test@example.com',
-      isDevMode: false,
-      tokenScopes: ['read', 'write'],
+      status: 'ok',
+      user: {
+        userId: 'user-1',
+        email: 'test@example.com',
+        isDevMode: false,
+        tokenScopes: ['read', 'write'],
+      },
     });
   });
 
@@ -141,8 +144,8 @@ describe('Skill Auth — authenticateRequest', () => {
       headers: { authorization: 'Bearer vf_valid123' },
     });
     const result = await authenticateRequest(req);
-    expect(result).not.toBeNull();
-    expect(result?.userId).toBe('user-1');
+    expect(result.status).toBe('ok');
+    if (result.status === 'ok') expect(result.user.userId).toBe('user-1');
   });
 
   describe('DEV_MODE support', () => {
@@ -164,9 +167,11 @@ describe('Skill Auth — authenticateRequest', () => {
         headers: { 'x-dev-user-email': 'dev@vibeflow.local' },
       });
       const result = await authenticateRequest(req, 'write');
-      expect(result).not.toBeNull();
-      expect(result?.userId).toBe('dev-user-1');
-      expect(result?.isDevMode).toBe(true);
+      expect(result.status).toBe('ok');
+      if (result.status === 'ok') {
+        expect(result.user.userId).toBe('dev-user-1');
+        expect(result.user.isDevMode).toBe(true);
+      }
     });
 
     it('still accepts Bearer vf_ token in DEV_MODE', async () => {
@@ -185,8 +190,8 @@ describe('Skill Auth — authenticateRequest', () => {
         headers: { authorization: 'Bearer vf_valid123' },
       });
       const result = await authenticateRequest(req, 'read');
-      expect(result).not.toBeNull();
-      expect(result?.userId).toBe('user-1');
+      expect(result.status).toBe('ok');
+      if (result.status === 'ok') expect(result.user.userId).toBe('user-1');
     });
   });
 });

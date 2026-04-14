@@ -5,12 +5,12 @@
  */
 
 import { NextRequest } from 'next/server';
-import { authenticateRequest, unauthorizedResponse, serviceResultResponse, errorResponse } from '@/lib/skill-auth';
+import { authenticateRequest, resolveAuth, unauthorizedResponse, serviceResultResponse, errorResponse } from '@/lib/skill-auth';
 import { projectService } from '@/services/project.service';
 
 export async function GET(req: NextRequest) {
-  const user = await authenticateRequest(req, 'read');
-  if (!user) return unauthorizedResponse();
+  const { user, error } = resolveAuth(await authenticateRequest(req, 'read'));
+  if (error) return error;
 
   try {
     const result = await projectService.getByUser(user.userId);
@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await authenticateRequest(req, 'write');
-  if (!user) return unauthorizedResponse();
+  const { user, error } = resolveAuth(await authenticateRequest(req, 'write'));
+  if (error) return error;
 
   try {
     const body = await req.json();
