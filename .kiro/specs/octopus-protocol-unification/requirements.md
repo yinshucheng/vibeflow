@@ -1,6 +1,6 @@
 # 八爪鱼协议统一化 - Requirements
 
-> **Rev 3** — 新增数据流统一（G6）、协议层 SDK（AC7）、消除 Web 轮询。
+> **Rev 4** — 基于 Review 5/6 修订。Policy 拆分移至 Phase B、delta sync 明确 top-level merge、State Manager 增加持久化/flush 时序、Web SSR→WS 过渡逻辑。
 
 ## 问题陈述
 
