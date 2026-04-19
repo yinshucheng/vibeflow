@@ -49,12 +49,32 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     if (!serverReady) return;
 
     const checkAuth = async () => {
-      // DEV MODE: skip all auth, use dev email directly
-      // This matches Web's X-Dev-User-Email behavior — no HTTP/WS login needed
-      const devEmail = 'dev@vibeflow.local';
-      setCachedEmail(devEmail);
-      setAuthUser({ id: '', email: devEmail });
-      setAuthStatus('authenticated');
+      // DEV MODE: skip auth only in dev builds with explicit env var
+      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_MODE === 'true') {
+        const devEmail = process.env.EXPO_PUBLIC_DEV_USER_EMAIL || 'dev@vibeflow.local';
+        setCachedEmail(devEmail);
+        setAuthUser({ id: '', email: devEmail });
+        setAuthStatus('authenticated');
+        return;
+      }
+
+      // Production: verify stored token from SecureStore
+      try {
+        const token = await getToken();
+        if (token) {
+          const user = await verifyToken(token);
+          if (user) {
+            setAuthUser(user);
+            setAuthStatus('authenticated');
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[AppProvider] Token verification failed:', e);
+      }
+
+      // No valid token → show login screen
+      setAuthStatus('unauthenticated');
     };
 
     checkAuth();
