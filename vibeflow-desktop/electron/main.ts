@@ -1115,12 +1115,7 @@ app.whenReady().then(async () => {
     isAuthenticated = await authManager.validateToken();
   }
 
-  if (!isAuthenticated && config.isDevelopment) {
-    // In development mode, skip login window — the server runs DEV_MODE=true
-    // and socket auth accepts email-only fallback (dev@vibeflow.local).
-    // This avoids blocking the connection when the user dismisses the login window.
-    console.log('[Main] Dev mode — skipping login window, will use email fallback for socket auth');
-  } else if (!isAuthenticated) {
+  if (!isAuthenticated) {
     // Production: open login window to get a proper API token
     console.log('[Main] No valid token, opening login window…');
     isAuthenticated = await authManager.openLoginWindow();

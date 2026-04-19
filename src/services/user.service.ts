@@ -145,7 +145,7 @@ export interface ServiceResult<T> {
 // Default dev mode config
 const devModeConfig: DevModeConfig = {
   enabled: process.env.DEV_MODE === 'true',
-  defaultUserEmail: process.env.DEV_USER_EMAIL || 'dev@vibeflow.local',
+  defaultUserEmail: process.env.DEV_USER_EMAIL || '',
   skipAuth: true,
 };
 
@@ -254,8 +254,8 @@ export const userService = {
         }
       }
 
-      // Path 4: DEV_MODE fallback (only when dev mode enabled, no auth info at all)
-      if (devModeConfig.enabled) {
+      // Path 4: DEV_MODE fallback (only when dev mode enabled + DEV_USER_EMAIL configured)
+      if (devModeConfig.enabled && devModeConfig.defaultUserEmail) {
         const result = await this.getOrCreateDevUser(devModeConfig.defaultUserEmail);
         if (result.success && result.data) {
           return {

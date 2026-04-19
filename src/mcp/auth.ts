@@ -55,10 +55,11 @@ export async function authenticateToken(token?: string): Promise<AuthResult> {
     return { success: true, context: cachedContext };
   }
 
-  // Dev mode: no token → fallback to default email
+  // No token provided
   if (!token) {
     if (isDevMode()) {
-      return authenticateViaRemote(process.env.DEV_USER_EMAIL || process.env.MCP_USER_EMAIL || 'dev@vibeflow.local');
+      const email = process.env.MCP_USER_EMAIL || process.env.DEV_USER_EMAIL;
+      if (email) return authenticateViaRemote(email);
     }
     return { success: false, error: 'API key required. Set VIBEFLOW_API_KEY environment variable.' };
   }

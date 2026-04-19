@@ -23,12 +23,6 @@ function LoginForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // DEV_MODE quick login state
-  const [devEmail, setDevEmail] = useState('');
-  const [devLoading, setDevLoading] = useState(false);
-
-  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
@@ -55,33 +49,7 @@ function LoginForm() {
     }
   }
 
-  async function handleDevLogin(e: React.FormEvent) {
-    e.preventDefault();
-    if (devLoading || !devEmail) return;
 
-    setError('');
-    setDevLoading(true);
-
-    try {
-      const result = await signIn('credentials', {
-        email: devEmail,
-        devMode: 'true',
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError('Dev login failed');
-      } else {
-        // Also store in localStorage for tRPC header
-        localStorage.setItem('dev-user-email', devEmail);
-        router.push(callbackUrl);
-      }
-    } catch {
-      setError('An unexpected error occurred');
-    } finally {
-      setDevLoading(false);
-    }
-  }
 
   return (
     <div className="w-full max-w-sm">
@@ -154,31 +122,6 @@ function LoginForm() {
           </Link>
         </p>
 
-        {isDevMode && (
-          <>
-            <div className="my-6 border-t border-[var(--border-default)]" />
-            <form onSubmit={handleDevLogin} className="space-y-3">
-              <p className="text-xs font-medium text-[var(--accent-orange)] uppercase tracking-wide">
-                Dev Quick Login
-              </p>
-              <input
-                type="email"
-                value={devEmail}
-                onChange={(e) => setDevEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-sm text-[var(--text-primary)] bg-[var(--bg-default)] border border-[var(--border-default)] rounded-[var(--radius-md)] outline-none focus:border-[var(--accent-orange)] transition-colors"
-                placeholder="any-email@example.com"
-              />
-              <button
-                type="submit"
-                disabled={devLoading}
-                className="w-full py-2 px-4 text-sm font-medium text-[var(--accent-orange)] border border-[var(--accent-orange)] rounded-[var(--radius-md)] hover:bg-[var(--accent-orange)] hover:text-white disabled:opacity-50 transition-colors"
-              >
-                {devLoading ? 'Logging in...' : 'Quick Login (No Password)'}
-              </button>
-            </form>
-          </>
-        )}
       </div>
     </div>
   );

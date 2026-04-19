@@ -3,7 +3,7 @@
  *
  * Creates a tRPC client that connects to the VibeFlow server via HTTP.
  * Production: uses VIBEFLOW_API_KEY (vf_ token) as Bearer auth
- * Dev mode: uses x-dev-user-email header as fallback
+ * Dev mode: uses x-dev-user-email header if MCP_USER_EMAIL is configured
  *
  * Requirements: R8.3
  */
@@ -14,8 +14,8 @@ import type { AppRouter } from '../server/routers/_app';
 
 const serverUrl = process.env.VIBEFLOW_SERVER_URL || 'http://localhost:3000';
 const apiKey = process.env.VIBEFLOW_API_KEY;
-const isDev = process.env.NODE_ENV === 'development' || process.env.DEV_MODE === 'true';
-const devEmail = process.env.MCP_USER_EMAIL || process.env.DEV_USER_EMAIL || 'dev@vibeflow.local';
+const isDev = process.env.DEV_MODE === 'true';
+const devEmail = process.env.MCP_USER_EMAIL || process.env.DEV_USER_EMAIL;
 
 export const trpcClient = createTRPCClient<AppRouter>({
   links: [
@@ -25,13 +25,11 @@ export const trpcClient = createTRPCClient<AppRouter>({
       headers() {
         const headers: Record<string, string> = {};
 
-        // Production: Bearer token authentication
         if (apiKey) {
           headers['authorization'] = `Bearer ${apiKey}`;
         }
 
-        // Dev mode: email header fallback (also sent alongside Bearer token for compatibility)
-        if (isDev) {
+        if (isDev && devEmail) {
           headers['x-dev-user-email'] = devEmail;
         }
 

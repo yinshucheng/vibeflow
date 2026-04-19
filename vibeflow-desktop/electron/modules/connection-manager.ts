@@ -570,8 +570,7 @@ class ConnectionManager {
       if (this.state.authToken) {
         auth.token = this.state.authToken;
       } else {
-        // Fallback for dev mode where token may not be set
-        auth.email = 'dev@vibeflow.local';
+        console.warn('[ConnectionManager] No auth token available — connection may fail');
       }
 
       // Create Socket.io connection with autoConnect: false to avoid race condition
