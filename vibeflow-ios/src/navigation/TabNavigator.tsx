@@ -33,9 +33,9 @@ export function TabNavigator(): React.JSX.Element {
         name="Status"
         component={StatusScreen}
         options={{
-          title: '状态',
+          title: '今天',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size, color }}>⏱</Text>
+            <Text style={{ fontSize: size, color }}>📋</Text>
           ),
         }}
       />

@@ -55,6 +55,8 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
         if (token) {
           const result = await verifyToken(token);
           if (result.success && result.user) {
+            // Cache token in memory so WebSocket auth can use it
+            await refreshCachedToken();
             setCachedEmail(result.user.email);
             setAuthUser(result.user);
             setAuthStatus('authenticated');
@@ -155,12 +157,13 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
    * Handle app state changes.
    * Maintains connection for up to 3 minutes in background.
    */
-  const handleAppStateChange = (nextAppState: AppStateStatus): void => {
+  const handleAppStateChange = async (nextAppState: AppStateStatus): Promise<void> => {
     if (
       appStateRef.current.match(/inactive|background/) &&
       nextAppState === 'active'
     ) {
-      // App came to foreground — force reconnect to avoid stale/zombie connections
+      // App came to foreground — ensure token is cached before reconnecting
+      await refreshCachedToken();
       console.log('App came to foreground — forcing reconnect');
       websocketService.disconnect();
       websocketService.connect();
