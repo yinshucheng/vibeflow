@@ -5,7 +5,7 @@
  * Requirements: 5.7, 5.11
  */
 
-import type { InteractionType } from '../types/index.js';
+type InteractionType = 'click' | 'input' | 'scroll' | 'keypress' | 'video_play' | 'video_pause';
 
 // Configuration
 const SCROLL_DEBOUNCE_MS = 250;
@@ -429,5 +429,3 @@ if (document.readyState === 'loading') {
   interactionTracker.initialize();
 }
 
-// Export for testing
-export { InteractionTracker, interactionTracker };
