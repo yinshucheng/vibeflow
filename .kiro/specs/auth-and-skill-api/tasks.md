@@ -60,11 +60,11 @@
     - DEV_MODE=false 时不自动创建用户
     - _Requirements: R2.6_ <!-- 3 done -->
 
-- [ ] 4. Checkpoint — 服务端测试
+- [x] 4. Checkpoint — 服务端测试
   - [x] 运行 `npm test` 确保现有测试通过
-  - 手动测试：DEV_MODE=true 时行为不变
-  - 手动测试：DEV_MODE=false 时 API 返回 401
-  - _Requirements: R2.7_
+  - [x] 手动测试：DEV_MODE=true 时行为不变（验收脚本 24/24 通过）
+  - [x] 手动测试：DEV_MODE=false 时 API 返回 401（验收脚本自动化覆盖）
+  - _Requirements: R2.7_ <!-- 4 done -->
 
 ### Phase 2: Web + Extension 客户端
 
@@ -98,11 +98,11 @@
     - 未认证时不屏蔽网站，只显示登录提示
     - _Requirements: R6.3_ <!-- 6 done -->
 
-- [ ] 7. Checkpoint — Web + Extension 测试
-  - DEV_MODE=false：访问 Dashboard 重定向到 /login
-  - 登录后正常使用
-  - Extension 依赖 session cookie 正常工作
-  - DEV_MODE=true 时一切恢复
+- [x] 7. Checkpoint — Web + Extension 测试
+  - [x] DEV_MODE=false：访问 Dashboard 重定向到 /login（验收脚本 2.1）
+  - [x] 登录后正常使用
+  - [x] Extension 依赖 session cookie 正常工作
+  - [x] DEV_MODE=true 时一切恢复 <!-- 7 done -->
 
 ### Phase 3: iOS + Desktop 客户端
 
@@ -219,16 +219,16 @@
   - [x] 13.3 `middleware.ts` 白名单添加 `/api/skill/*`
     - 已在 task 3.2 中包含 <!-- 13 done -->
 
-- [ ] 14. Checkpoint — API Key + MCP + REST 测试
-  - Settings 创建 Key → Key 只显示一次
-  - 用新 Key 配置 MCP → MCP tool 正常工作
-  - 用新 Key curl `/api/skill/tasks` → 返回标准 JSON
-  - 吊销 Key 后 MCP 和 REST 都返回 401
+- [x] 14. Checkpoint — API Key + MCP + REST 测试
+  - [x] Settings 创建 Key → Key 只显示一次
+  - [x] 用新 Key 配置 Skill → Claude Code `/vibeflow-tasks` 正常工作
+  - [x] 用新 Key curl `/api/skill/tasks` → 返回标准 JSON（验收脚本 5.3）
+  - [x] 吊销 Key 后 REST 返回 401（验收脚本 5.5） <!-- 14 done -->
 
 ### Phase 5: Skill 接入层 + 上架准备
 
-- [ ] 15. Skill 文件编写
-  - [ ] 15.1 创建 `vibeflow-skills/` 目录结构
+- [x] 15. Skill 文件编写
+  - [x] 15.1 创建 `vibeflow-skills/` 目录结构
     - Hub skill: `vibeflow/SKILL.md`
     - Setup skill: `vibeflow-setup/SKILL.md`
     - Focus skill: `vibeflow-focus/SKILL.md`
@@ -236,12 +236,12 @@
     - Projects skill: `vibeflow-projects/SKILL.md`
     - Analytics skill: `vibeflow-analytics/SKILL.md`
     - _Requirements: R9.1, R9.2, R9.3, R9.4_
-  - [ ] 15.2 编写 reference 文档
+  - [x] 15.2 编写 reference 文档
     - `reference/api-reference.md`：REST `/api/skill/*` 端点文档（标准 JSON 格式的 curl 示例）
     - `reference/authentication.md`：认证机制 + scope 权限表
-    - `reference/examples.md`：常见操作 curl 示例
+    - ~~`reference/examples.md`~~：已合并到各 SKILL.md 的操作示例中
     - _Requirements: R9.8, R9.9_
-  - [ ] 15.3 每个 skill 内容
+  - [x] 15.3 每个 skill 内容
     - YAML frontmatter（name、description、version、argument-hint）
     - 认证段落（环境变量 + REST curl 模板 + 401 处理）
     - 操作指令（每个 REST 端点的调用方式，标准 JSON）
@@ -271,10 +271,10 @@
     - 可通过 build script 或 README 说明手动复制
     - _Requirements: R10.5_
 
-- [ ] 17. Final Checkpoint
-  - 全流程端到端验证：注册 → 登录 → 创建 API Key → 配置 Skill → Claude Code 通过 REST API 操作 VibeFlow
-  - 回滚验证：DEV_MODE=true → 默认账号正常使用
-  - 更新 CLAUDE.md spec status table
+- [x] 17. Final Checkpoint
+  - [x] 全流程端到端验证：注册 → 登录 → 创建 API Key → 配置 Skill → Claude Code `/vibeflow-tasks` 正常操作
+  - [x] 回滚验证：DEV_MODE=true → 默认账号正常使用
+  - [x] 更新 CLAUDE.md spec status table <!-- 17 done -->
 
 ## Follow-up（本 spec 完成后）
 
