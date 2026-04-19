@@ -93,14 +93,18 @@ export const useHabitStore = create<HabitState & HabitActions>((set, get) => ({
   // ===========================================================================
 
   fetchTodayHabits: async () => {
+    console.log('[HabitStore] fetchTodayHabits called');
     set({ todayLoading: true });
     try {
       const result = await actionService.sendHabitAction<{ habits: TodayHabitData[] }>(
         'HABIT_GET_TODAY',
         {},
       );
+      console.log('[HabitStore] fetchTodayHabits result:', result.success, 'count:', result.data?.habits?.length ?? 0);
       if (result.success && result.data) {
         set({ todayHabits: result.data.habits });
+      } else {
+        console.warn('[HabitStore] fetchTodayHabits failed:', result.error);
       }
     } catch (err) {
       console.error('[HabitStore] Failed to fetch today habits:', err);

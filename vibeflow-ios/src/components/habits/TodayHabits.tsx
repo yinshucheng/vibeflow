@@ -13,10 +13,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useHabitStore, useTodayHabits, useTodayHabitsLoading } from '@/store/habit.store';
+import { useHabitStore, useTodayHabits, useTodayHabitsLoading, useHabits } from '@/store/habit.store';
 import { useTheme } from '@/theme';
 import { useConnectionStatus } from '@/store/app.store';
-import type { TodayHabitData } from '@/types';
+import type { TodayHabitData, HabitData } from '@/types';
 
 // =============================================================================
 // HELPERS
@@ -116,9 +116,11 @@ function HabitRow({ habit, onToggle }: HabitRowProps): React.JSX.Element {
 export function TodayHabits(): React.JSX.Element | null {
   const theme = useTheme();
   const todayHabits = useTodayHabits();
+  const allHabits = useHabits();
   const loading = useTodayHabitsLoading();
   const connectionStatus = useConnectionStatus();
   const fetchTodayHabits = useHabitStore((s) => s.fetchTodayHabits);
+  const fetchHabits = useHabitStore((s) => s.fetchHabits);
   const recordEntry = useHabitStore((s) => s.recordEntry);
   const deleteEntry = useHabitStore((s) => s.deleteEntry);
 
@@ -126,8 +128,9 @@ export function TodayHabits(): React.JSX.Element | null {
   useEffect(() => {
     if (connectionStatus === 'connected') {
       fetchTodayHabits();
+      fetchHabits();
     }
-  }, [connectionStatus, fetchTodayHabits]);
+  }, [connectionStatus, fetchTodayHabits, fetchHabits]);
 
   const handleToggle = useCallback(
     (habit: TodayHabitData) => {
@@ -143,8 +146,21 @@ export function TodayHabits(): React.JSX.Element | null {
     [recordEntry, deleteEntry],
   );
 
+  // Use todayHabits (isDue filtered) if available, otherwise show all active habits
+  // This ensures habits always show even if isDue filtering returns empty
+  const displayHabits: TodayHabitData[] = todayHabits.length > 0
+    ? todayHabits
+    : allHabits
+        .filter((h: HabitData) => h.status === 'ACTIVE')
+        .map((h: HabitData): TodayHabitData => ({
+          ...h,
+          todayEntry: null,
+          streak: { current: 0, best: 0 },
+          isDue: false,
+        }));
+
   // Don't render section if no habits at all (empty state is subtle)
-  if (!loading && todayHabits.length === 0) {
+  if (!loading && displayHabits.length === 0) {
     return null;
   }
 
@@ -154,10 +170,10 @@ export function TodayHabits(): React.JSX.Element | null {
         今日习惯
       </Text>
 
-      {loading && todayHabits.length === 0 ? (
+      {loading && displayHabits.length === 0 ? (
         <ActivityIndicator size="small" color={theme.colors.primary} style={styles.loader} />
       ) : (
-        todayHabits.map((habit) => (
+        displayHabits.map((habit) => (
           <HabitRow key={habit.id} habit={habit} onToggle={handleToggle} />
         ))
       )}
