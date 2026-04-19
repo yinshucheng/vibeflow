@@ -48,7 +48,7 @@ export interface SettingsLockConfig {
  * Requirements: 8.1
  */
 export function isDevelopmentMode(): boolean {
-  return process.env.NODE_ENV === 'development' || process.env.DEV_MODE === 'true';
+  return process.env.DEV_MODE === 'true';
 }
 
 /**

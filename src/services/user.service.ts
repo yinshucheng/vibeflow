@@ -144,7 +144,7 @@ export interface ServiceResult<T> {
 
 // Default dev mode config
 const devModeConfig: DevModeConfig = {
-  enabled: process.env.NODE_ENV === 'development' || process.env.DEV_MODE === 'true',
+  enabled: process.env.DEV_MODE === 'true',
   defaultUserEmail: process.env.DEV_USER_EMAIL || 'dev@vibeflow.local',
   skipAuth: true,
 };

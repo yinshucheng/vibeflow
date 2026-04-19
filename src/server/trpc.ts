@@ -35,10 +35,24 @@ export async function createContext(opts: {
   let session: { user: { id: string; email: string } } | null = null;
   if (!userService.isDevModeEnabled()) {
     try {
-      const token = await getToken({
-        req: { headers: opts.headers } as Parameters<typeof getToken>[0]['req'],
-        secret: process.env.NEXTAUTH_SECRET,
-      });
+      // Parse session cookie and decode JWT manually
+      // getToken with raw Headers doesn't work reliably in custom server context
+      const { decode } = await import('next-auth/jwt');
+      const cookieHeader = opts.headers.get('cookie') || '';
+      const sessionToken = cookieHeader
+        .split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('next-auth.session-token='))
+        ?.split('=')
+        .slice(1)
+        .join('=');
+
+      const token = sessionToken
+        ? await decode({
+            token: sessionToken,
+            secret: process.env.NEXTAUTH_SECRET!,
+          })
+        : null;
       if (token?.id && token?.email) {
         session = {
           user: {
