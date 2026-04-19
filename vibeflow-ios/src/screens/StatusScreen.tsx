@@ -29,7 +29,9 @@ import {
   useBlockingState,
   usePolicy,
   useUserInfo,
+  useAppStore,
 } from '@/store/app.store';
+import { useHabitStore } from '@/store/habit.store';
 import { calculateRemainingTime } from '@/utils/pomodoro-calculator';
 import { useTheme } from '@/theme';
 import { serverConfigService } from '@/services/server-config.service';
@@ -280,12 +282,31 @@ export function StatusScreen(): React.JSX.Element {
   const [refreshing, setRefreshing] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
-  // Pull to refresh handler (just visual feedback, actual sync is automatic)
-  const onRefresh = React.useCallback(() => {
+  const fetchTodayTasks = useAppStore((s) => s.fetchTodayTasks);
+  const fetchOverdueTasks = useAppStore((s) => s.fetchOverdueTasks);
+  const fetchTodayHabits = useHabitStore((s) => s.fetchTodayHabits);
+
+  // Fetch tasks and habits when connected
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      fetchTodayTasks();
+      fetchOverdueTasks();
+    }
+  }, [connectionStatus, fetchTodayTasks, fetchOverdueTasks]);
+
+  // Pull to refresh handler - actually re-fetch data
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    // Simulate refresh delay - actual sync happens via WebSocket
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
+    try {
+      await Promise.all([
+        fetchTodayTasks(),
+        fetchOverdueTasks(),
+        fetchTodayHabits(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchTodayTasks, fetchOverdueTasks, fetchTodayHabits]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>

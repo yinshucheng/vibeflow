@@ -2,7 +2,7 @@
  * TaskList Component
  *
  * Display of today's tasks with interactive completion.
- * Shows Top 3 tasks and all scheduled tasks for today.
+ * Shows overdue tasks, Top 3 tasks, and all scheduled tasks for today.
  *
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6
  */
@@ -16,6 +16,7 @@ import {
   getNonTop3TodayTasks,
   sortTasksForDisplay,
 } from '@/utils/task-filter';
+import { useTheme } from '@/theme';
 import type { TaskData } from '@/types';
 
 // =============================================================================
@@ -27,24 +28,42 @@ interface TaskListProps {
 }
 
 export function TaskList({ onEditTask }: TaskListProps): React.JSX.Element {
+  const theme = useTheme();
   const todayTasks = useAppStore((state) => state.todayTasks);
   const top3Tasks = useAppStore((state) => state.top3Tasks);
+  const overdueTasks = useAppStore((state) => state.overdueTasks);
 
   // Sort tasks for display
   const sortedTop3 = sortTasksForDisplay(top3Tasks);
   const otherTasks = sortTasksForDisplay(
     getNonTop3TodayTasks(todayTasks)
   );
+  const sortedOverdue = sortTasksForDisplay(overdueTasks);
 
   const hasTop3 = sortedTop3.length > 0;
   const hasOtherTasks = otherTasks.length > 0;
+  const hasOverdue = sortedOverdue.length > 0;
 
   return (
     <View style={styles.container}>
+      {/* Overdue Section */}
+      {hasOverdue && (
+        <View style={styles.section}>
+          <View style={styles.overdueTitleRow}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.error }]}>
+              逾期 ({sortedOverdue.length})
+            </Text>
+          </View>
+          {sortedOverdue.map((task) => (
+            <TaskItem key={task.id} task={task} isOverdue onEdit={onEditTask} />
+          ))}
+        </View>
+      )}
+
       {/* Top 3 Section */}
       {hasTop3 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>今日 Top 3</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>今日 Top 3</Text>
           {sortedTop3.map((task) => (
             <TaskItem key={task.id} task={task} isTop3 onEdit={onEditTask} />
           ))}
@@ -54,7 +73,7 @@ export function TaskList({ onEditTask }: TaskListProps): React.JSX.Element {
       {/* Other Tasks Section */}
       {hasOtherTasks && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>其他任务</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>其他任务</Text>
           {otherTasks.map((task) => (
             <TaskItem key={task.id} task={task} onEdit={onEditTask} />
           ))}
@@ -62,10 +81,10 @@ export function TaskList({ onEditTask }: TaskListProps): React.JSX.Element {
       )}
 
       {/* Empty State */}
-      {!hasTop3 && !hasOtherTasks && (
+      {!hasTop3 && !hasOtherTasks && !hasOverdue && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>今日暂无任务</Text>
-          <Text style={styles.emptySubtext}>
+          <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>今日暂无任务</Text>
+          <Text style={[styles.emptySubtext, { color: theme.colors.textMuted }]}>
             请在 Web 或桌面端添加任务
           </Text>
         </View>
@@ -81,10 +100,12 @@ export function TaskList({ onEditTask }: TaskListProps): React.JSX.Element {
 interface TaskItemProps {
   task: TaskData;
   isTop3?: boolean;
+  isOverdue?: boolean;
   onEdit?: (taskId: string) => void;
 }
 
-function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.Element {
+function TaskItem({ task, isTop3 = false, isOverdue = false, onEdit }: TaskItemProps): React.JSX.Element {
+  const theme = useTheme();
   const isCompleted = task.status === 'completed';
   const isInProgress = task.status === 'in_progress';
   const isCurrent = task.isCurrentTask;
@@ -128,42 +149,82 @@ function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.El
     }
   };
 
+  const handleDeferToToday = async () => {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const result = await actionService.updateTask(task.id, { planDate: dateStr });
+    if (!result.success) {
+      Alert.alert('操作失败', result.error?.message || '无法移到今天');
+    }
+  };
+
   const handleLongPress = () => {
     const hasActivePomodoro = !!activePomodoro;
     const pomodoroLabel = hasActivePomodoro ? '切换到此任务' : '开始番茄钟';
 
+    const options = isOverdue
+      ? ['取消', '编辑', '移到今天', '标记为已完成', pomodoroLabel]
+      : ['取消', '编辑', '标记为待办', '标记为进行中', '标记为已完成', pomodoroLabel];
+
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        options: ['取消', '编辑', '标记为待办', '标记为进行中', '标记为已完成', pomodoroLabel],
+        options,
         cancelButtonIndex: 0,
       },
       async (buttonIndex) => {
-        switch (buttonIndex) {
-          case 1:
-            onEdit?.(task.id);
-            break;
-          case 2:
-            handleStatusChange('pending');
-            break;
-          case 3:
-            handleStatusChange('in_progress');
-            break;
-          case 4:
-            handleStatusChange('completed');
-            break;
-          case 5:
-            if (hasActivePomodoro) {
-              const result = await actionService.switchTask(activePomodoro.id, task.id);
-              if (!result.success) {
-                Alert.alert('切换失败', result.error?.message || '无法切换任务');
+        if (isOverdue) {
+          switch (buttonIndex) {
+            case 1:
+              onEdit?.(task.id);
+              break;
+            case 2:
+              handleDeferToToday();
+              break;
+            case 3:
+              handleStatusChange('completed');
+              break;
+            case 4:
+              if (hasActivePomodoro) {
+                const result = await actionService.switchTask(activePomodoro.id, task.id);
+                if (!result.success) {
+                  Alert.alert('切换失败', result.error?.message || '无法切换任务');
+                }
+              } else {
+                const result = await actionService.startPomodoro(task.id);
+                if (!result.success) {
+                  Alert.alert('启动失败', result.error?.message || '无法启动番茄钟');
+                }
               }
-            } else {
-              const result = await actionService.startPomodoro(task.id);
-              if (!result.success) {
-                Alert.alert('启动失败', result.error?.message || '无法启动番茄钟');
+              break;
+          }
+        } else {
+          switch (buttonIndex) {
+            case 1:
+              onEdit?.(task.id);
+              break;
+            case 2:
+              handleStatusChange('pending');
+              break;
+            case 3:
+              handleStatusChange('in_progress');
+              break;
+            case 4:
+              handleStatusChange('completed');
+              break;
+            case 5:
+              if (hasActivePomodoro) {
+                const result = await actionService.switchTask(activePomodoro.id, task.id);
+                if (!result.success) {
+                  Alert.alert('切换失败', result.error?.message || '无法切换任务');
+                }
+              } else {
+                const result = await actionService.startPomodoro(task.id);
+                if (!result.success) {
+                  Alert.alert('启动失败', result.error?.message || '无法启动番茄钟');
+                }
               }
-            }
-            break;
+              break;
+          }
         }
       }
     );
@@ -173,8 +234,10 @@ function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.El
     <TouchableOpacity
       style={[
         styles.taskItem,
+        { backgroundColor: theme.colors.card },
         isCompleted && styles.taskItemCompleted,
-        isCurrent && styles.taskItemCurrent,
+        isCurrent && { borderLeftWidth: 4, borderLeftColor: theme.colors.error },
+        isOverdue && { borderLeftWidth: 3, borderLeftColor: theme.colors.error },
       ]}
       onLongPress={handleLongPress}
       activeOpacity={0.9}
@@ -187,13 +250,13 @@ function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.El
         activeOpacity={0.6}
       >
         {isCompleted ? (
-          <View style={styles.checkmark}>
+          <View style={[styles.checkmark, { backgroundColor: theme.colors.success }]}>
             <Text style={styles.checkmarkText}>✓</Text>
           </View>
         ) : isInProgress ? (
-          <View style={styles.inProgressDot} />
+          <View style={[styles.inProgressDot, { backgroundColor: theme.colors.error }]} />
         ) : (
-          <View style={styles.pendingDot} />
+          <View style={[styles.pendingDot, { borderColor: theme.colors.border }]} />
         )}
       </TouchableOpacity>
 
@@ -202,7 +265,8 @@ function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.El
         <Text
           style={[
             styles.taskTitle,
-            isCompleted && styles.taskTitleCompleted,
+            { color: theme.colors.text },
+            isCompleted && { textDecorationLine: 'line-through', color: theme.colors.textMuted },
           ]}
           numberOfLines={2}
         >
@@ -210,7 +274,14 @@ function TaskItem({ task, isTop3 = false, onEdit }: TaskItemProps): React.JSX.El
         </Text>
         <View style={styles.taskMeta}>
           <PriorityBadge priority={task.priority} />
-          <StatusBadge status={task.status} />
+          {isOverdue && task.planDate && (
+            <View style={[styles.badge, { backgroundColor: '#FEE2E2' }]}>
+              <Text style={[styles.badgeText, { color: '#DC2626' }]}>
+                {task.planDate}
+              </Text>
+            </View>
+          )}
+          {!isOverdue && <StatusBadge status={task.status} />}
           {isCurrent && <CurrentBadge />}
         </View>
       </View>
@@ -286,15 +357,18 @@ function CurrentBadge(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  overdueTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -302,7 +376,6 @@ const styles = StyleSheet.create({
   taskItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
@@ -313,12 +386,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   taskItemCompleted: {
-    backgroundColor: '#F9FAFB',
-    opacity: 0.8,
-  },
-  taskItemCurrent: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
+    opacity: 0.7,
   },
   statusIndicator: {
     width: 24,
@@ -331,7 +399,6 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#10B981',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -344,14 +411,12 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#EF4444',
   },
   pendingDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
   },
   taskContent: {
     flex: 1,
@@ -359,12 +424,7 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1F2937',
     marginBottom: 8,
-  },
-  taskTitleCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#9CA3AF',
   },
   taskMeta: {
     flexDirection: 'row',
@@ -407,12 +467,10 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '500',
-    color: '#6B7280',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#9CA3AF',
   },
 });
 

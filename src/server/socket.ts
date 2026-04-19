@@ -34,6 +34,7 @@ import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { focusSessionService } from '@/services/focus-session.service';
 import { habitReminderService } from '@/services/habit-reminder.service';
 import { habitService } from '@/services/habit.service';
+import { taskService } from '@/services/task.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -1398,6 +1399,88 @@ export class VibeFlowSocketServer {
             await this.broadcastFullStateToUser(userId);
           } else {
             error = { code: 'VALIDATION_ERROR', message: 'taskId and status are required' };
+          }
+          break;
+        }
+
+        case 'TASK_CREATE': {
+          const title = data.title as string;
+          const priority = (data.priority as string) ?? 'P2';
+          const planDate = data.planDate as string | undefined;
+          const projectId = data.projectId as string | undefined;
+          if (!title) {
+            error = { code: 'VALIDATION_ERROR', message: 'title is required' };
+            break;
+          }
+          // Find or use first active project
+          let targetProjectId = projectId;
+          if (!targetProjectId) {
+            const firstProject = await prisma.project.findFirst({
+              where: { userId, status: 'ACTIVE' },
+              orderBy: { createdAt: 'asc' },
+            });
+            targetProjectId = firstProject?.id;
+            if (!targetProjectId) {
+              error = { code: 'NOT_FOUND', message: 'No active project found' };
+              break;
+            }
+          }
+          const createResult = await taskService.create(userId, {
+            title,
+            priority: priority as 'P1' | 'P2' | 'P3',
+            planDate: planDate ? new Date(planDate) : undefined,
+            projectId: targetProjectId,
+          });
+          if (createResult.success && createResult.data) {
+            success = true;
+            resultData = { taskId: createResult.data.id };
+            await this.broadcastFullStateToUser(userId);
+          } else {
+            error = createResult.error ?? { code: 'UNKNOWN', message: 'Failed to create task' };
+          }
+          break;
+        }
+
+        case 'TASK_UPDATE': {
+          const taskId = data.taskId as string;
+          if (!taskId) {
+            error = { code: 'VALIDATION_ERROR', message: 'taskId is required' };
+            break;
+          }
+          const updates: Record<string, unknown> = {};
+          if (data.title !== undefined) updates.title = data.title;
+          if (data.priority !== undefined) updates.priority = data.priority;
+          if (data.planDate !== undefined) updates.planDate = data.planDate ? new Date(data.planDate as string) : null;
+          if (data.status !== undefined) updates.status = data.status;
+          const updateResult = await taskService.update(taskId, userId, updates);
+          if (updateResult.success) {
+            success = true;
+            await this.broadcastFullStateToUser(userId);
+          } else {
+            error = updateResult.error ?? { code: 'UNKNOWN', message: 'Failed to update task' };
+          }
+          break;
+        }
+
+        case 'TASK_GET_TODAY': {
+          const includeDone = data.includeDone as boolean | undefined;
+          const result = await taskService.getTodayTasks(userId, includeDone ?? true);
+          if (result.success) {
+            success = true;
+            resultData = { tasks: result.data } as unknown as Record<string, unknown>;
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to get today tasks' };
+          }
+          break;
+        }
+
+        case 'TASK_GET_OVERDUE': {
+          const result = await taskService.getOverdue(userId);
+          if (result.success) {
+            success = true;
+            resultData = { tasks: result.data } as unknown as Record<string, unknown>;
+          } else {
+            error = result.error ?? { code: 'UNKNOWN', message: 'Failed to get overdue tasks' };
           }
           break;
         }

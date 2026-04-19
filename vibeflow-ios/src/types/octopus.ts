@@ -269,6 +269,8 @@ export type UserActionType =
   | 'TASK_STATUS_CHANGE'
   | 'TASK_CREATE'
   | 'TASK_UPDATE'
+  | 'TASK_GET_TODAY'
+  | 'TASK_GET_OVERDUE'
   | 'POMODORO_START'
   | 'POMODORO_SWITCH_TASK'
   | 'TOP3_SET'

@@ -57,6 +57,8 @@ export interface AppState {
   // Task lists (read-only from server)
   top3Tasks: TaskData[];
   todayTasks: TaskData[];
+  overdueTasks: TaskData[];
+  tasksLoading: boolean;
 
   // Policy data (read-only from server)
   policy: PolicyData | null;
@@ -92,6 +94,10 @@ export interface AppActions {
   setScreenTimeAuthorized: (authorized: boolean) => void;
   setBlockingReason: (reason: BlockingReason | null) => void;
 
+  // Task fetch actions
+  fetchTodayTasks: () => Promise<void>;
+  fetchOverdueTasks: () => Promise<void>;
+
   // Clear state
   clearState: () => void;
 
@@ -121,6 +127,8 @@ const initialState: AppState = {
   activePomodoro: null,
   top3Tasks: [],
   todayTasks: [],
+  overdueTasks: [],
+  tasksLoading: false,
   policy: null,
   isBlockingActive: false,
   selectionSummary: null,
@@ -376,6 +384,12 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         stateVersion: payload.version,
         isAuthenticated: true,
       });
+      // After full sync, fetch complete today tasks and overdue tasks
+      // (FullState only has top3, not full today list or overdue)
+      setTimeout(() => {
+        get().fetchTodayTasks();
+        get().fetchOverdueTasks();
+      }, 0);
     } else if (payload.syncType === 'delta' && payload.delta) {
       // Delta state sync
       const updates = applyDeltaChanges(currentState, payload.delta);
@@ -384,6 +398,16 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         lastSyncTime: Date.now(),
         stateVersion: payload.version,
       });
+      // If task-related delta came in, refresh task lists
+      const hasTaskChange = payload.delta.changes.some((c) =>
+        c.path.startsWith('top3Tasks')
+      );
+      if (hasTaskChange) {
+        setTimeout(() => {
+          get().fetchTodayTasks();
+          get().fetchOverdueTasks();
+        }, 0);
+      }
     }
   },
 
@@ -426,6 +450,57 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set({
       policy: mappedPolicy,
     });
+  },
+
+  // ===========================================================================
+  // TASK FETCH ACTIONS
+  // ===========================================================================
+
+  fetchTodayTasks: async () => {
+    set({ tasksLoading: true });
+    try {
+      const { actionService } = await import('@/services/action.service');
+      const result = await actionService.fetchTodayTasks();
+      if (result.success && result.data) {
+        const currentState = get();
+        const tasks: TaskData[] = result.data.tasks.map((task) => ({
+          id: task.id,
+          title: task.title,
+          priority: mapPriority(task.priority),
+          status: mapTaskStatus(task.status),
+          isTop3: currentState.top3Tasks.some((t) => t.id === task.id),
+          isCurrentTask: currentState.activePomodoro?.taskId === task.id,
+          planDate: task.planDate ?? undefined,
+        }));
+        set({ todayTasks: tasks });
+      }
+    } catch (err) {
+      console.error('[AppStore] Failed to fetch today tasks:', err);
+    } finally {
+      set({ tasksLoading: false });
+    }
+  },
+
+  fetchOverdueTasks: async () => {
+    try {
+      const { actionService } = await import('@/services/action.service');
+      const result = await actionService.fetchOverdueTasks();
+      if (result.success && result.data) {
+        const currentState = get();
+        const tasks: TaskData[] = result.data.tasks.map((task) => ({
+          id: task.id,
+          title: task.title,
+          priority: mapPriority(task.priority),
+          status: mapTaskStatus(task.status),
+          isTop3: false,
+          isCurrentTask: currentState.activePomodoro?.taskId === task.id,
+          planDate: task.planDate ?? undefined,
+        }));
+        set({ overdueTasks: tasks });
+      }
+    } catch (err) {
+      console.error('[AppStore] Failed to fetch overdue tasks:', err);
+    }
   },
 
   // ===========================================================================
@@ -480,6 +555,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     const previousState: Partial<AppState> = {
       top3Tasks: [...currentState.top3Tasks],
       todayTasks: [...currentState.todayTasks],
+      overdueTasks: [...currentState.overdueTasks],
     };
 
     // Apply optimistic update
@@ -497,6 +573,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set({
       top3Tasks: updateTask(currentState.top3Tasks),
       todayTasks: updateTask(currentState.todayTasks),
+      overdueTasks: currentState.overdueTasks.filter((t) => t.id !== taskId),
       pendingUpdates,
     });
 
@@ -549,6 +626,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     const previousState: Partial<AppState> = {
       top3Tasks: [...currentState.top3Tasks],
       todayTasks: [...currentState.todayTasks],
+      overdueTasks: [...currentState.overdueTasks],
     };
 
     const updateTask = (tasks: TaskData[]) =>
@@ -565,6 +643,9 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set({
       top3Tasks: updateTask(currentState.top3Tasks),
       todayTasks: updateTask(currentState.todayTasks),
+      overdueTasks: status === 'completed'
+        ? currentState.overdueTasks.filter((t) => t.id !== taskId)
+        : updateTask(currentState.overdueTasks),
       pendingUpdates,
     });
 
@@ -650,6 +731,18 @@ export const useTop3Tasks = () =>
  */
 export const useTodayTasks = () =>
   useAppStore((state) => state.todayTasks);
+
+/**
+ * Select overdue tasks
+ */
+export const useOverdueTasks = () =>
+  useAppStore((state) => state.overdueTasks);
+
+/**
+ * Select tasks loading state
+ */
+export const useTasksLoading = () =>
+  useAppStore((state) => state.tasksLoading);
 
 /**
  * Select blocking state

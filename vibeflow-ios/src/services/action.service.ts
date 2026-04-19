@@ -107,6 +107,34 @@ class ActionService {
   }
 
   /**
+   * Fetch today's tasks (including completed)
+   */
+  async fetchTodayTasks(): Promise<ActionResult<{ tasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    planDate: string | null;
+    projectId: string | null;
+  }> }>> {
+    return this.sendAction('TASK_GET_TODAY', { includeDone: true });
+  }
+
+  /**
+   * Fetch overdue tasks
+   */
+  async fetchOverdueTasks(): Promise<ActionResult<{ tasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    planDate: string | null;
+    projectId: string | null;
+  }> }>> {
+    return this.sendAction('TASK_GET_OVERDUE', {});
+  }
+
+  /**
    * Send a habit-related action
    */
   async sendHabitAction<T = void>(
