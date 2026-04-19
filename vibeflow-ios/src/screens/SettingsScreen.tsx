@@ -451,7 +451,7 @@ export function SettingsScreen(): React.JSX.Element {
 
         {/* User Info Section */}
         <Section title="用户信息">
-          <Row label="邮箱" value={userEmail ?? 'test@example.com'} isLast />
+          <Row label="邮箱" value={userEmail ?? '未登录'} isLast />
         </Section>
 
         {/* Screen Time Section */}

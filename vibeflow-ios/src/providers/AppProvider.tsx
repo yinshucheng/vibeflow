@@ -49,22 +49,14 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
     if (!serverReady) return;
 
     const checkAuth = async () => {
-      // DEV MODE: skip auth only in dev builds with explicit env var
-      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_MODE === 'true') {
-        const devEmail = process.env.EXPO_PUBLIC_DEV_USER_EMAIL || 'dev@vibeflow.local';
-        setCachedEmail(devEmail);
-        setAuthUser({ id: '', email: devEmail });
-        setAuthStatus('authenticated');
-        return;
-      }
-
-      // Production: verify stored token from SecureStore
+      // Always use real authentication — no dev mode bypass
       try {
         const token = await getToken();
         if (token) {
-          const user = await verifyToken(token);
-          if (user) {
-            setAuthUser(user);
+          const result = await verifyToken(token);
+          if (result.success && result.user) {
+            setCachedEmail(result.user.email);
+            setAuthUser(result.user);
             setAuthStatus('authenticated');
             return;
           }
