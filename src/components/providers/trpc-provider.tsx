@@ -26,9 +26,9 @@ function isUnauthorizedError(error: unknown): boolean {
 
 function redirectToLogin() {
   const currentPath = window.location.pathname;
-  const loginUrl = currentPath && currentPath !== '/login'
-    ? `/login?callbackUrl=${encodeURIComponent(currentPath)}`
-    : '/login';
+  // Don't redirect if already on auth pages (prevents infinite loop)
+  if (currentPath === '/login' || currentPath === '/register') return;
+  const loginUrl = `/login?callbackUrl=${encodeURIComponent(currentPath)}`;
   window.location.href = loginUrl;
 }
 
