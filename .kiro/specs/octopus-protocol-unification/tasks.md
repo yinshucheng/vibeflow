@@ -1,13 +1,93 @@
 # 八爪鱼协议统一化 - Tasks
 
+> **Rev 2** — 基于 Review 7/8 修订。Delta sync 标记 optional、Phase B 拆为 B1+B2、废弃 React Query 双源同步、补充自动化测试策略、补充副作用迁移 task。
+
 ## 修改范围总览
 
 | Phase | 文件数 | 预估净改动行数 | 风险 |
 |-------|--------|--------------|------|
-| Phase A | ~40 文件 | +1200 / -2400（提取+删除旧类型） | 低（功能不变） |
-| Phase B | ~14 文件 | -450 / +130 | 中（原子切换） |
-| Phase C | ~25 文件 | +800 / -600 | 高（Web 架构变更） |
-| Phase D | ~3 文件 | +400 | 低（纯测试） |
+| Phase A | ~40 文件 | +2000 / -2000（提取+删除旧类型） | 低（功能不变） |
+| Phase B1 | ~11 文件 | +80 / -30 | 低（类型重构） |
+| Phase B2 | ~10 文件 | -450 / +50 | 中（原子切换） |
+| Phase C | ~25 文件 | +800 / -600 | 中（SDK + Web 改造） |
+| Phase D | ~5 文件 | +600 | 低（纯测试） |
+
+---
+
+## 自动化测试策略
+
+> 目标：将"需要人工真机验收"的范围压缩到最小。协议层行为全部可自动化测试。
+
+### 新增测试文件
+
+```
+packages/octopus-protocol/tests/
+├── command-handler.test.ts       # command 分发
+├── state-manager.test.ts         # full sync + shallow compare
+├── action-rpc.test.ts            # RPC 超时 + clearAll
+├── event-builder.test.ts         # getUptime 注入 + sequence
+├── conformance.test.ts           # 类型 roundtrip + Zod coverage
+└── performance.bench.ts          # 高频 state 更新开销
+
+tests/integration/
+├── socket-protocol.test.ts       # 真实 socket.io server + client 端到端
+├── policy-config-state.test.ts   # Policy 拆分后 roundtrip
+└── offline-flush-sequence.test.ts # 断连→重连→flush 时序
+
+e2e/tests/
+└── no-polling.spec.ts            # Playwright: 60s 无周期性 HTTP 请求
+```
+
+### `socket-protocol.test.ts` — 替代 80% 的"分端验收"
+
+```typescript
+// 用真实 socket.io server + socket.io-client 模拟各端
+it('server only emits OCTOPUS_COMMAND, no legacy events', async () => {
+  const received: string[] = [];
+  client.onAny((event) => received.push(event));
+  await triggerPomodoroStart(userId);
+  expect(received.filter(e => e === 'OCTOPUS_COMMAND').length).toBeGreaterThan(0);
+  expect(received).not.toContain('STATE_CHANGE');
+  expect(received).not.toContain('SYNC_POLICY');
+  expect(received).not.toContain('EXECUTE');
+  expect(received).not.toContain('policy:update');
+});
+
+it('OCTOPUS_COMMAND contains correct payload', async () => {
+  const commands: any[] = [];
+  client.on('OCTOPUS_COMMAND', (cmd) => commands.push(cmd));
+  await triggerPomodoroComplete(userId);
+  const syncCmd = commands.find(c => c.commandType === 'SYNC_STATE');
+  expect(syncCmd.payload.systemState.state).toBe('idle');
+  expect(syncCmd.payload.activePomodoro).toBeNull();
+});
+
+it('policy update uses Config/State split', async () => {
+  const commands: any[] = [];
+  client.on('OCTOPUS_COMMAND', (cmd) => commands.push(cmd));
+  await updateUserSettings(userId, { enforcementMode: 'gentle' });
+  const policyCmd = commands.find(c => c.commandType === 'UPDATE_POLICY');
+  expect(policyCmd.payload.config.enforcementMode).toBe('gentle');
+  expect(policyCmd.payload.state).toBeDefined();
+});
+```
+
+### 验收卡点分类
+
+| 类别 | 验收方式 | 频率 |
+|------|---------|------|
+| 协议层行为（command 分发、state 合并、legacy 清除） | `socket-protocol.test.ts` 自动化 | 每次 CI |
+| Web 无轮询 | `no-polling.spec.ts` Playwright E2E | 每次 CI |
+| 离线 flush 时序 | `offline-flush-sequence.test.ts` 单测 | 每次 CI |
+| SDK 行为等价 | SDK 单测 + iOS golden data | 每次 CI |
+| Legacy 清除 | CI grep 脚本 | 每次 CI |
+| 各端 tsc 编译 | CI `tsc --noEmit` | 每次 CI |
+| iOS Metro resolve 共享包 | 真机一次性验证 | **仅 Phase A 末尾** |
+| iOS Screen Time | 与协议层无关，不需要重新验证 | N/A |
+| Desktop NSWorkspace 封锁 | 与协议层无关，不需要重新验证 | N/A |
+| Extension chrome.declarativeNetRequest | 与协议层无关，不需要重新验证 | N/A |
+
+**结论：仅 Phase A 末尾需要一次真机验证（Metro/Desktop/Extension 能 resolve 共享包）。后续 Phase 全部可 CI 覆盖。**
 
 ---
 
@@ -15,11 +95,11 @@
 
 ### 影响范围
 
-- **新建**: `packages/octopus-protocol/` (~1200 行类型 + Zod schemas)
-- **删除**: 4 个独立类型文件中的协议类型部分 (~2400 行)
+- **新建**: `packages/octopus-protocol/` (~2000 行类型 + Zod schemas + 基础设施)
+- **删除**: 4 个独立类型文件中的协议类型部分 (~1400 行)
 - **修改 import**: ~38 文件（Server 6 + iOS 6 + Desktop 13 + Extension 13）
 - **新建配置**: `metro.config.js`(iOS)、根 `package.json` 添加 workspaces、Extension tsconfig paths
-- **关键难点**: Desktop 用 `moduleResolution: "node"` + CJS，需要特殊处理
+- **关键难点**: Desktop 用 `moduleResolution: "node"` + CJS，用 tsconfig paths 解决（禁止引入 bundler）
 
 ### Tasks
 
@@ -32,20 +112,47 @@
 - [ ] 7. 定义 `ServerToClientEvents` / `ClientToServerEvents` / `OctopusError` / `PROTOCOL_VERSION`
 - [ ] 8. 配置根 `package.json` 添加 `"workspaces": ["packages/*"]`
 - [ ] 9. iOS: 创建 `metro.config.js`（watchFolders + nodeModulesPaths + TypeScript 转译配置）
-- [ ] 10. Desktop: 处理 `moduleResolution: "node"` 兼容（选项：添加 paths alias 或改为 bundler）
+- [ ] 10. Desktop: 在 `tsconfig.json` 添加 `paths` alias 指向共享包源码（禁止引入 bundler 改造）
 - [ ] 11. Extension: 在 `tsconfig.json` 添加 `paths` 指向共享包源码
-- [ ] 12. **验证点**: 三端编译测试 — iOS `npx expo start`、Desktop `tsc`、Extension `tsc`
-- [ ] 13. Server: `src/types/octopus.ts` 改为 `export * from '@vibeflow/octopus-protocol'`
-- [ ] 14. Server: 更新 6 个文件的 import 路径
-- [ ] 15. iOS: 删除 `vibeflow-ios/src/types/octopus.ts` (383行)，更新 6 个文件 import
-- [ ] 16. Desktop: 从 `electron/types/index.ts` 删除 ~451 行协议类型（保留 ~266 行本地类型），更新 13 个文件 import
-- [ ] 17. Extension: 从 `src/types/index.ts` 删除 ~524 行协议类型（保留 ~161 行本地类型），更新 13 个文件 import
-- [ ] 18. Extension: `PolicyCache` 拆为 `Policy`（从共享包）+ `ExtensionLocalState`（本地）
-- [ ] 19. 全量编译 + `npm test` + `npm run lint`
+- [ ] 12. Server: `src/types/octopus.ts` 改为 `export * from '@vibeflow/octopus-protocol'`
+- [ ] 13. Server: 更新 6 个文件的 import 路径
+- [ ] 14. iOS: 删除 `vibeflow-ios/src/types/octopus.ts` (383行)，更新 6 个文件 import
+- [ ] 15. Desktop: 从 `electron/types/index.ts` 删除 ~451 行协议类型（保留 ~266 行本地类型），更新 13 个文件 import
+- [ ] 16. Extension: 从 `src/types/index.ts` 删除 ~524 行协议类型（保留 ~161 行本地类型），更新 13 个文件 import
+- [ ] 17. Extension: `PolicyCache` 拆为 `Policy`（从共享包）+ `ExtensionLocalState`（本地）
+- [ ] 18. **验证点**: 三端编译测试 — `npm test` + `npm run lint` + iOS `npx expo start` + Desktop `tsc` + Extension `tsc`
+- [ ] 19. **一次性真机验证**: iOS 真机确认 Metro 能 resolve 共享包 + Desktop 启动确认连接 + Extension 加载确认 popup
 
 ---
 
-## Phase B: 原子切换 + Policy Config/State 拆分
+## Phase B1: Policy Config/State 拆分
+
+> 从 Phase B 独立出来，降低原子切换 PR 的风险。
+
+### 影响范围
+
+- **共享包**: Policy 类型拆分
+- **服务端**: `policy-distribution.service.ts` 重构（~110 行状态计算逻辑拆出）
+- **4 端客户端**: Policy 字段访问改为 `policy.config.xxx` / `policy.state.xxx`（11 个文件）
+
+### 前置任务
+
+- [ ] 20. **Policy 迁移审计**: 列出所有 `policy.xxx.isCurrentlyActive` / `policy.overRest?.isOverRest` 等运行时字段访问点
+
+### Tasks
+
+- [ ] 21. 共享包: Policy 接口更新为 `{ config: PolicyConfig; state: PolicyState }`
+- [ ] 22. 服务端: `policy-distribution.service.ts` 重构 `compilePolicy()` — 拆分为 `compileConfig()` + `compileState()`
+- [ ] 23. 服务端: 所有 `broadcastPolicyUpdate` 调用适配新结构
+- [ ] 24. iOS: Policy 访问改为 `policy.config.xxx` / `policy.state.xxx`（5 个文件：app.store, blocking.service, StatusScreen, SettingsScreen, blocking-reason.ts）
+- [ ] 25. Desktop: `main.ts` + `policy-cache.ts` Policy 访问改为新结构
+- [ ] 26. Extension: `policy-cache.ts` + `policy-manager.ts` Policy 访问改为新结构
+- [ ] 27. 编写 `tests/integration/policy-config-state.test.ts` — Policy 编译 roundtrip 测试
+- [ ] 28. 全量编译 + `npm test` + `npm run lint`
+
+---
+
+## Phase B2: 原子切换到纯 OCTOPUS_COMMAND
 
 ### 影响范围
 
@@ -53,37 +160,35 @@
 - **Desktop connection-manager.ts**: 删除 4 个 legacy listener（~19 行），扩展 OCTOPUS_COMMAND handler
 - **Extension websocket.ts**: 删除 3 个 legacy switch case（~8 行），迁移 7 个 legacy event 发送
 - **iOS habit.store.ts**: 删除 legacy habit/EXECUTE listener（~17 行）
-- **Policy 拆分**: 11 个文件需要更新字段访问方式
 
 ### 前置任务
 
-- [ ] 20. **Impact analysis**: 列出 socket.ts 中每个 legacy handler 的下游依赖路径
-- [ ] 21. **Policy 迁移审计**: 列出所有 `policy.xxx.isCurrentlyActive` 等运行时字段访问点（11 个文件）
+- [ ] 29. **Impact analysis**: 列出 socket.ts 中每个 legacy handler 的下游依赖路径
 
 ### Tasks — 服务端
 
-- [ ] 22. Policy: `policy-distribution.service.ts` 重构 `compilePolicy()` — 拆分为 `compileConfig()` + `compileState()`（影响 ~110 行运行时状态计算逻辑）
-- [ ] 23. Policy: 共享包中 Policy 接口更新为 `{ config: PolicyConfig; state: PolicyState }`
-- [ ] 24. socket.ts: 删除 `broadcastPolicyUpdate()` 中 `policy:update` + `SYNC_POLICY` 发送（L2560, L2564）
-- [ ] 25. socket.ts: 删除 `sendStateSnapshotToSocket()` 中 `STATE_CHANGE` legacy 发送（L2125）
-- [ ] 26. socket.ts: 删除 `sendExecuteCommand()` 中 `EXECUTE` legacy 发送（L2582）
-- [ ] 27. socket.ts: `broadcastHabitUpdate()` 改为 `SYNC_STATE` delta sync + `SHOW_UI`（L2612-2628）
-- [ ] 28. socket.ts: `broadcastEntertainmentModeChange()` 改为 `OCTOPUS_COMMAND`（L2739）
-- [ ] 29. socket.ts: 删除 8 个 legacy event handlers — `ACTIVITY_LOG`(L896), `URL_CHECK`(L901), `USER_RESPONSE`(L906), `REQUEST_POLICY`(L911), `TIMELINE_EVENT`(L916), `TIMELINE_EVENTS_BATCH`(L921), `BLOCK_EVENT`(L926), `INTERRUPTION_EVENT`(L931)
-- [ ] 30. socket.ts: 清理 `ServerToClientEvents` / `ClientToServerEvents` 接口（从共享包导入）
+- [ ] 30. socket.ts: 删除 `broadcastPolicyUpdate()` 中 `policy:update` + `SYNC_POLICY` 发送
+- [ ] 31. socket.ts: 删除 `sendStateSnapshotToSocket()` 中 `STATE_CHANGE` legacy 发送
+- [ ] 32. socket.ts: 删除 `sendExecuteCommand()` 中 `EXECUTE` legacy 发送
+- [ ] 33. socket.ts: `broadcastHabitUpdate()` 改为 `SYNC_STATE` full sync + `SHOW_UI`
+- [ ] 34. socket.ts: `broadcastEntertainmentModeChange()` 改为 `OCTOPUS_COMMAND`
+- [ ] 35. socket.ts: 删除 8 个 legacy event handlers
+- [ ] 36. socket.ts: 清理 `ServerToClientEvents` / `ClientToServerEvents` 接口（从共享包导入）
 
 ### Tasks — 客户端迁移
 
-- [ ] 31. iOS: 删除 `habit.store.ts` 中 `habit:*` + `EXECUTE` legacy listener
-- [ ] 32. iOS: Policy 访问改为 `policy.config.xxx` / `policy.state.xxx`（5 个文件：app.store, blocking.service, StatusScreen, SettingsScreen, blocking-reason.ts）
-- [ ] 33. Desktop: `connection-manager.ts` 删除 `policy:update`/`STATE_CHANGE`/`EXECUTE` listener，扩展 `OCTOPUS_COMMAND` handler 支持 `UPDATE_POLICY`/`EXECUTE_ACTION`/`SHOW_UI`
-- [ ] 34. Desktop: `main.ts` Policy 访问改为 `policy.config/state`（L1168-1203, L1286-1292）
-- [ ] 35. Extension: `websocket.ts` 删除 `SYNC_POLICY`/`STATE_CHANGE`/`EXECUTE` switch cases（L330-339）
-- [ ] 36. Extension: `service-worker.ts` 迁移 7 个 legacy `sendEvent()` 调用为 `sendOctopusEvent()`
-- [ ] 37. Extension: 删除 `ServerMessage` / `ClientMessage` legacy 类型
-- [ ] 38. 各端离线队列：初始化时 clear 不认识的旧格式事件
-- [ ] 39. 全量编译 + `npm test` + `npm run lint`
-- [ ] 40. **分端验收**: iOS 真机、Desktop 打包运行、Extension 加载测试
+- [ ] 37. iOS: 删除 `habit.store.ts` 中 `habit:*` + `EXECUTE` legacy listener
+- [ ] 38. Desktop: `connection-manager.ts` 删除 legacy listeners，扩展 `OCTOPUS_COMMAND` handler 支持 `UPDATE_POLICY`/`EXECUTE_ACTION`/`SHOW_UI`
+- [ ] 39. Extension: `websocket.ts` 删除 legacy switch cases
+- [ ] 40. Extension: `service-worker.ts` 迁移 7 个 legacy `sendEvent()` 为 `sendOctopusEvent()`
+- [ ] 41. Extension: 删除 `ServerMessage` / `ClientMessage` legacy 类型
+- [ ] 42. 各端离线队列：初始化时 warn log + clear 不认识的旧格式事件（未上线无用户数据风险）
+
+### Tasks — 自动化验证
+
+- [ ] 43. 编写 `tests/integration/socket-protocol.test.ts` — 真实 socket.io server+client 端到端：验证只收到 OCTOPUS_COMMAND、payload 格式正确、无 legacy 事件
+- [ ] 44. CI grep 脚本：验证服务端/各端无 legacy 事件引用
+- [ ] 45. 全量编译 + `npm test` + `npm run lint`
 
 ---
 
@@ -92,68 +197,74 @@
 ### 影响范围
 
 - **新建 SDK**: `packages/octopus-protocol/src/protocol/`（5 个文件，~500 行）
-- **iOS**: 替换 `websocket.service.ts` handler + `app.store.ts` sync 逻辑 + `action.service.ts`
-- **Desktop**: 替换 `connection-manager.ts` command routing
-- **Extension**: 替换 `websocket.ts` command routing + 配置 storage 持久化
-- **Web**: 新建 realtime store + 删除 14 个 refetchInterval（8 个文件）+ 重写 `socket-client.ts`
-- **服务端**: delta sync 格式从 path-based 改为 top-level merge
+- **iOS**: 替换 command handler + state sync + action RPC
+- **Desktop**: 替换 command routing
+- **Extension**: 替换 command routing + 配置 storage 持久化
+- **Web**: 新建 realtime store + 删除 14 个 refetchInterval（8 个文件）+ 重写 socket-client
+- **Delta sync**: **标记为 optional/future** — 当前保持 full sync，单用户场景足够
 
 ### 前置任务
 
-- [ ] 41. **WS 推送覆盖审计**: 确认服务端所有状态变更都有对应的 `broadcastFullState`/`broadcastPolicyUpdate` 调用
-- [ ] 42. **Delta sync 格式调研**: 确认服务端 `broadcastDeltaState` 当前发的格式，评估改为 top-level merge 的工作量
+- [ ] 46. **WS 推送覆盖审计**: 确认服务端所有状态变更都有对应的 `broadcastFullState`/`broadcastPolicyUpdate` 调用。遗漏的补上，否则 Web 删除轮询后该状态永远不更新。
 
 ### Tasks — SDK 实现
 
-- [ ] 43. 实现 `command-handler.ts`（createCommandHandler）
-- [ ] 44. 实现 `state-manager.ts`（createStateManager，含 initialize/saveToStorage/flush 时序控制）
-- [ ] 45. 实现 `action-rpc.ts`（createActionRPC）
-- [ ] 46. 实现 `event-builder.ts`（createEventBuilder，含 getUptime 注入）
-- [ ] 47. 实现 `heartbeat.ts`
-- [ ] 48. SDK 单元测试（command 分发、state 合并、RPC 超时、delta sync 边缘 case、flush 时序）
-
-### Tasks — 服务端 delta 格式调整
-
-- [ ] 49. 服务端: delta sync 改为发送完整顶层子对象（如 `systemState: { state, version }` 而非 `changes: [{ path: 'systemState.state' }]`）
-- [ ] 50. 验证服务端 delta 格式与 State Manager 的 `handleDeltaSync` 对齐
+- [ ] 47. 实现 `command-handler.ts`（createCommandHandler）
+- [ ] 48. 实现 `state-manager.ts`（createStateManager，含 initialize/saveToStorage/fullSyncReceived 控制）
+- [ ] 49. 实现 `action-rpc.ts`（createActionRPC）
+- [ ] 50. 实现 `event-builder.ts`（createEventBuilder，含 `getUptime` 注入，不使用 `process.uptime()`）
+- [ ] 51. 实现 `heartbeat.ts`
+- [ ] 52. SDK 单元测试（command 分发、state full sync + shallow compare、RPC 超时 + clearAll、EventBuilder 无 getUptime 不 crash、fullSyncReceived 时序）
 
 ### Tasks — 各端迁移
 
-- [ ] 51. iOS: `websocket.service.ts` OCTOPUS_COMMAND handler → `createCommandHandler`
-- [ ] 52. iOS: `app.store.ts` full/delta sync → `createStateManager`（验证与原 `applyDeltaChanges` 行为等价）
-- [ ] 53. iOS: `action.service.ts` → `createActionRPC`
-- [ ] 54. Desktop: `connection-manager.ts` command routing → `createCommandHandler` + `createStateManager`
-- [ ] 55. Extension: `websocket.ts` command routing → `createCommandHandler` + `createStateManager`（配置 chrome.storage.local 持久化）
-- [ ] 56. 各端离线队列 flush：改为等 `isFullSyncReceived()` 后再 flush
+- [ ] 53. iOS: `websocket.service.ts` OCTOPUS_COMMAND handler → `createCommandHandler`
+- [ ] 54. iOS: `app.store.ts` full sync 逻辑 → `createStateManager`（验证与原实现行为等价；`applyDeltaChanges` 是死代码可删除）
+- [ ] 55. iOS: `action.service.ts` → `createActionRPC`
+- [ ] 56. Desktop: `connection-manager.ts` command routing → `createCommandHandler` + `createStateManager`
+- [ ] 57. Extension: `websocket.ts` command routing → `createCommandHandler` + `createStateManager`（配置 `chrome.storage.local` 持久化）
+- [ ] 58. 各端离线队列 flush 时序：重连 → 等待 full sync（超时 10s）→ flush 离线队列 → 超时则直接 flush（best effort）
 
 ### Tasks — Web 端数据流统一
 
-- [ ] 57. Web: 重写 `src/lib/socket-client.ts`（264行）— 从 legacy events 切换到 `OCTOPUS_COMMAND`
-- [ ] 58. Web: 新建 `src/stores/realtime.store.ts`（Zustand）用 `createStateManager` 驱动
-- [ ] 59. Web: 重写 `src/hooks/use-socket.ts`（139行）— 用 `createCommandHandler` + 更新 realtime store
-- [ ] 60. Web: 删除 `tray-sync-provider.tsx` 的 6 个 `refetchInterval` 查询
-- [ ] 61. Web: 删除 `header.tsx`、`dashboard-status.tsx`、`daily-progress-card.tsx`、`goal-risk-suggestions.tsx` 的 `refetchInterval`
-- [ ] 62. Web: 删除 `focus-session-control.tsx`、`demo-mode-banner.tsx` 的 `refetchInterval`
-- [ ] 63. Web: WS 推送更新 store 后用 `queryClient.setQueryData()` 同步 React Query cache
-- [ ] 64. Web: 保留一次性 tRPC 查询（去 refetchInterval，设 staleTime: 60_000）
-- [ ] 65. 全量编译 + `npm test` + `npm run lint`
-- [ ] 66. **验证**: DevTools Network 无周期性 HTTP 请求
-- [ ] 67. **性能验证**: 模拟高频 delta sync（每秒 5 次），确认无 over-render
+- [ ] 59. Web: 重写 `src/lib/socket-client.ts`（264行）— 从 legacy events 切换到 `OCTOPUS_COMMAND`
+- [ ] 60. Web: 新建 `src/stores/realtime.store.ts`（Zustand）用 `createStateManager` 驱动
+- [ ] 61. Web: 重写 `src/hooks/use-socket.ts`（139行）— 用 `createCommandHandler` + 更新 realtime store
+- [ ] 62. **副作用迁移**: 将 `tray-sync-provider.tsx` 中的副作用（overRest toast、healthLimit 提示等）迁移到 realtime store 的 subscribe 回调或 command handler 中
+- [ ] 63. Web: 删除 `tray-sync-provider.tsx` 的 6 个 `refetchInterval` 查询
+- [ ] 64. Web: 删除 `header.tsx`、`dashboard-status.tsx`、`daily-progress-card.tsx`、`goal-risk-suggestions.tsx` 的 `refetchInterval`
+- [ ] 65. Web: 删除 `focus-session-control.tsx`、`demo-mode-banner.tsx` 的 `refetchInterval`
+- [ ] 66. Web: 审计所有仍从 React Query 读取实时数据的组件，改为从 `realtime.store.ts` 读取。**React Query 仅保留用于非实时数据**（任务列表详情、历史记录等），不做 `queryClient.setQueryData()` 双源同步。
+- [ ] 67. 全量编译 + `npm test` + `npm run lint`
+
+### Tasks — 自动化验证
+
+- [ ] 68. 编写 `e2e/tests/no-polling.spec.ts` — Playwright 拦截所有请求，等 60s，断言无周期性 tRPC 调用
+- [ ] 69. 编写 `tests/integration/offline-flush-sequence.test.ts` — 断连→事件入队→重连→full sync→flush 时序
+- [ ] 70. 性能验证：模拟每秒 5 次 full sync，确认 Web 端无 over-render（Zustand selector 精确订阅）
+
+### Delta Sync（Optional / Future）
+
+> Review 8 确认：服务端当前只有 full sync（`sendStateSnapshotToSocket` 始终发 `syncType: 'full'`），iOS 的 `applyDeltaChanges` 是从未被触发的死代码。因此 delta sync 不是"退化"而是"尚未实现"。单用户 App 的 full sync payload 几百字节，无性能压力。上线后有真实数据再做 delta 优化。
+
+- [ ] 71. _(future)_ 服务端: 实现 `broadcastDeltaState` — 维护 per-socket last-sent-state，diff 计算变更的顶层 key
+- [ ] 72. _(future)_ State Manager: `handleDeltaSync` 支持 top-level merge
+- [ ] 73. _(future)_ 各端对接 delta sync 路径
 
 ---
 
 ## Phase D: Conformance 测试 + 性能验证
 
-- [ ] 68. 创建 `packages/octopus-protocol/tests/conformance.test.ts`
-- [ ] 69. 测试所有 EventType ↔ interface ↔ Zod schema 映射完整
-- [ ] 70. 测试所有 CommandType ↔ interface ↔ Zod schema 映射完整
-- [ ] 71. 测试 Policy (Config + State) JSON roundtrip
-- [ ] 72. 测试未知 commandType 优雅忽略
-- [ ] 73. 测试 State Manager 边缘 case（FOCUS→IDLE 清 activePomodoro、shallow compare、flush 时序、initialize 恢复）
-- [ ] 74. 测试 ActionRPC 超时 + clearAll
-- [ ] 75. 测试 EventBuilder 无 getUptime 时不 crash
-- [ ] 76. 性能基准测试：每秒 10 次 delta sync 的对象创建开销
-- [ ] 77. 各端编译通过: `tsc --noEmit` for all projects
+- [ ] 74. 创建 `packages/octopus-protocol/tests/conformance.test.ts`
+- [ ] 75. 测试所有 EventType ↔ interface ↔ Zod schema 映射完整
+- [ ] 76. 测试所有 CommandType ↔ interface ↔ Zod schema 映射完整
+- [ ] 77. 测试 Policy (Config + State) JSON roundtrip
+- [ ] 78. 测试未知 commandType 优雅忽略
+- [ ] 79. 测试 State Manager: full sync 覆盖 + shallow compare + fullSyncReceived 控制 + initialize 恢复
+- [ ] 80. 测试 ActionRPC 超时 + clearAll
+- [ ] 81. 测试 EventBuilder 无 getUptime 时不 crash
+- [ ] 82. 性能基准：每秒 10 次 full sync 的对象创建开销 < 1ms/次
+- [ ] 83. 各端编译通过: `tsc --noEmit` for all projects
 
 ---
 
@@ -161,49 +272,51 @@
 
 ### Phase A 验收
 
-| 验收项 | 方式 |
-|--------|------|
-| 共享包结构正确 | 检查 `packages/octopus-protocol/` 目录 |
-| 所有端编译通过 | `npm test` + 各子项目 `tsc --noEmit` |
-| iOS 真机能运行 | `expo run:ios --device`，确认 heartbeat 正常 |
-| Desktop 能启动 | `npm run dev` in desktop，确认连接正常 |
-| Extension 能加载 | Chrome 开发者模式加载，确认 popup 正常 |
-| 无功能回归 | 各端功能与改前一致（只是 import 路径变了） |
-| 旧类型文件已删除 | `vibeflow-ios/src/types/octopus.ts` 等不再存在 |
+| 验收项 | 方式 | 自动化？ |
+|--------|------|---------|
+| 共享包结构正确 | 检查 `packages/octopus-protocol/` 目录 | CI: 文件存在性检查 |
+| 所有端编译通过 | `npm test` + 各子项目 `tsc --noEmit` | ✅ CI |
+| 旧类型文件已删除 | `vibeflow-ios/src/types/octopus.ts` 等不再存在 | ✅ CI: `test ! -f` |
+| 无功能回归 | 各端功能与改前一致 | ✅ CI: 现有测试全绿 |
+| 三端能 resolve 共享包 | iOS Metro + Desktop tsc + Extension tsc | ⚠️ **Phase A 末尾一次性真机验证** |
 
-### Phase B 验收
+### Phase B1 验收
 
-| 验收项 | 方式 |
-|--------|------|
-| socket.ts 无 legacy emit | `grep -n 'policy:update\|SYNC_POLICY\|STATE_CHANGE.*emit\|EXECUTE.*emit\|habit:' src/server/socket.ts` 返回空 |
-| socket.ts 无 legacy handler | `grep -n 'ACTIVITY_LOG\|URL_CHECK\|USER_RESPONSE\|REQUEST_POLICY\|TIMELINE_EVENT\|BLOCK_EVENT\|INTERRUPTION_EVENT' src/server/socket.ts` 只出现在类型定义中 |
-| Desktop 只监听 OCTOPUS_COMMAND | `grep -n 'policy:update\|STATE_CHANGE\|EXECUTE' vibeflow-desktop/` 返回空 |
-| Extension 只监听 OCTOPUS_COMMAND | `grep -n 'SYNC_POLICY\|STATE_CHANGE.*case\|EXECUTE.*case' vibeflow-extension/src/lib/websocket.ts` 返回空 |
-| Policy 已拆分 | `policy.config.blacklist` / `policy.state.isOverRest` 格式 |
-| iOS 真机功能正常 | 番茄钟启停、任务操作、策略更新、习惯追踪 |
-| Desktop 功能正常 | 应用封锁、策略推送、状态同步 |
-| Extension 功能正常 | URL blocking、entertainment mode、状态显示 |
+| 验收项 | 方式 | 自动化？ |
+|--------|------|---------|
+| Policy 已拆分 | `policy.config.blacklist` / `policy.state.isOverRest` | ✅ CI: `policy-config-state.test.ts` |
+| Policy roundtrip 正确 | 编译+广播+客户端解析 | ✅ CI: 集成测试 |
+| 编译通过 | `npm test` + `npm run lint` | ✅ CI |
+
+### Phase B2 验收
+
+| 验收项 | 方式 | 自动化？ |
+|--------|------|---------|
+| 服务端无 legacy emit | grep 返回空 | ✅ CI grep |
+| 服务端无 legacy handler | grep 返回空 | ✅ CI grep |
+| 各端只监听 OCTOPUS_COMMAND | grep 返回空 | ✅ CI grep |
+| 协议行为正确 | socket-protocol.test.ts | ✅ CI |
+| 编译通过 | `npm test` + `npm run lint` | ✅ CI |
 
 ### Phase C 验收
 
-| 验收项 | 方式 |
-|--------|------|
-| SDK 单元测试全绿 | `npx vitest run packages/octopus-protocol/tests/` |
-| 各端使用共享 command handler | `grep 'createCommandHandler' vibeflow-*/` 每端有调用 |
-| 各端使用共享 state manager | `grep 'createStateManager' vibeflow-*/` + `src/stores/` |
-| Web 无 refetchInterval | `grep -rn 'refetchInterval' src/components/` 返回空 |
-| Web DevTools Network 无轮询 | 手动验证：打开 Dashboard 60s，无周期性 XHR |
-| 离线队列 flush 时序正确 | 断网 → 操作 → 恢复 → 验证数据不丢失不闪烁 |
-| iOS 行为与改前等价 | 番茄钟启停、delta sync、action RPC 响应正常 |
-| Desktop 行为与改前等价 | 状态同步、策略推送、命令执行正常 |
+| 验收项 | 方式 | 自动化？ |
+|--------|------|---------|
+| SDK 单测全绿 | `vitest run packages/octopus-protocol/tests/` | ✅ CI |
+| 各端使用共享 SDK | grep `createCommandHandler` / `createStateManager` | ✅ CI grep |
+| Web 无 refetchInterval | grep 返回空 | ✅ CI grep |
+| Web 无周期性请求 | `no-polling.spec.ts` Playwright E2E | ✅ CI |
+| 离线 flush 时序正确 | `offline-flush-sequence.test.ts` | ✅ CI |
+| Web 实时数据单一来源 | grep: 实时数据组件只从 realtime.store 读取 | ✅ CI grep |
+| 副作用（toast/notification）正常 | 手动验证一次 or E2E | ⚠️ 低风险，可后补 |
 
 ### Phase D 验收
 
-| 验收项 | 方式 |
-|--------|------|
-| Conformance 测试全绿 | `npx vitest run packages/octopus-protocol/tests/conformance.test.ts` |
-| 性能基准通过 | 每秒 10 次 delta sync 下无内存泄漏、对象创建 < 1ms/次 |
-| 所有端 tsc 通过 | 各子项目 `tsc --noEmit` 零错误 |
+| 验收项 | 方式 | 自动化？ |
+|--------|------|---------|
+| Conformance 全绿 | `vitest run conformance.test.ts` | ✅ CI |
+| 性能基准通过 | < 1ms/次 | ✅ CI |
+| 所有端 tsc 通过 | `tsc --noEmit` | ✅ CI |
 
 ---
 
@@ -211,9 +324,35 @@
 
 | Phase | 适合 Pipeline？ | 理由 |
 |-------|----------------|------|
-| Phase A | ✅ 部分适合 | Task 1-8（创建共享包）可以串行自动化；Task 9-12（各端配置）需要真机验证；Task 13-19（import 迁移）可以自动化 |
-| Phase B | ❌ 不适合 | 必须作为一个原子 PR，且需要前置 impact analysis（手动判断），分端验收需要真机 |
-| Phase C | ⚠️ 有限适合 | SDK 实现 (Task 43-48) 可以自动化；各端迁移需要逐端验证行为等价性；Web 端改造可以自动化 |
-| Phase D | ✅ 适合 | 纯测试编写，可以自动化 |
+| Phase A Task 1-11 | ✅ 可自动化 | 创建共享包 + 配置各端 bundler |
+| Phase A Task 12-18 | ✅ 可自动化 | 机械性 import 迁移（从 `../types/octopus` → `@vibeflow/octopus-protocol`） |
+| Phase A Task 19 | ❌ 人工 | 一次性真机验证 |
+| Phase B1 | ✅ 可自动化 | Policy 类型拆分 + 字段访问更新 |
+| Phase B2 Task 29 | ❌ 人工 | Impact analysis 需要判断 |
+| Phase B2 Task 30-45 | ✅ 可自动化 | 删 legacy + 写集成测试 |
+| Phase C Task 46 | ❌ 人工 | WS 推送覆盖审计需要理解业务 |
+| Phase C Task 47-70 | ✅ 可自动化 | SDK 实现 + 各端迁移 + 测试编写 |
+| Phase D | ✅ 可自动化 | 纯测试编写 |
 
-**建议**：Phase A 和 Phase D 可以用 pipeline，Phase B 和 Phase C 的核心部分需要人工判断和真机验收。
+**总结：83 个 task 中，仅 3 个需要人工判断（Task 19 真机验证、Task 29 impact analysis、Task 46 WS 审计）。其余全部可 pipeline 执行。**
+
+---
+
+## Review 审计追踪
+
+| # | 来源 | 意见 | 裁决 |
+|---|------|------|------|
+| R7-1 | Review 7 | 离线队列 clear 导致数据丢失 | **拒绝** — 未上线无用户数据，加 warn log 即可 |
+| R7-2 | Review 7 | 重连 flush 时序导致 UI 闪烁 | **部分采纳** — 不做"先 flush 再 full sync"的反转，采用 Review 8 的超时策略（10s 超时后 best effort flush） |
+| R7-3 | Review 7 | queryClient.setQueryData 双源反模式 | **采纳** — 废弃双源同步，实时数据只从 Zustand 读 |
+| R7-4 | Review 7 | Delta sync top-level merge 性能倒退 | **拒绝** — Review 8 确认服务端根本没有 delta sync，iOS applyDeltaChanges 是死代码 |
+| R7-5 | Review 7 | Task 12 位置错误 | **采纳** — 验证移到 Task 18 之后 |
+| R7-6 | Review 7 | Desktop 禁止引入 bundler | **采纳** — 明确 tsconfig paths |
+| R7-7 | Review 7 | Feature Flag 灰度 | **拒绝** — 单人项目未上线，过度设计 |
+| R8-1 | Review 8 | Phase B 拆为 B1+B2 | **采纳** — B1 Policy 拆分，B2 legacy 删除 |
+| R8-2 | Review 8 | Task 42 delta sync 实际不存在 | **采纳** — 重写描述，delta sync 标记 optional |
+| R8-3 | Review 8 | Task 49-50 工作量低估 | **采纳** — 标记为 optional/future |
+| R8-4 | Review 8 | Task 63 双源问题 | **采纳** — 同 R7-3 |
+| R8-5 | Review 8 | Task 56 超时策略 | **采纳** — 补充 10s 超时 best effort |
+| R8-6 | Review 8 | tray-sync 副作用迁移 | **采纳** — 新增 Task 62 |
+| R8-7 | Review 8 | Delta sync 标记 optional | **采纳** — full sync 对单用户够用 |
