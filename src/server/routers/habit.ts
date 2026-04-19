@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import {
   habitService,
   CreateHabitSchema,
@@ -20,7 +20,7 @@ export const habitRouter = router({
   /**
    * Create a new habit
    */
-  create: protectedProcedure
+  create: writeProcedure
     .input(CreateHabitSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await habitService.create(ctx.user.userId, input);
@@ -41,7 +41,7 @@ export const habitRouter = router({
   /**
    * Update an existing habit
    */
-  update: protectedProcedure
+  update: writeProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -76,7 +76,7 @@ export const habitRouter = router({
   /**
    * Update habit status (ACTIVE / PAUSED / ARCHIVED)
    */
-  updateStatus: protectedProcedure
+  updateStatus: writeProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -105,7 +105,7 @@ export const habitRouter = router({
   /**
    * Delete a habit (cascades to entries)
    */
-  delete: protectedProcedure
+  delete: writeProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const result = await habitService.delete(ctx.user.userId, input.id);
@@ -125,7 +125,7 @@ export const habitRouter = router({
   /**
    * Record a habit entry (complete / update value)
    */
-  recordEntry: protectedProcedure
+  recordEntry: writeProcedure
     .input(RecordEntrySchema)
     .mutation(async ({ ctx, input }) => {
       const result = await habitService.recordEntry(
@@ -157,7 +157,7 @@ export const habitRouter = router({
   /**
    * Skip a habit for a given date
    */
-  skipEntry: protectedProcedure
+  skipEntry: writeProcedure
     .input(
       z.object({
         habitId: z.string().uuid(),
@@ -192,7 +192,7 @@ export const habitRouter = router({
   /**
    * Delete a habit entry for a given date
    */
-  deleteEntry: protectedProcedure
+  deleteEntry: writeProcedure
     .input(
       z.object({
         habitId: z.string().uuid(),
@@ -221,7 +221,7 @@ export const habitRouter = router({
   /**
    * List habits for the current user
    */
-  list: protectedProcedure
+  list: readProcedure
     .input(
       z.object({
         status: z.enum(['ACTIVE', 'PAUSED', 'ARCHIVED']).optional(),
@@ -246,7 +246,7 @@ export const habitRouter = router({
   /**
    * Get today's due habits with completion status and streak
    */
-  getToday: protectedProcedure.query(async ({ ctx }) => {
+  getToday: readProcedure.query(async ({ ctx }) => {
     const result = await habitService.getTodayHabits(ctx.user.userId);
 
     if (!result.success) {

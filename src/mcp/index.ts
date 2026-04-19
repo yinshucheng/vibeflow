@@ -5,7 +5,7 @@
  */
 
 export { createMCPServer, startMCPServer, SERVER_NAME, SERVER_VERSION } from './server';
-export { authenticateToken, generateApiToken } from './auth';
+export { authenticateToken } from './auth';
 export type { MCPContext, AuthResult } from './auth';
 export { registerResources, handleResourceRead, RESOURCE_URIS } from './resources';
 export type {

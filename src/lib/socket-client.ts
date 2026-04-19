@@ -79,9 +79,11 @@ export function initializeSocket(options?: {
 
   // In dev mode, read email from localStorage if not explicitly provided
   let email = options?.email;
-  if (!email && typeof window !== 'undefined') {
+  if (!email && typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
     email = localStorage.getItem('dev-user-email') || undefined;
   }
+  // In production mode (no dev mode), Web socket relies on same-origin
+  // NextAuth session cookies for authentication (sent automatically)
 
   const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 

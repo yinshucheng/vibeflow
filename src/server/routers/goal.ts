@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { 
   goalService, 
   CreateGoalSchema, 
@@ -19,7 +19,7 @@ export const goalRouter = router({
    * Get all goals for the current user
    * Requirements: 11.1
    */
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: readProcedure.query(async ({ ctx }) => {
     const result = await goalService.getByUser(ctx.user.userId);
     
     if (!result.success) {
@@ -36,7 +36,7 @@ export const goalRouter = router({
    * Get goal progress
    * Requirements: 11.9
    */
-  getProgress: protectedProcedure
+  getProgress: readProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const result = await goalService.getProgress(input.id, ctx.user.userId);
@@ -55,7 +55,7 @@ export const goalRouter = router({
    * Create a new goal
    * Requirements: 11.1, 11.2, 11.3
    */
-  create: protectedProcedure
+  create: writeProcedure
     .input(CreateGoalSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await goalService.create(ctx.user.userId, input);
@@ -74,7 +74,7 @@ export const goalRouter = router({
   /**
    * Update an existing goal
    */
-  update: protectedProcedure
+  update: writeProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -107,7 +107,7 @@ export const goalRouter = router({
   /**
    * Archive a goal
    */
-  archive: protectedProcedure
+  archive: writeProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const result = await goalService.archive(input.id, ctx.user.userId);
@@ -126,7 +126,7 @@ export const goalRouter = router({
    * Link a project to a goal
    * Requirements: 11.4, 11.5
    */
-  linkProject: protectedProcedure
+  linkProject: writeProcedure
     .input(
       z.object({
         goalId: z.string().uuid(),
@@ -153,7 +153,7 @@ export const goalRouter = router({
   /**
    * Unlink a project from a goal
    */
-  unlinkProject: protectedProcedure
+  unlinkProject: writeProcedure
     .input(
       z.object({
         goalId: z.string().uuid(),

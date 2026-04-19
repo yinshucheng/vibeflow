@@ -57,6 +57,18 @@
         </form>
       </section>
 
+      <!-- Unauthenticated Section (R6.2: shown when connected but no session) -->
+      <section id="unauth-section" class="section hidden">
+        <div class="unauth-prompt">
+          <div class="unauth-icon">🔒</div>
+          <h2>请先在浏览器中登录 VibeFlow</h2>
+          <p class="unauth-hint">Extension 需要有效的登录会话才能工作。请在浏览器中打开 VibeFlow 网页端完成登录，然后回到此处。</p>
+          <p class="unauth-degraded-note">当前处于降级模式：网站屏蔽已暂停</p>
+          <button id="unauth-open-login" class="btn btn-primary">打开网页登录</button>
+          <button id="unauth-disconnect" class="btn btn-secondary" style="margin-top: 8px;">断开连接</button>
+        </div>
+      </section>
+
       <!-- Status Section (shown when connected) -->
       <section id="status-section" class="section hidden">
         <div class="state-display">

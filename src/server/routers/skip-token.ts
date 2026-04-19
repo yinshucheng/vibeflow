@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { skipTokenService, ConsumeSkipTokenSchema } from '@/services/skip-token.service';
 
 export const skipTokenRouter = router({
@@ -15,7 +15,7 @@ export const skipTokenRouter = router({
    * Get current skip token status
    * Requirements: 5.4, 5.5
    */
-  getStatus: protectedProcedure.query(async ({ ctx }) => {
+  getStatus: readProcedure.query(async ({ ctx }) => {
     const result = await skipTokenService.getStatus(ctx.user.userId);
     
     if (!result.success) {
@@ -32,7 +32,7 @@ export const skipTokenRouter = router({
    * Consume a skip token (skip or delay)
    * Requirements: 5.2, 5.3
    */
-  consume: protectedProcedure
+  consume: writeProcedure
     .input(ConsumeSkipTokenSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await skipTokenService.consume(ctx.user.userId, input);
@@ -52,7 +52,7 @@ export const skipTokenRouter = router({
    * Check if user can skip (has remaining tokens)
    * Requirements: 5.5
    */
-  canSkip: protectedProcedure.query(async ({ ctx }) => {
+  canSkip: readProcedure.query(async ({ ctx }) => {
     const result = await skipTokenService.canSkip(ctx.user.userId);
     
     if (!result.success) {
@@ -69,7 +69,7 @@ export const skipTokenRouter = router({
    * Get skip token usage history
    * Requirements: 5.7
    */
-  getHistory: protectedProcedure
+  getHistory: readProcedure
     .input(z.object({
       startDate: z.date(),
       endDate: z.date(),

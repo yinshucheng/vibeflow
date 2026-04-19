@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import prisma from '@/lib/prisma';
 import {
   dailyStateService,
@@ -22,7 +22,7 @@ export const dailyStateRouter = router({
    * Get today's daily state with progress
    * Requirements: 5.7, 12.6
    */
-  getToday: protectedProcedure.query(async ({ ctx }) => {
+  getToday: readProcedure.query(async ({ ctx }) => {
     const result = await dailyStateService.getTodayWithProgress(ctx.user.userId);
     
     if (!result.success) {
@@ -39,7 +39,7 @@ export const dailyStateRouter = router({
    * Get current system state
    * Requirements: 5.1, 5.7
    */
-  getCurrentState: protectedProcedure.query(async ({ ctx }) => {
+  getCurrentState: readProcedure.query(async ({ ctx }) => {
     return stateEngineService.getState(ctx.user.userId);
   }),
 
@@ -47,7 +47,7 @@ export const dailyStateRouter = router({
    * Check if user can start a pomodoro
    * Requirements: 12.2, 12.3
    */
-  canStartPomodoro: protectedProcedure.query(async ({ ctx }) => {
+  canStartPomodoro: readProcedure.query(async ({ ctx }) => {
     const result = await dailyStateService.canStartPomodoro(ctx.user.userId);
     
     if (!result.success) {
@@ -64,7 +64,7 @@ export const dailyStateRouter = router({
    * Override daily cap
    * Requirements: 12.4
    */
-  overrideCap: protectedProcedure
+  overrideCap: writeProcedure
     .input(OverrideCapSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await dailyStateService.overrideCap(ctx.user.userId, input);
@@ -84,7 +84,7 @@ export const dailyStateRouter = router({
    * Get override frequency for warnings
    * Requirements: 12.5
    */
-  getOverrideFrequency: protectedProcedure
+  getOverrideFrequency: readProcedure
     .input(z.object({ days: z.number().int().min(1).max(30).optional().default(7) }))
     .query(async ({ ctx, input }) => {
       const result = await dailyStateService.getOverrideFrequency(ctx.user.userId, input.days);
@@ -103,7 +103,7 @@ export const dailyStateRouter = router({
    * Get Top 3 tasks for today
    * Requirements: 3.8
    */
-  getTop3Tasks: protectedProcedure.query(async ({ ctx }) => {
+  getTop3Tasks: readProcedure.query(async ({ ctx }) => {
     const result = await dailyStateService.getTop3Tasks(ctx.user.userId);
     
     if (!result.success) {
@@ -121,7 +121,7 @@ export const dailyStateRouter = router({
    * Get daily progress with predictions
    * Requirements: 17.1, 17.2, 17.3, 17.4, 19.1-19.7
    */
-  getDailyProgress: protectedProcedure.query(async ({ ctx }) => {
+  getDailyProgress: readProcedure.query(async ({ ctx }) => {
     const result = await progressCalculationService.getDailyProgress(ctx.user.userId);
     
     if (!result.success) {
@@ -138,7 +138,7 @@ export const dailyStateRouter = router({
    * Get current status (time context and expected state)
    * Requirements: 15.1, 15.2, 15.3, 15.4, 15.5
    */
-  getCurrentStatus: protectedProcedure.query(async ({ ctx }) => {
+  getCurrentStatus: readProcedure.query(async ({ ctx }) => {
     const result = await progressCalculationService.getCurrentStatus(ctx.user.userId);
     
     if (!result.success) {
@@ -155,7 +155,7 @@ export const dailyStateRouter = router({
    * Get task suggestions for today
    * Requirements: 22.1, 22.2, 22.3, 22.4
    */
-  getTaskSuggestions: protectedProcedure
+  getTaskSuggestions: readProcedure
     .input(z.object({ maxSuggestions: z.number().int().min(1).max(10).optional().default(3) }))
     .query(async ({ ctx, input }) => {
       const result = await progressCalculationService.getTaskSuggestions(ctx.user.userId, input.maxSuggestions);
@@ -174,7 +174,7 @@ export const dailyStateRouter = router({
    * Adjust today's goal temporarily
    * Requirements: 23.1, 23.2, 23.3, 23.4, 23.5
    */
-  adjustTodayGoal: protectedProcedure
+  adjustTodayGoal: writeProcedure
     .input(z.object({ newTarget: z.number().int().min(0).max(50) }))
     .mutation(async ({ ctx, input }) => {
       const result = await progressCalculationService.adjustTodayGoal(ctx.user.userId, input.newTarget);
@@ -193,7 +193,7 @@ export const dailyStateRouter = router({
    * Check if today's goal is adjusted
    * Requirements: 23.4
    */
-  isTodayGoalAdjusted: protectedProcedure.query(async ({ ctx }) => {
+  isTodayGoalAdjusted: readProcedure.query(async ({ ctx }) => {
     const result = await progressCalculationService.isTodayGoalAdjusted(ctx.user.userId);
     
     if (!result.success) {
@@ -210,7 +210,7 @@ export const dailyStateRouter = router({
    * Reset today's goal to default
    * Requirements: 23.5
    */
-  resetTodayGoal: protectedProcedure.mutation(async ({ ctx }) => {
+  resetTodayGoal: writeProcedure.mutation(async ({ ctx }) => {
     const result = await progressCalculationService.resetTodayGoal(ctx.user.userId);
     
     if (!result.success) {
@@ -227,7 +227,7 @@ export const dailyStateRouter = router({
    * Get goal risk suggestions
    * Requirements: 19.1.1-19.1.7
    */
-  getGoalRiskSuggestions: protectedProcedure.query(async ({ ctx }) => {
+  getGoalRiskSuggestions: readProcedure.query(async ({ ctx }) => {
     const result = await progressCalculationService.getGoalRiskSuggestions(ctx.user.userId);
 
     if (!result.success) {
@@ -245,7 +245,7 @@ export const dailyStateRouter = router({
    * Returns rest start time and duration to restore rest countdown after page refresh
    * Requirements: 7.1 - Rest period tracking
    */
-  getRestStatus: protectedProcedure.query(async ({ ctx }) => {
+  getRestStatus: readProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.userId;
 
     // Get current daily state

@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure } from '../trpc';
 import { efficiencyAnalysisService } from '@/services/efficiency-analysis.service';
 
 export const efficiencyAnalysisRouter = router({
@@ -16,7 +16,7 @@ export const efficiencyAnalysisRouter = router({
    * Get historical analysis for the authenticated user
    * Requirements: 24.1, 24.2, 24.3, 24.4, 24.5, 24.1.1-24.1.6, 25.1, 25.2
    */
-  getHistoricalAnalysis: protectedProcedure
+  getHistoricalAnalysis: readProcedure
     .input(
       z.object({
         days: z.number().int().min(7).max(365).default(30),
@@ -39,7 +39,7 @@ export const efficiencyAnalysisRouter = router({
    * Get efficiency breakdown by time period
    * Requirements: 24.1.1, 24.1.2, 24.1.3
    */
-  getEfficiencyByTimePeriod: protectedProcedure
+  getEfficiencyByTimePeriod: readProcedure
     .input(
       z.object({
         days: z.number().int().min(7).max(365).default(30),
@@ -62,7 +62,7 @@ export const efficiencyAnalysisRouter = router({
    * Get hourly productivity heatmap
    * Requirements: 24.1.6
    */
-  getHourlyHeatmap: protectedProcedure
+  getHourlyHeatmap: readProcedure
     .input(
       z.object({
         days: z.number().int().min(7).max(365).default(30),
@@ -85,7 +85,7 @@ export const efficiencyAnalysisRouter = router({
    * Get smart goal suggestion
    * Requirements: 25.1, 25.2
    */
-  getSuggestedGoal: protectedProcedure.query(async ({ ctx }) => {
+  getSuggestedGoal: readProcedure.query(async ({ ctx }) => {
     const result = await efficiencyAnalysisService.getSuggestedGoal(ctx.user.userId);
 
     if (!result.success) {
@@ -99,7 +99,7 @@ export const efficiencyAnalysisRouter = router({
    * Check if a goal is realistic
    * Requirements: 25.3, 25.4
    */
-  isGoalRealistic: protectedProcedure
+  isGoalRealistic: readProcedure
     .input(
       z.object({
         goal: z.number().int().min(1).max(50),

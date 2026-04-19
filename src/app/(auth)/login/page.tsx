@@ -147,7 +147,7 @@ function LoginForm() {
         <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
           Don&apos;t have an account?{' '}
           <Link
-            href="/register"
+            href={callbackUrl !== '/' ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/register'}
             className="text-[var(--accent-blue)] hover:underline"
           >
             Sign up

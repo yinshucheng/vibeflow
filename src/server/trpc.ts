@@ -109,3 +109,40 @@ const enforceAuth = t.middleware(async ({ ctx, next }) => {
  */
 export const protectedProcedure = t.procedure.use(enforceAuth);
 
+/**
+ * Scope middleware - checks API token scopes
+ * Session users (Web/Extension, no tokenScopes) have full access.
+ * API Token users must have the required scope.
+ * Requirements: R7.7, R7.8
+ */
+function withScope(requiredScope: 'read' | 'write' | 'admin') {
+  return t.middleware(async ({ ctx, next }) => {
+    // Session users (no tokenScopes) have full access
+    if (!ctx.user?.tokenScopes) return next();
+
+    // Token users must have the required scope
+    if (!ctx.user.tokenScopes.includes(requiredScope)) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: `需要 '${requiredScope}' 权限`,
+      });
+    }
+    return next();
+  });
+}
+
+/**
+ * Read procedure - requires 'read' scope for API token users
+ */
+export const readProcedure = protectedProcedure.use(withScope('read'));
+
+/**
+ * Write procedure - requires 'write' scope for API token users
+ */
+export const writeProcedure = protectedProcedure.use(withScope('write'));
+
+/**
+ * Admin procedure - requires 'admin' scope for API token users
+ */
+export const adminProcedure = protectedProcedure.use(withScope('admin'));
+

@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import {
   entertainmentService,
   UpdateEntertainmentSettingsSchema,
@@ -20,7 +20,7 @@ export const entertainmentRouter = router({
    * Get entertainment status (quota, cooldown, active session)
    * Requirements: 8.2
    */
-  getStatus: protectedProcedure.query(async ({ ctx }) => {
+  getStatus: readProcedure.query(async ({ ctx }) => {
     const result = await entertainmentService.getStatus(ctx.user.userId);
 
     if (!result.success) {
@@ -37,7 +37,7 @@ export const entertainmentRouter = router({
    * Start entertainment mode
    * Requirements: 8.3
    */
-  start: protectedProcedure.mutation(async ({ ctx }) => {
+  start: writeProcedure.mutation(async ({ ctx }) => {
     const result = await entertainmentService.startEntertainment(ctx.user.userId);
 
     if (!result.success) {
@@ -68,7 +68,7 @@ export const entertainmentRouter = router({
    * Stop entertainment mode
    * Requirements: 8.4
    */
-  stop: protectedProcedure
+  stop: writeProcedure
     .input(
       z.object({
         reason: z.enum(['manual', 'quota_exhausted', 'work_time_start']).optional().default('manual'),
@@ -98,7 +98,7 @@ export const entertainmentRouter = router({
    * Update entertainment settings (blacklist, whitelist, quota, cooldown)
    * Requirements: 8.5, 7.11, 7.12
    */
-  updateSettings: protectedProcedure
+  updateSettings: writeProcedure
     .input(UpdateEntertainmentSettingsSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await entertainmentService.updateSettings(ctx.user.userId, input);
@@ -128,7 +128,7 @@ export const entertainmentRouter = router({
    * Update quota usage (for syncing from clients)
    * Requirements: 8.5, 8.7
    */
-  updateQuotaUsage: protectedProcedure
+  updateQuotaUsage: writeProcedure
     .input(
       z.object({
         usedMinutes: z.number().int().min(0),
@@ -153,7 +153,7 @@ export const entertainmentRouter = router({
   /**
    * Get entertainment history for stats
    */
-  getHistory: protectedProcedure
+  getHistory: readProcedure
     .input(
       z.object({
         days: z.number().int().min(1).max(365).optional().default(7),
@@ -176,14 +176,14 @@ export const entertainmentRouter = router({
   /**
    * Get configuration constants
    */
-  getConfig: protectedProcedure.query(() => {
+  getConfig: readProcedure.query(() => {
     return entertainmentService.getConfig();
   }),
 
   /**
    * Add a visited site to today's entertainment state
    */
-  addVisitedSite: protectedProcedure
+  addVisitedSite: writeProcedure
     .input(
       z.object({
         domain: z.string().min(1),
@@ -208,7 +208,7 @@ export const entertainmentRouter = router({
    * 
    * This is useful for testing or when a user needs their quota reset manually.
    */
-  resetMyDailyQuota: protectedProcedure.mutation(async ({ ctx }) => {
+  resetMyDailyQuota: writeProcedure.mutation(async ({ ctx }) => {
     const result = await entertainmentService.resetUserDailyQuota(ctx.user.userId);
 
     if (!result.success) {
@@ -228,7 +228,7 @@ export const entertainmentRouter = router({
    * Get daily reset scheduler status
    * Requirements: 5.7
    */
-  getResetSchedulerStatus: protectedProcedure.query(() => {
+  getResetSchedulerStatus: readProcedure.query(() => {
     return dailyResetSchedulerService.getStatus();
   }),
 
@@ -236,7 +236,7 @@ export const entertainmentRouter = router({
    * Get next reset time
    * Requirements: 5.7
    */
-  getNextResetTime: protectedProcedure.query(() => {
+  getNextResetTime: readProcedure.query(() => {
     return {
       nextResetTime: entertainmentService.getNextResetTime().toISOString(),
       millisecondsUntilReset: entertainmentService.getMillisecondsUntilReset(),

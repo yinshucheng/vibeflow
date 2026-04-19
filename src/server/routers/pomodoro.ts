@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import {
   pomodoroService,
   StartPomodoroSchema,
@@ -25,7 +25,7 @@ export const pomodoroRouter = router({
   /**
    * Get current in-progress pomodoro
    */
-  getCurrent: protectedProcedure.query(async ({ ctx }) => {
+  getCurrent: readProcedure.query(async ({ ctx }) => {
     const result = await pomodoroService.getCurrent(ctx.user.userId);
     
     if (!result.success) {
@@ -41,7 +41,7 @@ export const pomodoroRouter = router({
   /**
    * Get today's completed pomodoro count
    */
-  getTodayCount: protectedProcedure.query(async ({ ctx }) => {
+  getTodayCount: readProcedure.query(async ({ ctx }) => {
     const result = await pomodoroService.getTodayCount(ctx.user.userId);
     
     if (!result.success) {
@@ -57,7 +57,7 @@ export const pomodoroRouter = router({
   /**
    * Check if daily cap is reached
    */
-  isDailyCapped: protectedProcedure.query(async ({ ctx }) => {
+  isDailyCapped: readProcedure.query(async ({ ctx }) => {
     const result = await pomodoroService.isDailyCapped(ctx.user.userId);
     
     if (!result.success) {
@@ -73,7 +73,7 @@ export const pomodoroRouter = router({
   /**
    * Get pomodoros for a specific task
    */
-  getByTask: protectedProcedure
+  getByTask: readProcedure
     .input(z.object({ taskId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const result = await pomodoroService.getByTask(input.taskId, ctx.user.userId);
@@ -91,7 +91,7 @@ export const pomodoroRouter = router({
   /**
    * Get timer configuration constants
    */
-  getTimerConfig: protectedProcedure.query(() => {
+  getTimerConfig: readProcedure.query(() => {
     return pomodoroService.getTimerConfig();
   }),
 
@@ -99,7 +99,7 @@ export const pomodoroRouter = router({
    * Get pomodoro statistics with multi-dimensional grouping
    * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
    */
-  getStats: protectedProcedure
+  getStats: readProcedure
     .input(GetStatsSchema)
     .query(async ({ ctx, input }) => {
       const result = await statsService.getStats(ctx.user.userId, input);
@@ -119,7 +119,7 @@ export const pomodoroRouter = router({
    * Start a new pomodoro session
    * Requirements: 4.1
    */
-  start: protectedProcedure
+  start: writeProcedure
     .input(StartPomodoroSchema)
     .mutation(async ({ ctx, input }) => {
       // Pre-check daily cap (fast-fail before creating pomodoro; stateEngine guard is authoritative)
@@ -186,7 +186,7 @@ export const pomodoroRouter = router({
    * Complete a pomodoro session
    * Requirements: 4.6, 7.1-7.9
    */
-  complete: protectedProcedure
+  complete: writeProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -256,7 +256,7 @@ export const pomodoroRouter = router({
    * Abort a pomodoro session
    * Requirements: 4.8
    */
-  abort: protectedProcedure
+  abort: writeProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const result = await pomodoroService.abort(input.id, ctx.user.userId);
@@ -291,7 +291,7 @@ export const pomodoroRouter = router({
   /**
    * Interrupt a pomodoro session with a reason
    */
-  interrupt: protectedProcedure
+  interrupt: writeProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -336,7 +336,7 @@ export const pomodoroRouter = router({
    * Start a taskless pomodoro session
    * Requirements: Req 3 - Taskless Pomodoro
    */
-  startTaskless: protectedProcedure
+  startTaskless: writeProcedure
     .input(z.object({ label: z.string().max(100).optional() }))
     .mutation(async ({ ctx, input }) => {
       // Pre-check daily cap (fast-fail before creating pomodoro; stateEngine guard is authoritative)
@@ -398,7 +398,7 @@ export const pomodoroRouter = router({
    * Get time slice summary for a pomodoro
    * Requirements: Req 4 - Time Attribution
    */
-  getSummary: protectedProcedure
+  getSummary: readProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const result = await pomodoroService.getSummary(input.id, ctx.user.userId);
@@ -417,7 +417,7 @@ export const pomodoroRouter = router({
    * Complete the current task during an active pomodoro
    * Requirements: Req 2 - Complete Task in Pomodoro
    */
-  completeTask: protectedProcedure
+  completeTask: writeProcedure
     .input(z.object({
       pomodoroId: z.string().uuid(),
       nextTaskId: z.string().uuid().nullable().optional(),
@@ -442,7 +442,7 @@ export const pomodoroRouter = router({
   /**
    * Get the last task worked on
    */
-  getLastTask: protectedProcedure.query(async ({ ctx }) => {
+  getLastTask: readProcedure.query(async ({ ctx }) => {
     const result = await pomodoroService.getLastTask(ctx.user.userId);
 
     if (!result.success) {
@@ -458,7 +458,7 @@ export const pomodoroRouter = router({
   /**
    * Record a pomodoro retroactively (for forgotten sessions)
    */
-  record: protectedProcedure
+  record: writeProcedure
     .input(RecordPomodoroSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await pomodoroService.record(ctx.user.userId, input);

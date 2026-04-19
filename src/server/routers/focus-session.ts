@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import {
   focusSessionService,
   StartSessionSchema,
@@ -20,7 +20,7 @@ export const focusSessionRouter = router({
    * Get the current active focus session (if any)
    * Requirements: 5.1
    */
-  getActiveSession: protectedProcedure.query(async ({ ctx }) => {
+  getActiveSession: readProcedure.query(async ({ ctx }) => {
     const result = await focusSessionService.getActiveSession(ctx.user.userId);
 
     if (!result.success) {
@@ -37,7 +37,7 @@ export const focusSessionRouter = router({
    * Start a new ad-hoc focus session
    * Requirements: 1.1, 13.1, 13.2, 13.3
    */
-  startSession: protectedProcedure
+  startSession: writeProcedure
     .input(StartSessionSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await focusSessionService.startSession(ctx.user.userId, input);
@@ -70,7 +70,7 @@ export const focusSessionRouter = router({
    * Requirements: 3.2, 13.4
    * Note: When a sleep-overriding focus session ends, sleep enforcement resumes automatically
    */
-  endSession: protectedProcedure.mutation(async ({ ctx }) => {
+  endSession: writeProcedure.mutation(async ({ ctx }) => {
     const result = await focusSessionService.endSession(ctx.user.userId);
 
     if (!result.success) {
@@ -94,7 +94,7 @@ export const focusSessionRouter = router({
    * Extend the current active session
    * Requirements: 4.1
    */
-  extendSession: protectedProcedure
+  extendSession: writeProcedure
     .input(ExtendSessionSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await focusSessionService.extendSession(ctx.user.userId, input);
@@ -124,7 +124,7 @@ export const focusSessionRouter = router({
    * Get session history for stats
    * Requirements: 8.2
    */
-  getSessionHistory: protectedProcedure
+  getSessionHistory: readProcedure
     .input(
       z
         .object({
@@ -150,7 +150,7 @@ export const focusSessionRouter = router({
    * Get session statistics
    * Requirements: 8.2, 8.3
    */
-  getSessionStats: protectedProcedure
+  getSessionStats: readProcedure
     .input(
       z
         .object({
@@ -175,7 +175,7 @@ export const focusSessionRouter = router({
   /**
    * Check if user is currently in a focus session
    */
-  isInFocusSession: protectedProcedure.query(async ({ ctx }) => {
+  isInFocusSession: readProcedure.query(async ({ ctx }) => {
     const result = await focusSessionService.isInFocusSession(ctx.user.userId);
 
     if (!result.success) {
@@ -191,7 +191,7 @@ export const focusSessionRouter = router({
   /**
    * Get duration configuration constants
    */
-  getDurationConfig: protectedProcedure.query(() => {
+  getDurationConfig: readProcedure.query(() => {
     return focusSessionService.getDurationConfig();
   }),
 });

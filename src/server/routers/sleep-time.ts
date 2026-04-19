@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import {
   sleepTimeService,
   UpdateSleepTimeConfigSchema,
@@ -19,7 +19,7 @@ export const sleepTimeRouter = router({
    * Get sleep time configuration
    * Requirements: 9.1
    */
-  getConfig: protectedProcedure.query(async ({ ctx }) => {
+  getConfig: readProcedure.query(async ({ ctx }) => {
     const result = await sleepTimeService.getConfig(ctx.user.userId);
 
     if (!result.success) {
@@ -36,7 +36,7 @@ export const sleepTimeRouter = router({
    * Update sleep time configuration
    * Requirements: 9.1, 9.4
    */
-  updateConfig: protectedProcedure
+  updateConfig: writeProcedure
     .input(UpdateSleepTimeConfigSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await sleepTimeService.updateConfig(ctx.user.userId, input);
@@ -64,7 +64,7 @@ export const sleepTimeRouter = router({
    * Request snooze for sleep enforcement
    * Requirements: 12.1
    */
-  requestSnooze: protectedProcedure.mutation(async ({ ctx }) => {
+  requestSnooze: writeProcedure.mutation(async ({ ctx }) => {
     const result = await sleepTimeService.requestSnooze(ctx.user.userId);
 
     if (!result.success) {
@@ -89,7 +89,7 @@ export const sleepTimeRouter = router({
    * Get remaining snoozes for tonight
    * Requirements: 12.3, 12.4
    */
-  getRemainingSnoozes: protectedProcedure.query(async ({ ctx }) => {
+  getRemainingSnoozes: readProcedure.query(async ({ ctx }) => {
     const result = await sleepTimeService.getRemainingSnoozes(ctx.user.userId);
 
     if (!result.success) {
@@ -106,7 +106,7 @@ export const sleepTimeRouter = router({
    * Check if currently in sleep time window
    * Requirements: 9.4
    */
-  isInSleepTime: protectedProcedure.query(async ({ ctx }) => {
+  isInSleepTime: readProcedure.query(async ({ ctx }) => {
     const result = await sleepTimeService.isInSleepTime(ctx.user.userId);
 
     if (!result.success) {
@@ -122,7 +122,7 @@ export const sleepTimeRouter = router({
   /**
    * Check if currently in an active snooze period
    */
-  isInSnooze: protectedProcedure.query(async ({ ctx }) => {
+  isInSnooze: readProcedure.query(async ({ ctx }) => {
     const result = await sleepTimeService.isInSnooze(ctx.user.userId);
 
     if (!result.success) {
@@ -139,7 +139,7 @@ export const sleepTimeRouter = router({
    * Get exemption history
    * Requirements: 14.3, 14.4, 14.5
    */
-  getExemptionHistory: protectedProcedure
+  getExemptionHistory: readProcedure
     .input(
       z
         .object({
@@ -165,7 +165,7 @@ export const sleepTimeRouter = router({
    * Get exemption statistics
    * Requirements: 14.4, 14.5
    */
-  getExemptionStats: protectedProcedure
+  getExemptionStats: readProcedure
     .input(
       z
         .object({
@@ -191,7 +191,7 @@ export const sleepTimeRouter = router({
    * Get preset sleep enforcement apps
    * Requirements: 10.2
    */
-  getPresetApps: protectedProcedure.query(() => {
+  getPresetApps: readProcedure.query(() => {
     return sleepTimeService.getPresetApps();
   }),
 });

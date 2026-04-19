@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { 
   timelineService, 
   TimelineEventType,
@@ -19,7 +19,7 @@ export const timelineRouter = router({
    * Get timeline events for a specific date
    * Requirements: 6.2
    */
-  getByDate: protectedProcedure
+  getByDate: readProcedure
     .input(z.object({
       date: z.date(),
       types: z.array(TimelineEventType).optional(),
@@ -45,7 +45,7 @@ export const timelineRouter = router({
    * Get timeline events for a date range
    * Requirements: 6.2
    */
-  getByDateRange: protectedProcedure
+  getByDateRange: readProcedure
     .input(z.object({
       startDate: z.date(),
       endDate: z.date(),
@@ -72,7 +72,7 @@ export const timelineRouter = router({
    * Get daily timeline summary with gap calculations
    * Requirements: 6.8
    */
-  getDailySummary: protectedProcedure
+  getDailySummary: readProcedure
     .input(z.object({
       date: z.date(),
     }))
@@ -93,7 +93,7 @@ export const timelineRouter = router({
    * Get events with gap information
    * Requirements: 6.8
    */
-  getEventsWithGaps: protectedProcedure
+  getEventsWithGaps: readProcedure
     .input(z.object({
       date: z.date(),
     }))
@@ -114,7 +114,7 @@ export const timelineRouter = router({
    * Create a new timeline event (for Browser Sentinel)
    * Requirements: 8.4
    */
-  createEvent: protectedProcedure
+  createEvent: writeProcedure
     .input(CreateTimelineEventSchema)
     .mutation(async ({ ctx, input }) => {
       // Use deduplication to avoid duplicate events
@@ -139,7 +139,7 @@ export const timelineRouter = router({
    * Create multiple timeline events in batch
    * Requirements: 8.4
    */
-  createEventBatch: protectedProcedure
+  createEventBatch: writeProcedure
     .input(z.array(CreateTimelineEventSchema))
     .mutation(async ({ ctx, input }) => {
       const result = await timelineService.createBatch(ctx.user.userId, input);
@@ -162,7 +162,7 @@ export const timelineRouter = router({
   /**
    * Delete a timeline event
    */
-  deleteEvent: protectedProcedure
+  deleteEvent: writeProcedure
     .input(z.object({
       id: z.string().uuid(),
     }))
@@ -187,7 +187,7 @@ export const timelineRouter = router({
    * Create a block event (for Browser Sentinel)
    * Requirements: 7.4, 8.4
    */
-  createBlockEvent: protectedProcedure
+  createBlockEvent: writeProcedure
     .input(z.object({
       url: z.string(),
       timestamp: z.date(),
@@ -232,7 +232,7 @@ export const timelineRouter = router({
    * Create an interruption event (for Browser Sentinel)
    * Requirements: 7.4, 8.4
    */
-  createInterruptionEvent: protectedProcedure
+  createInterruptionEvent: writeProcedure
     .input(z.object({
       timestamp: z.date(),
       duration: z.number().min(0),
@@ -288,7 +288,7 @@ export const timelineRouter = router({
    * Create a work start event (for recording Airlock completion)
    * Requirements: 14.3, 14.4
    */
-  createWorkStartEvent: protectedProcedure
+  createWorkStartEvent: writeProcedure
     .input(z.object({
       timestamp: z.date(),
       configuredStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
@@ -325,7 +325,7 @@ export const timelineRouter = router({
    * Create an entertainment mode event
    * Requirements: 12.1, 12.2, 12.3, 12.4
    */
-  createEntertainmentEvent: protectedProcedure
+  createEntertainmentEvent: writeProcedure
     .input(z.object({
       startTime: z.date(),
       endTime: z.date().optional(),

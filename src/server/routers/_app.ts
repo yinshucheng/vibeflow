@@ -32,6 +32,7 @@ import { healthLimitRouter } from './health-limit';
 import { chatRouter } from './chat';
 import { mcpBridgeRouter } from './mcp-bridge';
 import { habitRouter } from './habit';
+import { apiKeyRouter } from './api-key';
 
 /**
  * Main application router
@@ -64,6 +65,7 @@ export const appRouter = router({
   chat: chatRouter,
   mcpBridge: mcpBridgeRouter,
   habit: habitRouter,
+  apiKey: apiKeyRouter,
 });
 
 /**

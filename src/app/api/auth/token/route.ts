@@ -19,6 +19,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { verifyPassword } from '@/lib/auth';
 import { authService } from '@/services/auth.service';
+import { checkRateLimit, AUTH_RATE_LIMITS } from '@/lib/rate-limit';
 
 const issueTokenBodySchema = z.object({
   email: z.string().email().optional(),
@@ -31,6 +32,10 @@ const issueTokenBodySchema = z.object({
  * POST — Issue a new API token
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 requests per minute per IP
+  const rateLimitResponse = checkRateLimit(request, AUTH_RATE_LIMITS.login);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await request.json().catch(() => ({}));
     const parsed = issueTokenBodySchema.parse(body);
@@ -55,10 +60,16 @@ export async function POST(request: NextRequest) {
       });
 
       if (user) {
-        // DEV_MODE: allow passwordless login for dev users
         if (process.env.DEV_MODE === 'true' && user.password === 'dev_mode_no_password') {
+          // DEV_MODE only: allow passwordless login for dev users
           userId = user.id;
           userEmail = user.email;
+        } else if (user.password === 'dev_mode_no_password') {
+          // Production: reject dev-mode users who haven't set a real password
+          return NextResponse.json(
+            { success: false, error: { code: 'AUTH_ERROR', message: 'Invalid credentials' } },
+            { status: 401 }
+          );
         } else if (parsed.password) {
           const valid = await verifyPassword(parsed.password, user.password);
           if (valid) {
@@ -68,7 +79,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Auto-create user in DEV_MODE if not found
+      // Auto-create user in DEV_MODE only
       if (!userId && process.env.DEV_MODE === 'true' && parsed.email) {
         const newUser = await prisma.user.upsert({
           where: { email: parsed.email },

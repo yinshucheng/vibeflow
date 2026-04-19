@@ -579,7 +579,9 @@ model ApiToken {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   token       String    @unique // hashed token
   name        String    // user-friendly name for the token
-  clientType  String    // 'web' | 'desktop' | 'browser_ext' | 'mobile'
+  clientType  String    // 'web' | 'desktop' | 'browser_ext' | 'mobile' | 'api'
+  scopes      String[]  @default(["read", "write"])
+  description String?
   lastUsedAt  DateTime?
   expiresAt   DateTime?
   revokedAt   DateTime?

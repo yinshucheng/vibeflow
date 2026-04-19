@@ -6,13 +6,13 @@
  *   - getHistory: Retrieve conversation message history
  *   - getConversationStats: Token usage and context statistics
  *
- * All procedures use protectedProcedure — authentication required.
+ * All procedures use readProcedure/writeProcedure — authentication required.
  * Business logic delegated to chatService / chatObservabilityService.
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { chatService, SearchMessagesSchema } from '@/services/chat.service';
 import { chatObservabilityService } from '@/services/chat-observability.service';
 
@@ -23,7 +23,7 @@ export const chatRouter = router({
    * not via tRPC (tRPC doesn't natively stream in this project's setup).
    * Returns the persisted user message ID.
    */
-  sendMessage: protectedProcedure
+  sendMessage: writeProcedure
     .input(
       z.object({
         content: z.string().min(1).max(2000),
@@ -51,7 +51,7 @@ export const chatRouter = router({
   /**
    * Get message history for the user's default conversation.
    */
-  getHistory: protectedProcedure
+  getHistory: readProcedure
     .input(
       z
         .object({
@@ -97,7 +97,7 @@ export const chatRouter = router({
   /**
    * Get token usage and context statistics for the user's conversation.
    */
-  getConversationStats: protectedProcedure
+  getConversationStats: readProcedure
     .input(
       z
         .object({
@@ -137,7 +137,7 @@ export const chatRouter = router({
   /**
    * S11.1: Create a TOPIC conversation (cross-day, not archived by daily reset).
    */
-  createTopic: protectedProcedure
+  createTopic: writeProcedure
     .input(
       z.object({
         title: z.string().min(1).max(200),
@@ -165,7 +165,7 @@ export const chatRouter = router({
   /**
    * S11.1: List all active TOPIC conversations for the current user.
    */
-  listTopics: protectedProcedure.query(async ({ ctx }) => {
+  listTopics: readProcedure.query(async ({ ctx }) => {
     const result = await chatService.listTopicConversations(ctx.user.userId);
 
     if (!result.success) {
@@ -181,7 +181,7 @@ export const chatRouter = router({
   /**
    * S11.1: Switch to a different conversation (DEFAULT or TOPIC).
    */
-  switchConversation: protectedProcedure
+  switchConversation: writeProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -209,7 +209,7 @@ export const chatRouter = router({
   /**
    * S11.2: Full-text search across the user's chat messages.
    */
-  search: protectedProcedure
+  search: readProcedure
     .input(SearchMessagesSchema)
     .query(async ({ ctx, input }) => {
       const result = await chatService.searchMessages(

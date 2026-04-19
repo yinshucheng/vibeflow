@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure } from '../trpc';
 import { reviewService } from '@/services/review.service';
 
 export const reviewRouter = router({
@@ -15,7 +15,7 @@ export const reviewRouter = router({
    * Get daily review data for a specific date
    * Requirements: 10.3, 10.4, 10.5, 10.6
    */
-  getDaily: protectedProcedure
+  getDaily: readProcedure
     .input(z.object({
       date: z.date(),
     }))
@@ -36,7 +36,7 @@ export const reviewRouter = router({
    * Get today's review data
    * Requirements: 10.3, 10.4, 10.5, 10.6
    */
-  getToday: protectedProcedure.query(async ({ ctx }) => {
+  getToday: readProcedure.query(async ({ ctx }) => {
     const result = await reviewService.getDailyReview(ctx.user.userId, new Date());
     
     if (!result.success) {
@@ -53,7 +53,7 @@ export const reviewRouter = router({
    * Get weekly trend data
    * Requirements: 10.8
    */
-  getWeeklyTrend: protectedProcedure
+  getWeeklyTrend: readProcedure
     .input(z.object({
       weekStart: z.date().optional(),
     }))
@@ -75,7 +75,7 @@ export const reviewRouter = router({
    * Get review data for a date range
    * Requirements: 10.8
    */
-  getRange: protectedProcedure
+  getRange: readProcedure
     .input(z.object({
       startDate: z.date(),
       endDate: z.date(),

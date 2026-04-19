@@ -580,8 +580,20 @@ async function handleExecuteCommand(command: ExecuteCommand): Promise<void> {
 
 // Update declarativeNetRequest blocking rules
 async function updateBlockingRules(): Promise<void> {
+  // Degraded mode: no blocking rules when not authenticated (R6.3)
+  if (!policyCache.isAuthenticated()) {
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const ruleIds = existingRules.map(rule => rule.id);
+    if (ruleIds.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: ruleIds,
+      });
+    }
+    return;
+  }
+
   const policy = policyCache.getPolicy();
-  
+
   // Only apply blocking rules during FOCUS state
   if (policy.globalState !== 'FOCUS') {
     // Remove all dynamic rules
@@ -681,6 +693,12 @@ function handleTabChange(tabId: number, url: string, title: string): void {
 // Check URL against policy and take action
 // Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.10, 2.1, 2.10, 3.7, 3.8, 4.3, 6.1, 6.7
 async function checkUrlPolicy(tabId: number, url: string): Promise<void> {
+  // Degraded mode: when not authenticated, skip all blocking (R6.3)
+  // Only show a login reminder overlay instead of enforcing any blocks
+  if (!policyCache.isAuthenticated()) {
+    return;
+  }
+
   // First, check for state restrictions (LOCKED or OVER_REST)
   // Requirements: 1.1, 1.2, 1.6, 1.10
   const stateRestriction = policyCache.shouldBlockForStateRestriction(url);
@@ -871,6 +889,11 @@ async function closeEntertainmentTabs(): Promise<void> {
  * Enforce state restrictions on all open tabs when entering OVER_REST state
  */
 async function enforceStateRestrictions(): Promise<void> {
+  // Degraded mode: skip enforcement when not authenticated (R6.3)
+  if (!policyCache.isAuthenticated()) {
+    return;
+  }
+
   const dashboardUrl = policyCache.getDashboardUrl();
   const state = policyCache.getState();
   
@@ -1111,6 +1134,7 @@ async function handleMessage(
       await ensureConnected();
       return {
         connected: isConnected,
+        isAuthenticated: policyCache.isAuthenticated(),
         systemState: policyCache.getState(),
         pomodoroCount,
         dailyCap,

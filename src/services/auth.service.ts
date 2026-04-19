@@ -8,7 +8,6 @@
 import { z } from 'zod';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
-import type { ApiToken } from '@prisma/client';
 import type { ClientType } from '@/types/octopus';
 
 // Service result type
@@ -25,18 +24,22 @@ export interface ServiceResult<T> {
 // Token creation input schema
 export const CreateTokenSchema = z.object({
   name: z.string().min(1).max(100),
-  clientType: z.enum(['web', 'desktop', 'browser_ext', 'mobile']),
+  clientType: z.enum(['web', 'desktop', 'browser_ext', 'mobile', 'api']),
   expiresInDays: z.number().min(1).max(365).optional(),
+  scopes: z.array(z.enum(['read', 'write', 'admin'])).default(['read', 'write']),
+  description: z.string().max(200).optional(),
 });
 
-export type CreateTokenInput = z.infer<typeof CreateTokenSchema>;
+export type CreateTokenInput = z.input<typeof CreateTokenSchema>;
 
 // Token validation result
 export interface TokenValidationResult {
   valid: boolean;
   userId?: string;
+  email?: string;
   clientType?: ClientType;
   tokenId?: string;
+  scopes?: string[];
 }
 
 // Token info (without sensitive data)
@@ -44,6 +47,8 @@ export interface TokenInfo {
   id: string;
   name: string;
   clientType: string;
+  scopes: string[];
+  description: string | null;
   lastUsedAt: Date | null;
   expiresAt: Date | null;
   createdAt: Date;
@@ -91,10 +96,12 @@ export const authService = {
           token: hashedToken,
           name: validated.name,
           clientType: validated.clientType,
+          scopes: validated.scopes,
+          description: validated.description ?? null,
           expiresAt,
         },
       });
-      
+
       return {
         success: true,
         data: {
@@ -103,6 +110,8 @@ export const authService = {
             id: apiToken.id,
             name: apiToken.name,
             clientType: apiToken.clientType,
+            scopes: apiToken.scopes,
+            description: apiToken.description,
             lastUsedAt: apiToken.lastUsedAt,
             expiresAt: apiToken.expiresAt,
             createdAt: apiToken.createdAt,
@@ -188,8 +197,10 @@ export const authService = {
         data: {
           valid: true,
           userId: apiToken.userId,
+          email: apiToken.user.email,
           clientType: apiToken.clientType as ClientType,
           tokenId: apiToken.id,
+          scopes: apiToken.scopes,
         },
       };
     } catch (error) {
@@ -223,6 +234,8 @@ export const authService = {
           id: t.id,
           name: t.name,
           clientType: t.clientType,
+          scopes: t.scopes,
+          description: t.description,
           lastUsedAt: t.lastUsedAt,
           expiresAt: t.expiresAt,
           createdAt: t.createdAt,
@@ -304,6 +317,34 @@ export const authService = {
         error: {
           code: 'INTERNAL_ERROR',
           message: error instanceof Error ? error.message : 'Failed to revoke tokens',
+        },
+      };
+    }
+  },
+
+  /**
+   * Count active (non-revoked, non-expired) tokens for a user
+   */
+  async countActiveTokens(userId: string): Promise<ServiceResult<number>> {
+    try {
+      const count = await prisma.apiToken.count({
+        where: {
+          userId,
+          revokedAt: null,
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } },
+          ],
+        },
+      });
+
+      return { success: true, data: count };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to count tokens',
         },
       };
     }

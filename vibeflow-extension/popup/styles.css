@@ -433,3 +433,37 @@ body {
   margin-bottom: 12px;
   line-height: 1.4;
 }
+
+/* Unauthenticated Section (R6.2) */
+.unauth-prompt {
+  text-align: center;
+  padding: 16px 8px;
+}
+
+.unauth-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.unauth-prompt h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e4e4e7;
+  margin-bottom: 8px;
+}
+
+.unauth-hint {
+  font-size: 12px;
+  color: #a1a1aa;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.unauth-degraded-note {
+  font-size: 11px;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}

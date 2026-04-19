@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, readProcedure, writeProcedure } from '../trpc';
 import { clientRegistryService } from '@/services/client-registry.service';
 
 export const clientsRouter = router({
@@ -18,7 +18,7 @@ export const clientsRouter = router({
    * Returns all registered clients (both online and offline) for the user.
    * Excludes revoked clients.
    */
-  getConnectedClients: protectedProcedure.query(async ({ ctx }) => {
+  getConnectedClients: readProcedure.query(async ({ ctx }) => {
     const result = await clientRegistryService.getClientsByUser(ctx.user.userId);
     
     if (!result.success) {
@@ -34,7 +34,7 @@ export const clientsRouter = router({
   /**
    * Get only online clients for the current user
    */
-  getOnlineClients: protectedProcedure.query(async ({ ctx }) => {
+  getOnlineClients: readProcedure.query(async ({ ctx }) => {
     const result = await clientRegistryService.getOnlineClients(ctx.user.userId);
     
     if (!result.success) {
@@ -54,7 +54,7 @@ export const clientsRouter = router({
    * Marks a client as revoked, preventing future connections.
    * The user must own the client to revoke it.
    */
-  revokeClient: protectedProcedure
+  revokeClient: writeProcedure
     .input(z.object({ clientId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const result = await clientRegistryService.revokeClient(
@@ -98,7 +98,7 @@ export const clientsRouter = router({
   /**
    * Get a specific client by ID
    */
-  getClient: protectedProcedure
+  getClient: readProcedure
     .input(z.object({ clientId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       const result = await clientRegistryService.getClientById(input.clientId, ctx.user!.userId);
@@ -133,7 +133,7 @@ export const clientsRouter = router({
   /**
    * Get clients by type for the current user
    */
-  getClientsByType: protectedProcedure
+  getClientsByType: readProcedure
     .input(z.object({ 
       clientType: z.enum(['web', 'desktop', 'browser_ext', 'mobile']) 
     }))

@@ -5,6 +5,8 @@
       "args": ["tsx", "src/mcp/run.ts"],
       "env": {
         "VIBEFLOW_SERVER_URL": "http://39.105.213.147:4000",
+        "VIBEFLOW_API_KEY": "",
+        "DEV_MODE": "true",
         "MCP_USER_EMAIL": "dev@vibeflow.local"
       }
     }
