@@ -7,6 +7,7 @@ import type { EntertainmentStatus } from '../lib/entertainment-manager.js';
 // Extended connection status with entertainment info
 interface ExtendedConnectionStatus extends ConnectionStatus {
   isAuthenticated?: boolean;
+  userEmail?: string;
   entertainmentStatus?: EntertainmentStatus;
   // Additional connection info (Requirements: 4.5, 4.6)
   reconnectAttempts?: number;
@@ -429,12 +430,19 @@ function showStatusSection(status: ExtendedConnectionStatus): void {
   loginSection.classList.add('hidden');
   statusSection.classList.remove('hidden');
   unauthSection.classList.add('hidden');
-  
+
   // Show connection info section (Requirements: 4.5)
   connectionInfoSection.classList.remove('hidden');
   reconnectInfoRow.style.display = 'none';
   hideReconnectButton();
-  
+
+  // Show user email in header
+  const userEmailEl = document.getElementById('user-email');
+  if (userEmailEl && status.userEmail) {
+    userEmailEl.textContent = status.userEmail;
+    userEmailEl.classList.remove('hidden');
+  }
+
   updateConnectionIndicator(true);
   updateSystemState(status.systemState);
   pomodoroCountEl.textContent = status.pomodoroCount.toString();

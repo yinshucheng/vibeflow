@@ -13,6 +13,7 @@ let currentTaskTitle: string | null = null;
 let currentPomodoroId: string | null = null;
 let pomodoroCount = 0;
 let dailyCap = 8;
+let userEmail: string | null = null;
 
 // Default connection settings (Requirements: 4.1, 4.2, 4.7, 4.8)
 const DEFAULT_SERVER_URL = 'http://localhost:3000';
@@ -181,21 +182,36 @@ const wsHandlers: WebSocketEventHandler = {
     handleExecuteCommand(command as ExecuteCommand);
   },
 
-  onConnect: () => {
+  onConnect: async () => {
     console.log('[ServiceWorker] Connected to server');
     isConnected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
     chrome.storage.local.set({ isConnected: true });
+    // Socket.IO CONNECT ACK means auth passed — mark authenticated immediately
+    await policyCache.updatePolicy({ isAuthenticated: true });
     broadcastToPopup({ type: 'CONNECTION_STATUS', payload: { connected: true } });
-    
+
+    // Fetch user email from NextAuth session for display
+    try {
+      const serverUrl = (await chrome.storage.local.get(['serverUrl'])).serverUrl;
+      if (serverUrl) {
+        const res = await fetch(`${serverUrl}/api/auth/session`, { credentials: 'include' });
+        if (res.ok) {
+          const session = await res.json();
+          userEmail = session?.user?.email || null;
+        }
+      }
+    } catch { /* ignore - email display is non-critical */ }
+
     // Sync entertainment quota from server on connect (Requirements: 5.11, 8.7)
     syncEntertainmentQuotaFromServer();
   },
 
-  onDisconnect: () => {
+  onDisconnect: async () => {
     console.log('[ServiceWorker] Disconnected from server');
     isConnected = false;
     chrome.storage.local.set({ isConnected: false });
+    await policyCache.updatePolicy({ isAuthenticated: false });
     broadcastToPopup({ type: 'CONNECTION_STATUS', payload: { connected: false } });
 
     // Only schedule auto-reconnect if not a manual disconnect (Requirements: 4.3, 4.4)
@@ -1135,6 +1151,7 @@ async function handleMessage(
       return {
         connected: isConnected,
         isAuthenticated: policyCache.isAuthenticated(),
+        userEmail,
         systemState: policyCache.getState(),
         pomodoroCount,
         dailyCap,

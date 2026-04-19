@@ -28,6 +28,7 @@ import {
   useLastSyncTime,
   useBlockingState,
   usePolicy,
+  useUserInfo,
 } from '@/store/app.store';
 import { calculateRemainingTime } from '@/utils/pomodoro-calculator';
 import { useTheme } from '@/theme';
@@ -275,6 +276,7 @@ export function StatusScreen(): React.JSX.Element {
   const theme = useTheme();
   const dailyState = useDailyState();
   const connectionStatus = useConnectionStatus();
+  const { userEmail } = useUserInfo();
   const [refreshing, setRefreshing] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
@@ -295,6 +297,11 @@ export function StatusScreen(): React.JSX.Element {
           <DailyStateIndicator state={dailyState?.state ?? null} />
         </View>
         <View style={styles.headerRight}>
+          {userEmail && (
+            <Text style={[styles.userEmail, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              {userEmail}
+            </Text>
+          )}
           <ConnectionIndicator />
         </View>
       </View>
@@ -382,6 +389,11 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  userEmail: {
+    fontSize: 11,
+    maxWidth: 120,
   },
   title: {
     fontSize: 20,

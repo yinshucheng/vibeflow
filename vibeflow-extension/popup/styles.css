@@ -25,6 +25,21 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-email {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .header h1 {
   font-size: 18px;
   font-weight: 600;
