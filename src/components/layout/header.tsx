@@ -10,7 +10,8 @@
  * Requirements: 7.1 - Rest period tracking with countdown display
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { StateIndicator, StateIndicatorSkeleton } from '@/components/ui/state-indicator';
 import { MCPIndicatorWithPolling } from '@/components/ui/mcp-indicator';
 import { OfflineModeIndicatorWithStatus } from '@/components/ui/offline-mode-indicator';
@@ -80,6 +81,24 @@ export function Header({ title = 'VibeFlow' }: HeaderProps) {
   }, [isInRestState, restStatus, calculateRemaining]);
 
   const TimerIcon = Icons.pomodoro;
+  const { data: session } = useSession();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [userMenuOpen]);
+
+  const userEmail = session?.user?.email;
+  const userInitial = userEmail ? userEmail[0].toUpperCase() : '?';
 
   return (
     <header className="sticky top-0 z-10 bg-notion-bg border-b border-notion-border">
@@ -117,6 +136,39 @@ export function Header({ title = 'VibeFlow' }: HeaderProps) {
                   style={{ width: `${dailyState.progress.percentage}%` }}
                 />
               </div>
+            </div>
+          )}
+
+          {/* User Menu */}
+          {userEmail && (
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center justify-center w-7 h-7 rounded-full bg-notion-accent-blue/10 text-notion-accent-blue text-xs font-medium hover:bg-notion-accent-blue/20 transition-colors"
+                title={userEmail}
+              >
+                {userInitial}
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-9 w-56 bg-notion-bg border border-notion-border rounded-lg shadow-lg py-1 z-50">
+                  <div className="px-3 py-2 border-b border-notion-border">
+                    <p className="text-xs text-notion-text-secondary truncate">{userEmail}</p>
+                  </div>
+                  <a
+                    href="/settings"
+                    className="block px-3 py-2 text-sm text-notion-text hover:bg-notion-bg-secondary transition-colors"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    设置
+                  </a>
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-notion-bg-secondary transition-colors"
+                  >
+                    退出登录
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

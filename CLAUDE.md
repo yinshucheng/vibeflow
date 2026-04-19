@@ -270,6 +270,7 @@ Each spec has a status label. When working on a spec, update the table below.
 | `mobile-app` | deprecated | Superseded by ios-mvp |
 | `dashboard-command-center` | not-started | Dashboard 指挥部改造，内嵌番茄钟+任务操作 |
 | `work-rhythm-enhancement` | tested | OVER_REST 一致性、UI 显示修复、加班模式、健康提醒、跨客户端通知 |
+| `auth-and-skill-api` | partial | Phase 1/2/4 完成（认证+API Key+Scope+REST Skill）。Phase 3（iOS/Desktop）、Phase 5（Skill 文档）待做 |
 
 ## Environment Setup
 
