@@ -271,6 +271,7 @@ Each spec has a status label. When working on a spec, update the table below.
 | `dashboard-command-center` | not-started | Dashboard 指挥部改造，内嵌番茄钟+任务操作 |
 | `work-rhythm-enhancement` | tested | OVER_REST 一致性、UI 显示修复、加班模式、健康提醒、跨客户端通知 |
 | `auth-and-skill-api` | tested | Phase 1/2/4/5 完成并验收。剩余：Phase 3（iOS/Desktop 认证）、task 16（上架 README/LICENSE） |
+| `octopus-protocol-unification` | not-started | 八爪鱼协议统一：共享类型包、清理 legacy 事件、统一 Policy、客户端 SDK |
 
 ## Environment Setup
 
