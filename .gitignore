@@ -75,3 +75,6 @@ temp-next/
 # Next.js
 next-env.d.ts
 logs/
+
+# Apple certificates
+*.cer
