@@ -21,9 +21,9 @@
 
     <!-- Auth Expired Banner -->
     <section id="auth-expired-banner" class="section auth-expired-banner hidden">
-      <p>会话已过期，请在网页端重新登录</p>
+      <p>会话已过期，请重新登录</p>
       <button id="open-web-login" class="btn btn-primary btn-small">
-        打开网页登录
+        重新登录
       </button>
     </section>
 
@@ -49,25 +49,33 @@
     <main id="main-content">
       <!-- Login Section -->
       <section id="login-section" class="section">
-        <h2>Connect to VibeFlow</h2>
-        <p class="login-hint">请先在网页端登录，Extension 将自动使用浏览器 Cookie 认证</p>
+        <h2>登录 VibeFlow</h2>
         <form id="login-form">
           <div class="form-group">
-            <label for="server-url">Server URL</label>
+            <label for="server-url">服务器地址</label>
             <input type="url" id="server-url" placeholder="http://localhost:3000" required>
           </div>
-          <button type="submit" class="btn btn-primary">Connect</button>
+          <div class="form-group">
+            <label for="login-email">邮箱</label>
+            <input type="email" id="login-email" placeholder="your@email.com" required>
+          </div>
+          <div class="form-group">
+            <label for="login-password">密码</label>
+            <input type="password" id="login-password" placeholder="密码" required>
+          </div>
+          <div id="login-error" class="login-error hidden"></div>
+          <button type="submit" class="btn btn-primary">登录</button>
         </form>
       </section>
 
-      <!-- Unauthenticated Section (R6.2: shown when connected but no session) -->
+      <!-- Unauthenticated Section (R6.2: shown when connected but auth failed) -->
       <section id="unauth-section" class="section hidden">
         <div class="unauth-prompt">
           <div class="unauth-icon">🔒</div>
-          <h2>请先在浏览器中登录 VibeFlow</h2>
-          <p class="unauth-hint">Extension 需要有效的登录会话才能工作。请在浏览器中打开 VibeFlow 网页端完成登录，然后回到此处。</p>
+          <h2>认证失败</h2>
+          <p class="unauth-hint">登录凭证已过期或无效，请重新登录。</p>
           <p class="unauth-degraded-note">当前处于降级模式：网站屏蔽已暂停</p>
-          <button id="unauth-open-login" class="btn btn-primary">打开网页登录</button>
+          <button id="unauth-relogin" class="btn btn-primary">重新登录</button>
           <button id="unauth-disconnect" class="btn btn-secondary" style="margin-top: 8px;">断开连接</button>
         </div>
       </section>

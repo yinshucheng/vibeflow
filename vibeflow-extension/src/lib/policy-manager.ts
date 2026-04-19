@@ -28,6 +28,7 @@ const PRESET_ENTERTAINMENT_WHITELIST: string[] = [
 
 const DEFAULT_POLICY: PolicyCache = {
   globalState: 'IDLE',
+  timeContext: 'free_time',
   blacklist: [],
   whitelist: [],
   sessionWhitelist: [],

@@ -449,6 +449,36 @@ body {
   line-height: 1.4;
 }
 
+/* Login error message */
+.login-error {
+  font-size: 12px;
+  color: #ef4444;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 4px;
+}
+
+/* Error toast */
+.error-toast {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: #ef4444;
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Unauthenticated Section (R6.2) */
 .unauth-prompt {
   text-align: center;

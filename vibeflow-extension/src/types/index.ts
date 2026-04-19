@@ -571,6 +571,7 @@ export interface EntertainmentWhitelistEntry {
 // Policy cache stored locally in the extension
 export interface PolicyCache {
   globalState: SystemState;
+  timeContext: TimeContext;
   blacklist: string[];
   whitelist: string[];
   sessionWhitelist: string[];
@@ -644,10 +645,13 @@ export interface InterruptionEvent {
   };
 }
 
+// Time context from server (mirrors progress-calculation.service TimeContext)
+export type TimeContext = 'work_time' | 'sleep_time' | 'free_time' | 'adhoc_focus';
+
 // Server messages (Server -> Extension)
 export type ServerMessage =
   | { type: 'SYNC_POLICY'; payload: PolicyCache }
-  | { type: 'STATE_CHANGE'; payload: { state: SystemState } }
+  | { type: 'STATE_CHANGE'; payload: { state: SystemState; timeContext?: TimeContext } }
   | { type: 'EXECUTE'; payload: ExecuteCommand };
 
 export type ExecuteCommand =

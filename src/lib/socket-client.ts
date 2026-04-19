@@ -19,6 +19,7 @@ export interface PolicyCache {
   whitelist: string[];
   sessionWhitelist: string[];
   lastSync: number;
+  isAuthenticated?: boolean;
 }
 
 export interface ActivityLogEntry {

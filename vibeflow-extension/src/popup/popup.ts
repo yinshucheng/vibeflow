@@ -8,6 +8,7 @@ import type { EntertainmentStatus } from '../lib/entertainment-manager.js';
 interface ExtendedConnectionStatus extends ConnectionStatus {
   isAuthenticated?: boolean;
   userEmail?: string;
+  timeContext?: string;
   entertainmentStatus?: EntertainmentStatus;
   // Additional connection info (Requirements: 4.5, 4.6)
   reconnectAttempts?: number;
@@ -28,6 +29,9 @@ const loginSection = document.getElementById('login-section') as HTMLElement;
 const statusSection = document.getElementById('status-section') as HTMLElement;
 const loginForm = document.getElementById('login-form') as HTMLFormElement;
 const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
+const loginEmailInput = document.getElementById('login-email') as HTMLInputElement;
+const loginPasswordInput = document.getElementById('login-password') as HTMLInputElement;
+const loginError = document.getElementById('login-error') as HTMLElement;
 const connectionStatus = document.getElementById('connection-status') as HTMLElement;
 
 // DOM Elements - Auth Expiry Banner
@@ -75,12 +79,16 @@ let warningShown1Min = false;
 // Initialize popup
 async function initialize(): Promise<void> {
   // Load stored settings
-  const stored = await chrome.storage.local.get(['serverUrl', 'isConnected']);
+  const stored = await chrome.storage.local.get(['serverUrl', 'isConnected', 'loginEmail']);
 
   if (stored.serverUrl) {
     serverUrlInput.value = stored.serverUrl;
   } else {
     serverUrlInput.value = 'http://localhost:3000';
+  }
+
+  if (stored.loginEmail) {
+    loginEmailInput.value = stored.loginEmail;
   }
 
   // Get current status from service worker
@@ -147,10 +155,13 @@ function setupEventListeners(): void {
     openWebLoginBtn.addEventListener('click', handleOpenWebLogin);
   }
 
-  // Unauthenticated section — open web login button (R6.2)
-  const unauthLoginBtn = document.getElementById('unauth-open-login');
-  if (unauthLoginBtn) {
-    unauthLoginBtn.addEventListener('click', handleOpenWebLogin);
+  // Unauthenticated section — re-login button (clears token and shows login form)
+  const unauthReloginBtn = document.getElementById('unauth-relogin');
+  if (unauthReloginBtn) {
+    unauthReloginBtn.addEventListener('click', async () => {
+      await chrome.runtime.sendMessage({ type: 'LOGOUT' });
+      showLoginSection();
+    });
   }
 
   // Unauthenticated section — disconnect button (R6.2)
@@ -161,13 +172,12 @@ function setupEventListeners(): void {
 }
 
 /**
- * Open web login page when auth has expired
+ * Handle auth expired — clear token and show login form
  * Requirements: 4.4.2 — session expiry handling
  */
 async function handleOpenWebLogin(): Promise<void> {
-  const stored = await chrome.storage.local.get(['serverUrl']);
-  const url = (stored.serverUrl || 'http://localhost:3000') + '/login';
-  chrome.tabs.create({ url });
+  await chrome.runtime.sendMessage({ type: 'LOGOUT' });
+  showLoginSection();
 }
 
 // Handle login form submission
@@ -175,9 +185,14 @@ async function handleLogin(event: Event): Promise<void> {
   event.preventDefault();
 
   const serverUrl = serverUrlInput.value.trim();
+  const email = loginEmailInput.value.trim();
+  const password = loginPasswordInput.value;
+
+  // Hide previous error
+  loginError.classList.add('hidden');
 
   if (!serverUrl) {
-    showError('Please enter a server URL');
+    showLoginError('请输入服务器地址');
     return;
   }
 
@@ -185,14 +200,24 @@ async function handleLogin(event: Event): Promise<void> {
   try {
     new URL(serverUrl);
   } catch {
-    showError('Invalid server URL');
+    showLoginError('服务器地址格式无效');
+    return;
+  }
+
+  if (!email) {
+    showLoginError('请输入邮箱');
+    return;
+  }
+
+  if (!password) {
+    showLoginError('请输入密码');
     return;
   }
 
   // Show connecting state
   const submitBtn = loginForm.querySelector('button[type="submit"]') as HTMLButtonElement;
   const originalText = submitBtn.textContent;
-  submitBtn.textContent = 'Connecting...';
+  submitBtn.textContent = '登录中...';
   submitBtn.disabled = true;
 
   // Hide auth expired banner if visible
@@ -201,15 +226,22 @@ async function handleLogin(event: Event): Promise<void> {
   }
 
   try {
-    // Send connect message to service worker
-    // Auth is handled via browser cookie (NextAuth session)
-    await chrome.runtime.sendMessage({
-      type: 'CONNECT',
-      payload: { serverUrl },
-    });
+    // Login via service worker (HTTP API + WebSocket connect)
+    const result = await chrome.runtime.sendMessage({
+      type: 'LOGIN',
+      payload: { serverUrl, email, password },
+    }) as { success: boolean; email?: string; error?: string };
 
-    // Wait a bit for connection
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (!result.success) {
+      showLoginError(result.error || '登录失败');
+      return;
+    }
+
+    // Remember email for next time
+    chrome.storage.local.set({ loginEmail: email });
+
+    // Wait a bit for WebSocket connection to establish
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Check status
     const status = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }) as ExtendedConnectionStatus;
@@ -220,14 +252,28 @@ async function handleLogin(event: Event): Promise<void> {
     } else if (status.connected && !status.isAuthenticated) {
       showUnauthSection();
     } else {
-      showError('Failed to connect. Check server URL and try again.');
+      // Still connecting — wait a bit more
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const retryStatus = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }) as ExtendedConnectionStatus;
+      if (retryStatus.connected && retryStatus.isAuthenticated) {
+        showStatusSection(retryStatus);
+        await refreshEntertainmentStatus();
+      } else {
+        showLoginError('登录成功但连接失败，请稍后重试');
+      }
     }
   } catch (error) {
-    showError('Connection failed');
+    showLoginError('连接失败，请检查服务器地址');
   } finally {
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
   }
+}
+
+// Show inline login error
+function showLoginError(message: string): void {
+  loginError.textContent = message;
+  loginError.classList.remove('hidden');
 }
 
 // Handle open dashboard button
@@ -371,8 +417,8 @@ function handleMessage(message: { type: string; payload?: unknown }): void {
       break;
 
     case 'STATE_CHANGED':
-      const { state } = message.payload as { state: SystemState };
-      updateSystemState(state);
+      const { state, timeContext: tc } = message.payload as { state: SystemState; timeContext?: string };
+      updateSystemState(state, tc);
       // Refresh entertainment status when state changes
       refreshEntertainmentStatus();
       break;
@@ -444,7 +490,7 @@ function showStatusSection(status: ExtendedConnectionStatus): void {
   }
 
   updateConnectionIndicator(true);
-  updateSystemState(status.systemState);
+  updateSystemState(status.systemState, status.timeContext);
   pomodoroCountEl.textContent = status.pomodoroCount.toString();
   dailyCapEl.textContent = status.dailyCap.toString();
   currentTaskTitleEl.textContent = status.currentTaskTitle || 'No active task';
@@ -466,9 +512,17 @@ function updateConnectionIndicator(connected: boolean): void {
   }
 }
 
-// Update system state display
-function updateSystemState(state: SystemState): void {
-  systemStateEl.textContent = state;
+// Update system state display (with optional time context)
+function updateSystemState(state: SystemState, timeContext?: string): void {
+  // Show combined state: e.g. "IDLE (睡眠时间)"
+  const contextLabels: Record<string, string> = {
+    sleep_time: '睡眠时间',
+    work_time: '工作时间',
+    free_time: '自由时间',
+    adhoc_focus: '加班中',
+  };
+  const contextLabel = timeContext && contextLabels[timeContext] ? ` (${contextLabels[timeContext]})` : '';
+  systemStateEl.textContent = state + contextLabel;
   systemStateEl.className = `state-value ${state}`;
 }
 
@@ -669,6 +723,12 @@ function updateEntertainmentButtons(status: EntertainmentStatus): void {
       
       // Set disabled reason message
       switch (status.cannotStartReason) {
+        case 'not_idle_state':
+          entertainmentDisabledReason.textContent = '当前状态不允许进入娱乐模式';
+          break;
+        case 'sleep_time':
+          entertainmentDisabledReason.textContent = '睡眠时间不允许进入娱乐模式';
+          break;
         case 'within_work_time':
           // Requirements: 6.7
           entertainmentDisabledReason.textContent = '仅在非工作时间可用';
@@ -679,7 +739,7 @@ function updateEntertainmentButtons(status: EntertainmentStatus): void {
           break;
         case 'cooldown_active':
           // Requirements: 6.9
-          const cooldownRemaining = status.cooldownEndTime 
+          const cooldownRemaining = status.cooldownEndTime
             ? Math.ceil((status.cooldownEndTime - Date.now()) / 60000)
             : 0;
           entertainmentDisabledReason.textContent = `冷却中，还需等待 ${cooldownRemaining} 分钟`;
@@ -805,36 +865,11 @@ function showAuthExpiredBanner(): void {
 
 // Show error message
 function showError(message: string): void {
-  // Create error toast
   const toast = document.createElement('div');
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 16px;
-    left: 16px;
-    right: 16px;
-    background: #ef4444;
-    color: white;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    text-align: center;
-    animation: slideUp 0.3s ease-out;
-  `;
+  toast.className = 'error-toast';
   toast.textContent = message;
-
-  // Add animation
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  `;
-  document.head.appendChild(style);
-
   document.body.appendChild(toast);
 
-  // Remove after 3 seconds
   setTimeout(() => {
     toast.remove();
   }, 3000);

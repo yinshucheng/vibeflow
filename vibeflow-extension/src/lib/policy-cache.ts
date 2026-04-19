@@ -1,4 +1,4 @@
-import type { PolicyCache, SystemState, EnforcementMode, EnhancedUrlCheckResult, EntertainmentBlacklistEntry, EntertainmentWhitelistEntry } from '../types/index.js';
+import type { PolicyCache, SystemState, TimeContext, EnforcementMode, EnhancedUrlCheckResult, EntertainmentBlacklistEntry, EntertainmentWhitelistEntry } from '../types/index.js';
 
 const STORAGE_KEY = 'policyCache';
 
@@ -27,6 +27,7 @@ const PRESET_ENTERTAINMENT_WHITELIST: string[] = [
 
 const DEFAULT_POLICY: PolicyCache = {
   globalState: 'IDLE',
+  timeContext: 'free_time',
   blacklist: [],
   whitelist: [],
   sessionWhitelist: [],
@@ -104,6 +105,14 @@ export class PolicyCacheManager {
 
   getState(): SystemState {
     return this.cache.globalState;
+  }
+
+  getTimeContext(): TimeContext {
+    return this.cache.timeContext || 'free_time';
+  }
+
+  async updateTimeContext(timeContext: TimeContext): Promise<void> {
+    await this.updatePolicy({ timeContext });
   }
 
   getBlacklist(): string[] {

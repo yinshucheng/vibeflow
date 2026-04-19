@@ -34,6 +34,10 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      "./plugins/withFamilyControls",
+      "./plugins/withScreenTimeExtensions",
+      "./plugins/withDevelopmentTeam"
+    ]
   }
 }

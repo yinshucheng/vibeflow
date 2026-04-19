@@ -7,7 +7,7 @@
  * Requirements: 2.1, 2.3, 2.5, 2.6, 2.7, 5.2, 5.3
  */
 
-import type { WorkTimeSlot } from '../types/index.js';
+import type { WorkTimeSlot, SystemState, TimeContext } from '../types/index.js';
 
 // ============================================================================
 // Types and Interfaces
@@ -61,11 +61,13 @@ export interface EntertainmentStatus {
   cannotStartReason: EntertainmentCannotStartReason | null;
 }
 
-export type EntertainmentCannotStartReason = 
-  | 'within_work_time' 
-  | 'quota_exhausted' 
-  | 'cooldown_active' 
-  | 'session_already_active';
+export type EntertainmentCannotStartReason =
+  | 'within_work_time'
+  | 'quota_exhausted'
+  | 'cooldown_active'
+  | 'session_already_active'
+  | 'not_idle_state'
+  | 'sleep_time';
 
 export interface EntertainmentStartCheck {
   canStart: boolean;
@@ -149,6 +151,8 @@ export class EntertainmentManager {
   private config: EntertainmentConfig;
   private state: EntertainmentState;
   private workTimeSlots: WorkTimeSlot[] = [];
+  private currentSystemState: SystemState = 'IDLE';
+  private currentTimeContext: TimeContext = 'free_time';
   private initialized = false;
   private sendEventCallback: EntertainmentModeEventCallback | null = null;
   private autoEndCallback: EntertainmentAutoEndCallback | null = null;
@@ -268,6 +272,14 @@ export class EntertainmentManager {
   }
 
   /**
+   * Update system state and time context (from state sync)
+   */
+  setSystemContext(systemState: SystemState, timeContext: TimeContext): void {
+    this.currentSystemState = systemState;
+    this.currentTimeContext = timeContext;
+  }
+
+  /**
    * Get current configuration
    */
   getConfig(): EntertainmentConfig {
@@ -288,6 +300,24 @@ export class EntertainmentManager {
       return {
         canStart: false,
         reason: 'session_already_active',
+        quotaRemaining: this.getQuotaRemaining(),
+      };
+    }
+
+    // Check system state — only allow in IDLE
+    if (this.currentSystemState !== 'IDLE') {
+      return {
+        canStart: false,
+        reason: 'not_idle_state',
+        quotaRemaining: this.getQuotaRemaining(),
+      };
+    }
+
+    // Check sleep time — not allowed during sleep hours
+    if (this.currentTimeContext === 'sleep_time') {
+      return {
+        canStart: false,
+        reason: 'sleep_time',
         quotaRemaining: this.getQuotaRemaining(),
       };
     }
@@ -338,6 +368,8 @@ export class EntertainmentManager {
     if (!check.canStart) {
       const errorMessages: Record<EntertainmentCannotStartReason, string> = {
         session_already_active: 'Entertainment mode is already active',
+        not_idle_state: '当前状态不允许进入娱乐模式',
+        sleep_time: '睡眠时间不允许进入娱乐模式',
         within_work_time: '仅在非工作时间可用',
         quota_exhausted: '今日配额已用完',
         cooldown_active: `冷却中，还需等待 ${check.cooldownRemaining} 分钟`,

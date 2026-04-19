@@ -4,7 +4,7 @@ import { activityTracker } from '../lib/activity-tracker.js';
 import { getWorkStartTracker } from '../lib/work-start-tracker.js';
 import { entertainmentManager } from '../lib/entertainment-manager.js';
 import { normalizeSystemState } from '../types/index.js';
-import type { PolicyCache, SystemState, ActivityLog, ExecuteCommand, TimelineEvent, BlockEvent, InterruptionEvent, EnhancedUrlCheckResult, WorkStartPayload, EntertainmentModePayload } from '../types/index.js';
+import type { PolicyCache, SystemState, TimeContext, ActivityLog, ExecuteCommand, TimelineEvent, BlockEvent, InterruptionEvent, EnhancedUrlCheckResult, WorkStartPayload, EntertainmentModePayload } from '../types/index.js';
 
 // Global state
 let wsClient: VibeFlowWebSocket | null = null;
@@ -149,32 +149,34 @@ const wsHandlers: WebSocketEventHandler = {
     broadcastToPopup({ type: 'POLICY_UPDATED', payload: policy });
   },
 
-  onStateChange: async (state: SystemState) => {
+  onStateChange: async (state: SystemState, timeContext?: string) => {
     // Normalize state: server may send legacy values (locked/planning/rest) or new values (idle)
     const normalizedState = normalizeSystemState(state);
-    console.log('[ServiceWorker] State changed:', state, '-> normalized:', normalizedState);
+    const tc = (timeContext || 'free_time') as TimeContext;
+    console.log('[ServiceWorker] State changed:', state, '-> normalized:', normalizedState, ', timeContext:', tc);
     await policyCache.updateState(normalizedState);
-    
+    await policyCache.updateTimeContext(tc);
+
     // Track work start time (LOCKED → PLANNING transition)
     // Requirements: 14.1, 14.2, 14.10
     const workStartTracker = getWorkStartTracker();
     await workStartTracker.handleStateChange(normalizedState);
-    
+
     // Clear session whitelist when leaving FOCUS
     if (normalizedState !== 'FOCUS') {
       await policyCache.clearSessionWhitelist();
     }
-    
+
     // Update blocking rules
     await updateBlockingRules();
-    
+
     // If entering OVER_REST, enforce restrictions on all tabs
     if (normalizedState === 'OVER_REST') {
       await enforceStateRestrictions();
     }
-    
-    // Broadcast to popup
-    broadcastToPopup({ type: 'STATE_CHANGED', payload: { state: normalizedState } });
+
+    // Broadcast to popup (include timeContext)
+    broadcastToPopup({ type: 'STATE_CHANGED', payload: { state: normalizedState, timeContext: tc } });
   },
 
   onExecute: (command) => {
@@ -191,14 +193,26 @@ const wsHandlers: WebSocketEventHandler = {
     await policyCache.updatePolicy({ isAuthenticated: true });
     broadcastToPopup({ type: 'CONNECTION_STATUS', payload: { connected: true } });
 
-    // Fetch user email from NextAuth session for display
+    // Fetch user email for display — try token auth first, then session cookie
     try {
-      const serverUrl = (await chrome.storage.local.get(['serverUrl'])).serverUrl;
-      if (serverUrl) {
-        const res = await fetch(`${serverUrl}/api/auth/session`, { credentials: 'include' });
-        if (res.ok) {
-          const session = await res.json();
-          userEmail = session?.user?.email || null;
+      const stored = await chrome.storage.local.get(['serverUrl', 'apiToken']);
+      if (stored.serverUrl) {
+        if (stored.apiToken) {
+          // Token-based: verify token to get user info
+          const res = await fetch(`${stored.serverUrl}/api/auth/token`, {
+            headers: { 'Authorization': `Bearer ${stored.apiToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json() as { valid: boolean; user?: { email: string } };
+            userEmail = data.user?.email || null;
+          }
+        } else {
+          // Cookie-based: try NextAuth session
+          const res = await fetch(`${stored.serverUrl}/api/auth/session`, { credentials: 'include' });
+          if (res.ok) {
+            const session = await res.json();
+            userEmail = session?.user?.email || null;
+          }
         }
       }
     } catch { /* ignore - email display is non-critical */ }
@@ -257,8 +271,8 @@ const wsHandlers: WebSocketEventHandler = {
 };
 
 // Connect to VibeFlow server
-// Auth is handled via browser cookie (NextAuth session), no email needed
-function connect(serverUrl: string): void {
+// Auth: uses stored API token if available, falls back to browser cookie
+async function connect(serverUrl: string): Promise<void> {
   // Clear any pending reconnect timer
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -270,7 +284,11 @@ function connect(serverUrl: string): void {
     wsClient.disconnect();
   }
 
-  wsClient = new VibeFlowWebSocket(serverUrl, wsHandlers);
+  // Retrieve stored API token for authentication
+  const stored = await chrome.storage.local.get(['apiToken']);
+  const token = stored.apiToken || undefined;
+
+  wsClient = new VibeFlowWebSocket(serverUrl, wsHandlers, token);
   wsClient.connect();
 
   // Store connection settings
@@ -1138,8 +1156,51 @@ async function handleMessage(
   switch (message.type) {
     case 'CONNECT':
       const { serverUrl: connectUrl } = message.payload as { serverUrl: string };
-      connect(connectUrl);
+      await connect(connectUrl);
       return { success: true };
+
+    case 'LOGIN': {
+      // Token-based login via HTTP API, then connect WebSocket with the token
+      const { serverUrl: loginUrl, email: loginEmail, password } = message.payload as {
+        serverUrl: string; email: string; password: string;
+      };
+
+      try {
+        // Request API token via HTTP endpoint
+        const res = await fetch(`${loginUrl}/api/auth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: loginEmail, password, clientType: 'browser_ext' }),
+        });
+
+        const data = await res.json() as {
+          success: boolean; token?: string; expiresAt?: string;
+          error?: { code: string; message: string };
+        };
+
+        if (!data.success || !data.token) {
+          return { success: false, error: data.error?.message || 'Login failed' };
+        }
+
+        // Store token and connect
+        await chrome.storage.local.set({ apiToken: data.token, serverUrl: loginUrl });
+        userEmail = loginEmail;
+        await connect(loginUrl);
+
+        return { success: true, email: loginEmail };
+      } catch (error) {
+        return { success: false, error: `Connection error: ${(error as Error).message}` };
+      }
+    }
+
+    case 'LOGOUT': {
+      // Clear stored token and disconnect
+      await chrome.storage.local.remove(['apiToken']);
+      userEmail = null;
+      await policyCache.updatePolicy({ isAuthenticated: false });
+      disconnect();
+      return { success: true };
+    }
 
     case 'DISCONNECT':
       disconnect();
@@ -1153,6 +1214,7 @@ async function handleMessage(
         isAuthenticated: policyCache.isAuthenticated(),
         userEmail,
         systemState: policyCache.getState(),
+        timeContext: policyCache.getTimeContext(),
         pomodoroCount,
         dailyCap,
         currentTaskTitle,
@@ -1325,14 +1387,16 @@ async function handleMessage(
     case 'GET_ENTERTAINMENT_STATUS':
       // Get current entertainment status
       await entertainmentManager.initialize();
-      // Update work time slots from policy cache
+      // Update work time slots and system context from policy cache
       entertainmentManager.setWorkTimeSlots(policyCache.getPolicy().workTimeSlots);
+      entertainmentManager.setSystemContext(policyCache.getState(), policyCache.getTimeContext());
       return entertainmentManager.getStatus();
 
     case 'START_ENTERTAINMENT':
       // Start entertainment mode (Requirements: 6.1)
       await entertainmentManager.initialize();
       entertainmentManager.setWorkTimeSlots(policyCache.getPolicy().workTimeSlots);
+      entertainmentManager.setSystemContext(policyCache.getState(), policyCache.getTimeContext());
       const startResult = await entertainmentManager.startEntertainment();
       
       if (startResult.success) {

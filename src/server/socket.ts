@@ -28,8 +28,9 @@ import { timeSliceService } from '@/services/time-slice.service';
 import { dailyStateService, getTodayDate } from '@/services/daily-state.service';
 import { stateEngineService } from '@/services/state-engine.service';
 import { chatService } from '@/services/chat.service';
-import { handleToolConfirmation } from '@/services/chat-tools.service';
+import { sleepTimeService } from '@/services/sleep-time.service';
 import { isWithinWorkHours } from '@/services/idle.service';
+import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { focusSessionService } from '@/services/focus-session.service';
 import { habitReminderService } from '@/services/habit-reminder.service';
 import { habitService } from '@/services/habit.service';
@@ -78,6 +79,7 @@ export interface PolicyCache {
   whitelist: string[];
   sessionWhitelist: string[];
   lastSync: number;
+  isAuthenticated?: boolean;
 }
 
 /**
@@ -186,7 +188,7 @@ export interface InterruptionEventEntry {
 export interface ServerToClientEvents {
   // Legacy events (backward compatibility)
   SYNC_POLICY: (payload: PolicyCache) => void;
-  STATE_CHANGE: (payload: { state: SystemState }) => void;
+  STATE_CHANGE: (payload: { state: SystemState; timeContext?: string }) => void;
   EXECUTE: (payload: ExecuteCommand) => void;
   error: (payload: { code: string; message: string; details?: Record<string, unknown> }) => void;
   
@@ -1935,6 +1937,20 @@ export class VibeFlowSocketServer {
       // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
       const systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
 
+      // Compute timeContext for extension (sleep_time / work_time / free_time)
+      const workTimeSlots = (settings?.workTimeSlots ?? []) as Array<{ id: string; startTime: string; endTime: string; enabled: boolean }>;
+      const withinWorkHours = isWithinWorkHours(workTimeSlots);
+      const sleepResult = await sleepTimeService.isInSleepTime(userId);
+      const isInSleepTime = sleepResult.success && sleepResult.data === true;
+      let timeContext: string;
+      if (isInSleepTime) {
+        timeContext = 'sleep_time';
+      } else if (withinWorkHours) {
+        timeContext = 'work_time';
+      } else {
+        timeContext = 'free_time';
+      }
+
       // Get top 3 tasks from IDs if available, otherwise fall back to today's planned tasks
       let top3Tasks: { id: string; title: string; status: string; priority: string }[] = [];
       if (dailyState?.top3TaskIds && dailyState.top3TaskIds.length > 0) {
@@ -1990,6 +2006,7 @@ export class VibeFlowSocketServer {
           state: {
             systemState: {
               state: systemState,
+              timeContext,
               dailyCapReached,
               skipTokensRemaining: settings?.skipTokenDailyLimit ?? 3,
             },
@@ -2021,8 +2038,8 @@ export class VibeFlowSocketServer {
 
       socket.emit('OCTOPUS_COMMAND', syncStateCommand);
 
-      // Also send legacy state change for backward compatibility
-      socket.emit('STATE_CHANGE', { state: systemState });
+      // Also send legacy state change for backward compatibility (with timeContext)
+      socket.emit('STATE_CHANGE', { state: systemState, timeContext });
     } catch (error) {
       console.error('[Socket.io] Error sending state snapshot:', error);
     }
@@ -2087,6 +2104,7 @@ export class VibeFlowSocketServer {
       whitelist: settings?.whitelist || [],
       sessionWhitelist: [], // Session whitelist is managed client-side
       lastSync: Date.now(),
+      isAuthenticated: true, // Connection is already authenticated at this point
     };
   }
 

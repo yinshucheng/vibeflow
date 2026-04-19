@@ -23,7 +23,7 @@ import { EventQueue, EventReplayManager, getEventQueue } from './event-queue.js'
 
 export type WebSocketEventHandler = {
   onPolicySync: (policy: PolicyCache) => void;
-  onStateChange: (state: SystemState) => void;
+  onStateChange: (state: SystemState, timeContext?: string) => void;
   onExecute: (command: ServerMessage['payload']) => void;
   onConnect: () => void;
   onDisconnect: () => void;
@@ -71,9 +71,12 @@ export class VibeFlowWebSocket {
   private replayManager: EventReplayManager | null = null;
   private queueEventsWhenOffline = true;
 
-  constructor(serverUrl: string, handlers: WebSocketEventHandler) {
+  private authToken: string | null = null;
+
+  constructor(serverUrl: string, handlers: WebSocketEventHandler, authToken?: string) {
     this.serverUrl = serverUrl;
     this.handlers = handlers;
+    this.authToken = authToken || null;
     // Generate a unique client ID for this browser extension instance
     this.clientId = this.generateClientId();
     // Initialize event queue for offline support
@@ -225,12 +228,24 @@ export class VibeFlowWebSocket {
 
   private sendSocketIOConnect(): void {
     // Socket.io CONNECT packet format: 40{auth}
-    // Auth is handled via browser cookie (NextAuth session).
-    // No auth payload needed — the cookie is sent automatically with the
-    // WebSocket handshake and Socket.io will read it from the request.
-    const packet = '40{}';
-    console.log('[WebSocket] Sending CONNECT (cookie-based auth)');
+    // If we have an API token, send it in the auth payload.
+    // Otherwise, fall back to browser cookie (NextAuth session).
+    let auth: Record<string, string> = {};
+    if (this.authToken) {
+      auth = { token: this.authToken, clientType: 'browser_ext' };
+      console.log('[WebSocket] Sending CONNECT (token-based auth)');
+    } else {
+      console.log('[WebSocket] Sending CONNECT (cookie-based auth)');
+    }
+    const packet = `40${JSON.stringify(auth)}`;
     this.sendRaw(packet);
+  }
+
+  /**
+   * Update the auth token (e.g., after login)
+   */
+  setAuthToken(token: string): void {
+    this.authToken = token;
   }
 
   private handleSocketIOPacket(payload: string): void {
@@ -315,9 +330,11 @@ export class VibeFlowWebSocket {
         case 'SYNC_POLICY':
           this.handlers.onPolicySync(eventData as PolicyCache);
           break;
-        case 'STATE_CHANGE':
-          this.handlers.onStateChange((eventData as { state: SystemState }).state);
+        case 'STATE_CHANGE': {
+          const statePayload = eventData as { state: SystemState; timeContext?: string };
+          this.handlers.onStateChange(statePayload.state, statePayload.timeContext);
           break;
+        }
         case 'EXECUTE':
           this.handlers.onExecute(eventData as ServerMessage['payload']);
           break;

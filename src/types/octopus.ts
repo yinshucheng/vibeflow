@@ -529,6 +529,7 @@ export interface BaseCommand {
  */
 export interface SystemState {
   state: string;
+  timeContext?: string;
   dailyCapReached: boolean;
   skipTokensRemaining: number;
 }
