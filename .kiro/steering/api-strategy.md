@@ -137,17 +137,96 @@ SKILL.md (未写) ──→ 编写 6 个 ──→ 上架 SkillHub ──→ 持
 | `GET /api/skill/goals` | `vibe://user/goals` | 低 |
 | `POST /api/skill/unblock` | `flow_request_temporary_unblock` | 低 |
 
+## 内置 AI Chat 与 Skill 对齐机制
+
+### 问题
+
+当前三处独立定义工具，容易不同步：
+- 内置 AI Chat：`src/services/chat-tools.service.ts`（27 个 tool，Zod schema + execute 函数）
+- REST Skill API：`src/app/api/skill/**`（22 个 handler）
+- SKILL.md：文档描述（尚未编写）
+
+任何一处新增/修改工具，其他两处不知道。
+
+### 解决方案：单一工具注册表
+
+重构为**工具注册表模式**——所有工具在一个地方定义，三个接入层从注册表读取：
+
+```
+src/tools/                          ← 新目录：工具注册表
+├── registry.ts                     ← 所有工具的定义（name, schema, execute, meta）
+├── definitions/
+│   ├── task-tools.ts               ← 任务相关工具
+│   ├── pomodoro-tools.ts           ← 番茄钟相关工具
+│   ├── project-tools.ts            ← 项目相关工具
+│   └── query-tools.ts              ← 只读查询工具
+└── adapters/
+    ├── chat-adapter.ts             ← registry → Vercel AI SDK tool() 格式
+    ├── rest-adapter.ts             ← registry → Next.js route handler（自动生成）
+    └── skill-doc-generator.ts      ← registry → SKILL.md 文档（自动生成）
+```
+
+每个工具定义：
+
+```typescript
+// src/tools/definitions/task-tools.ts
+export const completeTask = defineTool({
+  name: 'flow_complete_task',
+  description: '完成任务并添加总结',
+  category: 'task',                    // 用于 SKILL.md 分组
+  inputSchema: z.object({
+    task_id: z.string().describe('Task UUID'),
+    summary: z.string().optional().describe('完成总结'),
+  }),
+  outputSchema: z.object({ ... }),
+  scope: 'write',                      // REST scope 控制
+  requiresConfirmation: false,         // Chat 确认控制
+  restMethod: 'POST',                  // REST HTTP method
+  restPath: '/tasks/complete',         // REST 路径
+  execute: async (userId, params) => {
+    return taskService.updateStatus(params.task_id, userId, 'DONE');
+  },
+});
+```
+
+三个 adapter 从同一注册表读取：
+
+| Adapter | 输入 | 输出 |
+|---------|------|------|
+| `chat-adapter.ts` | registry | Vercel AI SDK `ToolSet`（给 streamText 用） |
+| `rest-adapter.ts` | registry | Next.js route handlers（自动注册到 `/api/skill/*`） |
+| `skill-doc-generator.ts` | registry | SKILL.md 文件内容（`npx tsx scripts/generate-skill-docs.ts`） |
+
+### 对齐保证
+
+1. **新增工具**：只需在 `src/tools/definitions/` 加一个定义，三个 adapter 自动同步
+2. **修改工具**：改一处定义，Chat/REST/SKILL.md 全部更新
+3. **SKILL.md 自动生成**：`npm run generate:skills` 从注册表生成，不手写
+4. **CI 检查**：`npm run check:tool-sync` 验证注册表 ↔ REST 端点 ↔ SKILL.md 三者一致
+
+### 实施分期
+
+| 阶段 | 做什么 | 效果 |
+|------|--------|------|
+| **现在（快速方案）** | 手写 SKILL.md + 手动维护对照表 | 能用，但靠人工同步 |
+| **Phase 2（工具注册表）** | 重构 chat-tools + REST handler → registry 模式 | 新增工具自动三端同步 |
+| **Phase 3（文档生成）** | 从 registry 自动生成 SKILL.md | SKILL.md 永远与代码一致 |
+
+**建议**：先用快速方案上线（手写 SKILL.md），积累几个工具迭代后再做注册表重构——避免过早抽象。
+
 ## MCP 退役计划
 
 1. **现在**：MCP 和 Skill REST 并存，MCP 保持可用
 2. **REST 完全对齐后**：MCP 文档标注 deprecated，推荐迁移到 Skill
-3. **6 个月后**：删除 `src/mcp/` 目录
+3. **6 个月后**：删除 `src/mcp/` 目录，registry 的 MCP adapter 也删除
 
 ## 与 CLAUDE.md 的关系
 
 本文档补充 CLAUDE.md 的 "MCP Integration" 章节。当两者冲突时以本文档为准。
 
 修改 service 层接口时，必须同步检查：
-1. tRPC router（内置 AI Chat + Web/iOS/Desktop）
+1. 内置 AI Chat 工具（`src/services/chat-tools.service.ts`）
 2. REST Skill 端点（`src/app/api/skill/`）
-3. MCP tools（`src/mcp/tools.ts`）— 退役前仍需维护
+3. SKILL.md 文档（`vibeflow-skills/`）
+4. MCP tools（`src/mcp/tools.ts`）— 退役前仍需维护
+5. 本文档的能力对照表（上方 ⭐ 表格）
