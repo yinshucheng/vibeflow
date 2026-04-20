@@ -1,8 +1,15 @@
 /**
  * Octopus Architecture - Enum Type Definitions
  *
- * String union types used across the protocol.
+ * String union types and constants used across the protocol.
  */
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/** Current protocol version — bump when breaking changes are made */
+export const PROTOCOL_VERSION = '1.0.0';
 
 // =============================================================================
 // ENUMS

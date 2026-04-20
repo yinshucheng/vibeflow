@@ -205,16 +205,16 @@ it('policy update uses Config/State split', async () => {
 
 ### 前置任务
 
-- [ ] 46. **WS 推送覆盖审计**: 确认服务端所有状态变更都有对应的 `broadcastFullState`/`broadcastPolicyUpdate` 调用。遗漏的补上，否则 Web 删除轮询后该状态永远不更新。
+- [x] 46. **WS 推送覆盖审计**: 确认服务端所有状态变更都有对应的 `broadcastFullState`/`broadcastPolicyUpdate` 调用。遗漏的补上，否则 Web 删除轮询后该状态永远不更新。
 
 ### Tasks — SDK 实现
 
-- [ ] 47. 实现 `command-handler.ts`（createCommandHandler）
-- [ ] 48. 实现 `state-manager.ts`（createStateManager — full-sync-only，含 handleSync/initialize/getState。~30 行核心逻辑）
-- [ ] 49. 实现 `action-rpc.ts`（createActionRPC）
-- [ ] 50. 实现 `event-builder.ts`（createEventBuilder，含 `getUptime` 注入，不使用 `process.uptime()`）
-- [ ] 51. 实现 `heartbeat.ts`
-- [ ] 52. SDK 单元测试（command 分发、state full sync 覆盖 + initialize 恢复、RPC 超时 + clearAll、EventBuilder 无 getUptime 不 crash）
+- [x] 47. 实现 `command-handler.ts`（createCommandHandler）
+- [x] 48. 实现 `state-manager.ts`（createStateManager — full-sync-only，含 handleSync/initialize/getState。~30 行核心逻辑）
+- [x] 49. 实现 `action-rpc.ts`（createActionRPC）
+- [x] 50. 实现 `event-builder.ts`（createEventBuilder，含 `getUptime` 注入，不使用 `process.uptime()`）
+- [x] 51. 实现 `heartbeat.ts`
+- [x] 52. SDK 单元测试（command 分发、state full sync 覆盖 + initialize 恢复、RPC 超时 + clearAll、EventBuilder 无 getUptime 不 crash） <!-- C-SDK done -->
 
 ### Tasks — 各端迁移
 
