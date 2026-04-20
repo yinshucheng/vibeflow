@@ -590,34 +590,13 @@ export interface FullState {
 }
 
 /**
- * State delta change entry
- */
-export interface StateDeltaChange {
-  /** JSON path */
-  path: string;
-  operation: 'set' | 'delete';
-  value?: unknown;
-}
-
-/**
- * State delta for incremental sync
- * Requirements: 8.2
- */
-export interface StateDelta {
-  changes: StateDeltaChange[];
-}
-
-/**
- * Sync state payload
+ * Sync state payload (full sync only — delta sync deferred for future optimization)
  * Requirements: 8.2
  */
 export interface SyncStatePayload {
-  syncType: 'full' | 'delta';
+  syncType: 'full';
   version: number;
-  /** For full sync */
   state?: FullState;
-  /** For delta sync */
-  delta?: StateDelta;
 }
 
 /**
@@ -1440,24 +1419,11 @@ export const FullStateSchema = z.object({
   settings: UserSettingsStateSchema,
 });
 
-// State delta change schema
-export const StateDeltaChangeSchema = z.object({
-  path: z.string(),
-  operation: z.enum(['set', 'delete']),
-  value: z.unknown().optional(),
-});
-
-// State delta schema
-export const StateDeltaSchema = z.object({
-  changes: z.array(StateDeltaChangeSchema),
-});
-
-// Sync state payload schema
+// Sync state payload schema (full sync only — delta sync deferred for future optimization)
 export const SyncStatePayloadSchema = z.object({
-  syncType: z.enum(['full', 'delta']),
+  syncType: z.literal('full'),
   version: z.number().int().positive(),
   state: FullStateSchema.optional(),
-  delta: StateDeltaSchema.optional(),
 });
 
 // Sync state command schema

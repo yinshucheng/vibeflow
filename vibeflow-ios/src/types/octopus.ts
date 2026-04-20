@@ -145,21 +145,11 @@ export interface FullState {
   settings: UserSettingsState;
 }
 
-export interface StateDeltaChange {
-  path: string;
-  operation: 'set' | 'delete';
-  value?: unknown;
-}
-
-export interface StateDelta {
-  changes: StateDeltaChange[];
-}
-
+// Sync state payload (full sync only — delta sync deferred for future optimization)
 export interface SyncStatePayload {
-  syncType: 'full' | 'delta';
+  syncType: 'full';
   version: number;
   state?: FullState;
-  delta?: StateDelta;
 }
 
 export interface SyncStateCommand extends BaseCommand {

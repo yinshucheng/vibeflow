@@ -110,18 +110,6 @@ const fullStateArb = fc.record({
   settings: userSettingsStateArb,
 });
 
-// State delta change generator
-const stateDeltaChangeArb = fc.record({
-  path: fc.constantFrom('systemState.state', 'dailyState.completedPomodoros', 'settings.dailyCap'),
-  operation: fc.constantFrom('set' as const, 'delete' as const),
-  value: fc.option(fc.oneof(fc.string(), fc.integer(), fc.boolean()), { nil: undefined }),
-});
-
-// State delta generator
-const stateDeltaArb = fc.record({
-  changes: fc.array(stateDeltaChangeArb, { minLength: 1, maxLength: 3 }),
-});
-
 // Time slot generator
 const timeSlotArb = fc.record({
   dayOfWeek: fc.integer({ min: 0, max: 6 }),
@@ -173,21 +161,6 @@ const syncStateFullCommandArb = fc.tuple(
     syncType: 'full' as const,
     version,
     state,
-  },
-}));
-
-// SyncStateCommand generator (delta sync)
-const syncStateDeltaCommandArb = fc.tuple(
-  baseCommandFieldsArb,
-  stateDeltaArb,
-  fc.integer({ min: 1, max: 1000000 })
-).map(([base, delta, version]) => ({
-  ...base,
-  commandType: 'SYNC_STATE' as const,
-  payload: {
-    syncType: 'delta' as const,
-    version,
-    delta,
   },
 }));
 
@@ -257,20 +230,6 @@ describe('Property 2: Command Schema Validation', () => {
           expect(result.data.priority).toBe(command.priority);
           expect(result.data.requiresAck).toBe(command.requiresAck);
           expect(result.data.createdAt).toBe(command.createdAt);
-        }
-        return true;
-      }),
-      { numRuns: 50 }
-    );
-  });
-
-  it('should accept valid SyncStateCommand with delta sync', () => {
-    fc.assert(
-      fc.property(syncStateDeltaCommandArb, (command) => {
-        const result = validateCommand(command);
-        expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.data.commandType).toBe('SYNC_STATE');
         }
         return true;
       }),

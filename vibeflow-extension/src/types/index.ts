@@ -418,10 +418,9 @@ export interface OctopusBaseCommand {
  * Sync state command payload
  */
 export interface SyncStatePayload {
-  syncType: 'full' | 'delta';
+  syncType: 'full';
   version: number;
   state?: unknown;
-  delta?: unknown;
 }
 
 /**

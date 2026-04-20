@@ -126,17 +126,11 @@ class SyncService {
   }
 
   /**
-   * Handle SYNC_STATE command from server.
-   * Supports both full sync and delta sync.
+   * Handle SYNC_STATE command from server (full sync only).
    */
   private handleSyncState(command: SyncStateCommand): void {
     const { payload } = command;
-
-    if (payload.syncType === 'full') {
-      console.log('Received full state sync, version:', payload.version);
-    } else if (payload.syncType === 'delta') {
-      console.log('Received delta sync, version:', payload.version);
-    }
+    console.log('[SyncService] Received full state sync, version:', payload.version);
 
     // Delegate to store handler
     try {

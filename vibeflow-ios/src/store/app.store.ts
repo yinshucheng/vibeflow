@@ -20,7 +20,6 @@ import type {
   SyncStateCommand,
   UpdatePolicyCommand,
   FullState,
-  StateDelta,
 } from '@/types';
 
 // =============================================================================
@@ -252,106 +251,6 @@ function mapTaskStatus(status: string): TaskData['status'] {
   }
 }
 
-/**
- * Apply delta changes to current state
- */
-function applyDeltaChanges(
-  currentState: AppState,
-  delta: StateDelta
-): Partial<AppState> {
-  const updates: Partial<AppState> = {};
-
-  for (const change of delta.changes) {
-    if (change.operation === 'delete') {
-      continue; // Handle delete operations if needed
-    }
-
-    // Parse path and apply change
-    const pathParts = change.path.split('.');
-    
-    switch (pathParts[0]) {
-      case 'systemState':
-        if (pathParts[1] === 'state' && currentState.dailyState) {
-          const newState = normalizeState(change.value as string);
-          updates.dailyState = {
-            ...currentState.dailyState,
-            state: newState,
-          };
-          // When transitioning away from FOCUS, clear activePomodoro defensively.
-          // The server should also send a full sync with activePomodoro = null,
-          // but delta syncs only contain systemState.state changes.
-          if (newState !== 'FOCUS' && currentState.activePomodoro !== null) {
-            updates.activePomodoro = null;
-          }
-        }
-        break;
-
-      case 'dailyState':
-        if (currentState.dailyState) {
-          if (pathParts[1] === 'completedPomodoros') {
-            updates.dailyState = {
-              ...currentState.dailyState,
-              completedPomodoros: change.value as number,
-            };
-          } else if (pathParts[1] === 'totalFocusMinutes') {
-            updates.dailyState = {
-              ...(updates.dailyState ?? currentState.dailyState),
-              totalFocusMinutes: change.value as number,
-            };
-          }
-        }
-        break;
-
-      case 'activePomodoro':
-        if (change.value === null) {
-          updates.activePomodoro = null;
-          // isBlockingActive is managed by blockingService which evaluates the full state.
-        } else if (typeof change.value === 'object') {
-          const pomodoroData = change.value as {
-            id: string;
-            taskId: string | null;
-            taskTitle?: string | null;
-            startTime: number;
-            duration: number;
-            status: string;
-          };
-          updates.activePomodoro = {
-            id: pomodoroData.id,
-            taskId: pomodoroData.taskId,
-            taskTitle: pomodoroData.taskTitle ?? findTaskTitle(currentState.top3Tasks, pomodoroData.taskId),
-            startTime: pomodoroData.startTime,
-            duration: pomodoroData.duration,
-            status: pomodoroData.status === 'paused' ? 'paused' : 'active',
-          };
-          // isBlockingActive is managed by blockingService which evaluates the full state.
-        }
-        break;
-
-      case 'top3Tasks':
-        if (Array.isArray(change.value)) {
-          const tasks = change.value as Array<{
-            id: string;
-            title: string;
-            status: string;
-            priority: string;
-          }>;
-          updates.top3Tasks = tasks.map((task) => ({
-            id: task.id,
-            title: task.title,
-            priority: mapPriority(task.priority),
-            status: mapTaskStatus(task.status),
-            isTop3: true,
-            isCurrentTask: currentState.activePomodoro?.taskId === task.id,
-          }));
-          updates.todayTasks = updates.top3Tasks;
-        }
-        break;
-    }
-  }
-
-  return updates;
-}
-
 // =============================================================================
 // ZUSTAND STORE
 // =============================================================================
@@ -373,10 +272,9 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   handleSyncState: (command: SyncStateCommand) => {
     const { payload } = command;
-    const currentState = get();
 
-    if (payload.syncType === 'full' && payload.state) {
-      // Full state sync
+    if (payload.state) {
+      // Full state sync — server always sends complete ground truth
       const mappedState = mapFullStateToAppState(payload.state);
       set({
         ...mappedState,
@@ -390,24 +288,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         get().fetchTodayTasks();
         get().fetchOverdueTasks();
       }, 0);
-    } else if (payload.syncType === 'delta' && payload.delta) {
-      // Delta state sync
-      const updates = applyDeltaChanges(currentState, payload.delta);
-      set({
-        ...updates,
-        lastSyncTime: Date.now(),
-        stateVersion: payload.version,
-      });
-      // If task-related delta came in, refresh task lists
-      const hasTaskChange = payload.delta.changes.some((c) =>
-        c.path.startsWith('top3Tasks')
-      );
-      if (hasTaskChange) {
-        setTimeout(() => {
-          get().fetchTodayTasks();
-          get().fetchOverdueTasks();
-        }, 0);
-      }
     }
   },
 
