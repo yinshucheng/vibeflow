@@ -1,6 +1,6 @@
 # 八爪鱼协议统一化 - Tasks
 
-> **Rev 2** — 基于 Review 7/8 修订。Delta sync 标记 optional、Phase B 拆为 B1+B2、废弃 React Query 双源同步、补充自动化测试策略、补充副作用迁移 task。
+> **Rev 3** — 基于 Review 7/8/9 修订。Delta sync 代码已清理（commit e039021）、Phase B 拆为 B1+B2、废弃 React Query 双源同步、补充自动化测试策略、补充副作用迁移 task。
 
 ## 修改范围总览
 
@@ -23,7 +23,7 @@
 ```
 packages/octopus-protocol/tests/
 ├── command-handler.test.ts       # command 分发
-├── state-manager.test.ts         # full sync + shallow compare
+├── state-manager.test.ts         # full sync 覆盖 + initialize 恢复
 ├── action-rpc.test.ts            # RPC 超时 + clearAll
 ├── event-builder.test.ts         # getUptime 注入 + sequence
 ├── conformance.test.ts           # 类型 roundtrip + Zod coverage
@@ -210,16 +210,16 @@ it('policy update uses Config/State split', async () => {
 ### Tasks — SDK 实现
 
 - [ ] 47. 实现 `command-handler.ts`（createCommandHandler）
-- [ ] 48. 实现 `state-manager.ts`（createStateManager，含 initialize/saveToStorage/fullSyncReceived 控制）
+- [ ] 48. 实现 `state-manager.ts`（createStateManager — full-sync-only，含 handleSync/initialize/getState。~30 行核心逻辑）
 - [ ] 49. 实现 `action-rpc.ts`（createActionRPC）
 - [ ] 50. 实现 `event-builder.ts`（createEventBuilder，含 `getUptime` 注入，不使用 `process.uptime()`）
 - [ ] 51. 实现 `heartbeat.ts`
-- [ ] 52. SDK 单元测试（command 分发、state full sync + shallow compare、RPC 超时 + clearAll、EventBuilder 无 getUptime 不 crash、fullSyncReceived 时序）
+- [ ] 52. SDK 单元测试（command 分发、state full sync 覆盖 + initialize 恢复、RPC 超时 + clearAll、EventBuilder 无 getUptime 不 crash）
 
 ### Tasks — 各端迁移
 
 - [ ] 53. iOS: `websocket.service.ts` OCTOPUS_COMMAND handler → `createCommandHandler`
-- [ ] 54. iOS: `app.store.ts` full sync 逻辑 → `createStateManager`（验证与原实现行为等价；`applyDeltaChanges` 是死代码可删除）
+- [ ] 54. iOS: `app.store.ts` full sync 逻辑 → `createStateManager`（验证与原实现行为等价；`applyDeltaChanges` 已在 commit e039021 中删除）
 - [ ] 55. iOS: `action.service.ts` → `createActionRPC`
 - [ ] 56. Desktop: `connection-manager.ts` command routing → `createCommandHandler` + `createStateManager`
 - [ ] 57. Extension: `websocket.ts` command routing → `createCommandHandler` + `createStateManager`（配置 `chrome.storage.local` 持久化）
@@ -243,13 +243,17 @@ it('policy update uses Config/State split', async () => {
 - [ ] 69. 编写 `tests/integration/offline-flush-sequence.test.ts` — 断连→事件入队→重连→full sync→flush 时序
 - [ ] 70. 性能验证：模拟每秒 5 次 full sync，确认 Web 端无 over-render（Zustand selector 精确订阅）
 
-### Delta Sync（Optional / Future）
+### Delta Sync（DEFERRED — 已清理死代码）
 
-> Review 8 确认：服务端当前只有 full sync（`sendStateSnapshotToSocket` 始终发 `syncType: 'full'`），iOS 的 `applyDeltaChanges` 是从未被触发的死代码。因此 delta sync 不是"退化"而是"尚未实现"。单用户 App 的 full sync payload 几百字节，无性能压力。上线后有真实数据再做 delta 优化。
+> **已完成**: commit e039021 清理了所有 delta sync 死代码（iOS `applyDeltaChanges` 95 行、`StateDelta`/`StateDeltaChange` 类型、delta-sync-blocking.test.ts 测试文件、property test generators）。`syncType` 现在只允许 `'full'`。
+>
+> **未来路径**: 上线后如果 full sync 的 5-7 次 DB 查询/socket 成为瓶颈，再实现 delta sync。增量添加成本 ~4-6h，远低于现在从零设计。State Manager 届时加一个 `handleDeltaSync` 方法即可，各端不需要改动。
+>
+> **兼容性**: full sync + 定时兜底（如每 30s 补推一次）完全兼容未来的 delta sync 方案。full sync 是 ground truth，delta 只是优化路径。
 
 - [ ] 71. _(future)_ 服务端: 实现 `broadcastDeltaState` — 维护 per-socket last-sent-state，diff 计算变更的顶层 key
-- [ ] 72. _(future)_ State Manager: `handleDeltaSync` 支持 top-level merge
-- [ ] 73. _(future)_ 各端对接 delta sync 路径
+- [ ] 72. _(future)_ State Manager: 添加 `handleDeltaSync(payload)` 支持 top-level merge
+- [ ] 73. _(future)_ `SyncStatePayload.syncType` 恢复为 `'full' | 'delta'`，各端无需改动（State Manager 内部处理）
 
 ---
 
@@ -260,7 +264,7 @@ it('policy update uses Config/State split', async () => {
 - [ ] 76. 测试所有 CommandType ↔ interface ↔ Zod schema 映射完整
 - [ ] 77. 测试 Policy (Config + State) JSON roundtrip
 - [ ] 78. 测试未知 commandType 优雅忽略
-- [ ] 79. 测试 State Manager: full sync 覆盖 + shallow compare + fullSyncReceived 控制 + initialize 恢复
+- [ ] 79. 测试 State Manager: full sync 覆盖 + initialize 恢复 + getState 快照正确
 - [ ] 80. 测试 ActionRPC 超时 + clearAll
 - [ ] 81. 测试 EventBuilder 无 getUptime 时不 crash
 - [ ] 82. 性能基准：每秒 10 次 full sync 的对象创建开销 < 1ms/次
@@ -356,3 +360,5 @@ it('policy update uses Config/State split', async () => {
 | R8-5 | Review 8 | Task 56 超时策略 | **采纳** — 补充 10s 超时 best effort |
 | R8-6 | Review 8 | tray-sync 副作用迁移 | **采纳** — 新增 Task 62 |
 | R8-7 | Review 8 | Delta sync 标记 optional | **采纳** — full sync 对单用户够用 |
+| R9-1 | Review 9 | Delta sync 死代码直接删除 | **执行** — commit e039021 清理全部 delta sync 代码（-532 行） |
+| R9-2 | Review 9 | syncType 收窄为 'full' only | **执行** — 类型/Zod schema/property tests 全部更新 |
