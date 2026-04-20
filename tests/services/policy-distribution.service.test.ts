@@ -156,16 +156,16 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.restEnforcement).toBeDefined();
-      expect(result.data!.restEnforcement!.isActive).toBe(true);
-      expect(result.data!.restEnforcement!.workApps).toHaveLength(2);
-      expect(result.data!.restEnforcement!.workApps[0].bundleId).toBe('com.apple.Xcode');
-      expect(result.data!.restEnforcement!.actions).toEqual(['close']);
-      expect(result.data!.restEnforcement!.grace).toEqual({
+      expect(result.data?.state.isRestEnforcementActive).toBe(true);
+      expect(result.data?.config.restEnforcement).toBeDefined();
+      expect(result.data!.config.restEnforcement!.workApps).toHaveLength(2);
+      expect(result.data!.config.restEnforcement!.workApps[0].bundleId).toBe('com.apple.Xcode');
+      expect(result.data!.config.restEnforcement!.actions).toEqual(['close']);
+      expect(result.data!.state.restGrace).toEqual({
         available: true,
         remaining: 2,
-        durationMinutes: 2,
       });
+      expect(result.data!.config.restEnforcement!.graceDurationMinutes).toBe(2);
     });
 
     it('should omit restEnforcement when grace is active', async () => {
@@ -192,7 +192,8 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.restEnforcement).toBeUndefined();
+      expect(result.data?.state.isRestEnforcementActive).toBe(false);
+      expect(result.data?.config.restEnforcement).toBeUndefined();
     });
 
     it('should omit restEnforcement when state is not REST', async () => {
@@ -208,7 +209,8 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.restEnforcement).toBeUndefined();
+      expect(result.data?.state.isRestEnforcementActive).toBe(false);
+      expect(result.data?.config.restEnforcement).toBeUndefined();
       // Should not even call getGraceInfo when not in REST state
       expect(restEnforcementService.getGraceInfo).not.toHaveBeenCalled();
     });
@@ -224,7 +226,8 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.restEnforcement).toBeUndefined();
+      expect(result.data?.state.isRestEnforcementActive).toBe(false);
+      expect(result.data?.config.restEnforcement).toBeUndefined();
       // Should not check state when disabled
       expect(stateEngineService.getState).not.toHaveBeenCalled();
     });
@@ -253,7 +256,7 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data!.restEnforcement!.actions).toEqual(['close']);
+      expect(result.data!.config.restEnforcement!.actions).toEqual(['close']);
     });
   });
 
@@ -300,12 +303,11 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.overRest).toBeDefined();
-      expect(result.data!.overRest!.isOverRest).toBe(true);
-      expect(result.data!.overRest!.overRestMinutes).toBe(10);
-      expect(result.data!.overRest!.enforcementApps).toHaveLength(1);
-      expect(result.data!.overRest!.enforcementApps[0].bundleId).toBe('com.spotify.client');
-      expect(result.data!.overRest!.bringToFront).toBe(true);
+      expect(result.data?.state.isOverRest).toBe(true);
+      expect(result.data!.state.overRestMinutes).toBe(10);
+      expect(result.data!.config.overRestEnforcementApps).toHaveLength(1);
+      expect(result.data!.config.overRestEnforcementApps![0].bundleId).toBe('com.spotify.client');
+      expect(result.data!.state.overRestBringToFront).toBe(true);
     });
 
     it('should fall back to distraction apps when no over rest apps configured', async () => {
@@ -349,10 +351,10 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.overRest).toBeDefined();
+      expect(result.data?.state.isOverRest).toBe(true);
       // Should fall back to distraction apps
-      expect(result.data!.overRest!.enforcementApps).toHaveLength(1);
-      expect(result.data!.overRest!.enforcementApps[0].bundleId).toBe('com.google.Chrome');
+      expect(result.data!.config.overRestEnforcementApps).toHaveLength(1);
+      expect(result.data!.config.overRestEnforcementApps![0].bundleId).toBe('com.google.Chrome');
     });
 
     it('should omit overRest when DB state is not OVER_REST', async () => {
@@ -365,7 +367,7 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.overRest).toBeUndefined();
+      expect(result.data?.state.isOverRest).toBe(false);
     });
 
     it('should compute overRestMinutes as 0 when overRestEnteredAt is null', async () => {
@@ -406,8 +408,8 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.overRest).toBeDefined();
-      expect(result.data!.overRest!.overRestMinutes).toBe(0);
+      expect(result.data?.state.isOverRest).toBe(true);
+      expect(result.data!.state.overRestMinutes).toBe(0);
     });
   });
 
@@ -457,10 +459,10 @@ describe('PolicyDistributionService', () => {
 
       expect(result.success).toBe(true);
       // OVER_REST should be present
-      expect(result.data?.overRest).toBeDefined();
-      expect(result.data!.overRest!.isOverRest).toBe(true);
+      expect(result.data?.state.isOverRest).toBe(true);
       // REST enforcement should be absent (would conflict with OVER_REST)
-      expect(result.data?.restEnforcement).toBeUndefined();
+      expect(result.data?.state.isRestEnforcementActive).toBe(false);
+      expect(result.data?.config.restEnforcement).toBeUndefined();
     });
   });
 
@@ -478,9 +480,9 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.healthLimit).toBeDefined();
-      expect(result.data!.healthLimit!.type).toBe('2hours');
-      expect(result.data!.healthLimit!.message).toContain('2+ hours');
+      expect(result.data?.state.healthLimit).toBeDefined();
+      expect(result.data!.state.healthLimit!.type).toBe('2hours');
+      expect(result.data!.state.healthLimit!.message).toContain('2+ hours');
     });
 
     it('should include healthLimit when daily limit exceeded', async () => {
@@ -496,9 +498,9 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.healthLimit).toBeDefined();
-      expect(result.data!.healthLimit!.type).toBe('daily');
-      expect(result.data!.healthLimit!.message).toContain('10 hours');
+      expect(result.data?.state.healthLimit).toBeDefined();
+      expect(result.data!.state.healthLimit!.type).toBe('daily');
+      expect(result.data!.state.healthLimit!.message).toContain('10 hours');
     });
 
     it('should omit healthLimit when not exceeded', async () => {
@@ -514,7 +516,7 @@ describe('PolicyDistributionService', () => {
       const result = await policyDistributionService.compilePolicy(userId);
 
       expect(result.success).toBe(true);
-      expect(result.data?.healthLimit).toBeUndefined();
+      expect(result.data?.state.healthLimit).toBeUndefined();
     });
   });
 });

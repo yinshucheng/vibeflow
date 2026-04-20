@@ -1,13 +1,14 @@
 /**
  * Octopus Architecture - Policy Types
  *
- * Policy configuration distributed to clients.
+ * Policy = Config (user settings, low-frequency change) + State (runtime computed values).
+ * Phase B1: Split from flat Policy to eliminate runtime state mixed into configuration.
  */
 
 import type { EnforcementMode } from './enums';
 
 // =============================================================================
-// POLICY TYPES
+// SHARED PRIMITIVES (used by both Config and State)
 // =============================================================================
 
 /**
@@ -24,16 +25,6 @@ export interface TimeSlot {
 }
 
 /**
- * Skip token configuration
- * Requirements: 10.5
- */
-export interface SkipTokenConfig {
-  remaining: number;
-  maxPerDay: number;
-  delayMinutes: number;
-}
-
-/**
  * Distraction app configuration
  * Requirements: 10.5
  */
@@ -44,22 +35,7 @@ export interface DistractionApp {
 }
 
 /**
- * Ad-hoc focus session configuration for policy
- * Requirements: 2.3, 13.1, 13.2
- */
-export interface AdhocFocusSession {
-  /** Whether an ad-hoc focus session is currently active */
-  active: boolean;
-  /** Unix timestamp when the session ends */
-  endTime: number;
-  /** Whether this session overrides sleep time enforcement */
-  overridesSleepTime?: boolean;
-  /** Whether this session overrides work hours (enables OVER_REST outside work hours) */
-  overridesWorkHours?: boolean;
-}
-
-/**
- * Sleep enforcement app configuration for policy
+ * Sleep enforcement app entry
  * Requirements: 11.1
  */
 export interface SleepEnforcementAppPolicy {
@@ -67,12 +43,18 @@ export interface SleepEnforcementAppPolicy {
   name: string;
 }
 
-/**
- * Sleep time configuration for policy
- * Requirements: 9.4, 11.1, 11.2
- */
-export interface SleepTimePolicy {
-  /** Whether sleep time enforcement is enabled */
+// =============================================================================
+// POLICY CONFIG — User settings, changes only when user modifies settings
+// =============================================================================
+
+/** Skip token configuration (config portion — maxPerDay and delayMinutes) */
+export interface SkipTokenConfig {
+  maxPerDay: number;
+  delayMinutes: number;
+}
+
+/** Sleep time configuration (config portion — schedule and enforcement apps) */
+export interface SleepTimeConfig {
   enabled: boolean;
   /** Sleep start time in "HH:mm" format */
   startTime: string;
@@ -80,95 +62,139 @@ export interface SleepTimePolicy {
   endTime: string;
   /** Apps to close during sleep time */
   enforcementApps: SleepEnforcementAppPolicy[];
-  /** Whether currently within the sleep time window */
-  isCurrentlyActive: boolean;
-  /** Whether sleep enforcement is currently snoozed */
-  isSnoozed: boolean;
-  /** Unix timestamp when snooze ends (if snoozed) */
-  snoozeEndTime?: number;
 }
 
-/**
- * Over rest configuration for policy
- * Requirements: 15.2, 15.3, 16.1-16.5
- */
-export interface OverRestPolicy {
-  /** Whether user is currently in over rest state */
-  isOverRest: boolean;
-  /** Minutes over the normal rest duration */
-  overRestMinutes: number;
-  /** Apps to close during over rest */
-  enforcementApps: SleepEnforcementAppPolicy[];
-  /** Whether to bring app to front */
-  bringToFront: boolean;
-}
-
-/**
- * REST enforcement policy - blocks work apps during rest periods
- */
-export interface RestEnforcementPolicy {
-  /** Whether REST enforcement is currently active */
-  isActive: boolean;
+/** REST enforcement configuration (config portion — apps and actions) */
+export interface RestEnforcementConfig {
   /** Work apps to close/hide during REST */
   workApps: SleepEnforcementAppPolicy[];
   /** Enforcement actions: 'close' | 'hide' */
   actions: string[];
-  /** Grace info for client display */
-  grace: {
-    available: boolean;
-    remaining: number;
-    durationMinutes: number;
-  };
+  /** Grace period duration in minutes */
+  graceDurationMinutes: number;
 }
 
 /**
- * Work time policy -- blocks distraction apps during configured work hours.
- * Suppressed during legitimate rest periods after pomodoro completion.
- */
-export interface WorkTimePolicy {
-  /** Whether work time blocking is enabled (has enabled slots) */
-  enabled: boolean;
-  /** Whether current time is within a work time slot */
-  isCurrentlyActive: boolean;
-  /** Whether user is in legitimate rest period after completing a pomodoro */
-  isInRestPeriod: boolean;
-  /** Enabled work time slots in "HH:mm" format, for DeviceActivity registration */
-  slots: { startTime: string; endTime: string }[];
-}
-
-/**
- * Policy object distributed to clients
+ * PolicyConfig — Pure user configuration, changes only when user modifies settings.
  * Requirements: 10.5, 10.6
  */
-export interface Policy {
+export interface PolicyConfig {
   version: number;
+  /** Unix timestamp of last config change */
+  updatedAt: number;
   blacklist: string[];
   whitelist: string[];
   enforcementMode: EnforcementMode;
   workTimeSlots: TimeSlot[];
   skipTokens: SkipTokenConfig;
   distractionApps: DistractionApp[];
-  /** Unix timestamp */
-  updatedAt: number;
-  /** Ad-hoc focus session configuration (optional) */
+  /** Sleep time schedule and enforcement apps */
+  sleepTime?: SleepTimeConfig;
+  /** Apps to enforce during OVER_REST (from settings, separate from distractionApps) */
+  overRestEnforcementApps?: DistractionApp[];
+  /** REST enforcement config (apps and actions) */
+  restEnforcement?: RestEnforcementConfig;
+}
+
+// =============================================================================
+// POLICY STATE — Runtime computed values, changes with every state transition
+// =============================================================================
+
+/**
+ * PolicyState — Runtime computed values, recalculated on each state change.
+ */
+export interface PolicyState {
+  /** Skip tokens remaining today */
+  skipTokensRemaining: number;
+  /** Whether currently within the sleep time window */
+  isSleepTimeActive: boolean;
+  /** Whether sleep enforcement is currently snoozed */
+  isSleepSnoozed: boolean;
+  /** Unix timestamp when snooze ends (if snoozed) */
+  sleepSnoozeEndTime?: number;
+  /** Whether user is currently in OVER_REST state */
+  isOverRest: boolean;
+  /** Minutes over the normal rest duration */
+  overRestMinutes: number;
+  /** Whether to bring app to front during OVER_REST */
+  overRestBringToFront: boolean;
+  /** Whether REST enforcement is currently active */
+  isRestEnforcementActive: boolean;
+  /** REST enforcement grace period info */
+  restGrace?: { available: boolean; remaining: number };
+  /** Ad-hoc focus session (present only when active) */
   adhocFocusSession?: AdhocFocusSession;
-  /** Sleep time configuration (optional) */
-  sleepTime?: SleepTimePolicy;
-  /** Over rest configuration (optional) */
-  overRest?: OverRestPolicy;
-  /** Temporary unblock configuration (optional) */
+  /** Temporary unblock (present only when active) */
   temporaryUnblock?: { active: boolean; endTime: number };
-  /** REST enforcement configuration (optional) */
-  restEnforcement?: RestEnforcementPolicy;
-  /** Work time blocking configuration (optional) */
-  workTime?: WorkTimePolicy;
-  /** Health limit notification (optional) */
+  /** Health limit notification (present only when limit exceeded) */
   healthLimit?: {
     type: '2hours' | 'daily';
     message: string;
-    /** Whether to repeat the notification at intervals */
     repeating?: boolean;
-    /** Interval in minutes between repeated notifications */
     intervalMinutes?: number;
+  };
+}
+
+// =============================================================================
+// COMBINED POLICY
+// =============================================================================
+
+/**
+ * Policy = Config + State, distributed to clients via UPDATE_POLICY command.
+ * Requirements: 10.5, 10.6
+ */
+export interface Policy {
+  config: PolicyConfig;
+  state: PolicyState;
+}
+
+// =============================================================================
+// SUB-TYPES (kept for backward compatibility during migration)
+// =============================================================================
+
+/**
+ * Ad-hoc focus session
+ * Requirements: 2.3, 13.1, 13.2
+ */
+export interface AdhocFocusSession {
+  active: boolean;
+  endTime: number;
+  overridesSleepTime?: boolean;
+  overridesWorkHours?: boolean;
+}
+
+// =============================================================================
+// LEGACY FLAT TYPES (deprecated — use PolicyConfig/PolicyState instead)
+// These are kept temporarily for consumers that haven't migrated yet.
+// =============================================================================
+
+/** @deprecated Use SleepTimeConfig (config) + PolicyState sleep fields (state) */
+export interface SleepTimePolicy {
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+  enforcementApps: SleepEnforcementAppPolicy[];
+  isCurrentlyActive: boolean;
+  isSnoozed: boolean;
+  snoozeEndTime?: number;
+}
+
+/** @deprecated Use PolicyState.isOverRest + related fields */
+export interface OverRestPolicy {
+  isOverRest: boolean;
+  overRestMinutes: number;
+  enforcementApps: SleepEnforcementAppPolicy[];
+  bringToFront: boolean;
+}
+
+/** @deprecated Use RestEnforcementConfig (config) + PolicyState (state) */
+export interface RestEnforcementPolicy {
+  isActive: boolean;
+  workApps: SleepEnforcementAppPolicy[];
+  actions: string[];
+  grace: {
+    available: boolean;
+    remaining: number;
+    durationMinutes: number;
   };
 }

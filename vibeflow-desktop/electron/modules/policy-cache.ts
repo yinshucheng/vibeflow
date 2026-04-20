@@ -9,7 +9,8 @@
  */
 
 import Store from 'electron-store';
-import type { DesktopPolicy, PolicyTimeSlot, PolicySkipTokenConfig, PolicyDistractionApp, PolicySleepTime, PolicyAdhocFocusSession, PolicyOverRest } from '../types';
+import type { DesktopPolicy, PolicyTimeSlot, PolicySkipTokenConfig, PolicyDistractionApp } from '../types';
+import type { SleepTimeConfig, AdhocFocusSession } from '@vibeflow/octopus-protocol';
 
 // =============================================================================
 // Types and Interfaces
@@ -70,18 +71,28 @@ const DEFAULT_MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
  * Requirements: 9.2
  */
 const DEFAULT_POLICY: DesktopPolicy = {
-  version: 0,
-  enforcementMode: 'gentle',
-  blacklist: [],
-  whitelist: [],
-  workTimeSlots: [],
-  skipTokens: {
-    remaining: 3,
-    maxPerDay: 3,
-    delayMinutes: 15,
+  config: {
+    version: 0,
+    enforcementMode: 'gentle',
+    blacklist: [],
+    whitelist: [],
+    workTimeSlots: [],
+    skipTokens: {
+      maxPerDay: 3,
+      delayMinutes: 15,
+    },
+    distractionApps: [],
+    updatedAt: 0,
   },
-  distractionApps: [],
-  updatedAt: 0,
+  state: {
+    skipTokensRemaining: 3,
+    isSleepTimeActive: false,
+    isSleepSnoozed: false,
+    isOverRest: false,
+    overRestMinutes: 0,
+    overRestBringToFront: false,
+    isRestEnforcementActive: false,
+  },
 };
 
 // =============================================================================
@@ -129,7 +140,7 @@ export class PolicyCacheManager {
           ...stored,
           isStale: this.isStaleCache(stored),
         };
-        console.log('[PolicyCache] Initialized with cached policy, version:', stored.policy.version);
+        console.log('[PolicyCache] Initialized with cached policy, version:', stored.policy.config.version);
       } else {
         console.log('[PolicyCache] No valid cached policy found, using defaults');
         this.cachedPolicy = null;
@@ -158,7 +169,7 @@ export class PolicyCacheManager {
 
     try {
       this.store.set(STORAGE_KEY, this.cachedPolicy);
-      console.log('[PolicyCache] Policy updated, version:', policy.version);
+      console.log('[PolicyCache] Policy updated, version:', policy.config.version);
     } catch (error) {
       console.error('[PolicyCache] Failed to persist policy:', error);
     }
@@ -214,7 +225,7 @@ export class PolicyCacheManager {
       isStale: cached ? this.isStaleCache(cached) : true,
       lastCachedAt: cached?.cachedAt ?? null,
       lastSyncedAt: cached?.lastSyncedAt ?? null,
-      policyVersion: cached?.policy.version ?? null,
+      policyVersion: cached?.policy.config.version ?? null,
     };
   }
 
@@ -271,49 +282,49 @@ export class PolicyCacheManager {
    * Get enforcement mode from cached policy
    */
   getEnforcementMode(): 'strict' | 'gentle' {
-    return this.getPolicy().enforcementMode;
+    return this.getPolicy().config.enforcementMode;
   }
 
   /**
    * Get work time slots from cached policy
    */
   getWorkTimeSlots(): PolicyTimeSlot[] {
-    return this.getPolicy().workTimeSlots;
+    return this.getPolicy().config.workTimeSlots;
   }
 
   /**
    * Get skip token config from cached policy
    */
   getSkipTokenConfig(): PolicySkipTokenConfig {
-    return this.getPolicy().skipTokens;
+    return this.getPolicy().config.skipTokens;
   }
 
   /**
    * Get distraction apps from cached policy
    */
   getDistractionApps(): PolicyDistractionApp[] {
-    return this.getPolicy().distractionApps;
+    return this.getPolicy().config.distractionApps;
   }
 
   /**
    * Get sleep time config from cached policy
    */
-  getSleepTimeConfig(): PolicySleepTime | undefined {
-    return this.getPolicy().sleepTime;
+  getSleepTimeConfig(): SleepTimeConfig | undefined {
+    return this.getPolicy().config.sleepTime;
   }
 
   /**
    * Get ad-hoc focus session from cached policy
    */
-  getAdhocFocusSession(): PolicyAdhocFocusSession | undefined {
-    return this.getPolicy().adhocFocusSession;
+  getAdhocFocusSession(): AdhocFocusSession | undefined {
+    return this.getPolicy().state.adhocFocusSession;
   }
 
   /**
-   * Get over rest config from cached policy
+   * Get whether over rest is active from cached policy
    */
-  getOverRestConfig(): PolicyOverRest | undefined {
-    return this.getPolicy().overRest;
+  isOverRest(): boolean {
+    return this.getPolicy().state.isOverRest;
   }
 
   /**

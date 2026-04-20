@@ -1977,7 +1977,7 @@ export class VibeFlowSocketServer {
         // Also send policy:update event for desktop clients
         // This is the format expected by the desktop connection manager
         socket.emit('policy:update' as keyof ServerToClientEvents, policy as never);
-        console.log(`[Socket.io] Sent policy to client ${socket.id}, version: ${policy.version}`);
+        console.log(`[Socket.io] Sent policy to client ${socket.id}, version: ${policy.config.version}`);
       }
 
       // Also send legacy format for backward compatibility
@@ -2563,7 +2563,7 @@ export class VibeFlowSocketServer {
         const legacyPolicy = await this.getUserPolicy(userId);
         this.io.to(userRoom).emit('SYNC_POLICY', legacyPolicy);
         
-        console.log(`[Socket.io] Broadcast policy update to user ${userId} (version ${policy.version}, overRest: ${policy.overRest?.isOverRest ?? false})`);
+        console.log(`[Socket.io] Broadcast policy update to user ${userId} (version ${policy.config.version}, overRest: ${policy.state.isOverRest})`);
       }
     } catch (error) {
       console.error('[Socket.io] Error broadcasting policy update:', error);

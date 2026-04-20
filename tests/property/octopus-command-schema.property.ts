@@ -119,9 +119,8 @@ const timeSlotArb = fc.record({
   endMinute: fc.constantFrom(0, 30),
 });
 
-// Skip token config generator
+// Skip token config generator (config portion only — no 'remaining')
 const skipTokenConfigArb = fc.record({
-  remaining: fc.integer({ min: 0, max: 5 }),
   maxPerDay: fc.constantFrom(3, 5),
   delayMinutes: fc.constantFrom(5, 10, 15),
 });
@@ -133,8 +132,8 @@ const distractionAppArb = fc.record({
   action: fc.constantFrom('force_quit' as const, 'hide_window' as const),
 });
 
-// Policy generator (simplified)
-const policyArb = fc.record({
+// Policy generator (new { config, state } structure)
+const policyConfigArb = fc.record({
   version: fc.integer({ min: 1, max: 1000 }),
   blacklist: fc.constant(['twitter.com', 'facebook.com']),
   whitelist: fc.constant(['github.com', 'stackoverflow.com']),
@@ -143,6 +142,21 @@ const policyArb = fc.record({
   skipTokens: skipTokenConfigArb,
   distractionApps: fc.array(distractionAppArb, { minLength: 0, maxLength: 2 }),
   updatedAt: fc.integer({ min: 1700000000000, max: 1800000000000 }),
+});
+
+const policyStateArb = fc.record({
+  skipTokensRemaining: fc.integer({ min: 0, max: 5 }),
+  isSleepTimeActive: fc.boolean(),
+  isSleepSnoozed: fc.boolean(),
+  isOverRest: fc.boolean(),
+  overRestMinutes: fc.integer({ min: 0, max: 120 }),
+  overRestBringToFront: fc.boolean(),
+  isRestEnforcementActive: fc.boolean(),
+});
+
+const policyArb = fc.record({
+  config: policyConfigArb,
+  state: policyStateArb,
 });
 
 // =============================================================================
@@ -408,7 +422,10 @@ describe('Property 2: Command Schema Validation', () => {
             ...validCommand,
             payload: {
               ...validCommand.payload,
-              policy: { ...validCommand.payload.policy, enforcementMode: invalidMode },
+              policy: {
+                ...validCommand.payload.policy,
+                config: { ...validCommand.payload.policy.config, enforcementMode: invalidMode },
+              },
             },
           };
           const result = validateCommand(invalidCommand);

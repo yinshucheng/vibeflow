@@ -237,26 +237,26 @@ describe('Property: REST enforcement policy compilation', () => {
 
           // Property: restEnforcement MUST be present
           expect(result.success).toBe(true);
-          expect(result.data?.restEnforcement).toBeDefined();
-          expect(result.data!.restEnforcement!.isActive).toBe(true);
+          expect(result.data?.state.isRestEnforcementActive).toBe(true);
+          expect(result.data?.config.restEnforcement).toBeDefined();
 
           // Work apps should match input
-          expect(result.data!.restEnforcement!.workApps).toHaveLength(workApps.length);
+          expect(result.data!.config.restEnforcement!.workApps).toHaveLength(workApps.length);
           for (let i = 0; i < workApps.length; i++) {
-            expect(result.data!.restEnforcement!.workApps[i].bundleId).toBe(workApps[i].bundleId);
-            expect(result.data!.restEnforcement!.workApps[i].name).toBe(workApps[i].name);
+            expect(result.data!.config.restEnforcement!.workApps[i].bundleId).toBe(workApps[i].bundleId);
+            expect(result.data!.config.restEnforcement!.workApps[i].name).toBe(workApps[i].name);
           }
 
           // Actions: should use input or default to ['close'] when empty
           const expectedActions = actions.length > 0 ? actions : ['close'];
-          expect(result.data!.restEnforcement!.actions).toEqual(expectedActions);
+          expect(result.data!.config.restEnforcement!.actions).toEqual(expectedActions);
 
           // Grace info should be passed through
-          expect(result.data!.restEnforcement!.grace).toEqual({
+          expect(result.data!.state.restGrace).toEqual({
             available: graceLimit > 0,
             remaining: graceLimit,
-            durationMinutes: graceDuration,
           });
+          expect(result.data!.config.restEnforcement!.graceDurationMinutes).toBe(graceDuration);
 
           return true;
         }
@@ -298,7 +298,8 @@ describe('Property: REST enforcement policy compilation', () => {
 
           // Property: restEnforcement MUST NOT be present when state != IDLE
           expect(result.success).toBe(true);
-          expect(result.data?.restEnforcement).toBeUndefined();
+          expect(result.data?.state.isRestEnforcementActive).toBe(false);
+          expect(result.data?.config.restEnforcement).toBeUndefined();
 
           return true;
         }

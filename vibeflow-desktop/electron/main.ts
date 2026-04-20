@@ -1148,46 +1148,46 @@ app.whenReady().then(async () => {
   // Connect sleep enforcer to policy updates (Requirements: 11.1, 11.2)
   connectionManager.onPolicyUpdate((policy) => {
     console.log('[Main] Received policy update:', {
-      sleepTime: policy.sleepTime ? 'present' : 'absent',
-      adhocFocusSession: policy.adhocFocusSession ? 'present' : 'absent',
-      distractionAppsCount: policy.distractionApps?.length ?? 0,
+      sleepTime: policy.config.sleepTime ? 'present' : 'absent',
+      adhocFocusSession: policy.state.adhocFocusSession ? 'present' : 'absent',
+      distractionAppsCount: policy.config.distractionApps?.length ?? 0,
     });
-    
+
     // Cache the policy for offline mode (Requirements: 9.1, 9.2)
     const policyCache = getPolicyCache();
     policyCache.updatePolicy(policy);
-    console.log('[Main] Policy cached for offline mode, version:', policy.version);
-    
+    console.log('[Main] Policy cached for offline mode, version:', policy.config.version);
+
     // Update sleep enforcer config from policy
-    if (policy.sleepTime) {
+    if (policy.config.sleepTime) {
       console.log('[Main] Updating sleep enforcer config:', {
-        enabled: policy.sleepTime.enabled,
-        startTime: policy.sleepTime.startTime,
-        endTime: policy.sleepTime.endTime,
-        appsCount: policy.sleepTime.enforcementApps?.length ?? 0,
-        isCurrentlyActive: policy.sleepTime.isCurrentlyActive,
-        isSnoozed: policy.sleepTime.isSnoozed,
+        enabled: policy.config.sleepTime.enabled,
+        startTime: policy.config.sleepTime.startTime,
+        endTime: policy.config.sleepTime.endTime,
+        appsCount: policy.config.sleepTime.enforcementApps?.length ?? 0,
+        isCurrentlyActive: policy.state.isSleepTimeActive,
+        isSnoozed: policy.state.isSleepSnoozed,
       });
       sleepEnforcer.updateConfig({
-        enabled: policy.sleepTime.enabled,
-        startTime: policy.sleepTime.startTime,
-        endTime: policy.sleepTime.endTime,
-        enforcementApps: policy.sleepTime.enforcementApps,
-        isCurrentlyActive: policy.sleepTime.isCurrentlyActive,
-        isSnoozed: policy.sleepTime.isSnoozed,
-        snoozeEndTime: policy.sleepTime.snoozeEndTime,
+        enabled: policy.config.sleepTime.enabled,
+        startTime: policy.config.sleepTime.startTime,
+        endTime: policy.config.sleepTime.endTime,
+        enforcementApps: policy.config.sleepTime.enforcementApps,
+        isCurrentlyActive: policy.state.isSleepTimeActive,
+        isSnoozed: policy.state.isSleepSnoozed,
+        snoozeEndTime: policy.state.sleepSnoozeEndTime,
       });
-      
+
       // Start monitoring if enabled
-      if (policy.sleepTime.enabled) {
+      if (policy.config.sleepTime.enabled) {
         sleepEnforcer.start();
       }
     }
-    
+
     // Handle focus session enforcement (pomodoro time)
-    const isFocusSessionActive = policy.adhocFocusSession?.active ?? false;
-    const focusSessionOverridesSleepTime = policy.adhocFocusSession?.overridesSleepTime ?? false;
-    const hasDistractionApps = (policy.distractionApps?.length ?? 0) > 0;
+    const isFocusSessionActive = policy.state.adhocFocusSession?.active ?? false;
+    const focusSessionOverridesSleepTime = policy.state.adhocFocusSession?.overridesSleepTime ?? false;
+    const hasDistractionApps = (policy.config.distractionApps?.length ?? 0) > 0;
     
     // If focus session overrides sleep time, pause sleep enforcer (Requirements: 13.2, 13.4)
     if (isFocusSessionActive && focusSessionOverridesSleepTime) {
@@ -1219,7 +1219,7 @@ app.whenReady().then(async () => {
       }
       
       // Map policy distraction apps to the format expected by createFocusTimeMonitor
-      const distractionAppsForMonitor = policy.distractionApps.map(app => ({
+      const distractionAppsForMonitor = policy.config.distractionApps.map(app => ({
         bundleId: app.bundleId,
         name: app.name,
         action: app.action,
@@ -1252,7 +1252,7 @@ app.whenReady().then(async () => {
       } else {
         // Update the apps list
         focusTimeMonitor.updateConfig({
-          apps: policy.distractionApps.map(app => ({
+          apps: policy.config.distractionApps.map(app => ({
             name: app.name,
             bundleId: app.bundleId,
             action: app.action,
@@ -1281,22 +1281,28 @@ app.whenReady().then(async () => {
       overRestEnforcer.setMainWindow(mainWindow);
     }
 
-    // Diagnostic: always log policy.overRest on every policy update
-    console.log('[Main] Over rest policy field:', policy.overRest ? {
-      isOverRest: policy.overRest.isOverRest,
-      overRestMinutes: policy.overRest.overRestMinutes,
-      appsCount: policy.overRest.enforcementApps?.length ?? 0,
-      bringToFront: policy.overRest.bringToFront,
+    // Diagnostic: always log over rest state on every policy update
+    console.log('[Main] Over rest policy field:', policy.state.isOverRest ? {
+      isOverRest: policy.state.isOverRest,
+      overRestMinutes: policy.state.overRestMinutes,
+      appsCount: policy.config.overRestEnforcementApps?.length ?? 0,
+      bringToFront: policy.state.overRestBringToFront,
     } : 'absent');
 
-    if (policy.overRest?.isOverRest) {
+    if (policy.state.isOverRest) {
       console.log('[Main] Over rest detected, starting enforcement:', {
-        overRestMinutes: policy.overRest.overRestMinutes,
-        appsCount: policy.overRest.enforcementApps?.length ?? 0,
-        bringToFront: policy.overRest.bringToFront,
+        overRestMinutes: policy.state.overRestMinutes,
+        appsCount: policy.config.overRestEnforcementApps?.length ?? 0,
+        bringToFront: policy.state.overRestBringToFront,
       });
 
-      handleOverRestPolicyUpdate(policy.overRest);
+      // Reconstruct legacy OverRestPolicy for handleOverRestPolicyUpdate
+      handleOverRestPolicyUpdate({
+        isOverRest: policy.state.isOverRest,
+        overRestMinutes: policy.state.overRestMinutes,
+        enforcementApps: policy.config.overRestEnforcementApps ?? [],
+        bringToFront: policy.state.overRestBringToFront,
+      });
 
       // Transition rest timer to over-rest if it's active but not yet marked
       if (restTimer?.active && !restTimer.isOverRest) {
@@ -1317,13 +1323,23 @@ app.whenReady().then(async () => {
       restEnforcer.setMainWindow(mainWindow);
     }
 
-    if (policy.restEnforcement?.isActive) {
+    if (policy.state.isRestEnforcementActive) {
       console.log('[Main] REST enforcement active, starting/updating enforcer:', {
-        appsCount: policy.restEnforcement.workApps?.length ?? 0,
-        actions: policy.restEnforcement.actions,
-        graceAvailable: policy.restEnforcement.grace?.available,
+        appsCount: policy.config.restEnforcement?.workApps?.length ?? 0,
+        actions: policy.config.restEnforcement?.actions,
+        graceAvailable: policy.state.restGrace?.available,
       });
-      handleRestEnforcementPolicyUpdate(policy.restEnforcement);
+      // Reconstruct legacy RestEnforcementPolicy for handleRestEnforcementPolicyUpdate
+      handleRestEnforcementPolicyUpdate({
+        isActive: policy.state.isRestEnforcementActive,
+        workApps: policy.config.restEnforcement?.workApps ?? [],
+        actions: policy.config.restEnforcement?.actions ?? [],
+        grace: {
+          available: policy.state.restGrace?.available ?? false,
+          remaining: policy.state.restGrace?.remaining ?? 0,
+          durationMinutes: policy.config.restEnforcement?.graceDurationMinutes ?? 5,
+        },
+      });
     } else {
       if (restEnforcer.isActive()) {
         console.log('[Main] REST enforcement ended, stopping enforcer');
@@ -1332,8 +1348,8 @@ app.whenReady().then(async () => {
     }
 
     // Handle health limit notifications with repeating support
-    if (policy.healthLimit) {
-      const hl = policy.healthLimit as { type: string; message: string; repeating?: boolean; intervalMinutes?: number };
+    if (policy.state.healthLimit) {
+      const hl = policy.state.healthLimit as { type: string; message: string; repeating?: boolean; intervalMinutes?: number };
       const intervalMs = (hl.intervalMinutes ?? 10) * 60 * 1000;
 
       // Show notification on first trigger or type change
@@ -1375,7 +1391,7 @@ app.whenReady().then(async () => {
     // Update quit prevention config with work time slots (Requirements: 1.6)
     const quitPrevention = getQuitPrevention();
     quitPrevention.updateConfig({
-      workTimeSlots: policy.workTimeSlots.map(slot => ({
+      workTimeSlots: policy.config.workTimeSlots.map(slot => ({
         id: `${slot.dayOfWeek}-${slot.startHour}-${slot.startMinute}`,
         startTime: `${slot.startHour.toString().padStart(2, '0')}:${slot.startMinute.toString().padStart(2, '0')}`,
         endTime: `${slot.endHour.toString().padStart(2, '0')}:${slot.endMinute.toString().padStart(2, '0')}`,

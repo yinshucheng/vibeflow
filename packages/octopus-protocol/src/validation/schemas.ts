@@ -451,9 +451,8 @@ export const TimeSlotSchema = z.object({
   endMinute: z.number().int().min(0).max(59),
 });
 
-// Skip token config schema
+// Skip token config schema (config portion only — remaining is in PolicyState)
 export const SkipTokenConfigSchema = z.object({
-  remaining: z.number().int().nonnegative(),
   maxPerDay: z.number().int().positive(),
   delayMinutes: z.number().positive(),
 });
@@ -480,8 +479,82 @@ export const SleepEnforcementAppPolicySchema = z.object({
   name: z.string().min(1),
 });
 
-// Sleep time policy schema
-// Requirements: 9.4, 11.1, 11.2
+// --- Config sub-schemas ---
+
+// Sleep time config schema (config portion — schedule and enforcement apps)
+export const SleepTimeConfigSchema = z.object({
+  enabled: z.boolean(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format. Use HH:mm'),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format. Use HH:mm'),
+  enforcementApps: z.array(SleepEnforcementAppPolicySchema),
+});
+
+// REST enforcement config schema (config portion — apps, actions, grace duration)
+export const RestEnforcementConfigSchema = z.object({
+  workApps: z.array(SleepEnforcementAppPolicySchema),
+  actions: z.array(z.string()),
+  graceDurationMinutes: z.number().int().positive(),
+});
+
+// PolicyConfig schema — user settings, low-frequency change
+export const PolicyConfigSchema = z.object({
+  version: z.number().int().positive(),
+  updatedAt: z.number().int().positive(),
+  blacklist: z.array(z.string()),
+  whitelist: z.array(z.string()),
+  enforcementMode: z.enum(['strict', 'gentle']),
+  workTimeSlots: z.array(TimeSlotSchema),
+  skipTokens: SkipTokenConfigSchema,
+  distractionApps: z.array(DistractionAppSchema),
+  sleepTime: SleepTimeConfigSchema.optional(),
+  overRestEnforcementApps: z.array(DistractionAppSchema).optional(),
+  restEnforcement: RestEnforcementConfigSchema.optional(),
+});
+
+// --- State sub-schemas ---
+
+// Health limit notification schema
+export const HealthLimitSchema = z.object({
+  type: z.enum(['2hours', 'daily']),
+  message: z.string(),
+  repeating: z.boolean().optional(),
+  intervalMinutes: z.number().int().positive().optional(),
+});
+
+// Temporary unblock schema
+export const TemporaryUnblockSchema = z.object({
+  active: z.boolean(),
+  endTime: z.number().int().positive(),
+});
+
+// PolicyState schema — runtime computed values, changes with state transitions
+export const PolicyStateSchema = z.object({
+  skipTokensRemaining: z.number().int().nonnegative(),
+  isSleepTimeActive: z.boolean(),
+  isSleepSnoozed: z.boolean(),
+  sleepSnoozeEndTime: z.number().int().positive().optional(),
+  isOverRest: z.boolean(),
+  overRestMinutes: z.number().int().nonnegative(),
+  overRestBringToFront: z.boolean(),
+  isRestEnforcementActive: z.boolean(),
+  restGrace: z.object({
+    available: z.boolean(),
+    remaining: z.number().int().nonnegative(),
+  }).optional(),
+  adhocFocusSession: AdhocFocusSessionSchema.optional(),
+  temporaryUnblock: TemporaryUnblockSchema.optional(),
+  healthLimit: HealthLimitSchema.optional(),
+});
+
+// Policy schema — Config + State combined
+export const PolicySchema = z.object({
+  config: PolicyConfigSchema,
+  state: PolicyStateSchema,
+});
+
+// --- Legacy flat schemas (deprecated, kept for property tests transition) ---
+
+/** @deprecated Use SleepTimeConfigSchema + PolicyStateSchema */
 export const SleepTimePolicySchema = z.object({
   enabled: z.boolean(),
   startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format. Use HH:mm'),
@@ -492,8 +565,7 @@ export const SleepTimePolicySchema = z.object({
   snoozeEndTime: z.number().int().positive().optional(),
 });
 
-// Over rest policy schema
-// Requirements: 15.2, 15.3, 16.1-16.5
+/** @deprecated Use PolicyStateSchema.isOverRest + related fields */
 export const OverRestPolicySchema = z.object({
   isOverRest: z.boolean(),
   overRestMinutes: z.number().int().nonnegative(),
@@ -501,13 +573,13 @@ export const OverRestPolicySchema = z.object({
   bringToFront: z.boolean(),
 });
 
-// Temporary unblock policy schema
+/** @deprecated Use TemporaryUnblockSchema */
 export const TemporaryUnblockPolicySchema = z.object({
   active: z.boolean(),
   endTime: z.number().int().positive(),
 });
 
-// REST enforcement policy schema
+/** @deprecated Use RestEnforcementConfigSchema + PolicyStateSchema */
 export const RestEnforcementPolicySchema = z.object({
   isActive: z.boolean(),
   workApps: z.array(SleepEnforcementAppPolicySchema),
@@ -519,7 +591,7 @@ export const RestEnforcementPolicySchema = z.object({
   }),
 });
 
-// Work time policy schema
+/** @deprecated Dead field — never populated by server */
 export const WorkTimePolicySchema = z.object({
   enabled: z.boolean(),
   isCurrentlyActive: z.boolean(),
@@ -528,33 +600,6 @@ export const WorkTimePolicySchema = z.object({
     startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
     endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
   })),
-});
-
-// Health limit notification schema
-export const HealthLimitSchema = z.object({
-  type: z.enum(['2hours', 'daily']),
-  message: z.string(),
-  repeating: z.boolean().optional(),
-  intervalMinutes: z.number().int().positive().optional(),
-});
-
-// Policy schema
-export const PolicySchema = z.object({
-  version: z.number().int().positive(),
-  blacklist: z.array(z.string()),
-  whitelist: z.array(z.string()),
-  enforcementMode: z.enum(['strict', 'gentle']),
-  workTimeSlots: z.array(TimeSlotSchema),
-  skipTokens: SkipTokenConfigSchema,
-  distractionApps: z.array(DistractionAppSchema),
-  updatedAt: z.number().int().positive(),
-  adhocFocusSession: AdhocFocusSessionSchema.optional(),
-  sleepTime: SleepTimePolicySchema.optional(),
-  overRest: OverRestPolicySchema.optional(),
-  temporaryUnblock: TemporaryUnblockPolicySchema.optional(),
-  restEnforcement: RestEnforcementPolicySchema.optional(),
-  workTime: WorkTimePolicySchema.optional(),
-  healthLimit: HealthLimitSchema.optional(),
 });
 
 // Update policy payload schema

@@ -57,7 +57,6 @@ export type {
   SleepTimePolicy,
   OverRestPolicy,
   AdhocFocusSession,
-  WorkTimePolicy,
   Policy,
 } from '@vibeflow/octopus-protocol';
 

@@ -8,7 +8,7 @@
  */
 
 import prisma from '@/lib/prisma';
-import type { Policy, TimeSlot, DistractionApp, AdhocFocusSession, SleepTimePolicy, SleepEnforcementAppPolicy, OverRestPolicy, RestEnforcementPolicy } from '@/types/octopus';
+import type { Policy, PolicyConfig, PolicyState, TimeSlot, DistractionApp, AdhocFocusSession, SleepEnforcementAppPolicy } from '@/types/octopus';
 import { PolicySchema } from '@/types/octopus';
 import { focusSessionService } from '@/services/focus-session.service';
 import { sleepTimeService, type SleepEnforcementApp } from '@/services/sleep-time.service';
@@ -147,18 +147,28 @@ export const policyDistributionService = {
       if (!settings) {
         // Return default policy if no settings exist
         const defaultPolicy: Policy = {
-          version: 1,
-          blacklist: [],
-          whitelist: [],
-          enforcementMode: 'gentle',
-          workTimeSlots: [],
-          skipTokens: {
-            remaining: 3,
-            maxPerDay: 3,
-            delayMinutes: 15,
+          config: {
+            version: 1,
+            blacklist: [],
+            whitelist: [],
+            enforcementMode: 'gentle',
+            workTimeSlots: [],
+            skipTokens: {
+              maxPerDay: 3,
+              delayMinutes: 15,
+            },
+            distractionApps: [],
+            updatedAt: Date.now(),
           },
-          distractionApps: [],
-          updatedAt: Date.now(),
+          state: {
+            skipTokensRemaining: 3,
+            isSleepTimeActive: false,
+            isSleepSnoozed: false,
+            isOverRest: false,
+            overRestMinutes: 0,
+            overRestBringToFront: false,
+            isRestEnforcementActive: false,
+          },
         };
         return { success: true, data: defaultPolicy };
       }
@@ -211,52 +221,58 @@ export const policyDistributionService = {
       }
 
       // Compile sleep time configuration (Requirements: 9.4, 11.1, 11.2)
-      let sleepTime: SleepTimePolicy | undefined;
+      let sleepTimeConfig: PolicyConfig['sleepTime'] | undefined;
+      let isSleepTimeActive = false;
+      let isSleepSnoozed = false;
+      let sleepSnoozeEndTime: number | undefined;
       const sleepConfigResult = await sleepTimeService.getConfig(userId);
       if (sleepConfigResult.success && sleepConfigResult.data) {
         const sleepConfig = sleepConfigResult.data;
-        
+
         // Check if currently in sleep time window
         const isInSleepTimeResult = await sleepTimeService.isInSleepTime(userId);
-        const isCurrentlyActive = isInSleepTimeResult.success ? isInSleepTimeResult.data ?? false : false;
-        
+        isSleepTimeActive = isInSleepTimeResult.success ? isInSleepTimeResult.data ?? false : false;
+
         // Check if currently in snooze period
         const snoozeResult = await sleepTimeService.isInSnooze(userId);
-        const isSnoozed = snoozeResult.success && snoozeResult.data?.inSnooze ? true : false;
-        const snoozeEndTime = snoozeResult.success && snoozeResult.data?.snoozeEndTime 
-          ? snoozeResult.data.snoozeEndTime.getTime() 
+        isSleepSnoozed = snoozeResult.success && snoozeResult.data?.inSnooze ? true : false;
+        sleepSnoozeEndTime = snoozeResult.success && snoozeResult.data?.snoozeEndTime
+          ? snoozeResult.data.snoozeEndTime.getTime()
           : undefined;
-        
-        sleepTime = {
+
+        sleepTimeConfig = {
           enabled: sleepConfig.enabled,
           startTime: sleepConfig.startTime,
           endTime: sleepConfig.endTime,
           enforcementApps: convertSleepEnforcementApps(sleepConfig.enforcementApps),
-          isCurrentlyActive,
-          isSnoozed,
-          ...(snoozeEndTime && { snoozeEndTime }),
         };
       }
 
       // Compile over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
       // OVER_REST is now a real DB state written by StateEngine — no dynamic computation needed
-      let overRest: OverRestPolicy | undefined;
+      let isOverRest = false;
+      let overRestMinutes = 0;
+      let overRestBringToFront = false;
+      let overRestEnforcementApps: DistractionApp[] | undefined;
       const dailyStateResult = await dailyStateService.getOrCreateToday(userId);
       if (dailyStateResult.success && dailyStateResult.data) {
         const dailyState = dailyStateResult.data;
         const currentState = normalizeState(dailyState.systemState);
 
         if (currentState === 'over_rest') {
-          const overRestMinutes = dailyState.overRestEnteredAt
+          isOverRest = true;
+          overRestBringToFront = true; // Always bring app to front during over rest
+          overRestMinutes = dailyState.overRestEnteredAt
             ? Math.floor((Date.now() - dailyState.overRestEnteredAt.getTime()) / 60000)
             : 0;
 
           // Get over rest config for enforcement apps
           const overRestConfigResult = await overRestService.getConfig(userId);
-          let overRestApps = overRestConfigResult.success && overRestConfigResult.data
+          let overRestApps: DistractionApp[] = overRestConfigResult.success && overRestConfigResult.data
             ? overRestConfigResult.data.apps.map(app => ({
                 bundleId: app.bundleId,
                 name: app.name,
+                action: 'force_quit' as const,
               }))
             : [];
 
@@ -266,16 +282,12 @@ export const policyDistributionService = {
             overRestApps = distractionApps.map(app => ({
               bundleId: app.bundleId,
               name: app.name,
+              action: app.action,
             }));
             console.log(`[PolicyDistribution] Using ${overRestApps.length} distraction apps for over rest enforcement`);
           }
 
-          overRest = {
-            isOverRest: true,
-            overRestMinutes,
-            enforcementApps: overRestApps,
-            bringToFront: true, // Always bring app to front during over rest
-          };
+          overRestEnforcementApps = overRestApps;
 
           console.log(`[PolicyDistribution] Over rest enforcement ACTIVE for user ${userId}: ${overRestMinutes}min over, ${overRestApps.length} apps to enforce`);
         } else {
@@ -286,9 +298,10 @@ export const policyDistributionService = {
       // Compile REST enforcement configuration
       // Skip REST enforcement when OVER_REST is active — they are contradictory:
       // REST enforcement closes work apps, but OVER_REST wants the user to start working
-      let restEnforcement: RestEnforcementPolicy | undefined;
-      const isOverRestActive = !!overRest;
-      if (settings.restEnforcementEnabled && !isOverRestActive) {
+      let isRestEnforcementActive = false;
+      let restEnforcementConfig: PolicyConfig['restEnforcement'] | undefined;
+      let restGrace: PolicyState['restGrace'] | undefined;
+      if (settings.restEnforcementEnabled && !isOverRest) {
         const currentState = await stateEngineService.getState(userId);
         if (currentState === 'idle') {
           const latestPomodoro = await prisma.pomodoro.findFirst({
@@ -303,8 +316,8 @@ export const policyDistributionService = {
 
           if (!graceInfo.activeGrace) {
             const workApps = (settings.workApps as unknown as Array<{ bundleId: string; name: string }>) || [];
-            restEnforcement = {
-              isActive: true,
+            isRestEnforcementActive = true;
+            restEnforcementConfig = {
               workApps: workApps.map(app => ({
                 bundleId: app.bundleId,
                 name: app.name,
@@ -312,11 +325,11 @@ export const policyDistributionService = {
               actions: settings.restEnforcementActions.length > 0
                 ? settings.restEnforcementActions
                 : ['close'],
-              grace: {
-                available: graceInfo.remaining > 0,
-                remaining: graceInfo.remaining,
-                durationMinutes: graceInfo.durationMinutes,
-              },
+              graceDurationMinutes: graceInfo.durationMinutes,
+            };
+            restGrace = {
+              available: graceInfo.remaining > 0,
+              remaining: graceInfo.remaining,
             };
 
             console.log(`[PolicyDistribution] REST enforcement ACTIVE for user ${userId}: ${workApps.length} work apps to enforce`);
@@ -327,7 +340,7 @@ export const policyDistributionService = {
       }
 
       // Compile health limit notification
-      let healthLimit: { type: '2hours' | 'daily'; message: string; repeating?: boolean; intervalMinutes?: number } | undefined;
+      let healthLimit: PolicyState['healthLimit'] | undefined;
       const healthLimitResult = await healthLimitService.checkHealthLimit(userId);
       if (healthLimitResult.exceeded && healthLimitResult.type) {
         // Read user's health notification preferences
@@ -345,7 +358,7 @@ export const policyDistributionService = {
       }
 
       // Check for active temporary unblock
-      let temporaryUnblock: { active: boolean; endTime: number } | undefined;
+      let temporaryUnblock: PolicyState['temporaryUnblock'] | undefined;
       const exemptionResult = await screenTimeExemptionService.getActiveExemption(userId);
       if (exemptionResult.success && exemptionResult.data?.active) {
         temporaryUnblock = {
@@ -354,32 +367,44 @@ export const policyDistributionService = {
         };
       }
 
-      // Build the policy object
+      // Build the policy object with config/state split
       const policy: Policy = {
-        version: newVersion,
-        blacklist: settings.blacklist,
-        whitelist: settings.whitelist,
-        enforcementMode: settings.enforcementMode as 'strict' | 'gentle',
-        workTimeSlots,
-        skipTokens: {
-          remaining: remainingTokens,
-          maxPerDay: maxTokens,
-          delayMinutes: settings.skipTokenMaxDelay,
+        config: {
+          version: newVersion,
+          updatedAt: Date.now(),
+          blacklist: settings.blacklist,
+          whitelist: settings.whitelist,
+          enforcementMode: settings.enforcementMode as 'strict' | 'gentle',
+          workTimeSlots,
+          skipTokens: {
+            maxPerDay: maxTokens,
+            delayMinutes: settings.skipTokenMaxDelay,
+          },
+          distractionApps,
+          // Include sleep time config (Requirements: 9.4, 11.1, 11.2)
+          ...(sleepTimeConfig && { sleepTime: sleepTimeConfig }),
+          // Include over rest enforcement apps (Requirements: 15.2, 15.3, 16.1-16.5)
+          ...(overRestEnforcementApps && { overRestEnforcementApps }),
+          // Include REST enforcement config
+          ...(restEnforcementConfig && { restEnforcement: restEnforcementConfig }),
         },
-        distractionApps,
-        updatedAt: Date.now(),
-        // Include ad-hoc focus session if active (Requirements: 2.3)
-        ...(adhocFocusSession && { adhocFocusSession }),
-        // Include sleep time configuration (Requirements: 9.4, 11.1, 11.2)
-        ...(sleepTime && { sleepTime }),
-        // Include over rest configuration (Requirements: 15.2, 15.3, 16.1-16.5)
-        ...(overRest && { overRest }),
-        // Include REST enforcement configuration
-        ...(restEnforcement && { restEnforcement }),
-        // Include health limit notification
-        ...(healthLimit && { healthLimit }),
-        // Include temporary unblock if active
-        ...(temporaryUnblock && { temporaryUnblock }),
+        state: {
+          skipTokensRemaining: remainingTokens,
+          isSleepTimeActive,
+          isSleepSnoozed,
+          ...(sleepSnoozeEndTime && { sleepSnoozeEndTime }),
+          isOverRest,
+          overRestMinutes,
+          overRestBringToFront,
+          isRestEnforcementActive,
+          ...(restGrace && { restGrace }),
+          // Include ad-hoc focus session if active (Requirements: 2.3)
+          ...(adhocFocusSession && { adhocFocusSession }),
+          // Include health limit notification
+          ...(healthLimit && { healthLimit }),
+          // Include temporary unblock if active
+          ...(temporaryUnblock && { temporaryUnblock }),
+        },
       };
 
       // Validate the policy
@@ -429,7 +454,7 @@ export const policyDistributionService = {
       await db.policyVersion.create({
         data: {
           userId,
-          version: policy.version,
+          version: policy.config.version,
           policy: policy as unknown as Record<string, unknown>,
         },
       });
@@ -450,7 +475,7 @@ export const policyDistributionService = {
       return {
         success: true,
         data: {
-          version: policy.version,
+          version: policy.config.version,
           clientsNotified: onlineClients,
         },
       };
@@ -554,7 +579,7 @@ export const policyDistributionService = {
       // Log the conflict resolution
       console.log(
         `[PolicyDistribution] Resolved conflict for client ${clientId}: ` +
-        `client version ${clientVersion} -> server version ${currentPolicy.data.version}`
+        `client version ${clientVersion} -> server version ${currentPolicy.data.config.version}`
       );
 
       return {

@@ -295,34 +295,34 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     const { payload } = command;
     const { policy } = payload;
 
-    // Map policy to app format
+    // Map policy to app format (policy is now { config, state })
     const mappedPolicy: PolicyData = {
-      version: policy.version,
-      distractionApps: policy.distractionApps.map((app) => ({
+      version: policy.config.version,
+      distractionApps: policy.config.distractionApps.map((app) => ({
         bundleId: app.bundleId,
         name: app.name,
       })),
-      updatedAt: policy.updatedAt,
-      sleepTime: policy.sleepTime
+      updatedAt: policy.config.updatedAt,
+      sleepTime: policy.config.sleepTime
         ? {
-            enabled: policy.sleepTime.enabled,
-            startTime: policy.sleepTime.startTime,
-            endTime: policy.sleepTime.endTime,
-            isCurrentlyActive: policy.sleepTime.isCurrentlyActive,
-            isSnoozed: policy.sleepTime.isSnoozed,
-            snoozeEndTime: policy.sleepTime.snoozeEndTime,
+            enabled: policy.config.sleepTime.enabled,
+            startTime: policy.config.sleepTime.startTime,
+            endTime: policy.config.sleepTime.endTime,
+            isCurrentlyActive: policy.state.isSleepTimeActive,
+            isSnoozed: policy.state.isSleepSnoozed,
+            snoozeEndTime: policy.state.sleepSnoozeEndTime,
           }
         : undefined,
-      overRest: policy.overRest
+      overRest: policy.state.isOverRest
         ? {
-            isOverRest: policy.overRest.isOverRest,
-            overRestMinutes: policy.overRest.overRestMinutes,
+            isOverRest: policy.state.isOverRest,
+            overRestMinutes: policy.state.overRestMinutes,
           }
         : undefined,
-      temporaryUnblock: policy.temporaryUnblock
+      temporaryUnblock: policy.state.temporaryUnblock
         ? {
-            active: policy.temporaryUnblock.active,
-            endTime: policy.temporaryUnblock.endTime,
+            active: policy.state.temporaryUnblock.active,
+            endTime: policy.state.temporaryUnblock.endTime,
           }
         : undefined,
     };

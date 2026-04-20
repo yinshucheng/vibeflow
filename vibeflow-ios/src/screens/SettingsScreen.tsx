@@ -44,6 +44,7 @@ const BLOCKING_REASON_LABELS: Record<BlockingReason, string> = {
   focus: '专注模式',
   over_rest: '超时休息',
   sleep: '睡眠时段',
+  work_time: '工作时段',
 };
 
 // =============================================================================

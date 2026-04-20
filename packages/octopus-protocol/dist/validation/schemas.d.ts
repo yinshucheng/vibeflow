@@ -25,16 +25,16 @@ export declare const BaseEventSchema: z.ZodObject<{
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    eventType: "USER_ACTION" | "CHAT_MESSAGE" | "CHAT_ACTION" | "ACTIVITY_LOG" | "STATE_CHANGE" | "HEARTBEAT" | "TIMELINE_EVENT" | "BLOCK_EVENT" | "INTERRUPTION_EVENT" | "BROWSER_ACTIVITY" | "BROWSER_SESSION" | "TAB_SWITCH" | "BROWSER_FOCUS" | "ENTERTAINMENT_MODE" | "WORK_START";
     eventId: string;
+    eventType: "ACTIVITY_LOG" | "STATE_CHANGE" | "USER_ACTION" | "HEARTBEAT" | "TIMELINE_EVENT" | "BLOCK_EVENT" | "INTERRUPTION_EVENT" | "BROWSER_ACTIVITY" | "BROWSER_SESSION" | "TAB_SWITCH" | "BROWSER_FOCUS" | "ENTERTAINMENT_MODE" | "WORK_START" | "CHAT_MESSAGE" | "CHAT_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
     timestamp: number;
     sequenceNumber: number;
 }, {
-    eventType: "USER_ACTION" | "CHAT_MESSAGE" | "CHAT_ACTION" | "ACTIVITY_LOG" | "STATE_CHANGE" | "HEARTBEAT" | "TIMELINE_EVENT" | "BLOCK_EVENT" | "INTERRUPTION_EVENT" | "BROWSER_ACTIVITY" | "BROWSER_SESSION" | "TAB_SWITCH" | "BROWSER_FOCUS" | "ENTERTAINMENT_MODE" | "WORK_START";
     eventId: string;
+    eventType: "ACTIVITY_LOG" | "STATE_CHANGE" | "USER_ACTION" | "HEARTBEAT" | "TIMELINE_EVENT" | "BLOCK_EVENT" | "INTERRUPTION_EVENT" | "BROWSER_ACTIVITY" | "BROWSER_SESSION" | "TAB_SWITCH" | "BROWSER_FOCUS" | "ENTERTAINMENT_MODE" | "WORK_START" | "CHAT_MESSAGE" | "CHAT_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -135,8 +135,8 @@ export declare const ActivityLogEventSchema: z.ZodObject<{
         } | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "ACTIVITY_LOG";
     eventId: string;
+    eventType: "ACTIVITY_LOG";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -155,8 +155,8 @@ export declare const ActivityLogEventSchema: z.ZodObject<{
         } | undefined;
     };
 }, {
-    eventType: "ACTIVITY_LOG";
     eventId: string;
+    eventType: "ACTIVITY_LOG";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -217,8 +217,8 @@ export declare const StateChangeEventSchema: z.ZodObject<{
         trigger: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "STATE_CHANGE";
     eventId: string;
+    eventType: "STATE_CHANGE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -231,8 +231,8 @@ export declare const StateChangeEventSchema: z.ZodObject<{
         trigger: string;
     };
 }, {
-    eventType: "STATE_CHANGE";
     eventId: string;
+    eventType: "STATE_CHANGE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -299,8 +299,8 @@ export declare const UserActionEventSchema: z.ZodObject<{
         data?: Record<string, unknown> | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "USER_ACTION";
     eventId: string;
+    eventType: "USER_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -315,8 +315,8 @@ export declare const UserActionEventSchema: z.ZodObject<{
         data?: Record<string, unknown> | undefined;
     };
 }, {
-    eventType: "USER_ACTION";
     eventId: string;
+    eventType: "USER_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -385,8 +385,8 @@ export declare const HeartbeatEventSchema: z.ZodObject<{
         uptime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "HEARTBEAT";
     eventId: string;
+    eventType: "HEARTBEAT";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -401,8 +401,8 @@ export declare const HeartbeatEventSchema: z.ZodObject<{
         uptime: number;
     };
 }, {
-    eventType: "HEARTBEAT";
     eventId: string;
+    eventType: "HEARTBEAT";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -543,8 +543,8 @@ export declare const BrowserActivityEventSchema: z.ZodObject<{
         searchEngine?: "other" | "google" | "bing" | "duckduckgo" | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "BROWSER_ACTIVITY";
     eventId: string;
+    eventType: "BROWSER_ACTIVITY";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -571,8 +571,8 @@ export declare const BrowserActivityEventSchema: z.ZodObject<{
         searchEngine?: "other" | "google" | "bing" | "duckduckgo" | undefined;
     };
 }, {
-    eventType: "BROWSER_ACTIVITY";
     eventId: string;
+    eventType: "BROWSER_ACTIVITY";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -774,8 +774,8 @@ export declare const BrowserSessionEventSchema: z.ZodObject<{
         neutralTime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "BROWSER_SESSION";
     eventId: string;
+    eventType: "BROWSER_SESSION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -803,8 +803,8 @@ export declare const BrowserSessionEventSchema: z.ZodObject<{
         neutralTime: number;
     };
 }, {
-    eventType: "BROWSER_SESSION";
     eventId: string;
+    eventType: "BROWSER_SESSION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -898,8 +898,8 @@ export declare const TabSwitchEventSchema: z.ZodObject<{
         isRapidSwitch: boolean;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "TAB_SWITCH";
     eventId: string;
+    eventType: "TAB_SWITCH";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -916,8 +916,8 @@ export declare const TabSwitchEventSchema: z.ZodObject<{
         isRapidSwitch: boolean;
     };
 }, {
-    eventType: "TAB_SWITCH";
     eventId: string;
+    eventType: "TAB_SWITCH";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -970,8 +970,8 @@ export declare const BrowserFocusEventSchema: z.ZodObject<{
         focusDuration?: number | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "BROWSER_FOCUS";
     eventId: string;
+    eventType: "BROWSER_FOCUS";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -983,8 +983,8 @@ export declare const BrowserFocusEventSchema: z.ZodObject<{
         focusDuration?: number | undefined;
     };
 }, {
-    eventType: "BROWSER_FOCUS";
     eventId: string;
+    eventType: "BROWSER_FOCUS";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1062,8 +1062,8 @@ export declare const EntertainmentModeEventSchema: z.ZodObject<{
         reason?: "manual" | "quota_exhausted" | "work_time_start" | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "ENTERTAINMENT_MODE";
     eventId: string;
+    eventType: "ENTERTAINMENT_MODE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1080,8 +1080,8 @@ export declare const EntertainmentModeEventSchema: z.ZodObject<{
         reason?: "manual" | "quota_exhausted" | "work_time_start" | undefined;
     };
 }, {
-    eventType: "ENTERTAINMENT_MODE";
     eventId: string;
+    eventType: "ENTERTAINMENT_MODE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1146,8 +1146,8 @@ export declare const WorkStartEventSchema: z.ZodObject<{
         delayMinutes: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "WORK_START";
     eventId: string;
+    eventType: "WORK_START";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1161,8 +1161,8 @@ export declare const WorkStartEventSchema: z.ZodObject<{
         delayMinutes: number;
     };
 }, {
-    eventType: "WORK_START";
     eventId: string;
+    eventType: "WORK_START";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1271,8 +1271,8 @@ export declare const ChatMessageEventSchema: z.ZodObject<{
         }[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "CHAT_MESSAGE";
     eventId: string;
+    eventType: "CHAT_MESSAGE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1289,8 +1289,8 @@ export declare const ChatMessageEventSchema: z.ZodObject<{
         }[] | undefined;
     };
 }, {
-    eventType: "CHAT_MESSAGE";
     eventId: string;
+    eventType: "CHAT_MESSAGE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1343,8 +1343,8 @@ export declare const ChatActionEventSchema: z.ZodObject<{
         toolCallId: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "CHAT_ACTION";
     eventId: string;
+    eventType: "CHAT_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1356,8 +1356,8 @@ export declare const ChatActionEventSchema: z.ZodObject<{
         toolCallId: string;
     };
 }, {
-    eventType: "CHAT_ACTION";
     eventId: string;
+    eventType: "CHAT_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1380,8 +1380,8 @@ export declare const ChatHistoryRequestEventSchema: z.ZodObject<{
     eventType: z.ZodLiteral<"CHAT_HISTORY_REQUEST">;
     payload: z.ZodObject<{}, "passthrough", z.ZodTypeAny, z.objectOutputType<{}, z.ZodTypeAny, "passthrough">, z.objectInputType<{}, z.ZodTypeAny, "passthrough">>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "CHAT_HISTORY_REQUEST";
     eventId: string;
+    eventType: "CHAT_HISTORY_REQUEST";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1391,8 +1391,8 @@ export declare const ChatHistoryRequestEventSchema: z.ZodObject<{
         [k: string]: unknown;
     };
 }, {
-    eventType: "CHAT_HISTORY_REQUEST";
     eventId: string;
+    eventType: "CHAT_HISTORY_REQUEST";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1454,8 +1454,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         } | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "ACTIVITY_LOG";
     eventId: string;
+    eventType: "ACTIVITY_LOG";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1474,8 +1474,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         } | undefined;
     };
 }, {
-    eventType: "ACTIVITY_LOG";
     eventId: string;
+    eventType: "ACTIVITY_LOG";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1519,8 +1519,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         trigger: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "STATE_CHANGE";
     eventId: string;
+    eventType: "STATE_CHANGE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1533,8 +1533,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         trigger: string;
     };
 }, {
-    eventType: "STATE_CHANGE";
     eventId: string;
+    eventType: "STATE_CHANGE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1578,8 +1578,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         data?: Record<string, unknown> | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "USER_ACTION";
     eventId: string;
+    eventType: "USER_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1594,8 +1594,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         data?: Record<string, unknown> | undefined;
     };
 }, {
-    eventType: "USER_ACTION";
     eventId: string;
+    eventType: "USER_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1641,8 +1641,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         uptime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "HEARTBEAT";
     eventId: string;
+    eventType: "HEARTBEAT";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1657,8 +1657,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         uptime: number;
     };
 }, {
-    eventType: "HEARTBEAT";
     eventId: string;
+    eventType: "HEARTBEAT";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1740,8 +1740,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         searchEngine?: "other" | "google" | "bing" | "duckduckgo" | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "BROWSER_ACTIVITY";
     eventId: string;
+    eventType: "BROWSER_ACTIVITY";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1768,8 +1768,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         searchEngine?: "other" | "google" | "bing" | "duckduckgo" | undefined;
     };
 }, {
-    eventType: "BROWSER_ACTIVITY";
     eventId: string;
+    eventType: "BROWSER_ACTIVITY";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1878,8 +1878,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         neutralTime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "BROWSER_SESSION";
     eventId: string;
+    eventType: "BROWSER_SESSION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1907,8 +1907,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         neutralTime: number;
     };
 }, {
-    eventType: "BROWSER_SESSION";
     eventId: string;
+    eventType: "BROWSER_SESSION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1973,8 +1973,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         isRapidSwitch: boolean;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "TAB_SWITCH";
     eventId: string;
+    eventType: "TAB_SWITCH";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -1991,8 +1991,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         isRapidSwitch: boolean;
     };
 }, {
-    eventType: "TAB_SWITCH";
     eventId: string;
+    eventType: "TAB_SWITCH";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2031,8 +2031,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         focusDuration?: number | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "BROWSER_FOCUS";
     eventId: string;
+    eventType: "BROWSER_FOCUS";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2044,8 +2044,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         focusDuration?: number | undefined;
     };
 }, {
-    eventType: "BROWSER_FOCUS";
     eventId: string;
+    eventType: "BROWSER_FOCUS";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2094,8 +2094,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         reason?: "manual" | "quota_exhausted" | "work_time_start" | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "ENTERTAINMENT_MODE";
     eventId: string;
+    eventType: "ENTERTAINMENT_MODE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2112,8 +2112,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         reason?: "manual" | "quota_exhausted" | "work_time_start" | undefined;
     };
 }, {
-    eventType: "ENTERTAINMENT_MODE";
     eventId: string;
+    eventType: "ENTERTAINMENT_MODE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2158,8 +2158,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         delayMinutes: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "WORK_START";
     eventId: string;
+    eventType: "WORK_START";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2173,8 +2173,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         delayMinutes: number;
     };
 }, {
-    eventType: "WORK_START";
     eventId: string;
+    eventType: "WORK_START";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2233,8 +2233,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         }[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "CHAT_MESSAGE";
     eventId: string;
+    eventType: "CHAT_MESSAGE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2251,8 +2251,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         }[] | undefined;
     };
 }, {
-    eventType: "CHAT_MESSAGE";
     eventId: string;
+    eventType: "CHAT_MESSAGE";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2291,8 +2291,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         toolCallId: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "CHAT_ACTION";
     eventId: string;
+    eventType: "CHAT_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2304,8 +2304,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         toolCallId: string;
     };
 }, {
-    eventType: "CHAT_ACTION";
     eventId: string;
+    eventType: "CHAT_ACTION";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2327,8 +2327,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventType: z.ZodLiteral<"CHAT_HISTORY_REQUEST">;
     payload: z.ZodObject<{}, "passthrough", z.ZodTypeAny, z.objectOutputType<{}, z.ZodTypeAny, "passthrough">, z.objectInputType<{}, z.ZodTypeAny, "passthrough">>;
 }, "strip", z.ZodTypeAny, {
-    eventType: "CHAT_HISTORY_REQUEST";
     eventId: string;
+    eventType: "CHAT_HISTORY_REQUEST";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2338,8 +2338,8 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         [k: string]: unknown;
     };
 }, {
-    eventType: "CHAT_HISTORY_REQUEST";
     eventId: string;
+    eventType: "CHAT_HISTORY_REQUEST";
     userId: string;
     clientId: string;
     clientType: "web" | "desktop" | "browser_ext" | "mobile";
@@ -2358,16 +2358,16 @@ export declare const BaseCommandSchema: z.ZodObject<{
     expiryTime: z.ZodOptional<z.ZodNumber>;
     createdAt: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    commandType: "CHAT_RESPONSE" | "CHAT_TOOL_CALL" | "CHAT_TOOL_RESULT" | "CHAT_SYNC" | "SYNC_STATE" | "EXECUTE_ACTION" | "UPDATE_POLICY" | "SHOW_UI";
     commandId: string;
+    commandType: "SYNC_STATE" | "EXECUTE_ACTION" | "UPDATE_POLICY" | "SHOW_UI" | "CHAT_RESPONSE" | "CHAT_TOOL_CALL" | "CHAT_TOOL_RESULT" | "CHAT_SYNC";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }, {
-    commandType: "CHAT_RESPONSE" | "CHAT_TOOL_CALL" | "CHAT_TOOL_RESULT" | "CHAT_SYNC" | "SYNC_STATE" | "EXECUTE_ACTION" | "UPDATE_POLICY" | "SHOW_UI";
     commandId: string;
+    commandType: "SYNC_STATE" | "EXECUTE_ACTION" | "UPDATE_POLICY" | "SHOW_UI" | "CHAT_RESPONSE" | "CHAT_TOOL_CALL" | "CHAT_TOOL_RESULT" | "CHAT_SYNC";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -2410,13 +2410,13 @@ export declare const PomodoroStateSchema: z.ZodObject<{
     duration: z.ZodNumber;
     status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
 }, "strip", z.ZodTypeAny, {
-    status: "active" | "paused" | "completed" | "aborted";
+    status: "aborted" | "active" | "paused" | "completed";
     duration: number;
     startTime: number;
     id: string;
     taskId: string;
 }, {
-    status: "active" | "paused" | "completed" | "aborted";
+    status: "aborted" | "active" | "paused" | "completed";
     duration: number;
     startTime: number;
     id: string;
@@ -2494,13 +2494,13 @@ export declare const FullStateSchema: z.ZodObject<{
         duration: z.ZodNumber;
         status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
     }, "strip", z.ZodTypeAny, {
-        status: "active" | "paused" | "completed" | "aborted";
+        status: "aborted" | "active" | "paused" | "completed";
         duration: number;
         startTime: number;
         id: string;
         taskId: string;
     }, {
-        status: "active" | "paused" | "completed" | "aborted";
+        status: "aborted" | "active" | "paused" | "completed";
         duration: number;
         startTime: number;
         id: string;
@@ -2554,7 +2554,7 @@ export declare const FullStateSchema: z.ZodObject<{
         top3TaskIds: string[];
     };
     activePomodoro: {
-        status: "active" | "paused" | "completed" | "aborted";
+        status: "aborted" | "active" | "paused" | "completed";
         duration: number;
         startTime: number;
         id: string;
@@ -2586,7 +2586,7 @@ export declare const FullStateSchema: z.ZodObject<{
         top3TaskIds: string[];
     };
     activePomodoro: {
-        status: "active" | "paused" | "completed" | "aborted";
+        status: "aborted" | "active" | "paused" | "completed";
         duration: number;
         startTime: number;
         id: string;
@@ -2646,13 +2646,13 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             duration: z.ZodNumber;
             status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
         }, "strip", z.ZodTypeAny, {
-            status: "active" | "paused" | "completed" | "aborted";
+            status: "aborted" | "active" | "paused" | "completed";
             duration: number;
             startTime: number;
             id: string;
             taskId: string;
         }, {
-            status: "active" | "paused" | "completed" | "aborted";
+            status: "aborted" | "active" | "paused" | "completed";
             duration: number;
             startTime: number;
             id: string;
@@ -2706,7 +2706,7 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             top3TaskIds: string[];
         };
         activePomodoro: {
-            status: "active" | "paused" | "completed" | "aborted";
+            status: "aborted" | "active" | "paused" | "completed";
             duration: number;
             startTime: number;
             id: string;
@@ -2738,7 +2738,7 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             top3TaskIds: string[];
         };
         activePomodoro: {
-            status: "active" | "paused" | "completed" | "aborted";
+            status: "aborted" | "active" | "paused" | "completed";
             duration: number;
             startTime: number;
             id: string;
@@ -2774,7 +2774,7 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             top3TaskIds: string[];
         };
         activePomodoro: {
-            status: "active" | "paused" | "completed" | "aborted";
+            status: "aborted" | "active" | "paused" | "completed";
             duration: number;
             startTime: number;
             id: string;
@@ -2810,7 +2810,7 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             top3TaskIds: string[];
         };
         activePomodoro: {
-            status: "active" | "paused" | "completed" | "aborted";
+            status: "aborted" | "active" | "paused" | "completed";
             duration: number;
             startTime: number;
             id: string;
@@ -2880,13 +2880,13 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 duration: z.ZodNumber;
                 status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
             }, "strip", z.ZodTypeAny, {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
                 taskId: string;
             }, {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -2940,7 +2940,7 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -2972,7 +2972,7 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -3008,7 +3008,7 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -3044,7 +3044,7 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -3082,7 +3082,7 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -3103,8 +3103,8 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
             };
         } | undefined;
     };
-    commandType: "SYNC_STATE";
     commandId: string;
+    commandType: "SYNC_STATE";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -3127,7 +3127,7 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -3148,8 +3148,8 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
             };
         } | undefined;
     };
-    commandType: "SYNC_STATE";
     commandId: string;
+    commandType: "SYNC_STATE";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -3204,8 +3204,8 @@ export declare const ExecuteActionCommandSchema: z.ZodObject<{
         timeout?: number | undefined;
         fallbackAction?: "CLOSE_APP" | "HIDE_APP" | "BRING_TO_FRONT" | "SHOW_NOTIFICATION" | "CLOSE_TAB" | "REDIRECT_TAB" | "INJECT_OVERLAY" | "ADD_SESSION_WHITELIST" | "SEND_PUSH" | "PLAY_SOUND" | "VIBRATE" | undefined;
     };
-    commandType: "EXECUTE_ACTION";
     commandId: string;
+    commandType: "EXECUTE_ACTION";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -3218,8 +3218,8 @@ export declare const ExecuteActionCommandSchema: z.ZodObject<{
         timeout?: number | undefined;
         fallbackAction?: "CLOSE_APP" | "HIDE_APP" | "BRING_TO_FRONT" | "SHOW_NOTIFICATION" | "CLOSE_TAB" | "REDIRECT_TAB" | "INJECT_OVERLAY" | "ADD_SESSION_WHITELIST" | "SEND_PUSH" | "PLAY_SOUND" | "VIBRATE" | undefined;
     };
-    commandType: "EXECUTE_ACTION";
     commandId: string;
+    commandType: "EXECUTE_ACTION";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -3246,16 +3246,13 @@ export declare const TimeSlotSchema: z.ZodObject<{
     endMinute: number;
 }>;
 export declare const SkipTokenConfigSchema: z.ZodObject<{
-    remaining: z.ZodNumber;
     maxPerDay: z.ZodNumber;
     delayMinutes: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     delayMinutes: number;
-    remaining: number;
     maxPerDay: number;
 }, {
     delayMinutes: number;
-    remaining: number;
     maxPerDay: number;
 }>;
 export declare const DistractionAppSchema: z.ZodObject<{
@@ -3277,13 +3274,13 @@ export declare const AdhocFocusSessionSchema: z.ZodObject<{
     overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
     overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
-    active: boolean;
     endTime: number;
+    active: boolean;
     overridesSleepTime?: boolean | undefined;
     overridesWorkHours?: boolean | undefined;
 }, {
-    active: boolean;
     endTime: number;
+    active: boolean;
     overridesSleepTime?: boolean | undefined;
     overridesWorkHours?: boolean | undefined;
 }>;
@@ -3297,6 +3294,904 @@ export declare const SleepEnforcementAppPolicySchema: z.ZodObject<{
     bundleId: string;
     name: string;
 }>;
+export declare const SleepTimeConfigSchema: z.ZodObject<{
+    enabled: z.ZodBoolean;
+    startTime: z.ZodString;
+    endTime: z.ZodString;
+    enforcementApps: z.ZodArray<z.ZodObject<{
+        bundleId: z.ZodString;
+        name: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        bundleId: string;
+        name: string;
+    }, {
+        bundleId: string;
+        name: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    startTime: string;
+    endTime: string;
+    enabled: boolean;
+    enforcementApps: {
+        bundleId: string;
+        name: string;
+    }[];
+}, {
+    startTime: string;
+    endTime: string;
+    enabled: boolean;
+    enforcementApps: {
+        bundleId: string;
+        name: string;
+    }[];
+}>;
+export declare const RestEnforcementConfigSchema: z.ZodObject<{
+    workApps: z.ZodArray<z.ZodObject<{
+        bundleId: z.ZodString;
+        name: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        bundleId: string;
+        name: string;
+    }, {
+        bundleId: string;
+        name: string;
+    }>, "many">;
+    actions: z.ZodArray<z.ZodString, "many">;
+    graceDurationMinutes: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    workApps: {
+        bundleId: string;
+        name: string;
+    }[];
+    actions: string[];
+    graceDurationMinutes: number;
+}, {
+    workApps: {
+        bundleId: string;
+        name: string;
+    }[];
+    actions: string[];
+    graceDurationMinutes: number;
+}>;
+export declare const PolicyConfigSchema: z.ZodObject<{
+    version: z.ZodNumber;
+    updatedAt: z.ZodNumber;
+    blacklist: z.ZodArray<z.ZodString, "many">;
+    whitelist: z.ZodArray<z.ZodString, "many">;
+    enforcementMode: z.ZodEnum<["strict", "gentle"]>;
+    workTimeSlots: z.ZodArray<z.ZodObject<{
+        dayOfWeek: z.ZodNumber;
+        startHour: z.ZodNumber;
+        startMinute: z.ZodNumber;
+        endHour: z.ZodNumber;
+        endMinute: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        dayOfWeek: number;
+        startHour: number;
+        startMinute: number;
+        endHour: number;
+        endMinute: number;
+    }, {
+        dayOfWeek: number;
+        startHour: number;
+        startMinute: number;
+        endHour: number;
+        endMinute: number;
+    }>, "many">;
+    skipTokens: z.ZodObject<{
+        maxPerDay: z.ZodNumber;
+        delayMinutes: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        delayMinutes: number;
+        maxPerDay: number;
+    }, {
+        delayMinutes: number;
+        maxPerDay: number;
+    }>;
+    distractionApps: z.ZodArray<z.ZodObject<{
+        bundleId: z.ZodString;
+        name: z.ZodString;
+        action: z.ZodEnum<["force_quit", "hide_window"]>;
+    }, "strip", z.ZodTypeAny, {
+        action: "force_quit" | "hide_window";
+        bundleId: string;
+        name: string;
+    }, {
+        action: "force_quit" | "hide_window";
+        bundleId: string;
+        name: string;
+    }>, "many">;
+    sleepTime: z.ZodOptional<z.ZodObject<{
+        enabled: z.ZodBoolean;
+        startTime: z.ZodString;
+        endTime: z.ZodString;
+        enforcementApps: z.ZodArray<z.ZodObject<{
+            bundleId: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            bundleId: string;
+            name: string;
+        }, {
+            bundleId: string;
+            name: string;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        startTime: string;
+        endTime: string;
+        enabled: boolean;
+        enforcementApps: {
+            bundleId: string;
+            name: string;
+        }[];
+    }, {
+        startTime: string;
+        endTime: string;
+        enabled: boolean;
+        enforcementApps: {
+            bundleId: string;
+            name: string;
+        }[];
+    }>>;
+    overRestEnforcementApps: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        bundleId: z.ZodString;
+        name: z.ZodString;
+        action: z.ZodEnum<["force_quit", "hide_window"]>;
+    }, "strip", z.ZodTypeAny, {
+        action: "force_quit" | "hide_window";
+        bundleId: string;
+        name: string;
+    }, {
+        action: "force_quit" | "hide_window";
+        bundleId: string;
+        name: string;
+    }>, "many">>;
+    restEnforcement: z.ZodOptional<z.ZodObject<{
+        workApps: z.ZodArray<z.ZodObject<{
+            bundleId: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            bundleId: string;
+            name: string;
+        }, {
+            bundleId: string;
+            name: string;
+        }>, "many">;
+        actions: z.ZodArray<z.ZodString, "many">;
+        graceDurationMinutes: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        workApps: {
+            bundleId: string;
+            name: string;
+        }[];
+        actions: string[];
+        graceDurationMinutes: number;
+    }, {
+        workApps: {
+            bundleId: string;
+            name: string;
+        }[];
+        actions: string[];
+        graceDurationMinutes: number;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    enforcementMode: "strict" | "gentle";
+    version: number;
+    updatedAt: number;
+    blacklist: string[];
+    whitelist: string[];
+    workTimeSlots: {
+        dayOfWeek: number;
+        startHour: number;
+        startMinute: number;
+        endHour: number;
+        endMinute: number;
+    }[];
+    skipTokens: {
+        delayMinutes: number;
+        maxPerDay: number;
+    };
+    distractionApps: {
+        action: "force_quit" | "hide_window";
+        bundleId: string;
+        name: string;
+    }[];
+    sleepTime?: {
+        startTime: string;
+        endTime: string;
+        enabled: boolean;
+        enforcementApps: {
+            bundleId: string;
+            name: string;
+        }[];
+    } | undefined;
+    overRestEnforcementApps?: {
+        action: "force_quit" | "hide_window";
+        bundleId: string;
+        name: string;
+    }[] | undefined;
+    restEnforcement?: {
+        workApps: {
+            bundleId: string;
+            name: string;
+        }[];
+        actions: string[];
+        graceDurationMinutes: number;
+    } | undefined;
+}, {
+    enforcementMode: "strict" | "gentle";
+    version: number;
+    updatedAt: number;
+    blacklist: string[];
+    whitelist: string[];
+    workTimeSlots: {
+        dayOfWeek: number;
+        startHour: number;
+        startMinute: number;
+        endHour: number;
+        endMinute: number;
+    }[];
+    skipTokens: {
+        delayMinutes: number;
+        maxPerDay: number;
+    };
+    distractionApps: {
+        action: "force_quit" | "hide_window";
+        bundleId: string;
+        name: string;
+    }[];
+    sleepTime?: {
+        startTime: string;
+        endTime: string;
+        enabled: boolean;
+        enforcementApps: {
+            bundleId: string;
+            name: string;
+        }[];
+    } | undefined;
+    overRestEnforcementApps?: {
+        action: "force_quit" | "hide_window";
+        bundleId: string;
+        name: string;
+    }[] | undefined;
+    restEnforcement?: {
+        workApps: {
+            bundleId: string;
+            name: string;
+        }[];
+        actions: string[];
+        graceDurationMinutes: number;
+    } | undefined;
+}>;
+export declare const HealthLimitSchema: z.ZodObject<{
+    type: z.ZodEnum<["2hours", "daily"]>;
+    message: z.ZodString;
+    repeating: z.ZodOptional<z.ZodBoolean>;
+    intervalMinutes: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    message: string;
+    type: "2hours" | "daily";
+    repeating?: boolean | undefined;
+    intervalMinutes?: number | undefined;
+}, {
+    message: string;
+    type: "2hours" | "daily";
+    repeating?: boolean | undefined;
+    intervalMinutes?: number | undefined;
+}>;
+export declare const TemporaryUnblockSchema: z.ZodObject<{
+    active: z.ZodBoolean;
+    endTime: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    endTime: number;
+    active: boolean;
+}, {
+    endTime: number;
+    active: boolean;
+}>;
+export declare const PolicyStateSchema: z.ZodObject<{
+    skipTokensRemaining: z.ZodNumber;
+    isSleepTimeActive: z.ZodBoolean;
+    isSleepSnoozed: z.ZodBoolean;
+    sleepSnoozeEndTime: z.ZodOptional<z.ZodNumber>;
+    isOverRest: z.ZodBoolean;
+    overRestMinutes: z.ZodNumber;
+    overRestBringToFront: z.ZodBoolean;
+    isRestEnforcementActive: z.ZodBoolean;
+    restGrace: z.ZodOptional<z.ZodObject<{
+        available: z.ZodBoolean;
+        remaining: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        available: boolean;
+        remaining: number;
+    }, {
+        available: boolean;
+        remaining: number;
+    }>>;
+    adhocFocusSession: z.ZodOptional<z.ZodObject<{
+        active: z.ZodBoolean;
+        endTime: z.ZodNumber;
+        overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
+        overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        endTime: number;
+        active: boolean;
+        overridesSleepTime?: boolean | undefined;
+        overridesWorkHours?: boolean | undefined;
+    }, {
+        endTime: number;
+        active: boolean;
+        overridesSleepTime?: boolean | undefined;
+        overridesWorkHours?: boolean | undefined;
+    }>>;
+    temporaryUnblock: z.ZodOptional<z.ZodObject<{
+        active: z.ZodBoolean;
+        endTime: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        endTime: number;
+        active: boolean;
+    }, {
+        endTime: number;
+        active: boolean;
+    }>>;
+    healthLimit: z.ZodOptional<z.ZodObject<{
+        type: z.ZodEnum<["2hours", "daily"]>;
+        message: z.ZodString;
+        repeating: z.ZodOptional<z.ZodBoolean>;
+        intervalMinutes: z.ZodOptional<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        message: string;
+        type: "2hours" | "daily";
+        repeating?: boolean | undefined;
+        intervalMinutes?: number | undefined;
+    }, {
+        message: string;
+        type: "2hours" | "daily";
+        repeating?: boolean | undefined;
+        intervalMinutes?: number | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    skipTokensRemaining: number;
+    isSleepTimeActive: boolean;
+    isSleepSnoozed: boolean;
+    isOverRest: boolean;
+    overRestMinutes: number;
+    overRestBringToFront: boolean;
+    isRestEnforcementActive: boolean;
+    sleepSnoozeEndTime?: number | undefined;
+    restGrace?: {
+        available: boolean;
+        remaining: number;
+    } | undefined;
+    adhocFocusSession?: {
+        endTime: number;
+        active: boolean;
+        overridesSleepTime?: boolean | undefined;
+        overridesWorkHours?: boolean | undefined;
+    } | undefined;
+    temporaryUnblock?: {
+        endTime: number;
+        active: boolean;
+    } | undefined;
+    healthLimit?: {
+        message: string;
+        type: "2hours" | "daily";
+        repeating?: boolean | undefined;
+        intervalMinutes?: number | undefined;
+    } | undefined;
+}, {
+    skipTokensRemaining: number;
+    isSleepTimeActive: boolean;
+    isSleepSnoozed: boolean;
+    isOverRest: boolean;
+    overRestMinutes: number;
+    overRestBringToFront: boolean;
+    isRestEnforcementActive: boolean;
+    sleepSnoozeEndTime?: number | undefined;
+    restGrace?: {
+        available: boolean;
+        remaining: number;
+    } | undefined;
+    adhocFocusSession?: {
+        endTime: number;
+        active: boolean;
+        overridesSleepTime?: boolean | undefined;
+        overridesWorkHours?: boolean | undefined;
+    } | undefined;
+    temporaryUnblock?: {
+        endTime: number;
+        active: boolean;
+    } | undefined;
+    healthLimit?: {
+        message: string;
+        type: "2hours" | "daily";
+        repeating?: boolean | undefined;
+        intervalMinutes?: number | undefined;
+    } | undefined;
+}>;
+export declare const PolicySchema: z.ZodObject<{
+    config: z.ZodObject<{
+        version: z.ZodNumber;
+        updatedAt: z.ZodNumber;
+        blacklist: z.ZodArray<z.ZodString, "many">;
+        whitelist: z.ZodArray<z.ZodString, "many">;
+        enforcementMode: z.ZodEnum<["strict", "gentle"]>;
+        workTimeSlots: z.ZodArray<z.ZodObject<{
+            dayOfWeek: z.ZodNumber;
+            startHour: z.ZodNumber;
+            startMinute: z.ZodNumber;
+            endHour: z.ZodNumber;
+            endMinute: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            dayOfWeek: number;
+            startHour: number;
+            startMinute: number;
+            endHour: number;
+            endMinute: number;
+        }, {
+            dayOfWeek: number;
+            startHour: number;
+            startMinute: number;
+            endHour: number;
+            endMinute: number;
+        }>, "many">;
+        skipTokens: z.ZodObject<{
+            maxPerDay: z.ZodNumber;
+            delayMinutes: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            delayMinutes: number;
+            maxPerDay: number;
+        }, {
+            delayMinutes: number;
+            maxPerDay: number;
+        }>;
+        distractionApps: z.ZodArray<z.ZodObject<{
+            bundleId: z.ZodString;
+            name: z.ZodString;
+            action: z.ZodEnum<["force_quit", "hide_window"]>;
+        }, "strip", z.ZodTypeAny, {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }, {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }>, "many">;
+        sleepTime: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodBoolean;
+            startTime: z.ZodString;
+            endTime: z.ZodString;
+            enforcementApps: z.ZodArray<z.ZodObject<{
+                bundleId: z.ZodString;
+                name: z.ZodString;
+            }, "strip", z.ZodTypeAny, {
+                bundleId: string;
+                name: string;
+            }, {
+                bundleId: string;
+                name: string;
+            }>, "many">;
+        }, "strip", z.ZodTypeAny, {
+            startTime: string;
+            endTime: string;
+            enabled: boolean;
+            enforcementApps: {
+                bundleId: string;
+                name: string;
+            }[];
+        }, {
+            startTime: string;
+            endTime: string;
+            enabled: boolean;
+            enforcementApps: {
+                bundleId: string;
+                name: string;
+            }[];
+        }>>;
+        overRestEnforcementApps: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            bundleId: z.ZodString;
+            name: z.ZodString;
+            action: z.ZodEnum<["force_quit", "hide_window"]>;
+        }, "strip", z.ZodTypeAny, {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }, {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }>, "many">>;
+        restEnforcement: z.ZodOptional<z.ZodObject<{
+            workApps: z.ZodArray<z.ZodObject<{
+                bundleId: z.ZodString;
+                name: z.ZodString;
+            }, "strip", z.ZodTypeAny, {
+                bundleId: string;
+                name: string;
+            }, {
+                bundleId: string;
+                name: string;
+            }>, "many">;
+            actions: z.ZodArray<z.ZodString, "many">;
+            graceDurationMinutes: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            workApps: {
+                bundleId: string;
+                name: string;
+            }[];
+            actions: string[];
+            graceDurationMinutes: number;
+        }, {
+            workApps: {
+                bundleId: string;
+                name: string;
+            }[];
+            actions: string[];
+            graceDurationMinutes: number;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        enforcementMode: "strict" | "gentle";
+        version: number;
+        updatedAt: number;
+        blacklist: string[];
+        whitelist: string[];
+        workTimeSlots: {
+            dayOfWeek: number;
+            startHour: number;
+            startMinute: number;
+            endHour: number;
+            endMinute: number;
+        }[];
+        skipTokens: {
+            delayMinutes: number;
+            maxPerDay: number;
+        };
+        distractionApps: {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }[];
+        sleepTime?: {
+            startTime: string;
+            endTime: string;
+            enabled: boolean;
+            enforcementApps: {
+                bundleId: string;
+                name: string;
+            }[];
+        } | undefined;
+        overRestEnforcementApps?: {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }[] | undefined;
+        restEnforcement?: {
+            workApps: {
+                bundleId: string;
+                name: string;
+            }[];
+            actions: string[];
+            graceDurationMinutes: number;
+        } | undefined;
+    }, {
+        enforcementMode: "strict" | "gentle";
+        version: number;
+        updatedAt: number;
+        blacklist: string[];
+        whitelist: string[];
+        workTimeSlots: {
+            dayOfWeek: number;
+            startHour: number;
+            startMinute: number;
+            endHour: number;
+            endMinute: number;
+        }[];
+        skipTokens: {
+            delayMinutes: number;
+            maxPerDay: number;
+        };
+        distractionApps: {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }[];
+        sleepTime?: {
+            startTime: string;
+            endTime: string;
+            enabled: boolean;
+            enforcementApps: {
+                bundleId: string;
+                name: string;
+            }[];
+        } | undefined;
+        overRestEnforcementApps?: {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }[] | undefined;
+        restEnforcement?: {
+            workApps: {
+                bundleId: string;
+                name: string;
+            }[];
+            actions: string[];
+            graceDurationMinutes: number;
+        } | undefined;
+    }>;
+    state: z.ZodObject<{
+        skipTokensRemaining: z.ZodNumber;
+        isSleepTimeActive: z.ZodBoolean;
+        isSleepSnoozed: z.ZodBoolean;
+        sleepSnoozeEndTime: z.ZodOptional<z.ZodNumber>;
+        isOverRest: z.ZodBoolean;
+        overRestMinutes: z.ZodNumber;
+        overRestBringToFront: z.ZodBoolean;
+        isRestEnforcementActive: z.ZodBoolean;
+        restGrace: z.ZodOptional<z.ZodObject<{
+            available: z.ZodBoolean;
+            remaining: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            available: boolean;
+            remaining: number;
+        }, {
+            available: boolean;
+            remaining: number;
+        }>>;
+        adhocFocusSession: z.ZodOptional<z.ZodObject<{
+            active: z.ZodBoolean;
+            endTime: z.ZodNumber;
+            overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
+            overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            endTime: number;
+            active: boolean;
+            overridesSleepTime?: boolean | undefined;
+            overridesWorkHours?: boolean | undefined;
+        }, {
+            endTime: number;
+            active: boolean;
+            overridesSleepTime?: boolean | undefined;
+            overridesWorkHours?: boolean | undefined;
+        }>>;
+        temporaryUnblock: z.ZodOptional<z.ZodObject<{
+            active: z.ZodBoolean;
+            endTime: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            endTime: number;
+            active: boolean;
+        }, {
+            endTime: number;
+            active: boolean;
+        }>>;
+        healthLimit: z.ZodOptional<z.ZodObject<{
+            type: z.ZodEnum<["2hours", "daily"]>;
+            message: z.ZodString;
+            repeating: z.ZodOptional<z.ZodBoolean>;
+            intervalMinutes: z.ZodOptional<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            message: string;
+            type: "2hours" | "daily";
+            repeating?: boolean | undefined;
+            intervalMinutes?: number | undefined;
+        }, {
+            message: string;
+            type: "2hours" | "daily";
+            repeating?: boolean | undefined;
+            intervalMinutes?: number | undefined;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        skipTokensRemaining: number;
+        isSleepTimeActive: boolean;
+        isSleepSnoozed: boolean;
+        isOverRest: boolean;
+        overRestMinutes: number;
+        overRestBringToFront: boolean;
+        isRestEnforcementActive: boolean;
+        sleepSnoozeEndTime?: number | undefined;
+        restGrace?: {
+            available: boolean;
+            remaining: number;
+        } | undefined;
+        adhocFocusSession?: {
+            endTime: number;
+            active: boolean;
+            overridesSleepTime?: boolean | undefined;
+            overridesWorkHours?: boolean | undefined;
+        } | undefined;
+        temporaryUnblock?: {
+            endTime: number;
+            active: boolean;
+        } | undefined;
+        healthLimit?: {
+            message: string;
+            type: "2hours" | "daily";
+            repeating?: boolean | undefined;
+            intervalMinutes?: number | undefined;
+        } | undefined;
+    }, {
+        skipTokensRemaining: number;
+        isSleepTimeActive: boolean;
+        isSleepSnoozed: boolean;
+        isOverRest: boolean;
+        overRestMinutes: number;
+        overRestBringToFront: boolean;
+        isRestEnforcementActive: boolean;
+        sleepSnoozeEndTime?: number | undefined;
+        restGrace?: {
+            available: boolean;
+            remaining: number;
+        } | undefined;
+        adhocFocusSession?: {
+            endTime: number;
+            active: boolean;
+            overridesSleepTime?: boolean | undefined;
+            overridesWorkHours?: boolean | undefined;
+        } | undefined;
+        temporaryUnblock?: {
+            endTime: number;
+            active: boolean;
+        } | undefined;
+        healthLimit?: {
+            message: string;
+            type: "2hours" | "daily";
+            repeating?: boolean | undefined;
+            intervalMinutes?: number | undefined;
+        } | undefined;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    state: {
+        skipTokensRemaining: number;
+        isSleepTimeActive: boolean;
+        isSleepSnoozed: boolean;
+        isOverRest: boolean;
+        overRestMinutes: number;
+        overRestBringToFront: boolean;
+        isRestEnforcementActive: boolean;
+        sleepSnoozeEndTime?: number | undefined;
+        restGrace?: {
+            available: boolean;
+            remaining: number;
+        } | undefined;
+        adhocFocusSession?: {
+            endTime: number;
+            active: boolean;
+            overridesSleepTime?: boolean | undefined;
+            overridesWorkHours?: boolean | undefined;
+        } | undefined;
+        temporaryUnblock?: {
+            endTime: number;
+            active: boolean;
+        } | undefined;
+        healthLimit?: {
+            message: string;
+            type: "2hours" | "daily";
+            repeating?: boolean | undefined;
+            intervalMinutes?: number | undefined;
+        } | undefined;
+    };
+    config: {
+        enforcementMode: "strict" | "gentle";
+        version: number;
+        updatedAt: number;
+        blacklist: string[];
+        whitelist: string[];
+        workTimeSlots: {
+            dayOfWeek: number;
+            startHour: number;
+            startMinute: number;
+            endHour: number;
+            endMinute: number;
+        }[];
+        skipTokens: {
+            delayMinutes: number;
+            maxPerDay: number;
+        };
+        distractionApps: {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }[];
+        sleepTime?: {
+            startTime: string;
+            endTime: string;
+            enabled: boolean;
+            enforcementApps: {
+                bundleId: string;
+                name: string;
+            }[];
+        } | undefined;
+        overRestEnforcementApps?: {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }[] | undefined;
+        restEnforcement?: {
+            workApps: {
+                bundleId: string;
+                name: string;
+            }[];
+            actions: string[];
+            graceDurationMinutes: number;
+        } | undefined;
+    };
+}, {
+    state: {
+        skipTokensRemaining: number;
+        isSleepTimeActive: boolean;
+        isSleepSnoozed: boolean;
+        isOverRest: boolean;
+        overRestMinutes: number;
+        overRestBringToFront: boolean;
+        isRestEnforcementActive: boolean;
+        sleepSnoozeEndTime?: number | undefined;
+        restGrace?: {
+            available: boolean;
+            remaining: number;
+        } | undefined;
+        adhocFocusSession?: {
+            endTime: number;
+            active: boolean;
+            overridesSleepTime?: boolean | undefined;
+            overridesWorkHours?: boolean | undefined;
+        } | undefined;
+        temporaryUnblock?: {
+            endTime: number;
+            active: boolean;
+        } | undefined;
+        healthLimit?: {
+            message: string;
+            type: "2hours" | "daily";
+            repeating?: boolean | undefined;
+            intervalMinutes?: number | undefined;
+        } | undefined;
+    };
+    config: {
+        enforcementMode: "strict" | "gentle";
+        version: number;
+        updatedAt: number;
+        blacklist: string[];
+        whitelist: string[];
+        workTimeSlots: {
+            dayOfWeek: number;
+            startHour: number;
+            startMinute: number;
+            endHour: number;
+            endMinute: number;
+        }[];
+        skipTokens: {
+            delayMinutes: number;
+            maxPerDay: number;
+        };
+        distractionApps: {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }[];
+        sleepTime?: {
+            startTime: string;
+            endTime: string;
+            enabled: boolean;
+            enforcementApps: {
+                bundleId: string;
+                name: string;
+            }[];
+        } | undefined;
+        overRestEnforcementApps?: {
+            action: "force_quit" | "hide_window";
+            bundleId: string;
+            name: string;
+        }[] | undefined;
+        restEnforcement?: {
+            workApps: {
+                bundleId: string;
+                name: string;
+            }[];
+            actions: string[];
+            graceDurationMinutes: number;
+        } | undefined;
+    };
+}>;
+/** @deprecated Use SleepTimeConfigSchema + PolicyStateSchema */
 export declare const SleepTimePolicySchema: z.ZodObject<{
     enabled: z.ZodBoolean;
     startTime: z.ZodString;
@@ -3337,6 +4232,7 @@ export declare const SleepTimePolicySchema: z.ZodObject<{
     isSnoozed: boolean;
     snoozeEndTime?: number | undefined;
 }>;
+/** @deprecated Use PolicyStateSchema.isOverRest + related fields */
 export declare const OverRestPolicySchema: z.ZodObject<{
     isOverRest: z.ZodBoolean;
     overRestMinutes: z.ZodNumber;
@@ -3368,16 +4264,18 @@ export declare const OverRestPolicySchema: z.ZodObject<{
     overRestMinutes: number;
     bringToFront: boolean;
 }>;
+/** @deprecated Use TemporaryUnblockSchema */
 export declare const TemporaryUnblockPolicySchema: z.ZodObject<{
     active: z.ZodBoolean;
     endTime: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    active: boolean;
     endTime: number;
+    active: boolean;
 }, {
-    active: boolean;
     endTime: number;
+    active: boolean;
 }>;
+/** @deprecated Use RestEnforcementConfigSchema + PolicyStateSchema */
 export declare const RestEnforcementPolicySchema: z.ZodObject<{
     isActive: z.ZodBoolean;
     workApps: z.ZodArray<z.ZodObject<{
@@ -3396,39 +4294,40 @@ export declare const RestEnforcementPolicySchema: z.ZodObject<{
         remaining: z.ZodNumber;
         durationMinutes: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        remaining: number;
         available: boolean;
+        remaining: number;
         durationMinutes: number;
     }, {
-        remaining: number;
         available: boolean;
+        remaining: number;
         durationMinutes: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    isActive: boolean;
     workApps: {
         bundleId: string;
         name: string;
     }[];
     actions: string[];
+    isActive: boolean;
     grace: {
-        remaining: number;
         available: boolean;
+        remaining: number;
         durationMinutes: number;
     };
 }, {
-    isActive: boolean;
     workApps: {
         bundleId: string;
         name: string;
     }[];
     actions: string[];
+    isActive: boolean;
     grace: {
-        remaining: number;
         available: boolean;
+        remaining: number;
         durationMinutes: number;
     };
 }>;
+/** @deprecated Dead field — never populated by server */
 export declare const WorkTimePolicySchema: z.ZodObject<{
     enabled: z.ZodBoolean;
     isCurrentlyActive: z.ZodBoolean;
@@ -3460,1033 +4359,12 @@ export declare const WorkTimePolicySchema: z.ZodObject<{
         endTime: string;
     }[];
 }>;
-export declare const HealthLimitSchema: z.ZodObject<{
-    type: z.ZodEnum<["2hours", "daily"]>;
-    message: z.ZodString;
-    repeating: z.ZodOptional<z.ZodBoolean>;
-    intervalMinutes: z.ZodOptional<z.ZodNumber>;
-}, "strip", z.ZodTypeAny, {
-    message: string;
-    type: "2hours" | "daily";
-    repeating?: boolean | undefined;
-    intervalMinutes?: number | undefined;
-}, {
-    message: string;
-    type: "2hours" | "daily";
-    repeating?: boolean | undefined;
-    intervalMinutes?: number | undefined;
-}>;
-export declare const PolicySchema: z.ZodObject<{
-    version: z.ZodNumber;
-    blacklist: z.ZodArray<z.ZodString, "many">;
-    whitelist: z.ZodArray<z.ZodString, "many">;
-    enforcementMode: z.ZodEnum<["strict", "gentle"]>;
-    workTimeSlots: z.ZodArray<z.ZodObject<{
-        dayOfWeek: z.ZodNumber;
-        startHour: z.ZodNumber;
-        startMinute: z.ZodNumber;
-        endHour: z.ZodNumber;
-        endMinute: z.ZodNumber;
-    }, "strip", z.ZodTypeAny, {
-        dayOfWeek: number;
-        startHour: number;
-        startMinute: number;
-        endHour: number;
-        endMinute: number;
-    }, {
-        dayOfWeek: number;
-        startHour: number;
-        startMinute: number;
-        endHour: number;
-        endMinute: number;
-    }>, "many">;
-    skipTokens: z.ZodObject<{
-        remaining: z.ZodNumber;
-        maxPerDay: z.ZodNumber;
-        delayMinutes: z.ZodNumber;
-    }, "strip", z.ZodTypeAny, {
-        delayMinutes: number;
-        remaining: number;
-        maxPerDay: number;
-    }, {
-        delayMinutes: number;
-        remaining: number;
-        maxPerDay: number;
-    }>;
-    distractionApps: z.ZodArray<z.ZodObject<{
-        bundleId: z.ZodString;
-        name: z.ZodString;
-        action: z.ZodEnum<["force_quit", "hide_window"]>;
-    }, "strip", z.ZodTypeAny, {
-        action: "force_quit" | "hide_window";
-        bundleId: string;
-        name: string;
-    }, {
-        action: "force_quit" | "hide_window";
-        bundleId: string;
-        name: string;
-    }>, "many">;
-    updatedAt: z.ZodNumber;
-    adhocFocusSession: z.ZodOptional<z.ZodObject<{
-        active: z.ZodBoolean;
-        endTime: z.ZodNumber;
-        overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
-        overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
-    }, "strip", z.ZodTypeAny, {
-        active: boolean;
-        endTime: number;
-        overridesSleepTime?: boolean | undefined;
-        overridesWorkHours?: boolean | undefined;
-    }, {
-        active: boolean;
-        endTime: number;
-        overridesSleepTime?: boolean | undefined;
-        overridesWorkHours?: boolean | undefined;
-    }>>;
-    sleepTime: z.ZodOptional<z.ZodObject<{
-        enabled: z.ZodBoolean;
-        startTime: z.ZodString;
-        endTime: z.ZodString;
-        enforcementApps: z.ZodArray<z.ZodObject<{
-            bundleId: z.ZodString;
-            name: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            bundleId: string;
-            name: string;
-        }, {
-            bundleId: string;
-            name: string;
-        }>, "many">;
-        isCurrentlyActive: z.ZodBoolean;
-        isSnoozed: z.ZodBoolean;
-        snoozeEndTime: z.ZodOptional<z.ZodNumber>;
-    }, "strip", z.ZodTypeAny, {
-        startTime: string;
-        endTime: string;
-        enabled: boolean;
-        enforcementApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        isCurrentlyActive: boolean;
-        isSnoozed: boolean;
-        snoozeEndTime?: number | undefined;
-    }, {
-        startTime: string;
-        endTime: string;
-        enabled: boolean;
-        enforcementApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        isCurrentlyActive: boolean;
-        isSnoozed: boolean;
-        snoozeEndTime?: number | undefined;
-    }>>;
-    overRest: z.ZodOptional<z.ZodObject<{
-        isOverRest: z.ZodBoolean;
-        overRestMinutes: z.ZodNumber;
-        enforcementApps: z.ZodArray<z.ZodObject<{
-            bundleId: z.ZodString;
-            name: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            bundleId: string;
-            name: string;
-        }, {
-            bundleId: string;
-            name: string;
-        }>, "many">;
-        bringToFront: z.ZodBoolean;
-    }, "strip", z.ZodTypeAny, {
-        enforcementApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        isOverRest: boolean;
-        overRestMinutes: number;
-        bringToFront: boolean;
-    }, {
-        enforcementApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        isOverRest: boolean;
-        overRestMinutes: number;
-        bringToFront: boolean;
-    }>>;
-    temporaryUnblock: z.ZodOptional<z.ZodObject<{
-        active: z.ZodBoolean;
-        endTime: z.ZodNumber;
-    }, "strip", z.ZodTypeAny, {
-        active: boolean;
-        endTime: number;
-    }, {
-        active: boolean;
-        endTime: number;
-    }>>;
-    restEnforcement: z.ZodOptional<z.ZodObject<{
-        isActive: z.ZodBoolean;
-        workApps: z.ZodArray<z.ZodObject<{
-            bundleId: z.ZodString;
-            name: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            bundleId: string;
-            name: string;
-        }, {
-            bundleId: string;
-            name: string;
-        }>, "many">;
-        actions: z.ZodArray<z.ZodString, "many">;
-        grace: z.ZodObject<{
-            available: z.ZodBoolean;
-            remaining: z.ZodNumber;
-            durationMinutes: z.ZodNumber;
-        }, "strip", z.ZodTypeAny, {
-            remaining: number;
-            available: boolean;
-            durationMinutes: number;
-        }, {
-            remaining: number;
-            available: boolean;
-            durationMinutes: number;
-        }>;
-    }, "strip", z.ZodTypeAny, {
-        isActive: boolean;
-        workApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        actions: string[];
-        grace: {
-            remaining: number;
-            available: boolean;
-            durationMinutes: number;
-        };
-    }, {
-        isActive: boolean;
-        workApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        actions: string[];
-        grace: {
-            remaining: number;
-            available: boolean;
-            durationMinutes: number;
-        };
-    }>>;
-    workTime: z.ZodOptional<z.ZodObject<{
-        enabled: z.ZodBoolean;
-        isCurrentlyActive: z.ZodBoolean;
-        isInRestPeriod: z.ZodBoolean;
-        slots: z.ZodArray<z.ZodObject<{
-            startTime: z.ZodString;
-            endTime: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            startTime: string;
-            endTime: string;
-        }, {
-            startTime: string;
-            endTime: string;
-        }>, "many">;
-    }, "strip", z.ZodTypeAny, {
-        enabled: boolean;
-        isCurrentlyActive: boolean;
-        isInRestPeriod: boolean;
-        slots: {
-            startTime: string;
-            endTime: string;
-        }[];
-    }, {
-        enabled: boolean;
-        isCurrentlyActive: boolean;
-        isInRestPeriod: boolean;
-        slots: {
-            startTime: string;
-            endTime: string;
-        }[];
-    }>>;
-    healthLimit: z.ZodOptional<z.ZodObject<{
-        type: z.ZodEnum<["2hours", "daily"]>;
-        message: z.ZodString;
-        repeating: z.ZodOptional<z.ZodBoolean>;
-        intervalMinutes: z.ZodOptional<z.ZodNumber>;
-    }, "strip", z.ZodTypeAny, {
-        message: string;
-        type: "2hours" | "daily";
-        repeating?: boolean | undefined;
-        intervalMinutes?: number | undefined;
-    }, {
-        message: string;
-        type: "2hours" | "daily";
-        repeating?: boolean | undefined;
-        intervalMinutes?: number | undefined;
-    }>>;
-}, "strip", z.ZodTypeAny, {
-    version: number;
-    enforcementMode: "strict" | "gentle";
-    blacklist: string[];
-    whitelist: string[];
-    workTimeSlots: {
-        dayOfWeek: number;
-        startHour: number;
-        startMinute: number;
-        endHour: number;
-        endMinute: number;
-    }[];
-    skipTokens: {
-        delayMinutes: number;
-        remaining: number;
-        maxPerDay: number;
-    };
-    distractionApps: {
-        action: "force_quit" | "hide_window";
-        bundleId: string;
-        name: string;
-    }[];
-    updatedAt: number;
-    adhocFocusSession?: {
-        active: boolean;
-        endTime: number;
-        overridesSleepTime?: boolean | undefined;
-        overridesWorkHours?: boolean | undefined;
-    } | undefined;
-    sleepTime?: {
-        startTime: string;
-        endTime: string;
-        enabled: boolean;
-        enforcementApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        isCurrentlyActive: boolean;
-        isSnoozed: boolean;
-        snoozeEndTime?: number | undefined;
-    } | undefined;
-    overRest?: {
-        enforcementApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        isOverRest: boolean;
-        overRestMinutes: number;
-        bringToFront: boolean;
-    } | undefined;
-    temporaryUnblock?: {
-        active: boolean;
-        endTime: number;
-    } | undefined;
-    restEnforcement?: {
-        isActive: boolean;
-        workApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        actions: string[];
-        grace: {
-            remaining: number;
-            available: boolean;
-            durationMinutes: number;
-        };
-    } | undefined;
-    workTime?: {
-        enabled: boolean;
-        isCurrentlyActive: boolean;
-        isInRestPeriod: boolean;
-        slots: {
-            startTime: string;
-            endTime: string;
-        }[];
-    } | undefined;
-    healthLimit?: {
-        message: string;
-        type: "2hours" | "daily";
-        repeating?: boolean | undefined;
-        intervalMinutes?: number | undefined;
-    } | undefined;
-}, {
-    version: number;
-    enforcementMode: "strict" | "gentle";
-    blacklist: string[];
-    whitelist: string[];
-    workTimeSlots: {
-        dayOfWeek: number;
-        startHour: number;
-        startMinute: number;
-        endHour: number;
-        endMinute: number;
-    }[];
-    skipTokens: {
-        delayMinutes: number;
-        remaining: number;
-        maxPerDay: number;
-    };
-    distractionApps: {
-        action: "force_quit" | "hide_window";
-        bundleId: string;
-        name: string;
-    }[];
-    updatedAt: number;
-    adhocFocusSession?: {
-        active: boolean;
-        endTime: number;
-        overridesSleepTime?: boolean | undefined;
-        overridesWorkHours?: boolean | undefined;
-    } | undefined;
-    sleepTime?: {
-        startTime: string;
-        endTime: string;
-        enabled: boolean;
-        enforcementApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        isCurrentlyActive: boolean;
-        isSnoozed: boolean;
-        snoozeEndTime?: number | undefined;
-    } | undefined;
-    overRest?: {
-        enforcementApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        isOverRest: boolean;
-        overRestMinutes: number;
-        bringToFront: boolean;
-    } | undefined;
-    temporaryUnblock?: {
-        active: boolean;
-        endTime: number;
-    } | undefined;
-    restEnforcement?: {
-        isActive: boolean;
-        workApps: {
-            bundleId: string;
-            name: string;
-        }[];
-        actions: string[];
-        grace: {
-            remaining: number;
-            available: boolean;
-            durationMinutes: number;
-        };
-    } | undefined;
-    workTime?: {
-        enabled: boolean;
-        isCurrentlyActive: boolean;
-        isInRestPeriod: boolean;
-        slots: {
-            startTime: string;
-            endTime: string;
-        }[];
-    } | undefined;
-    healthLimit?: {
-        message: string;
-        type: "2hours" | "daily";
-        repeating?: boolean | undefined;
-        intervalMinutes?: number | undefined;
-    } | undefined;
-}>;
 export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
     policyType: z.ZodEnum<["full", "partial"]>;
     policy: z.ZodObject<{
-        version: z.ZodNumber;
-        blacklist: z.ZodArray<z.ZodString, "many">;
-        whitelist: z.ZodArray<z.ZodString, "many">;
-        enforcementMode: z.ZodEnum<["strict", "gentle"]>;
-        workTimeSlots: z.ZodArray<z.ZodObject<{
-            dayOfWeek: z.ZodNumber;
-            startHour: z.ZodNumber;
-            startMinute: z.ZodNumber;
-            endHour: z.ZodNumber;
-            endMinute: z.ZodNumber;
-        }, "strip", z.ZodTypeAny, {
-            dayOfWeek: number;
-            startHour: number;
-            startMinute: number;
-            endHour: number;
-            endMinute: number;
-        }, {
-            dayOfWeek: number;
-            startHour: number;
-            startMinute: number;
-            endHour: number;
-            endMinute: number;
-        }>, "many">;
-        skipTokens: z.ZodObject<{
-            remaining: z.ZodNumber;
-            maxPerDay: z.ZodNumber;
-            delayMinutes: z.ZodNumber;
-        }, "strip", z.ZodTypeAny, {
-            delayMinutes: number;
-            remaining: number;
-            maxPerDay: number;
-        }, {
-            delayMinutes: number;
-            remaining: number;
-            maxPerDay: number;
-        }>;
-        distractionApps: z.ZodArray<z.ZodObject<{
-            bundleId: z.ZodString;
-            name: z.ZodString;
-            action: z.ZodEnum<["force_quit", "hide_window"]>;
-        }, "strip", z.ZodTypeAny, {
-            action: "force_quit" | "hide_window";
-            bundleId: string;
-            name: string;
-        }, {
-            action: "force_quit" | "hide_window";
-            bundleId: string;
-            name: string;
-        }>, "many">;
-        updatedAt: z.ZodNumber;
-        adhocFocusSession: z.ZodOptional<z.ZodObject<{
-            active: z.ZodBoolean;
-            endTime: z.ZodNumber;
-            overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
-            overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
-        }, "strip", z.ZodTypeAny, {
-            active: boolean;
-            endTime: number;
-            overridesSleepTime?: boolean | undefined;
-            overridesWorkHours?: boolean | undefined;
-        }, {
-            active: boolean;
-            endTime: number;
-            overridesSleepTime?: boolean | undefined;
-            overridesWorkHours?: boolean | undefined;
-        }>>;
-        sleepTime: z.ZodOptional<z.ZodObject<{
-            enabled: z.ZodBoolean;
-            startTime: z.ZodString;
-            endTime: z.ZodString;
-            enforcementApps: z.ZodArray<z.ZodObject<{
-                bundleId: z.ZodString;
-                name: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                bundleId: string;
-                name: string;
-            }, {
-                bundleId: string;
-                name: string;
-            }>, "many">;
-            isCurrentlyActive: z.ZodBoolean;
-            isSnoozed: z.ZodBoolean;
-            snoozeEndTime: z.ZodOptional<z.ZodNumber>;
-        }, "strip", z.ZodTypeAny, {
-            startTime: string;
-            endTime: string;
-            enabled: boolean;
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isCurrentlyActive: boolean;
-            isSnoozed: boolean;
-            snoozeEndTime?: number | undefined;
-        }, {
-            startTime: string;
-            endTime: string;
-            enabled: boolean;
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isCurrentlyActive: boolean;
-            isSnoozed: boolean;
-            snoozeEndTime?: number | undefined;
-        }>>;
-        overRest: z.ZodOptional<z.ZodObject<{
-            isOverRest: z.ZodBoolean;
-            overRestMinutes: z.ZodNumber;
-            enforcementApps: z.ZodArray<z.ZodObject<{
-                bundleId: z.ZodString;
-                name: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                bundleId: string;
-                name: string;
-            }, {
-                bundleId: string;
-                name: string;
-            }>, "many">;
-            bringToFront: z.ZodBoolean;
-        }, "strip", z.ZodTypeAny, {
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isOverRest: boolean;
-            overRestMinutes: number;
-            bringToFront: boolean;
-        }, {
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isOverRest: boolean;
-            overRestMinutes: number;
-            bringToFront: boolean;
-        }>>;
-        temporaryUnblock: z.ZodOptional<z.ZodObject<{
-            active: z.ZodBoolean;
-            endTime: z.ZodNumber;
-        }, "strip", z.ZodTypeAny, {
-            active: boolean;
-            endTime: number;
-        }, {
-            active: boolean;
-            endTime: number;
-        }>>;
-        restEnforcement: z.ZodOptional<z.ZodObject<{
-            isActive: z.ZodBoolean;
-            workApps: z.ZodArray<z.ZodObject<{
-                bundleId: z.ZodString;
-                name: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                bundleId: string;
-                name: string;
-            }, {
-                bundleId: string;
-                name: string;
-            }>, "many">;
-            actions: z.ZodArray<z.ZodString, "many">;
-            grace: z.ZodObject<{
-                available: z.ZodBoolean;
-                remaining: z.ZodNumber;
-                durationMinutes: z.ZodNumber;
-            }, "strip", z.ZodTypeAny, {
-                remaining: number;
-                available: boolean;
-                durationMinutes: number;
-            }, {
-                remaining: number;
-                available: boolean;
-                durationMinutes: number;
-            }>;
-        }, "strip", z.ZodTypeAny, {
-            isActive: boolean;
-            workApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            actions: string[];
-            grace: {
-                remaining: number;
-                available: boolean;
-                durationMinutes: number;
-            };
-        }, {
-            isActive: boolean;
-            workApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            actions: string[];
-            grace: {
-                remaining: number;
-                available: boolean;
-                durationMinutes: number;
-            };
-        }>>;
-        workTime: z.ZodOptional<z.ZodObject<{
-            enabled: z.ZodBoolean;
-            isCurrentlyActive: z.ZodBoolean;
-            isInRestPeriod: z.ZodBoolean;
-            slots: z.ZodArray<z.ZodObject<{
-                startTime: z.ZodString;
-                endTime: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                startTime: string;
-                endTime: string;
-            }, {
-                startTime: string;
-                endTime: string;
-            }>, "many">;
-        }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
-            isCurrentlyActive: boolean;
-            isInRestPeriod: boolean;
-            slots: {
-                startTime: string;
-                endTime: string;
-            }[];
-        }, {
-            enabled: boolean;
-            isCurrentlyActive: boolean;
-            isInRestPeriod: boolean;
-            slots: {
-                startTime: string;
-                endTime: string;
-            }[];
-        }>>;
-        healthLimit: z.ZodOptional<z.ZodObject<{
-            type: z.ZodEnum<["2hours", "daily"]>;
-            message: z.ZodString;
-            repeating: z.ZodOptional<z.ZodBoolean>;
-            intervalMinutes: z.ZodOptional<z.ZodNumber>;
-        }, "strip", z.ZodTypeAny, {
-            message: string;
-            type: "2hours" | "daily";
-            repeating?: boolean | undefined;
-            intervalMinutes?: number | undefined;
-        }, {
-            message: string;
-            type: "2hours" | "daily";
-            repeating?: boolean | undefined;
-            intervalMinutes?: number | undefined;
-        }>>;
-    }, "strip", z.ZodTypeAny, {
-        version: number;
-        enforcementMode: "strict" | "gentle";
-        blacklist: string[];
-        whitelist: string[];
-        workTimeSlots: {
-            dayOfWeek: number;
-            startHour: number;
-            startMinute: number;
-            endHour: number;
-            endMinute: number;
-        }[];
-        skipTokens: {
-            delayMinutes: number;
-            remaining: number;
-            maxPerDay: number;
-        };
-        distractionApps: {
-            action: "force_quit" | "hide_window";
-            bundleId: string;
-            name: string;
-        }[];
-        updatedAt: number;
-        adhocFocusSession?: {
-            active: boolean;
-            endTime: number;
-            overridesSleepTime?: boolean | undefined;
-            overridesWorkHours?: boolean | undefined;
-        } | undefined;
-        sleepTime?: {
-            startTime: string;
-            endTime: string;
-            enabled: boolean;
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isCurrentlyActive: boolean;
-            isSnoozed: boolean;
-            snoozeEndTime?: number | undefined;
-        } | undefined;
-        overRest?: {
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isOverRest: boolean;
-            overRestMinutes: number;
-            bringToFront: boolean;
-        } | undefined;
-        temporaryUnblock?: {
-            active: boolean;
-            endTime: number;
-        } | undefined;
-        restEnforcement?: {
-            isActive: boolean;
-            workApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            actions: string[];
-            grace: {
-                remaining: number;
-                available: boolean;
-                durationMinutes: number;
-            };
-        } | undefined;
-        workTime?: {
-            enabled: boolean;
-            isCurrentlyActive: boolean;
-            isInRestPeriod: boolean;
-            slots: {
-                startTime: string;
-                endTime: string;
-            }[];
-        } | undefined;
-        healthLimit?: {
-            message: string;
-            type: "2hours" | "daily";
-            repeating?: boolean | undefined;
-            intervalMinutes?: number | undefined;
-        } | undefined;
-    }, {
-        version: number;
-        enforcementMode: "strict" | "gentle";
-        blacklist: string[];
-        whitelist: string[];
-        workTimeSlots: {
-            dayOfWeek: number;
-            startHour: number;
-            startMinute: number;
-            endHour: number;
-            endMinute: number;
-        }[];
-        skipTokens: {
-            delayMinutes: number;
-            remaining: number;
-            maxPerDay: number;
-        };
-        distractionApps: {
-            action: "force_quit" | "hide_window";
-            bundleId: string;
-            name: string;
-        }[];
-        updatedAt: number;
-        adhocFocusSession?: {
-            active: boolean;
-            endTime: number;
-            overridesSleepTime?: boolean | undefined;
-            overridesWorkHours?: boolean | undefined;
-        } | undefined;
-        sleepTime?: {
-            startTime: string;
-            endTime: string;
-            enabled: boolean;
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isCurrentlyActive: boolean;
-            isSnoozed: boolean;
-            snoozeEndTime?: number | undefined;
-        } | undefined;
-        overRest?: {
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isOverRest: boolean;
-            overRestMinutes: number;
-            bringToFront: boolean;
-        } | undefined;
-        temporaryUnblock?: {
-            active: boolean;
-            endTime: number;
-        } | undefined;
-        restEnforcement?: {
-            isActive: boolean;
-            workApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            actions: string[];
-            grace: {
-                remaining: number;
-                available: boolean;
-                durationMinutes: number;
-            };
-        } | undefined;
-        workTime?: {
-            enabled: boolean;
-            isCurrentlyActive: boolean;
-            isInRestPeriod: boolean;
-            slots: {
-                startTime: string;
-                endTime: string;
-            }[];
-        } | undefined;
-        healthLimit?: {
-            message: string;
-            type: "2hours" | "daily";
-            repeating?: boolean | undefined;
-            intervalMinutes?: number | undefined;
-        } | undefined;
-    }>;
-    effectiveTime: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    policyType: "full" | "partial";
-    policy: {
-        version: number;
-        enforcementMode: "strict" | "gentle";
-        blacklist: string[];
-        whitelist: string[];
-        workTimeSlots: {
-            dayOfWeek: number;
-            startHour: number;
-            startMinute: number;
-            endHour: number;
-            endMinute: number;
-        }[];
-        skipTokens: {
-            delayMinutes: number;
-            remaining: number;
-            maxPerDay: number;
-        };
-        distractionApps: {
-            action: "force_quit" | "hide_window";
-            bundleId: string;
-            name: string;
-        }[];
-        updatedAt: number;
-        adhocFocusSession?: {
-            active: boolean;
-            endTime: number;
-            overridesSleepTime?: boolean | undefined;
-            overridesWorkHours?: boolean | undefined;
-        } | undefined;
-        sleepTime?: {
-            startTime: string;
-            endTime: string;
-            enabled: boolean;
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isCurrentlyActive: boolean;
-            isSnoozed: boolean;
-            snoozeEndTime?: number | undefined;
-        } | undefined;
-        overRest?: {
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isOverRest: boolean;
-            overRestMinutes: number;
-            bringToFront: boolean;
-        } | undefined;
-        temporaryUnblock?: {
-            active: boolean;
-            endTime: number;
-        } | undefined;
-        restEnforcement?: {
-            isActive: boolean;
-            workApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            actions: string[];
-            grace: {
-                remaining: number;
-                available: boolean;
-                durationMinutes: number;
-            };
-        } | undefined;
-        workTime?: {
-            enabled: boolean;
-            isCurrentlyActive: boolean;
-            isInRestPeriod: boolean;
-            slots: {
-                startTime: string;
-                endTime: string;
-            }[];
-        } | undefined;
-        healthLimit?: {
-            message: string;
-            type: "2hours" | "daily";
-            repeating?: boolean | undefined;
-            intervalMinutes?: number | undefined;
-        } | undefined;
-    };
-    effectiveTime: number;
-}, {
-    policyType: "full" | "partial";
-    policy: {
-        version: number;
-        enforcementMode: "strict" | "gentle";
-        blacklist: string[];
-        whitelist: string[];
-        workTimeSlots: {
-            dayOfWeek: number;
-            startHour: number;
-            startMinute: number;
-            endHour: number;
-            endMinute: number;
-        }[];
-        skipTokens: {
-            delayMinutes: number;
-            remaining: number;
-            maxPerDay: number;
-        };
-        distractionApps: {
-            action: "force_quit" | "hide_window";
-            bundleId: string;
-            name: string;
-        }[];
-        updatedAt: number;
-        adhocFocusSession?: {
-            active: boolean;
-            endTime: number;
-            overridesSleepTime?: boolean | undefined;
-            overridesWorkHours?: boolean | undefined;
-        } | undefined;
-        sleepTime?: {
-            startTime: string;
-            endTime: string;
-            enabled: boolean;
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isCurrentlyActive: boolean;
-            isSnoozed: boolean;
-            snoozeEndTime?: number | undefined;
-        } | undefined;
-        overRest?: {
-            enforcementApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            isOverRest: boolean;
-            overRestMinutes: number;
-            bringToFront: boolean;
-        } | undefined;
-        temporaryUnblock?: {
-            active: boolean;
-            endTime: number;
-        } | undefined;
-        restEnforcement?: {
-            isActive: boolean;
-            workApps: {
-                bundleId: string;
-                name: string;
-            }[];
-            actions: string[];
-            grace: {
-                remaining: number;
-                available: boolean;
-                durationMinutes: number;
-            };
-        } | undefined;
-        workTime?: {
-            enabled: boolean;
-            isCurrentlyActive: boolean;
-            isInRestPeriod: boolean;
-            slots: {
-                startTime: string;
-                endTime: string;
-            }[];
-        } | undefined;
-        healthLimit?: {
-            message: string;
-            type: "2hours" | "daily";
-            repeating?: boolean | undefined;
-            intervalMinutes?: number | undefined;
-        } | undefined;
-    };
-    effectiveTime: number;
-}>;
-export declare const UpdatePolicyCommandSchema: z.ZodObject<{
-    commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
-    priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
-    requiresAck: z.ZodBoolean;
-    expiryTime: z.ZodOptional<z.ZodNumber>;
-    createdAt: z.ZodNumber;
-} & {
-    commandType: z.ZodLiteral<"UPDATE_POLICY">;
-    payload: z.ZodObject<{
-        policyType: z.ZodEnum<["full", "partial"]>;
-        policy: z.ZodObject<{
+        config: z.ZodObject<{
             version: z.ZodNumber;
+            updatedAt: z.ZodNumber;
             blacklist: z.ZodArray<z.ZodString, "many">;
             whitelist: z.ZodArray<z.ZodString, "many">;
             enforcementMode: z.ZodEnum<["strict", "gentle"]>;
@@ -4510,16 +4388,13 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 endMinute: number;
             }>, "many">;
             skipTokens: z.ZodObject<{
-                remaining: z.ZodNumber;
                 maxPerDay: z.ZodNumber;
                 delayMinutes: z.ZodNumber;
             }, "strip", z.ZodTypeAny, {
                 delayMinutes: number;
-                remaining: number;
                 maxPerDay: number;
             }, {
                 delayMinutes: number;
-                remaining: number;
                 maxPerDay: number;
             }>;
             distractionApps: z.ZodArray<z.ZodObject<{
@@ -4535,23 +4410,6 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 bundleId: string;
                 name: string;
             }>, "many">;
-            updatedAt: z.ZodNumber;
-            adhocFocusSession: z.ZodOptional<z.ZodObject<{
-                active: z.ZodBoolean;
-                endTime: z.ZodNumber;
-                overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
-                overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
-            }, "strip", z.ZodTypeAny, {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            }, {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            }>>;
             sleepTime: z.ZodOptional<z.ZodObject<{
                 enabled: z.ZodBoolean;
                 startTime: z.ZodString;
@@ -4566,9 +4424,6 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     bundleId: string;
                     name: string;
                 }>, "many">;
-                isCurrentlyActive: z.ZodBoolean;
-                isSnoozed: z.ZodBoolean;
-                snoozeEndTime: z.ZodOptional<z.ZodNumber>;
             }, "strip", z.ZodTypeAny, {
                 startTime: string;
                 endTime: string;
@@ -4577,9 +4432,6 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     bundleId: string;
                     name: string;
                 }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
             }, {
                 startTime: string;
                 endTime: string;
@@ -4588,53 +4440,21 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     bundleId: string;
                     name: string;
                 }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
             }>>;
-            overRest: z.ZodOptional<z.ZodObject<{
-                isOverRest: z.ZodBoolean;
-                overRestMinutes: z.ZodNumber;
-                enforcementApps: z.ZodArray<z.ZodObject<{
-                    bundleId: z.ZodString;
-                    name: z.ZodString;
-                }, "strip", z.ZodTypeAny, {
-                    bundleId: string;
-                    name: string;
-                }, {
-                    bundleId: string;
-                    name: string;
-                }>, "many">;
-                bringToFront: z.ZodBoolean;
+            overRestEnforcementApps: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                bundleId: z.ZodString;
+                name: z.ZodString;
+                action: z.ZodEnum<["force_quit", "hide_window"]>;
             }, "strip", z.ZodTypeAny, {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isOverRest: boolean;
-                overRestMinutes: number;
-                bringToFront: boolean;
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
             }, {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isOverRest: boolean;
-                overRestMinutes: number;
-                bringToFront: boolean;
-            }>>;
-            temporaryUnblock: z.ZodOptional<z.ZodObject<{
-                active: z.ZodBoolean;
-                endTime: z.ZodNumber;
-            }, "strip", z.ZodTypeAny, {
-                active: boolean;
-                endTime: number;
-            }, {
-                active: boolean;
-                endTime: number;
-            }>>;
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }>, "many">>;
             restEnforcement: z.ZodOptional<z.ZodObject<{
-                isActive: z.ZodBoolean;
                 workApps: z.ZodArray<z.ZodObject<{
                     bundleId: z.ZodString;
                     name: z.ZodString;
@@ -4646,74 +4466,155 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     name: string;
                 }>, "many">;
                 actions: z.ZodArray<z.ZodString, "many">;
-                grace: z.ZodObject<{
-                    available: z.ZodBoolean;
-                    remaining: z.ZodNumber;
-                    durationMinutes: z.ZodNumber;
-                }, "strip", z.ZodTypeAny, {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                }, {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                }>;
+                graceDurationMinutes: z.ZodNumber;
             }, "strip", z.ZodTypeAny, {
-                isActive: boolean;
                 workApps: {
                     bundleId: string;
                     name: string;
                 }[];
                 actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
+                graceDurationMinutes: number;
             }, {
-                isActive: boolean;
                 workApps: {
                     bundleId: string;
                     name: string;
                 }[];
                 actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
+                graceDurationMinutes: number;
             }>>;
-            workTime: z.ZodOptional<z.ZodObject<{
-                enabled: z.ZodBoolean;
-                isCurrentlyActive: z.ZodBoolean;
-                isInRestPeriod: z.ZodBoolean;
-                slots: z.ZodArray<z.ZodObject<{
-                    startTime: z.ZodString;
-                    endTime: z.ZodString;
-                }, "strip", z.ZodTypeAny, {
-                    startTime: string;
-                    endTime: string;
-                }, {
-                    startTime: string;
-                    endTime: string;
-                }>, "many">;
+        }, "strip", z.ZodTypeAny, {
+            enforcementMode: "strict" | "gentle";
+            version: number;
+            updatedAt: number;
+            blacklist: string[];
+            whitelist: string[];
+            workTimeSlots: {
+                dayOfWeek: number;
+                startHour: number;
+                startMinute: number;
+                endHour: number;
+                endMinute: number;
+            }[];
+            skipTokens: {
+                delayMinutes: number;
+                maxPerDay: number;
+            };
+            distractionApps: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[];
+            sleepTime?: {
+                startTime: string;
+                endTime: string;
+                enabled: boolean;
+                enforcementApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+            } | undefined;
+            overRestEnforcementApps?: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[] | undefined;
+            restEnforcement?: {
+                workApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+                actions: string[];
+                graceDurationMinutes: number;
+            } | undefined;
+        }, {
+            enforcementMode: "strict" | "gentle";
+            version: number;
+            updatedAt: number;
+            blacklist: string[];
+            whitelist: string[];
+            workTimeSlots: {
+                dayOfWeek: number;
+                startHour: number;
+                startMinute: number;
+                endHour: number;
+                endMinute: number;
+            }[];
+            skipTokens: {
+                delayMinutes: number;
+                maxPerDay: number;
+            };
+            distractionApps: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[];
+            sleepTime?: {
+                startTime: string;
+                endTime: string;
+                enabled: boolean;
+                enforcementApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+            } | undefined;
+            overRestEnforcementApps?: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[] | undefined;
+            restEnforcement?: {
+                workApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+                actions: string[];
+                graceDurationMinutes: number;
+            } | undefined;
+        }>;
+        state: z.ZodObject<{
+            skipTokensRemaining: z.ZodNumber;
+            isSleepTimeActive: z.ZodBoolean;
+            isSleepSnoozed: z.ZodBoolean;
+            sleepSnoozeEndTime: z.ZodOptional<z.ZodNumber>;
+            isOverRest: z.ZodBoolean;
+            overRestMinutes: z.ZodNumber;
+            overRestBringToFront: z.ZodBoolean;
+            isRestEnforcementActive: z.ZodBoolean;
+            restGrace: z.ZodOptional<z.ZodObject<{
+                available: z.ZodBoolean;
+                remaining: z.ZodNumber;
             }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
-                    startTime: string;
-                    endTime: string;
-                }[];
+                available: boolean;
+                remaining: number;
             }, {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
-                    startTime: string;
-                    endTime: string;
-                }[];
+                available: boolean;
+                remaining: number;
+            }>>;
+            adhocFocusSession: z.ZodOptional<z.ZodObject<{
+                active: z.ZodBoolean;
+                endTime: z.ZodNumber;
+                overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
+                overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
+            }, "strip", z.ZodTypeAny, {
+                endTime: number;
+                active: boolean;
+                overridesSleepTime?: boolean | undefined;
+                overridesWorkHours?: boolean | undefined;
+            }, {
+                endTime: number;
+                active: boolean;
+                overridesSleepTime?: boolean | undefined;
+                overridesWorkHours?: boolean | undefined;
+            }>>;
+            temporaryUnblock: z.ZodOptional<z.ZodObject<{
+                active: z.ZodBoolean;
+                endTime: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                endTime: number;
+                active: boolean;
+            }, {
+                endTime: number;
+                active: boolean;
             }>>;
             healthLimit: z.ZodOptional<z.ZodObject<{
                 type: z.ZodEnum<["2hours", "daily"]>;
@@ -4732,80 +4633,27 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 intervalMinutes?: number | undefined;
             }>>;
         }, "strip", z.ZodTypeAny, {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
+            skipTokensRemaining: number;
+            isSleepTimeActive: boolean;
+            isSleepSnoozed: boolean;
+            isOverRest: boolean;
+            overRestMinutes: number;
+            overRestBringToFront: boolean;
+            isRestEnforcementActive: boolean;
+            sleepSnoozeEndTime?: number | undefined;
+            restGrace?: {
+                available: boolean;
                 remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
+            } | undefined;
             adhocFocusSession?: {
-                active: boolean;
                 endTime: number;
+                active: boolean;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isOverRest: boolean;
-                overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
             temporaryUnblock?: {
-                active: boolean;
                 endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
-                    startTime: string;
-                    endTime: string;
-                }[];
+                active: boolean;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -4814,80 +4662,27 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 intervalMinutes?: number | undefined;
             } | undefined;
         }, {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
+            skipTokensRemaining: number;
+            isSleepTimeActive: boolean;
+            isSleepSnoozed: boolean;
+            isOverRest: boolean;
+            overRestMinutes: number;
+            overRestBringToFront: boolean;
+            isRestEnforcementActive: boolean;
+            sleepSnoozeEndTime?: number | undefined;
+            restGrace?: {
+                available: boolean;
                 remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
+            } | undefined;
             adhocFocusSession?: {
-                active: boolean;
                 endTime: number;
+                active: boolean;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isOverRest: boolean;
-                overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
             temporaryUnblock?: {
-                active: boolean;
                 endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
-                    startTime: string;
-                    endTime: string;
-                }[];
+                active: boolean;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -4896,84 +4691,29 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 intervalMinutes?: number | undefined;
             } | undefined;
         }>;
-        effectiveTime: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        policyType: "full" | "partial";
-        policy: {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
+        state: {
+            skipTokensRemaining: number;
+            isSleepTimeActive: boolean;
+            isSleepSnoozed: boolean;
+            isOverRest: boolean;
+            overRestMinutes: number;
+            overRestBringToFront: boolean;
+            isRestEnforcementActive: boolean;
+            sleepSnoozeEndTime?: number | undefined;
+            restGrace?: {
+                available: boolean;
                 remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
+            } | undefined;
             adhocFocusSession?: {
-                active: boolean;
                 endTime: number;
+                active: boolean;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isOverRest: boolean;
-                overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
             temporaryUnblock?: {
-                active: boolean;
                 endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
-                    startTime: string;
-                    endTime: string;
-                }[];
+                active: boolean;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -4982,12 +4722,10 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 intervalMinutes?: number | undefined;
             } | undefined;
         };
-        effectiveTime: number;
-    }, {
-        policyType: "full" | "partial";
-        policy: {
-            version: number;
+        config: {
             enforcementMode: "strict" | "gentle";
+            version: number;
+            updatedAt: number;
             blacklist: string[];
             whitelist: string[];
             workTimeSlots: {
@@ -4999,7 +4737,6 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
             }[];
             skipTokens: {
                 delayMinutes: number;
-                remaining: number;
                 maxPerDay: number;
             };
             distractionApps: {
@@ -5007,13 +4744,6 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 bundleId: string;
                 name: string;
             }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
             sleepTime?: {
                 startTime: string;
                 endTime: string;
@@ -5022,44 +4752,44 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     bundleId: string;
                     name: string;
                 }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
             } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isOverRest: boolean;
-                overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
+            overRestEnforcementApps?: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[] | undefined;
             restEnforcement?: {
-                isActive: boolean;
                 workApps: {
                     bundleId: string;
                     name: string;
                 }[];
                 actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
+                graceDurationMinutes: number;
             } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
-                    startTime: string;
-                    endTime: string;
-                }[];
+        };
+    }, {
+        state: {
+            skipTokensRemaining: number;
+            isSleepTimeActive: boolean;
+            isSleepSnoozed: boolean;
+            isOverRest: boolean;
+            overRestMinutes: number;
+            overRestBringToFront: boolean;
+            isRestEnforcementActive: boolean;
+            sleepSnoozeEndTime?: number | undefined;
+            restGrace?: {
+                available: boolean;
+                remaining: number;
+            } | undefined;
+            adhocFocusSession?: {
+                endTime: number;
+                active: boolean;
+                overridesSleepTime?: boolean | undefined;
+                overridesWorkHours?: boolean | undefined;
+            } | undefined;
+            temporaryUnblock?: {
+                endTime: number;
+                active: boolean;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -5067,6 +4797,868 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 repeating?: boolean | undefined;
                 intervalMinutes?: number | undefined;
             } | undefined;
+        };
+        config: {
+            enforcementMode: "strict" | "gentle";
+            version: number;
+            updatedAt: number;
+            blacklist: string[];
+            whitelist: string[];
+            workTimeSlots: {
+                dayOfWeek: number;
+                startHour: number;
+                startMinute: number;
+                endHour: number;
+                endMinute: number;
+            }[];
+            skipTokens: {
+                delayMinutes: number;
+                maxPerDay: number;
+            };
+            distractionApps: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[];
+            sleepTime?: {
+                startTime: string;
+                endTime: string;
+                enabled: boolean;
+                enforcementApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+            } | undefined;
+            overRestEnforcementApps?: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[] | undefined;
+            restEnforcement?: {
+                workApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+                actions: string[];
+                graceDurationMinutes: number;
+            } | undefined;
+        };
+    }>;
+    effectiveTime: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    policyType: "full" | "partial";
+    policy: {
+        state: {
+            skipTokensRemaining: number;
+            isSleepTimeActive: boolean;
+            isSleepSnoozed: boolean;
+            isOverRest: boolean;
+            overRestMinutes: number;
+            overRestBringToFront: boolean;
+            isRestEnforcementActive: boolean;
+            sleepSnoozeEndTime?: number | undefined;
+            restGrace?: {
+                available: boolean;
+                remaining: number;
+            } | undefined;
+            adhocFocusSession?: {
+                endTime: number;
+                active: boolean;
+                overridesSleepTime?: boolean | undefined;
+                overridesWorkHours?: boolean | undefined;
+            } | undefined;
+            temporaryUnblock?: {
+                endTime: number;
+                active: boolean;
+            } | undefined;
+            healthLimit?: {
+                message: string;
+                type: "2hours" | "daily";
+                repeating?: boolean | undefined;
+                intervalMinutes?: number | undefined;
+            } | undefined;
+        };
+        config: {
+            enforcementMode: "strict" | "gentle";
+            version: number;
+            updatedAt: number;
+            blacklist: string[];
+            whitelist: string[];
+            workTimeSlots: {
+                dayOfWeek: number;
+                startHour: number;
+                startMinute: number;
+                endHour: number;
+                endMinute: number;
+            }[];
+            skipTokens: {
+                delayMinutes: number;
+                maxPerDay: number;
+            };
+            distractionApps: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[];
+            sleepTime?: {
+                startTime: string;
+                endTime: string;
+                enabled: boolean;
+                enforcementApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+            } | undefined;
+            overRestEnforcementApps?: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[] | undefined;
+            restEnforcement?: {
+                workApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+                actions: string[];
+                graceDurationMinutes: number;
+            } | undefined;
+        };
+    };
+    effectiveTime: number;
+}, {
+    policyType: "full" | "partial";
+    policy: {
+        state: {
+            skipTokensRemaining: number;
+            isSleepTimeActive: boolean;
+            isSleepSnoozed: boolean;
+            isOverRest: boolean;
+            overRestMinutes: number;
+            overRestBringToFront: boolean;
+            isRestEnforcementActive: boolean;
+            sleepSnoozeEndTime?: number | undefined;
+            restGrace?: {
+                available: boolean;
+                remaining: number;
+            } | undefined;
+            adhocFocusSession?: {
+                endTime: number;
+                active: boolean;
+                overridesSleepTime?: boolean | undefined;
+                overridesWorkHours?: boolean | undefined;
+            } | undefined;
+            temporaryUnblock?: {
+                endTime: number;
+                active: boolean;
+            } | undefined;
+            healthLimit?: {
+                message: string;
+                type: "2hours" | "daily";
+                repeating?: boolean | undefined;
+                intervalMinutes?: number | undefined;
+            } | undefined;
+        };
+        config: {
+            enforcementMode: "strict" | "gentle";
+            version: number;
+            updatedAt: number;
+            blacklist: string[];
+            whitelist: string[];
+            workTimeSlots: {
+                dayOfWeek: number;
+                startHour: number;
+                startMinute: number;
+                endHour: number;
+                endMinute: number;
+            }[];
+            skipTokens: {
+                delayMinutes: number;
+                maxPerDay: number;
+            };
+            distractionApps: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[];
+            sleepTime?: {
+                startTime: string;
+                endTime: string;
+                enabled: boolean;
+                enforcementApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+            } | undefined;
+            overRestEnforcementApps?: {
+                action: "force_quit" | "hide_window";
+                bundleId: string;
+                name: string;
+            }[] | undefined;
+            restEnforcement?: {
+                workApps: {
+                    bundleId: string;
+                    name: string;
+                }[];
+                actions: string[];
+                graceDurationMinutes: number;
+            } | undefined;
+        };
+    };
+    effectiveTime: number;
+}>;
+export declare const UpdatePolicyCommandSchema: z.ZodObject<{
+    commandId: z.ZodString;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
+    requiresAck: z.ZodBoolean;
+    expiryTime: z.ZodOptional<z.ZodNumber>;
+    createdAt: z.ZodNumber;
+} & {
+    commandType: z.ZodLiteral<"UPDATE_POLICY">;
+    payload: z.ZodObject<{
+        policyType: z.ZodEnum<["full", "partial"]>;
+        policy: z.ZodObject<{
+            config: z.ZodObject<{
+                version: z.ZodNumber;
+                updatedAt: z.ZodNumber;
+                blacklist: z.ZodArray<z.ZodString, "many">;
+                whitelist: z.ZodArray<z.ZodString, "many">;
+                enforcementMode: z.ZodEnum<["strict", "gentle"]>;
+                workTimeSlots: z.ZodArray<z.ZodObject<{
+                    dayOfWeek: z.ZodNumber;
+                    startHour: z.ZodNumber;
+                    startMinute: z.ZodNumber;
+                    endHour: z.ZodNumber;
+                    endMinute: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }, {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }>, "many">;
+                skipTokens: z.ZodObject<{
+                    maxPerDay: z.ZodNumber;
+                    delayMinutes: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                }, {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                }>;
+                distractionApps: z.ZodArray<z.ZodObject<{
+                    bundleId: z.ZodString;
+                    name: z.ZodString;
+                    action: z.ZodEnum<["force_quit", "hide_window"]>;
+                }, "strip", z.ZodTypeAny, {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }, {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }>, "many">;
+                sleepTime: z.ZodOptional<z.ZodObject<{
+                    enabled: z.ZodBoolean;
+                    startTime: z.ZodString;
+                    endTime: z.ZodString;
+                    enforcementApps: z.ZodArray<z.ZodObject<{
+                        bundleId: z.ZodString;
+                        name: z.ZodString;
+                    }, "strip", z.ZodTypeAny, {
+                        bundleId: string;
+                        name: string;
+                    }, {
+                        bundleId: string;
+                        name: string;
+                    }>, "many">;
+                }, "strip", z.ZodTypeAny, {
+                    startTime: string;
+                    endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                }, {
+                    startTime: string;
+                    endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                }>>;
+                overRestEnforcementApps: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                    bundleId: z.ZodString;
+                    name: z.ZodString;
+                    action: z.ZodEnum<["force_quit", "hide_window"]>;
+                }, "strip", z.ZodTypeAny, {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }, {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }>, "many">>;
+                restEnforcement: z.ZodOptional<z.ZodObject<{
+                    workApps: z.ZodArray<z.ZodObject<{
+                        bundleId: z.ZodString;
+                        name: z.ZodString;
+                    }, "strip", z.ZodTypeAny, {
+                        bundleId: string;
+                        name: string;
+                    }, {
+                        bundleId: string;
+                        name: string;
+                    }>, "many">;
+                    actions: z.ZodArray<z.ZodString, "many">;
+                    graceDurationMinutes: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                }, {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                }>>;
+            }, "strip", z.ZodTypeAny, {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[];
+                sleepTime?: {
+                    startTime: string;
+                    endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            }, {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[];
+                sleepTime?: {
+                    startTime: string;
+                    endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            }>;
+            state: z.ZodObject<{
+                skipTokensRemaining: z.ZodNumber;
+                isSleepTimeActive: z.ZodBoolean;
+                isSleepSnoozed: z.ZodBoolean;
+                sleepSnoozeEndTime: z.ZodOptional<z.ZodNumber>;
+                isOverRest: z.ZodBoolean;
+                overRestMinutes: z.ZodNumber;
+                overRestBringToFront: z.ZodBoolean;
+                isRestEnforcementActive: z.ZodBoolean;
+                restGrace: z.ZodOptional<z.ZodObject<{
+                    available: z.ZodBoolean;
+                    remaining: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    available: boolean;
+                    remaining: number;
+                }, {
+                    available: boolean;
+                    remaining: number;
+                }>>;
+                adhocFocusSession: z.ZodOptional<z.ZodObject<{
+                    active: z.ZodBoolean;
+                    endTime: z.ZodNumber;
+                    overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
+                    overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
+                }, "strip", z.ZodTypeAny, {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                }, {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                }>>;
+                temporaryUnblock: z.ZodOptional<z.ZodObject<{
+                    active: z.ZodBoolean;
+                    endTime: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    endTime: number;
+                    active: boolean;
+                }, {
+                    endTime: number;
+                    active: boolean;
+                }>>;
+                healthLimit: z.ZodOptional<z.ZodObject<{
+                    type: z.ZodEnum<["2hours", "daily"]>;
+                    message: z.ZodString;
+                    repeating: z.ZodOptional<z.ZodBoolean>;
+                    intervalMinutes: z.ZodOptional<z.ZodNumber>;
+                }, "strip", z.ZodTypeAny, {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                }, {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                }>>;
+            }, "strip", z.ZodTypeAny, {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
+                isOverRest: boolean;
+                overRestMinutes: number;
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            }, {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
+                isOverRest: boolean;
+                overRestMinutes: number;
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            }>;
+        }, "strip", z.ZodTypeAny, {
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
+                isOverRest: boolean;
+                overRestMinutes: number;
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[];
+                sleepTime?: {
+                    startTime: string;
+                    endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
+        }, {
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
+                isOverRest: boolean;
+                overRestMinutes: number;
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[];
+                sleepTime?: {
+                    startTime: string;
+                    endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
+        }>;
+        effectiveTime: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        policyType: "full" | "partial";
+        policy: {
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
+                isOverRest: boolean;
+                overRestMinutes: number;
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[];
+                sleepTime?: {
+                    startTime: string;
+                    endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
+        };
+        effectiveTime: number;
+    }, {
+        policyType: "full" | "partial";
+        policy: {
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
+                isOverRest: boolean;
+                overRestMinutes: number;
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[];
+                sleepTime?: {
+                    startTime: string;
+                    endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         };
         effectiveTime: number;
     }>;
@@ -5074,92 +5666,86 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
     payload: {
         policyType: "full" | "partial";
         policy: {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
                 isOverRest: boolean;
                 overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
                 }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            } | undefined;
-            healthLimit?: {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            } | undefined;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         };
         effectiveTime: number;
     };
-    commandType: "UPDATE_POLICY";
     commandId: string;
+    commandType: "UPDATE_POLICY";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5169,92 +5755,86 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
     payload: {
         policyType: "full" | "partial";
         policy: {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
                 isOverRest: boolean;
                 overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
                 }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            } | undefined;
-            healthLimit?: {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            } | undefined;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         };
         effectiveTime: number;
     };
-    commandType: "UPDATE_POLICY";
     commandId: string;
+    commandType: "UPDATE_POLICY";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5309,8 +5889,8 @@ export declare const ShowUICommandSchema: z.ZodObject<{
         dismissible: boolean;
         duration?: number | undefined;
     };
-    commandType: "SHOW_UI";
     commandId: string;
+    commandType: "SHOW_UI";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5323,8 +5903,8 @@ export declare const ShowUICommandSchema: z.ZodObject<{
         dismissible: boolean;
         duration?: number | undefined;
     };
-    commandType: "SHOW_UI";
     commandId: string;
+    commandType: "SHOW_UI";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5433,8 +6013,8 @@ export declare const ChatResponseCommandSchema: z.ZodObject<{
         isProactive?: boolean | undefined;
         triggerId?: string | undefined;
     };
-    commandType: "CHAT_RESPONSE";
     commandId: string;
+    commandType: "CHAT_RESPONSE";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5453,8 +6033,8 @@ export declare const ChatResponseCommandSchema: z.ZodObject<{
         isProactive?: boolean | undefined;
         triggerId?: string | undefined;
     };
-    commandType: "CHAT_RESPONSE";
     commandId: string;
+    commandType: "CHAT_RESPONSE";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5530,8 +6110,8 @@ export declare const ChatToolCallCommandSchema: z.ZodObject<{
         description: string;
         requiresConfirmation: boolean;
     };
-    commandType: "CHAT_TOOL_CALL";
     commandId: string;
+    commandType: "CHAT_TOOL_CALL";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5547,8 +6127,8 @@ export declare const ChatToolCallCommandSchema: z.ZodObject<{
         description: string;
         requiresConfirmation: boolean;
     };
-    commandType: "CHAT_TOOL_CALL";
     commandId: string;
+    commandType: "CHAT_TOOL_CALL";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5610,8 +6190,8 @@ export declare const ChatToolResultCommandSchema: z.ZodObject<{
         success: boolean;
         summary: string;
     };
-    commandType: "CHAT_TOOL_RESULT";
     commandId: string;
+    commandType: "CHAT_TOOL_RESULT";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5625,8 +6205,8 @@ export declare const ChatToolResultCommandSchema: z.ZodObject<{
         success: boolean;
         summary: string;
     };
-    commandType: "CHAT_TOOL_RESULT";
     commandId: string;
+    commandType: "CHAT_TOOL_RESULT";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5642,14 +6222,14 @@ export declare const ChatSyncPayloadSchema: z.ZodObject<{
         metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        content: string;
         id: string;
+        content: string;
         createdAt: string;
         role: string;
         metadata?: Record<string, unknown> | undefined;
     }, {
-        content: string;
         id: string;
+        content: string;
         createdAt: string;
         role: string;
         metadata?: Record<string, unknown> | undefined;
@@ -5657,8 +6237,8 @@ export declare const ChatSyncPayloadSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     conversationId: string;
     messages: {
-        content: string;
         id: string;
+        content: string;
         createdAt: string;
         role: string;
         metadata?: Record<string, unknown> | undefined;
@@ -5666,8 +6246,8 @@ export declare const ChatSyncPayloadSchema: z.ZodObject<{
 }, {
     conversationId: string;
     messages: {
-        content: string;
         id: string;
+        content: string;
         createdAt: string;
         role: string;
         metadata?: Record<string, unknown> | undefined;
@@ -5691,14 +6271,14 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
             metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }, {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -5706,8 +6286,8 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         conversationId: string;
         messages: {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -5715,8 +6295,8 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
     }, {
         conversationId: string;
         messages: {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -5726,15 +6306,15 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
     payload: {
         conversationId: string;
         messages: {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }[];
     };
-    commandType: "CHAT_SYNC";
     commandId: string;
+    commandType: "CHAT_SYNC";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5744,15 +6324,15 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
     payload: {
         conversationId: string;
         messages: {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }[];
     };
-    commandType: "CHAT_SYNC";
     commandId: string;
+    commandType: "CHAT_SYNC";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -5808,13 +6388,13 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 duration: z.ZodNumber;
                 status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
             }, "strip", z.ZodTypeAny, {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
                 taskId: string;
             }, {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -5868,7 +6448,7 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -5900,7 +6480,7 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -5936,7 +6516,7 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -5972,7 +6552,7 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -6010,7 +6590,7 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -6031,8 +6611,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
             };
         } | undefined;
     };
-    commandType: "SYNC_STATE";
     commandId: string;
+    commandType: "SYNC_STATE";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -6055,7 +6635,7 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 top3TaskIds: string[];
             };
             activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
+                status: "aborted" | "active" | "paused" | "completed";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -6076,8 +6656,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
             };
         } | undefined;
     };
-    commandType: "SYNC_STATE";
     commandId: string;
+    commandType: "SYNC_STATE";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -6115,8 +6695,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         timeout?: number | undefined;
         fallbackAction?: "CLOSE_APP" | "HIDE_APP" | "BRING_TO_FRONT" | "SHOW_NOTIFICATION" | "CLOSE_TAB" | "REDIRECT_TAB" | "INJECT_OVERLAY" | "ADD_SESSION_WHITELIST" | "SEND_PUSH" | "PLAY_SOUND" | "VIBRATE" | undefined;
     };
-    commandType: "EXECUTE_ACTION";
     commandId: string;
+    commandType: "EXECUTE_ACTION";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -6129,8 +6709,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         timeout?: number | undefined;
         fallbackAction?: "CLOSE_APP" | "HIDE_APP" | "BRING_TO_FRONT" | "SHOW_NOTIFICATION" | "CLOSE_TAB" | "REDIRECT_TAB" | "INJECT_OVERLAY" | "ADD_SESSION_WHITELIST" | "SEND_PUSH" | "PLAY_SOUND" | "VIBRATE" | undefined;
     };
-    commandType: "EXECUTE_ACTION";
     commandId: string;
+    commandType: "EXECUTE_ACTION";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -6148,587 +6728,647 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     payload: z.ZodObject<{
         policyType: z.ZodEnum<["full", "partial"]>;
         policy: z.ZodObject<{
-            version: z.ZodNumber;
-            blacklist: z.ZodArray<z.ZodString, "many">;
-            whitelist: z.ZodArray<z.ZodString, "many">;
-            enforcementMode: z.ZodEnum<["strict", "gentle"]>;
-            workTimeSlots: z.ZodArray<z.ZodObject<{
-                dayOfWeek: z.ZodNumber;
-                startHour: z.ZodNumber;
-                startMinute: z.ZodNumber;
-                endHour: z.ZodNumber;
-                endMinute: z.ZodNumber;
-            }, "strip", z.ZodTypeAny, {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }, {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }>, "many">;
-            skipTokens: z.ZodObject<{
-                remaining: z.ZodNumber;
-                maxPerDay: z.ZodNumber;
-                delayMinutes: z.ZodNumber;
-            }, "strip", z.ZodTypeAny, {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            }, {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            }>;
-            distractionApps: z.ZodArray<z.ZodObject<{
-                bundleId: z.ZodString;
-                name: z.ZodString;
-                action: z.ZodEnum<["force_quit", "hide_window"]>;
-            }, "strip", z.ZodTypeAny, {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }, {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }>, "many">;
-            updatedAt: z.ZodNumber;
-            adhocFocusSession: z.ZodOptional<z.ZodObject<{
-                active: z.ZodBoolean;
-                endTime: z.ZodNumber;
-                overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
-                overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
-            }, "strip", z.ZodTypeAny, {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            }, {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            }>>;
-            sleepTime: z.ZodOptional<z.ZodObject<{
-                enabled: z.ZodBoolean;
-                startTime: z.ZodString;
-                endTime: z.ZodString;
-                enforcementApps: z.ZodArray<z.ZodObject<{
-                    bundleId: z.ZodString;
-                    name: z.ZodString;
+            config: z.ZodObject<{
+                version: z.ZodNumber;
+                updatedAt: z.ZodNumber;
+                blacklist: z.ZodArray<z.ZodString, "many">;
+                whitelist: z.ZodArray<z.ZodString, "many">;
+                enforcementMode: z.ZodEnum<["strict", "gentle"]>;
+                workTimeSlots: z.ZodArray<z.ZodObject<{
+                    dayOfWeek: z.ZodNumber;
+                    startHour: z.ZodNumber;
+                    startMinute: z.ZodNumber;
+                    endHour: z.ZodNumber;
+                    endMinute: z.ZodNumber;
                 }, "strip", z.ZodTypeAny, {
-                    bundleId: string;
-                    name: string;
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
                 }, {
-                    bundleId: string;
-                    name: string;
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
                 }>, "many">;
-                isCurrentlyActive: z.ZodBoolean;
-                isSnoozed: z.ZodBoolean;
-                snoozeEndTime: z.ZodOptional<z.ZodNumber>;
-            }, "strip", z.ZodTypeAny, {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            }, {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            }>>;
-            overRest: z.ZodOptional<z.ZodObject<{
-                isOverRest: z.ZodBoolean;
-                overRestMinutes: z.ZodNumber;
-                enforcementApps: z.ZodArray<z.ZodObject<{
-                    bundleId: z.ZodString;
-                    name: z.ZodString;
+                skipTokens: z.ZodObject<{
+                    maxPerDay: z.ZodNumber;
+                    delayMinutes: z.ZodNumber;
                 }, "strip", z.ZodTypeAny, {
-                    bundleId: string;
-                    name: string;
+                    delayMinutes: number;
+                    maxPerDay: number;
                 }, {
-                    bundleId: string;
-                    name: string;
-                }>, "many">;
-                bringToFront: z.ZodBoolean;
-            }, "strip", z.ZodTypeAny, {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isOverRest: boolean;
-                overRestMinutes: number;
-                bringToFront: boolean;
-            }, {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isOverRest: boolean;
-                overRestMinutes: number;
-                bringToFront: boolean;
-            }>>;
-            temporaryUnblock: z.ZodOptional<z.ZodObject<{
-                active: z.ZodBoolean;
-                endTime: z.ZodNumber;
-            }, "strip", z.ZodTypeAny, {
-                active: boolean;
-                endTime: number;
-            }, {
-                active: boolean;
-                endTime: number;
-            }>>;
-            restEnforcement: z.ZodOptional<z.ZodObject<{
-                isActive: z.ZodBoolean;
-                workApps: z.ZodArray<z.ZodObject<{
-                    bundleId: z.ZodString;
-                    name: z.ZodString;
-                }, "strip", z.ZodTypeAny, {
-                    bundleId: string;
-                    name: string;
-                }, {
-                    bundleId: string;
-                    name: string;
-                }>, "many">;
-                actions: z.ZodArray<z.ZodString, "many">;
-                grace: z.ZodObject<{
-                    available: z.ZodBoolean;
-                    remaining: z.ZodNumber;
-                    durationMinutes: z.ZodNumber;
-                }, "strip", z.ZodTypeAny, {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                }, {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
+                    delayMinutes: number;
+                    maxPerDay: number;
                 }>;
-            }, "strip", z.ZodTypeAny, {
-                isActive: boolean;
-                workApps: {
+                distractionApps: z.ZodArray<z.ZodObject<{
+                    bundleId: z.ZodString;
+                    name: z.ZodString;
+                    action: z.ZodEnum<["force_quit", "hide_window"]>;
+                }, "strip", z.ZodTypeAny, {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
-                }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            }, {
-                isActive: boolean;
-                workApps: {
+                }, {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
-                }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            }>>;
-            workTime: z.ZodOptional<z.ZodObject<{
-                enabled: z.ZodBoolean;
-                isCurrentlyActive: z.ZodBoolean;
-                isInRestPeriod: z.ZodBoolean;
-                slots: z.ZodArray<z.ZodObject<{
+                }>, "many">;
+                sleepTime: z.ZodOptional<z.ZodObject<{
+                    enabled: z.ZodBoolean;
                     startTime: z.ZodString;
                     endTime: z.ZodString;
+                    enforcementApps: z.ZodArray<z.ZodObject<{
+                        bundleId: z.ZodString;
+                        name: z.ZodString;
+                    }, "strip", z.ZodTypeAny, {
+                        bundleId: string;
+                        name: string;
+                    }, {
+                        bundleId: string;
+                        name: string;
+                    }>, "many">;
                 }, "strip", z.ZodTypeAny, {
                     startTime: string;
                     endTime: string;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
                 }, {
                     startTime: string;
                     endTime: string;
-                }>, "many">;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                }>>;
+                overRestEnforcementApps: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                    bundleId: z.ZodString;
+                    name: z.ZodString;
+                    action: z.ZodEnum<["force_quit", "hide_window"]>;
+                }, "strip", z.ZodTypeAny, {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }, {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }>, "many">>;
+                restEnforcement: z.ZodOptional<z.ZodObject<{
+                    workApps: z.ZodArray<z.ZodObject<{
+                        bundleId: z.ZodString;
+                        name: z.ZodString;
+                    }, "strip", z.ZodTypeAny, {
+                        bundleId: string;
+                        name: string;
+                    }, {
+                        bundleId: string;
+                        name: string;
+                    }>, "many">;
+                    actions: z.ZodArray<z.ZodString, "many">;
+                    graceDurationMinutes: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                }, {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                }>>;
             }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[];
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
             }, {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[];
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            }>>;
-            healthLimit: z.ZodOptional<z.ZodObject<{
-                type: z.ZodEnum<["2hours", "daily"]>;
-                message: z.ZodString;
-                repeating: z.ZodOptional<z.ZodBoolean>;
-                intervalMinutes: z.ZodOptional<z.ZodNumber>;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            }>;
+            state: z.ZodObject<{
+                skipTokensRemaining: z.ZodNumber;
+                isSleepTimeActive: z.ZodBoolean;
+                isSleepSnoozed: z.ZodBoolean;
+                sleepSnoozeEndTime: z.ZodOptional<z.ZodNumber>;
+                isOverRest: z.ZodBoolean;
+                overRestMinutes: z.ZodNumber;
+                overRestBringToFront: z.ZodBoolean;
+                isRestEnforcementActive: z.ZodBoolean;
+                restGrace: z.ZodOptional<z.ZodObject<{
+                    available: z.ZodBoolean;
+                    remaining: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    available: boolean;
+                    remaining: number;
+                }, {
+                    available: boolean;
+                    remaining: number;
+                }>>;
+                adhocFocusSession: z.ZodOptional<z.ZodObject<{
+                    active: z.ZodBoolean;
+                    endTime: z.ZodNumber;
+                    overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
+                    overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
+                }, "strip", z.ZodTypeAny, {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                }, {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                }>>;
+                temporaryUnblock: z.ZodOptional<z.ZodObject<{
+                    active: z.ZodBoolean;
+                    endTime: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    endTime: number;
+                    active: boolean;
+                }, {
+                    endTime: number;
+                    active: boolean;
+                }>>;
+                healthLimit: z.ZodOptional<z.ZodObject<{
+                    type: z.ZodEnum<["2hours", "daily"]>;
+                    message: z.ZodString;
+                    repeating: z.ZodOptional<z.ZodBoolean>;
+                    intervalMinutes: z.ZodOptional<z.ZodNumber>;
+                }, "strip", z.ZodTypeAny, {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                }, {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                }>>;
             }, "strip", z.ZodTypeAny, {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
+                isOverRest: boolean;
+                overRestMinutes: number;
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
             }, {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            }>>;
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
+                isOverRest: boolean;
+                overRestMinutes: number;
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            }>;
         }, "strip", z.ZodTypeAny, {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
                 isOverRest: boolean;
                 overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
                 }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            } | undefined;
-            healthLimit?: {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            } | undefined;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         }, {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
                 isOverRest: boolean;
                 overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
                 }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            } | undefined;
-            healthLimit?: {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            } | undefined;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         }>;
         effectiveTime: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         policyType: "full" | "partial";
         policy: {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
                 isOverRest: boolean;
                 overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
                 }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            } | undefined;
-            healthLimit?: {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            } | undefined;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         };
         effectiveTime: number;
     }, {
         policyType: "full" | "partial";
         policy: {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
                 isOverRest: boolean;
                 overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
                 }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            } | undefined;
-            healthLimit?: {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            } | undefined;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         };
         effectiveTime: number;
     }>;
@@ -6736,92 +7376,86 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     payload: {
         policyType: "full" | "partial";
         policy: {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
                 isOverRest: boolean;
                 overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
                 }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            } | undefined;
-            healthLimit?: {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            } | undefined;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         };
         effectiveTime: number;
     };
-    commandType: "UPDATE_POLICY";
     commandId: string;
+    commandType: "UPDATE_POLICY";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -6831,92 +7465,86 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     payload: {
         policyType: "full" | "partial";
         policy: {
-            version: number;
-            enforcementMode: "strict" | "gentle";
-            blacklist: string[];
-            whitelist: string[];
-            workTimeSlots: {
-                dayOfWeek: number;
-                startHour: number;
-                startMinute: number;
-                endHour: number;
-                endMinute: number;
-            }[];
-            skipTokens: {
-                delayMinutes: number;
-                remaining: number;
-                maxPerDay: number;
-            };
-            distractionApps: {
-                action: "force_quit" | "hide_window";
-                bundleId: string;
-                name: string;
-            }[];
-            updatedAt: number;
-            adhocFocusSession?: {
-                active: boolean;
-                endTime: number;
-                overridesSleepTime?: boolean | undefined;
-                overridesWorkHours?: boolean | undefined;
-            } | undefined;
-            sleepTime?: {
-                startTime: string;
-                endTime: string;
-                enabled: boolean;
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
-                isCurrentlyActive: boolean;
-                isSnoozed: boolean;
-                snoozeEndTime?: number | undefined;
-            } | undefined;
-            overRest?: {
-                enforcementApps: {
-                    bundleId: string;
-                    name: string;
-                }[];
+            state: {
+                skipTokensRemaining: number;
+                isSleepTimeActive: boolean;
+                isSleepSnoozed: boolean;
                 isOverRest: boolean;
                 overRestMinutes: number;
-                bringToFront: boolean;
-            } | undefined;
-            temporaryUnblock?: {
-                active: boolean;
-                endTime: number;
-            } | undefined;
-            restEnforcement?: {
-                isActive: boolean;
-                workApps: {
+                overRestBringToFront: boolean;
+                isRestEnforcementActive: boolean;
+                sleepSnoozeEndTime?: number | undefined;
+                restGrace?: {
+                    available: boolean;
+                    remaining: number;
+                } | undefined;
+                adhocFocusSession?: {
+                    endTime: number;
+                    active: boolean;
+                    overridesSleepTime?: boolean | undefined;
+                    overridesWorkHours?: boolean | undefined;
+                } | undefined;
+                temporaryUnblock?: {
+                    endTime: number;
+                    active: boolean;
+                } | undefined;
+                healthLimit?: {
+                    message: string;
+                    type: "2hours" | "daily";
+                    repeating?: boolean | undefined;
+                    intervalMinutes?: number | undefined;
+                } | undefined;
+            };
+            config: {
+                enforcementMode: "strict" | "gentle";
+                version: number;
+                updatedAt: number;
+                blacklist: string[];
+                whitelist: string[];
+                workTimeSlots: {
+                    dayOfWeek: number;
+                    startHour: number;
+                    startMinute: number;
+                    endHour: number;
+                    endMinute: number;
+                }[];
+                skipTokens: {
+                    delayMinutes: number;
+                    maxPerDay: number;
+                };
+                distractionApps: {
+                    action: "force_quit" | "hide_window";
                     bundleId: string;
                     name: string;
                 }[];
-                actions: string[];
-                grace: {
-                    remaining: number;
-                    available: boolean;
-                    durationMinutes: number;
-                };
-            } | undefined;
-            workTime?: {
-                enabled: boolean;
-                isCurrentlyActive: boolean;
-                isInRestPeriod: boolean;
-                slots: {
+                sleepTime?: {
                     startTime: string;
                     endTime: string;
-                }[];
-            } | undefined;
-            healthLimit?: {
-                message: string;
-                type: "2hours" | "daily";
-                repeating?: boolean | undefined;
-                intervalMinutes?: number | undefined;
-            } | undefined;
+                    enabled: boolean;
+                    enforcementApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                } | undefined;
+                overRestEnforcementApps?: {
+                    action: "force_quit" | "hide_window";
+                    bundleId: string;
+                    name: string;
+                }[] | undefined;
+                restEnforcement?: {
+                    workApps: {
+                        bundleId: string;
+                        name: string;
+                    }[];
+                    actions: string[];
+                    graceDurationMinutes: number;
+                } | undefined;
+            };
         };
         effectiveTime: number;
     };
-    commandType: "UPDATE_POLICY";
     commandId: string;
+    commandType: "UPDATE_POLICY";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -6954,8 +7582,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         dismissible: boolean;
         duration?: number | undefined;
     };
-    commandType: "SHOW_UI";
     commandId: string;
+    commandType: "SHOW_UI";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -6968,8 +7596,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         dismissible: boolean;
         duration?: number | undefined;
     };
-    commandType: "SHOW_UI";
     commandId: string;
+    commandType: "SHOW_UI";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -7037,8 +7665,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         isProactive?: boolean | undefined;
         triggerId?: string | undefined;
     };
-    commandType: "CHAT_RESPONSE";
     commandId: string;
+    commandType: "CHAT_RESPONSE";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -7057,8 +7685,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         isProactive?: boolean | undefined;
         triggerId?: string | undefined;
     };
-    commandType: "CHAT_RESPONSE";
     commandId: string;
+    commandType: "CHAT_RESPONSE";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -7108,8 +7736,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         description: string;
         requiresConfirmation: boolean;
     };
-    commandType: "CHAT_TOOL_CALL";
     commandId: string;
+    commandType: "CHAT_TOOL_CALL";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -7125,8 +7753,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         description: string;
         requiresConfirmation: boolean;
     };
-    commandType: "CHAT_TOOL_CALL";
     commandId: string;
+    commandType: "CHAT_TOOL_CALL";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -7168,8 +7796,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         success: boolean;
         summary: string;
     };
-    commandType: "CHAT_TOOL_RESULT";
     commandId: string;
+    commandType: "CHAT_TOOL_RESULT";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -7183,8 +7811,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         success: boolean;
         summary: string;
     };
-    commandType: "CHAT_TOOL_RESULT";
     commandId: string;
+    commandType: "CHAT_TOOL_RESULT";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -7208,14 +7836,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
             metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }, {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -7223,8 +7851,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     }, "strip", z.ZodTypeAny, {
         conversationId: string;
         messages: {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -7232,8 +7860,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     }, {
         conversationId: string;
         messages: {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -7243,15 +7871,15 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     payload: {
         conversationId: string;
         messages: {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }[];
     };
-    commandType: "CHAT_SYNC";
     commandId: string;
+    commandType: "CHAT_SYNC";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
@@ -7261,15 +7889,15 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     payload: {
         conversationId: string;
         messages: {
-            content: string;
             id: string;
+            content: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }[];
     };
-    commandType: "CHAT_SYNC";
     commandId: string;
+    commandType: "CHAT_SYNC";
     targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;

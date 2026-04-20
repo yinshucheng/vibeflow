@@ -647,8 +647,8 @@ class ConnectionManager {
 
     // Policy update from server
     this.socket.on('policy:update', (policy: DesktopPolicy) => {
-      console.log('[ConnectionManager] Policy update received, version:', policy.version);
-      this.state.policyVersion = policy.version;
+      console.log('[ConnectionManager] Policy update received, version:', policy.config.version);
+      this.state.policyVersion = policy.config.version;
       this.notifyPolicyUpdate(policy);
     });
 

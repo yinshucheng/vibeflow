@@ -146,7 +146,7 @@ class SyncService {
    */
   private handlePolicyUpdate(command: UpdatePolicyCommand): void {
     const { payload } = command;
-    console.log('Received policy update, version:', payload.policy.version);
+    console.log('Received policy update, version:', payload.policy.config.version);
 
     // Delegate to store handler
     useAppStore.getState().handlePolicyUpdate(command);
