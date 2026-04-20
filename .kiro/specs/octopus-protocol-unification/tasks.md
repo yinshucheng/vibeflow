@@ -103,25 +103,25 @@ it('policy update uses Config/State split', async () => {
 
 ### Tasks
 
-- [ ] 1. 创建 `packages/octopus-protocol/` 目录结构、package.json（含 exports 字段）、tsconfig.json
-- [ ] 2. 从 `src/types/octopus.ts` (1760行) 提取协议类型到共享包 `src/types/`（约 1041 行接口）
-- [ ] 3. 从 `src/types/octopus.ts` 提取 Zod schemas 到 `src/validation/schemas.ts`（约 718 行）
-- [ ] 4. 合并 Desktop 独有类型（`DESKTOP_APP_USAGE/IDLE/WINDOW_CHANGE`）到 canonical EventType
-- [ ] 5. 合并 iOS 独有类型（`ACTION_RESULT`、`UserActionType`）到 canonical CommandType/actions
-- [ ] 6. 统一 Policy 接口（暂保持扁平结构，将 4 端命名差异统一）
-- [ ] 7. 定义 `ServerToClientEvents` / `ClientToServerEvents` / `OctopusError` / `PROTOCOL_VERSION`
-- [ ] 8. 配置根 `package.json` 添加 `"workspaces": ["packages/*"]`
-- [ ] 9. iOS: 创建 `metro.config.js`（watchFolders + nodeModulesPaths + TypeScript 转译配置）
-- [ ] 10. Desktop: 在 `tsconfig.json` 添加 `paths` alias 指向共享包源码（禁止引入 bundler 改造）
-- [ ] 11. Extension: 在 `tsconfig.json` 添加 `paths` 指向共享包源码
-- [ ] 12. Server: `src/types/octopus.ts` 改为 `export * from '@vibeflow/octopus-protocol'`
-- [ ] 13. Server: 更新 6 个文件的 import 路径
-- [ ] 14. iOS: 删除 `vibeflow-ios/src/types/octopus.ts` (383行)，更新 6 个文件 import
-- [ ] 15. Desktop: 从 `electron/types/index.ts` 删除 ~451 行协议类型（保留 ~266 行本地类型），更新 13 个文件 import
-- [ ] 16. Extension: 从 `src/types/index.ts` 删除 ~524 行协议类型（保留 ~161 行本地类型），更新 13 个文件 import
-- [ ] 17. Extension: `PolicyCache` 拆为 `Policy`（从共享包）+ `ExtensionLocalState`（本地）
-- [ ] 18. **验证点**: 三端编译测试 — `npm test` + `npm run lint` + iOS `npx expo start` + Desktop `tsc` + Extension `tsc`
-- [ ] 19. **一次性真机验证**: iOS 真机确认 Metro 能 resolve 共享包 + Desktop 启动确认连接 + Extension 加载确认 popup
+- [x] 1. 创建 `packages/octopus-protocol/` 目录结构、package.json（含 exports 字段）、tsconfig.json
+- [x] 2. 从 `src/types/octopus.ts` (1760行) 提取协议类型到共享包 `src/types/`（约 1041 行接口）
+- [x] 3. 从 `src/types/octopus.ts` 提取 Zod schemas 到 `src/validation/schemas.ts`（约 718 行）
+- [x] 4. 合并 Desktop 独有类型（`DESKTOP_APP_USAGE/IDLE/WINDOW_CHANGE`）到 canonical EventType
+- [x] 5. 合并 iOS 独有类型（`ACTION_RESULT`、`UserActionType`）到 canonical CommandType/actions
+- [x] 6. 统一 Policy 接口（暂保持扁平结构，将 4 端命名差异统一）
+- [x] 7. 定义 `ServerToClientEvents` / `ClientToServerEvents` / `OctopusError` / `PROTOCOL_VERSION`
+- [x] 8. 配置根 `package.json` 添加 `"workspaces": ["packages/*"]`
+- [x] 9. iOS: 创建 `metro.config.js`（watchFolders + nodeModulesPaths + TypeScript 转译配置）
+- [x] 10. Desktop: 在 `tsconfig.json` 添加 `paths` alias 指向共享包源码（禁止引入 bundler 改造）
+- [x] 11. Extension: 在 `tsconfig.json` 添加 `paths` 指向共享包源码
+- [x] 12. Server: `src/types/octopus.ts` 改为 `export * from '@vibeflow/octopus-protocol'`
+- [x] 13. Server: 更新 6 个文件的 import 路径
+- [x] 14. iOS: 删除 `vibeflow-ios/src/types/octopus.ts` (383行)，更新 6 个文件 import
+- [x] 15. Desktop: 从 `electron/types/index.ts` 删除 ~451 行协议类型（保留 ~266 行本地类型），更新 13 个文件 import
+- [x] 16. Extension: 从 `src/types/index.ts` 删除 ~524 行协议类型（保留 ~161 行本地类型），更新 13 个文件 import
+- [x] 17. Extension: `PolicyCache` 拆为 `Policy`（从共享包）+ `ExtensionLocalState`（本地）
+- [x] 18. **验证点**: 三端编译测试 — `npm test` + `npm run lint` + iOS `npx expo start` + Desktop `tsc` + Extension `tsc`
+- [x] 19. **一次性真机验证**: iOS 真机确认 Metro 能 resolve 共享包 + Desktop 启动确认连接 + Extension 加载确认 popup
 
 ---
 
@@ -137,18 +137,18 @@ it('policy update uses Config/State split', async () => {
 
 ### 前置任务
 
-- [ ] 20. **Policy 迁移审计**: 列出所有 `policy.xxx.isCurrentlyActive` / `policy.overRest?.isOverRest` 等运行时字段访问点
+- [x] 20. **Policy 迁移审计**: 列出所有 `policy.xxx.isCurrentlyActive` / `policy.overRest?.isOverRest` 等运行时字段访问点
 
 ### Tasks
 
-- [ ] 21. 共享包: Policy 接口更新为 `{ config: PolicyConfig; state: PolicyState }`
-- [ ] 22. 服务端: `policy-distribution.service.ts` 重构 `compilePolicy()` — 拆分为 `compileConfig()` + `compileState()`
-- [ ] 23. 服务端: 所有 `broadcastPolicyUpdate` 调用适配新结构
-- [ ] 24. iOS: Policy 访问改为 `policy.config.xxx` / `policy.state.xxx`（5 个文件：app.store, blocking.service, StatusScreen, SettingsScreen, blocking-reason.ts）
-- [ ] 25. Desktop: `main.ts` + `policy-cache.ts` Policy 访问改为新结构
-- [ ] 26. Extension: `policy-cache.ts` + `policy-manager.ts` Policy 访问改为新结构
+- [x] 21. 共享包: Policy 接口更新为 `{ config: PolicyConfig; state: PolicyState }`
+- [x] 22. 服务端: `policy-distribution.service.ts` 重构 `compilePolicy()` — 拆分为 `compileConfig()` + `compileState()`
+- [x] 23. 服务端: 所有 `broadcastPolicyUpdate` 调用适配新结构
+- [x] 24. iOS: Policy 访问改为 `policy.config.xxx` / `policy.state.xxx`（5 个文件：app.store, blocking.service, StatusScreen, SettingsScreen, blocking-reason.ts）
+- [x] 25. Desktop: `main.ts` + `policy-cache.ts` + `connection-manager.ts` Policy 访问改为新结构
+- [ ] 26. Extension: `policy-cache.ts` + `policy-manager.ts` Policy 访问改为新结构 _(Extension 不消费 Protocol Policy，不受影响)_
 - [ ] 27. 编写 `tests/integration/policy-config-state.test.ts` — Policy 编译 roundtrip 测试
-- [ ] 28. 全量编译 + `npm test` + `npm run lint`
+- [x] 28. 全量编译 + `npm test` + `npm run lint`
 
 ---
 
