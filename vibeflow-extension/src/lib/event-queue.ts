@@ -61,7 +61,14 @@ export class EventQueue {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEY);
       if (result[STORAGE_KEY] && Array.isArray(result[STORAGE_KEY])) {
-        this.queue = result[STORAGE_KEY];
+        const raw = result[STORAGE_KEY] as QueuedEvent[];
+        // Filter out any legacy-format events that lack an eventType (Phase B2 cleanup)
+        const valid = raw.filter(entry => entry.event && typeof entry.event.eventType === 'string');
+        const dropped = raw.length - valid.length;
+        if (dropped > 0) {
+          console.warn(`[EventQueue] Cleared ${dropped} legacy-format events from offline queue`);
+        }
+        this.queue = valid;
         console.log(`[EventQueue] Loaded ${this.queue.length} pending events from storage`);
       }
       this.isLoaded = true;

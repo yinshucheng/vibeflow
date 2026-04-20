@@ -190,28 +190,17 @@ export interface InterruptionEvent {
   };
 }
 
-// Server messages (Server -> Extension)
-export type ServerMessage =
-  | { type: 'SYNC_POLICY'; payload: PolicyCache }
-  | { type: 'STATE_CHANGE'; payload: { state: SystemState; timeContext?: TimeContext } }
-  | { type: 'EXECUTE'; payload: ExecuteCommand };
+// Legacy ServerMessage/ClientMessage types removed in Phase B2.
+// All server→client commands now use OCTOPUS_COMMAND.
+// All client→server events now use OCTOPUS_EVENT / OCTOPUS_EVENTS_BATCH.
 
+// ExecuteCommand kept for compatibility with content script overlay handling
 export type ExecuteCommand =
   | { action: 'INJECT_TOAST'; params: { msg: string; type: 'info' | 'warning' } }
   | { action: 'SHOW_OVERLAY'; params: { type: 'soft_block' | 'screensaver' } }
   | { action: 'REDIRECT'; params: { url: string } }
   | { action: 'POMODORO_COMPLETE'; params: { pomodoroId: string; taskTitle: string } }
   | { action: 'IDLE_ALERT'; params: { idleSeconds: number; threshold: number } };
-
-// Client messages (Extension -> Server)
-export type ClientMessage =
-  | { type: 'ACTIVITY_LOG'; payload: ActivityLog[] }
-  | { type: 'URL_CHECK'; payload: { url: string } }
-  | { type: 'USER_RESPONSE'; payload: { questionId: string; response: boolean } }
-  | { type: 'TIMELINE_EVENT'; payload: TimelineEvent }
-  | { type: 'TIMELINE_EVENTS_BATCH'; payload: TimelineEvent[] }
-  | { type: 'BLOCK_EVENT'; payload: BlockEvent }
-  | { type: 'INTERRUPTION_EVENT'; payload: InterruptionEvent };
 
 // Extension storage structure
 export interface ExtensionStorage {

@@ -40,6 +40,7 @@ interface ServerToClientEvents {
   SYNC_POLICY: (payload: PolicyCache) => void;
   STATE_CHANGE: (payload: { state: SystemState }) => void;
   EXECUTE: (payload: ExecuteCommand) => void;
+  OCTOPUS_COMMAND: (command: { commandType: string; payload: unknown }) => void;
   error: (payload: { code: string; message: string }) => void;
 }
 

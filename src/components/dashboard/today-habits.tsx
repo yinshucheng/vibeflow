@@ -45,7 +45,7 @@ export function TodayHabits() {
     onSuccess: () => utils.habit.getToday.invalidate(),
   });
 
-  // Listen to socket events for real-time refresh
+  // Listen to OCTOPUS_COMMAND SYNC_STATE for real-time refresh
   const invalidate = useCallback(() => {
     utils.habit.getToday.invalidate();
   }, [utils]);
@@ -54,16 +54,16 @@ export function TodayHabits() {
     const socket = getSocket();
     if (!socket) return;
 
-    socket.on('habit:entry_updated' as never, invalidate);
-    socket.on('habit:created' as never, invalidate);
-    socket.on('habit:deleted' as never, invalidate);
-    socket.on('habit:updated' as never, invalidate);
+    const handleCommand = (command: { commandType: string }) => {
+      if (command.commandType === 'SYNC_STATE') {
+        invalidate();
+      }
+    };
+
+    socket.on('OCTOPUS_COMMAND', handleCommand as never);
 
     return () => {
-      socket.off('habit:entry_updated' as never, invalidate);
-      socket.off('habit:created' as never, invalidate);
-      socket.off('habit:deleted' as never, invalidate);
-      socket.off('habit:updated' as never, invalidate);
+      socket.off('OCTOPUS_COMMAND', handleCommand as never);
     };
   }, [invalidate]);
 

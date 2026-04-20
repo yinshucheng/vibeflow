@@ -163,32 +163,32 @@ it('policy update uses Config/State split', async () => {
 
 ### 前置任务
 
-- [ ] 29. **Impact analysis**: 列出 socket.ts 中每个 legacy handler 的下游依赖路径
+- [x] 29. **Impact analysis**: 列出 socket.ts 中每个 legacy handler 的下游依赖路径
 
 ### Tasks — 服务端
 
-- [ ] 30. socket.ts: 删除 `broadcastPolicyUpdate()` 中 `policy:update` + `SYNC_POLICY` 发送
-- [ ] 31. socket.ts: 删除 `sendStateSnapshotToSocket()` 中 `STATE_CHANGE` legacy 发送
-- [ ] 32. socket.ts: 删除 `sendExecuteCommand()` 中 `EXECUTE` legacy 发送
-- [ ] 33. socket.ts: `broadcastHabitUpdate()` 改为 `SYNC_STATE` full sync + `SHOW_UI`
-- [ ] 34. socket.ts: `broadcastEntertainmentModeChange()` 改为 `OCTOPUS_COMMAND`
-- [ ] 35. socket.ts: 删除 8 个 legacy event handlers
-- [ ] 36. socket.ts: 清理 `ServerToClientEvents` / `ClientToServerEvents` 接口（从共享包导入）
+- [x] 30. socket.ts: 删除 `broadcastPolicyUpdate()` 中 `policy:update` + `SYNC_POLICY` 发送
+- [x] 31. socket.ts: 删除 `sendStateSnapshotToSocket()` 中 `STATE_CHANGE` legacy 发送
+- [x] 32. socket.ts: 删除 `sendExecuteCommand()` 中 `EXECUTE` legacy 发送
+- [x] 33. socket.ts: `broadcastHabitUpdate()` 改为 `SYNC_STATE` full sync + `SHOW_UI`
+- [x] 34. socket.ts: `broadcastEntertainmentModeChange()` 改为 `OCTOPUS_COMMAND`
+- [x] 35. socket.ts: 删除 8 个 legacy event handlers
+- [x] 36. socket.ts: 清理 `ServerToClientEvents` / `ClientToServerEvents` 接口（从共享包导入）
 
 ### Tasks — 客户端迁移
 
-- [ ] 37. iOS: 删除 `habit.store.ts` 中 `habit:*` + `EXECUTE` legacy listener
-- [ ] 38. Desktop: `connection-manager.ts` 删除 legacy listeners，扩展 `OCTOPUS_COMMAND` handler 支持 `UPDATE_POLICY`/`EXECUTE_ACTION`/`SHOW_UI`
-- [ ] 39. Extension: `websocket.ts` 删除 legacy switch cases
-- [ ] 40. Extension: `service-worker.ts` 迁移 7 个 legacy `sendEvent()` 为 `sendOctopusEvent()`
-- [ ] 41. Extension: 删除 `ServerMessage` / `ClientMessage` legacy 类型
-- [ ] 42. 各端离线队列：初始化时 warn log + clear 不认识的旧格式事件（未上线无用户数据风险）
+- [x] 37. iOS: 删除 `habit.store.ts` 中 `habit:*` + `EXECUTE` legacy listener
+- [x] 38. Desktop: `connection-manager.ts` 删除 legacy listeners，扩展 `OCTOPUS_COMMAND` handler 支持 `UPDATE_POLICY`/`EXECUTE_ACTION`/`SHOW_UI`
+- [x] 39. Extension: `websocket.ts` 删除 legacy switch cases
+- [x] 40. Extension: `service-worker.ts` 迁移 7 个 legacy `sendEvent()` 为 `sendOctopusEvent()`
+- [x] 41. Extension: 删除 `ServerMessage` / `ClientMessage` legacy 类型
+- [x] 42. 各端离线队列：初始化时 warn log + clear 不认识的旧格式事件（未上线无用户数据风险）
 
 ### Tasks — 自动化验证
 
-- [ ] 43. 编写 `tests/integration/socket-protocol.test.ts` — 真实 socket.io server+client 端到端：验证只收到 OCTOPUS_COMMAND、payload 格式正确、无 legacy 事件
-- [ ] 44. CI grep 脚本：验证服务端/各端无 legacy 事件引用
-- [ ] 45. 全量编译 + `npm test` + `npm run lint`
+- [x] 43. 编写 `tests/integration/socket-protocol.test.ts` — 真实 socket.io server+client 端到端：验证只收到 OCTOPUS_COMMAND、payload 格式正确、无 legacy 事件
+- [x] 44. CI grep 脚本：验证服务端/各端无 legacy 事件引用
+- [x] 45. 全量编译 + `npm test` + `npm run lint` <!-- B2 done -->
 
 ---
 

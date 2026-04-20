@@ -83,16 +83,6 @@ export interface PolicyCache {
   isAuthenticated?: boolean;
 }
 
-/**
- * Activity log entry from Browser Sentinel (legacy format)
- */
-export interface ActivityLogEntry {
-  url: string;
-  title?: string;
-  duration: number; // seconds
-  category: 'productive' | 'neutral' | 'distracting';
-  timestamp?: number;
-}
 
 /**
  * Execute command types (legacy)
@@ -145,69 +135,15 @@ export interface PomodoroCompletePayload {
   duration: number;
 }
 
-/**
- * Timeline event entry from Browser Sentinel
- * Requirements: 7.1, 7.2
- */
-export interface TimelineEventEntry {
-  type: TimelineEventTypeValue;
-  startTime: number; // timestamp
-  endTime?: number; // timestamp
-  duration: number; // seconds
-  title: string;
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * Block event from Browser Sentinel
- * Requirements: 7.4
- */
-export interface BlockEventEntry {
-  url: string;
-  timestamp: number;
-  blockType: 'hard_block' | 'soft_block' | 'entertainment_block';
-  userAction?: 'proceeded' | 'returned';
-  pomodoroId?: string;
-}
-
-/**
- * Interruption event from Browser Sentinel
- * Requirements: 7.4
- */
-export interface InterruptionEventEntry {
-  timestamp: number;
-  duration: number; // seconds
-  source: 'blocked_site' | 'tab_switch' | 'idle' | 'manual';
-  pomodoroId: string;
-  details?: {
-    url?: string;
-    idleSeconds?: number;
-  };
-}
-
 // Server -> Client message types (Octopus Command Stream)
 export interface ServerToClientEvents {
-  // Legacy events (backward compatibility)
-  SYNC_POLICY: (payload: PolicyCache) => void;
-  STATE_CHANGE: (payload: { state: SystemState; timeContext?: string }) => void;
-  EXECUTE: (payload: ExecuteCommand) => void;
-  error: (payload: { code: string; message: string; details?: Record<string, unknown> }) => void;
-  
-  // Octopus Command Stream events
+  // Octopus Command Stream (unified protocol)
   OCTOPUS_COMMAND: (command: OctopusCommand) => void;
   COMMAND_ACK_REQUEST: (payload: { commandId: string }) => void;
-  
-  // Entertainment mode events (Requirements: 8.6, 10.3)
-  ENTERTAINMENT_MODE_CHANGE: (payload: { isActive: boolean; sessionId: string | null; endTime: number | null }) => void;
-  
+  error: (payload: { code: string; message: string; details?: Record<string, unknown> }) => void;
+
   // MCP Event Stream events (Requirements: 10.1, 10.2, 10.3, 10.4)
   MCP_EVENT: (payload: MCPEventPayload) => void;
-
-  // Habit tracking events
-  'habit:entry_updated': (payload: { habitId: string; date: string; entry?: Record<string, unknown> }) => void;
-  'habit:created': (payload: { habit: Record<string, unknown> }) => void;
-  'habit:updated': (payload: { habit: Record<string, unknown> }) => void;
-  'habit:deleted': (payload: { habitId: string }) => void;
 
   // Application-layer keepalive response (ADR-001)
   pong_custom: () => void;
@@ -224,17 +160,7 @@ export interface MCPEventPayload {
 
 // Client -> Server message types (Octopus Event Stream)
 export interface ClientToServerEvents {
-  // Legacy events (backward compatibility)
-  ACTIVITY_LOG: (payload: ActivityLogEntry[]) => void;
-  URL_CHECK: (payload: { url: string }, callback: (response: { allowed: boolean; action?: string }) => void) => void;
-  USER_RESPONSE: (payload: { questionId: string; response: boolean }) => void;
-  REQUEST_POLICY: () => void;
-  TIMELINE_EVENT: (payload: TimelineEventEntry) => void;
-  TIMELINE_EVENTS_BATCH: (payload: TimelineEventEntry[]) => void;
-  BLOCK_EVENT: (payload: BlockEventEntry) => void;
-  INTERRUPTION_EVENT: (payload: InterruptionEventEntry) => void;
-  
-  // Octopus Event Stream events
+  // Octopus Event Stream (unified protocol)
   OCTOPUS_EVENT: (event: OctopusEvent) => void;
   OCTOPUS_EVENTS_BATCH: (events: OctopusEvent[]) => void;
   COMMAND_ACK: (payload: { commandId: string }) => void;
@@ -258,65 +184,6 @@ export interface SocketData {
   // Guest connections (unauthenticated, can only do AUTH_LOGIN/AUTH_VERIFY)
   isGuest?: boolean;
 }
-
-// Legacy validation schemas (for backward compatibility)
-const ActivityLogSchema = z.array(z.object({
-  url: z.string().url(),
-  title: z.string().optional(),
-  duration: z.number().min(0),
-  category: z.enum(['productive', 'neutral', 'distracting']),
-  timestamp: z.number().optional(),
-}));
-
-const UrlCheckSchema = z.object({
-  url: z.string(),
-});
-
-const UserResponseSchema = z.object({
-  questionId: z.string(),
-  response: z.boolean(),
-});
-
-// Timeline event validation schemas (Requirements: 7.1, 7.2)
-const TimelineEventSchema = z.object({
-  type: z.enum([
-    'pomodoro',
-    'distraction',
-    'break',
-    'scheduled_task',
-    'activity_log',
-    'block',
-    'state_change',
-    'interruption',
-    'idle',
-  ]),
-  startTime: z.number(),
-  endTime: z.number().optional(),
-  duration: z.number().min(0),
-  title: z.string().min(1).max(500),
-  metadata: z.record(z.unknown()).optional(),
-});
-
-const TimelineEventBatchSchema = z.array(TimelineEventSchema);
-
-const BlockEventSchema = z.object({
-  url: z.string(),
-  timestamp: z.number(),
-  blockType: z.enum(['hard_block', 'soft_block', 'entertainment_block']),
-  userAction: z.enum(['proceeded', 'returned']).optional(),
-  pomodoroId: z.string().optional(),
-});
-
-const InterruptionEventSchema = z.object({
-  timestamp: z.number(),
-  duration: z.number().min(0),
-  source: z.enum(['blocked_site', 'tab_switch', 'idle', 'manual']),
-  pomodoroId: z.string(),
-  details: z.object({
-    url: z.string().optional(),
-    idleSeconds: z.number().optional(),
-  }).optional(),
-});
 
 // ============================================================================
 // Socket Server Class
@@ -438,15 +305,24 @@ export class VibeFlowSocketServer {
             }
             const inFocusSession = focusSessionResult.data === true;
 
-            if (currentState === 'idle' && (withinWorkHours || inFocusSession)) {
-              // Attempt ENTER_OVER_REST during work hours OR when in focus session
+            if (currentState === 'idle') {
               const dailyState = await dailyStateService.getOrCreateToday(userId);
               if (dailyState.success && dailyState.data?.lastPomodoroEndTime) {
-                const shortRestDuration = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
-                const gracePeriod = (settings as Record<string, unknown> | null)?.overRestGracePeriod as number ?? 5;
-                const elapsed = (Date.now() - dailyState.data!.lastPomodoroEndTime!.getTime()) / 60000;
-                if (elapsed >= shortRestDuration + gracePeriod) {
-                  await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
+                if (withinWorkHours || inFocusSession) {
+                  // Attempt ENTER_OVER_REST during work hours OR when in focus session
+                  const shortRestDuration = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
+                  const gracePeriod = (settings as Record<string, unknown> | null)?.overRestGracePeriod as number ?? 5;
+                  const elapsed = (Date.now() - dailyState.data!.lastPomodoroEndTime!.getTime()) / 60000;
+                  if (elapsed >= shortRestDuration + gracePeriod) {
+                    await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
+                  }
+                } else {
+                  // Non-work time without focus session: clear stale lastPomodoroEndTime
+                  // to prevent it from triggering OVER_REST when work hours resume
+                  await prisma.dailyState.update({
+                    where: { id: dailyState.data.id },
+                    data: { lastPomodoroEndTime: null },
+                  });
                 }
               }
             } else if (currentState === 'over_rest' && !withinWorkHours && !inFocusSession) {
@@ -888,49 +764,8 @@ export class VibeFlowSocketServer {
       await this.handleCommandAck(socket, payload);
     });
 
-    // ========================================================================
-    // Legacy event handlers (backward compatibility)
-    // ========================================================================
-    
-    // Handle activity log submission
-    socket.on('ACTIVITY_LOG', async (payload) => {
-      await this.handleActivityLog(socket, payload);
-    });
-
-    // Handle URL check request
-    socket.on('URL_CHECK', async (payload, callback) => {
-      await this.handleUrlCheck(socket, payload, callback);
-    });
-
-    // Handle user response to soft intervention
-    socket.on('USER_RESPONSE', async (payload) => {
-      await this.handleUserResponse(socket, payload);
-    });
-
-    // Handle policy request
-    socket.on('REQUEST_POLICY', async () => {
-      await this.sendPolicyToSocket(socket);
-    });
-
-    // Handle timeline event submission (Requirements: 7.1, 7.2)
-    socket.on('TIMELINE_EVENT', async (payload) => {
-      await this.handleTimelineEvent(socket, payload);
-    });
-
-    // Handle batch timeline events submission
-    socket.on('TIMELINE_EVENTS_BATCH', async (payload) => {
-      await this.handleTimelineEventsBatch(socket, payload);
-    });
-
-    // Handle block event submission (Requirements: 7.4)
-    socket.on('BLOCK_EVENT', async (payload) => {
-      await this.handleBlockEvent(socket, payload);
-    });
-
-    // Handle interruption event submission (Requirements: 7.4)
-    socket.on('INTERRUPTION_EVENT', async (payload) => {
-      await this.handleInterruptionEvent(socket, payload);
-    });
+    // Legacy event handlers removed in Phase B2 (octopus-protocol-unification).
+    // All client-to-server communication now uses OCTOPUS_EVENT / OCTOPUS_EVENTS_BATCH.
   }
 
   // ==========================================================================
@@ -1574,7 +1409,7 @@ export class VibeFlowSocketServer {
           if (result.success) {
             success = true;
             resultData = { habit: result.data } as unknown as Record<string, unknown>;
-            this.broadcastHabitUpdate(userId, { type: 'habit:created', habit: result.data as unknown as Record<string, unknown> });
+            await this.broadcastHabitUpdate(userId, { type: 'habit:created', habit: result.data as unknown as Record<string, unknown> });
           } else {
             error = result.error ?? { code: 'UNKNOWN', message: 'Failed to create habit' };
           }
@@ -1592,7 +1427,7 @@ export class VibeFlowSocketServer {
           if (result.success) {
             success = true;
             resultData = { habit: result.data } as unknown as Record<string, unknown>;
-            this.broadcastHabitUpdate(userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
+            await this.broadcastHabitUpdate(userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
           } else {
             error = result.error ?? { code: 'UNKNOWN', message: 'Failed to update habit' };
           }
@@ -1608,7 +1443,7 @@ export class VibeFlowSocketServer {
           const result = await habitService.delete(userId, habitId);
           if (result.success) {
             success = true;
-            this.broadcastHabitUpdate(userId, { type: 'habit:deleted', habitId });
+            await this.broadcastHabitUpdate(userId, { type: 'habit:deleted', habitId });
           } else {
             error = result.error ?? { code: 'UNKNOWN', message: 'Failed to delete habit' };
           }
@@ -1628,7 +1463,7 @@ export class VibeFlowSocketServer {
           if (result.success) {
             success = true;
             resultData = { entry: result.data } as unknown as Record<string, unknown>;
-            this.broadcastHabitUpdate(userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
+            await this.broadcastHabitUpdate(userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
           } else {
             error = result.error ?? { code: 'UNKNOWN', message: 'Failed to record entry' };
           }
@@ -1645,7 +1480,7 @@ export class VibeFlowSocketServer {
           const result = await habitService.deleteEntry(userId, habitId, date);
           if (result.success) {
             success = true;
-            this.broadcastHabitUpdate(userId, { type: 'habit:entry_updated', habitId, date });
+            await this.broadcastHabitUpdate(userId, { type: 'habit:entry_updated', habitId, date });
           } else {
             error = result.error ?? { code: 'UNKNOWN', message: 'Failed to delete entry' };
           }
@@ -1973,16 +1808,8 @@ export class VibeFlowSocketServer {
         };
         
         socket.emit('OCTOPUS_COMMAND', updatePolicyCommand);
-        
-        // Also send policy:update event for desktop clients
-        // This is the format expected by the desktop connection manager
-        socket.emit('policy:update' as keyof ServerToClientEvents, policy as never);
         console.log(`[Socket.io] Sent policy to client ${socket.id}, version: ${policy.config.version}`);
       }
-
-      // Also send legacy format for backward compatibility
-      const legacyPolicy = await this.getUserPolicy(socket.data.userId);
-      socket.emit('SYNC_POLICY', legacyPolicy);
     } catch (error) {
       console.error('[Socket.io] Error sending policy:', error);
       socket.emit('error', { code: 'INTERNAL_ERROR', message: 'Failed to sync policy' });
@@ -2120,9 +1947,6 @@ export class VibeFlowSocketServer {
       };
 
       socket.emit('OCTOPUS_COMMAND', syncStateCommand);
-
-      // Also send legacy state change for backward compatibility (with timeContext)
-      socket.emit('STATE_CHANGE', { state: systemState, timeContext });
     } catch (error) {
       console.error('[Socket.io] Error sending state snapshot:', error);
     }
@@ -2160,363 +1984,9 @@ export class VibeFlowSocketServer {
     }
   }
 
-  /**
-   * Get user's current policy (legacy format)
-   */
-  private async getUserPolicy(userId: string): Promise<PolicyCache> {
-    // Get user settings
-    const settings = await prisma.userSettings.findUnique({
-      where: { userId },
-    });
-
-    // Get current daily state (accounting for 4AM daily reset)
-    const today = getTodayDate();
-
-    const dailyState = await prisma.dailyState.findUnique({
-      where: {
-        userId_date: { userId, date: today },
-      },
-    });
-
-    // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
-    const effectiveState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
-
-    return {
-      globalState: effectiveState,
-      blacklist: settings?.blacklist || [],
-      whitelist: settings?.whitelist || [],
-      sessionWhitelist: [], // Session whitelist is managed client-side
-      lastSync: Date.now(),
-      isAuthenticated: true, // Connection is already authenticated at this point
-    };
-  }
-
-  // ==========================================================================
-  // Legacy Event Handlers (backward compatibility)
-  // ==========================================================================
-
-  /**
-   * Handle activity log from Browser Sentinel (legacy)
-   * Requirements: 6.6, 7.3
-   */
-  private async handleActivityLog(
-    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
-    payload: ActivityLogEntry[]
-  ): Promise<void> {
-    try {
-      const validated = ActivityLogSchema.parse(payload);
-      const { userId } = socket.data;
-
-      // Use activity log service to store logs
-      const result = await activityLogService.createBatch(
-        userId,
-        validated.map((log) => ({
-          url: log.url,
-          title: log.title,
-          duration: log.duration,
-          category: log.category,
-          source: 'chrome_ext' as const,
-          timestamp: log.timestamp ? new Date(log.timestamp) : undefined,
-        }))
-      );
-
-      if (result.success) {
-        console.log(`[Socket.io] Stored ${result.data?.count} activity logs for user ${userId}`);
-      } else {
-        console.error('[Socket.io] Failed to store activity logs:', result.error);
-        socket.emit('error', { 
-          code: result.error?.code || 'INTERNAL_ERROR', 
-          message: result.error?.message || 'Failed to store activity log' 
-        });
-      }
-    } catch (error) {
-      console.error('[Socket.io] Error handling activity log:', error);
-      socket.emit('error', { 
-        code: 'VALIDATION_ERROR', 
-        message: error instanceof z.ZodError ? 'Invalid activity log format' : 'Failed to store activity log' 
-      });
-    }
-  }
-
-  /**
-   * Handle URL check request (legacy)
-   */
-  private async handleUrlCheck(
-    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
-    payload: { url: string },
-    callback: (response: { allowed: boolean; action?: string }) => void
-  ): Promise<void> {
-    try {
-      const validated = UrlCheckSchema.parse(payload);
-      const policy = await this.getUserPolicy(socket.data.userId);
-
-      // Check if URL is allowed based on current state and lists
-      const result = this.checkUrlPolicy(validated.url, policy);
-      callback(result);
-    } catch (error) {
-      console.error('[Socket.io] Error checking URL:', error);
-      callback({ allowed: true }); // Default to allow on error
-    }
-  }
-
-  /**
-   * Check URL against policy
-   */
-  private checkUrlPolicy(url: string, policy: PolicyCache): { allowed: boolean; action?: string } {
-    // In non-focus states, allow all URLs
-    if (policy.globalState !== 'focus') {
-      return { allowed: true };
-    }
-
-    // Check whitelist first
-    if (this.matchesPattern(url, policy.whitelist) || this.matchesPattern(url, policy.sessionWhitelist)) {
-      return { allowed: true };
-    }
-
-    // Check blacklist
-    if (this.matchesPattern(url, policy.blacklist)) {
-      return { allowed: false, action: 'screensaver' };
-    }
-
-    // URL not in either list - soft intervention
-    return { allowed: false, action: 'soft_block' };
-  }
-
-  /**
-   * Check if URL matches any pattern in the list
-   */
-  private matchesPattern(url: string, patterns: string[]): boolean {
-    const urlLower = url.toLowerCase();
-    return patterns.some((pattern) => {
-      const patternLower = pattern.toLowerCase();
-      // Simple wildcard matching
-      if (patternLower.includes('*')) {
-        const regex = new RegExp('^' + patternLower.replace(/\*/g, '.*') + '$');
-        return regex.test(urlLower);
-      }
-      return urlLower.includes(patternLower);
-    });
-  }
-
-  /**
-   * Handle user response to soft intervention (legacy)
-   */
-  private async handleUserResponse(
-    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
-    payload: { questionId: string; response: boolean }
-  ): Promise<void> {
-    try {
-      const validated = UserResponseSchema.parse(payload);
-      
-      // Log the user's response for analytics
-      console.log(`[Socket.io] User ${socket.data.userId} responded to ${validated.questionId}: ${validated.response}`);
-      
-      // If user confirmed URL is task-related, the client will handle session whitelist
-      // We could also store this for learning/analytics
-    } catch (error) {
-      console.error('[Socket.io] Error handling user response:', error);
-    }
-  }
-
-  /**
-   * Handle timeline event from Browser Sentinel (legacy)
-   * Requirements: 7.1, 7.2
-   */
-  private async handleTimelineEvent(
-    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
-    payload: TimelineEventEntry
-  ): Promise<void> {
-    try {
-      const validated = TimelineEventSchema.parse(payload);
-      const { userId } = socket.data;
-
-      // Use timeline service to store event with deduplication
-      const result = await timelineService.createWithDedup(userId, {
-        type: validated.type as TimelineEventTypeValue,
-        startTime: new Date(validated.startTime),
-        endTime: validated.endTime ? new Date(validated.endTime) : undefined,
-        duration: validated.duration,
-        title: validated.title,
-        metadata: validated.metadata,
-        source: 'browser_sentinel',
-      });
-
-      if (result.success) {
-        console.log(`[Socket.io] Stored timeline event for user ${userId}: ${validated.type}`);
-      } else {
-        console.error('[Socket.io] Failed to store timeline event:', result.error);
-        socket.emit('error', {
-          code: result.error?.code || 'INTERNAL_ERROR',
-          message: result.error?.message || 'Failed to store timeline event',
-        });
-      }
-    } catch (error) {
-      console.error('[Socket.io] Error handling timeline event:', error);
-      socket.emit('error', {
-        code: 'VALIDATION_ERROR',
-        message: error instanceof z.ZodError ? 'Invalid timeline event format' : 'Failed to store timeline event',
-      });
-    }
-  }
-
-  /**
-   * Handle batch timeline events from Browser Sentinel (legacy)
-   * Requirements: 7.1, 7.2
-   */
-  private async handleTimelineEventsBatch(
-    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
-    payload: TimelineEventEntry[]
-  ): Promise<void> {
-    try {
-      const validated = TimelineEventBatchSchema.parse(payload);
-      const { userId } = socket.data;
-
-      // Use timeline service to store events in batch
-      const result = await timelineService.createBatch(
-        userId,
-        validated.map((event) => ({
-          type: event.type as TimelineEventTypeValue,
-          startTime: new Date(event.startTime),
-          endTime: event.endTime ? new Date(event.endTime) : undefined,
-          duration: event.duration,
-          title: event.title,
-          metadata: event.metadata,
-          source: 'browser_sentinel',
-        }))
-      );
-
-      if (result.success) {
-        console.log(`[Socket.io] Stored ${result.data?.count} timeline events for user ${userId}`);
-      } else {
-        console.error('[Socket.io] Failed to store timeline events:', result.error);
-        socket.emit('error', {
-          code: result.error?.code || 'INTERNAL_ERROR',
-          message: result.error?.message || 'Failed to store timeline events',
-        });
-      }
-    } catch (error) {
-      console.error('[Socket.io] Error handling timeline events batch:', error);
-      socket.emit('error', {
-        code: 'VALIDATION_ERROR',
-        message: error instanceof z.ZodError ? 'Invalid timeline events format' : 'Failed to store timeline events',
-      });
-    }
-  }
-
-  /**
-   * Handle block event from Browser Sentinel (legacy)
-   * Requirements: 7.4
-   */
-  private async handleBlockEvent(
-    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
-    payload: BlockEventEntry
-  ): Promise<void> {
-    try {
-      const validated = BlockEventSchema.parse(payload);
-      const { userId } = socket.data;
-
-      // Extract domain from URL for title
-      let domain = 'Unknown site';
-      try {
-        domain = new URL(validated.url).hostname;
-      } catch {
-        // Use URL as-is if parsing fails
-        domain = validated.url;
-      }
-
-      // Create timeline event for the block
-      const result = await timelineService.createWithDedup(userId, {
-        type: 'block',
-        startTime: new Date(validated.timestamp),
-        duration: 0, // Block events are instantaneous
-        title: `Blocked: ${domain}`,
-        metadata: {
-          url: validated.url,
-          blockType: validated.blockType,
-          userAction: validated.userAction,
-          pomodoroId: validated.pomodoroId,
-        },
-        source: 'browser_sentinel',
-      });
-
-      if (result.success) {
-        console.log(`[Socket.io] Stored block event for user ${userId}: ${domain}`);
-      } else {
-        console.error('[Socket.io] Failed to store block event:', result.error);
-        socket.emit('error', {
-          code: result.error?.code || 'INTERNAL_ERROR',
-          message: result.error?.message || 'Failed to store block event',
-        });
-      }
-    } catch (error) {
-      console.error('[Socket.io] Error handling block event:', error);
-      socket.emit('error', {
-        code: 'VALIDATION_ERROR',
-        message: error instanceof z.ZodError ? 'Invalid block event format' : 'Failed to store block event',
-      });
-    }
-  }
-
-  /**
-   * Handle interruption event from Browser Sentinel (legacy)
-   * Requirements: 7.4
-   */
-  private async handleInterruptionEvent(
-    socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>,
-    payload: InterruptionEventEntry
-  ): Promise<void> {
-    try {
-      const validated = InterruptionEventSchema.parse(payload);
-      const { userId } = socket.data;
-
-      // Create descriptive title based on source
-      let title = 'Interruption';
-      switch (validated.source) {
-        case 'blocked_site':
-          title = `Blocked site access${validated.details?.url ? `: ${new URL(validated.details.url).hostname}` : ''}`;
-          break;
-        case 'tab_switch':
-          title = 'Tab switch during focus';
-          break;
-        case 'idle':
-          title = `Idle for ${validated.details?.idleSeconds || validated.duration} seconds`;
-          break;
-        case 'manual':
-          title = 'Manual interruption';
-          break;
-      }
-
-      // Create timeline event for the interruption
-      const result = await timelineService.createWithDedup(userId, {
-        type: 'interruption',
-        startTime: new Date(validated.timestamp),
-        duration: validated.duration,
-        title,
-        metadata: {
-          source: validated.source,
-          pomodoroId: validated.pomodoroId,
-          details: validated.details,
-        },
-        source: 'browser_sentinel',
-      });
-
-      if (result.success) {
-        console.log(`[Socket.io] Stored interruption event for user ${userId}: ${validated.source}`);
-      } else {
-        console.error('[Socket.io] Failed to store interruption event:', result.error);
-        socket.emit('error', {
-          code: result.error?.code || 'INTERNAL_ERROR',
-          message: result.error?.message || 'Failed to store interruption event',
-        });
-      }
-    } catch (error) {
-      console.error('[Socket.io] Error handling interruption event:', error);
-      socket.emit('error', {
-        code: 'VALIDATION_ERROR',
-        message: error instanceof z.ZodError ? 'Invalid interruption event format' : 'Failed to store interruption event',
-      });
-    }
-  }
+  // Legacy event handlers and getUserPolicy removed in Phase B2 (octopus-protocol-unification).
+  // All client-to-server events now go through OCTOPUS_EVENT / OCTOPUS_EVENTS_BATCH.
+  // All server-to-client events now go through OCTOPUS_COMMAND.
 
 
   // ============================================================================
@@ -2554,15 +2024,7 @@ export class VibeFlowSocketServer {
         };
         
         this.io.to(userRoom).emit('OCTOPUS_COMMAND', updatePolicyCommand);
-        
-        // Also send policy:update event for desktop clients
-        // This is the format expected by the desktop connection manager
-        this.io.to(userRoom).emit('policy:update' as keyof ServerToClientEvents, policy as never);
-        
-        // Also send legacy format for browser extension
-        const legacyPolicy = await this.getUserPolicy(userId);
-        this.io.to(userRoom).emit('SYNC_POLICY', legacyPolicy);
-        
+
         console.log(`[Socket.io] Broadcast policy update to user ${userId} (version ${policy.config.version}, overRest: ${policy.state.isOverRest})`);
       }
     } catch (error) {
@@ -2577,11 +2039,8 @@ export class VibeFlowSocketServer {
     if (!this.io) return;
 
     const userRoom = `user:${userId}`;
-    
-    // Send legacy format
-    this.io.to(userRoom).emit('EXECUTE', command);
-    
-    // Also send as Octopus EXECUTE_ACTION command
+
+    // Send as Octopus EXECUTE_ACTION command
     const executeCommand: ExecuteActionCommand = {
       commandId: crypto.randomUUID(),
       commandType: 'EXECUTE_ACTION',
@@ -2600,40 +2059,16 @@ export class VibeFlowSocketServer {
   }
 
   /**
-   * Broadcast habit update to all of a user's connected clients
+   * Broadcast habit update to all of a user's connected clients.
+   * Uses SYNC_STATE full sync via OCTOPUS_COMMAND (no legacy habit:* events).
    */
-  broadcastHabitUpdate(userId: string, payload: HabitBroadcastPayload): void {
+  async broadcastHabitUpdate(userId: string, payload: HabitBroadcastPayload): Promise<void> {
     if (!this.io) return;
 
-    const userRoom = `user:${userId}`;
+    // Trigger full state sync — clients refresh habit data via their own data layer
+    await this.broadcastFullStateToUser(userId);
 
-    switch (payload.type) {
-      case 'habit:created':
-        this.io.to(userRoom).emit('habit:created', { habit: payload.habit });
-        break;
-      case 'habit:updated':
-        this.io.to(userRoom).emit('habit:updated', { habit: payload.habit });
-        break;
-      case 'habit:deleted':
-        this.io.to(userRoom).emit('habit:deleted', { habitId: payload.habitId });
-        break;
-      case 'habit:entry_updated':
-        if ('entry' in payload) {
-          this.io.to(userRoom).emit('habit:entry_updated', {
-            habitId: (payload.entry as Record<string, unknown>).habitId as string,
-            date: (payload.entry as Record<string, unknown>).date as string,
-            entry: payload.entry,
-          });
-        } else {
-          this.io.to(userRoom).emit('habit:entry_updated', {
-            habitId: payload.habitId,
-            date: payload.date,
-          });
-        }
-        break;
-    }
-
-    console.log(`[Socket.io] Broadcast habit update to user ${userId}: ${payload.type}`);
+    console.log(`[Socket.io] Broadcast habit update via SYNC_STATE to user ${userId}: ${payload.type}`);
   }
 
   /**
@@ -2734,10 +2169,24 @@ export class VibeFlowSocketServer {
     if (!this.io) return;
 
     const userRoom = `user:${userId}`;
-    
-    // Send entertainment mode change event
-    this.io.to(userRoom).emit('ENTERTAINMENT_MODE_CHANGE', payload);
-    
+
+    // Send as OCTOPUS_COMMAND SHOW_UI with 'overlay' type (entertainment mode is an overlay-level change)
+    const showUICommand: ShowUICommand = {
+      commandId: crypto.randomUUID(),
+      commandType: 'SHOW_UI',
+      targetClient: 'all',
+      priority: 'normal',
+      requiresAck: false,
+      createdAt: Date.now(),
+      payload: {
+        uiType: 'overlay',
+        content: { type: 'entertainment_mode_change', ...payload } as unknown as Record<string, unknown>,
+        dismissible: false,
+      },
+    };
+
+    this.io.to(userRoom).emit('OCTOPUS_COMMAND', showUICommand);
+
     console.log(`[Socket.io] Broadcast entertainment mode change to user ${userId}: ${payload.isActive ? 'active' : 'inactive'}`);
   }
 

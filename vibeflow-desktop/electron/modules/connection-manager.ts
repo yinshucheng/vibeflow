@@ -639,47 +639,55 @@ class ConnectionManager {
       }
     });
 
-    // Command received from server
+    // Command received from server (Octopus protocol — unified handler)
     this.socket.on('command', (command: DesktopCommand) => {
       console.log('[ConnectionManager] Command received:', command.commandType);
       this.handleCommand(command);
     });
 
-    // Policy update from server
-    this.socket.on('policy:update', (policy: DesktopPolicy) => {
-      console.log('[ConnectionManager] Policy update received, version:', policy.config.version);
-      this.state.policyVersion = policy.config.version;
-      this.notifyPolicyUpdate(policy);
-    });
-
-    // State sync from server (legacy event name — kept for backward compatibility)
-    this.socket.on('state:sync', (state: unknown) => {
-      console.log('[ConnectionManager] State sync received (legacy)');
-      this.sendToRenderer('octopus:stateSync', state);
-    });
-
-    // Octopus protocol commands from server (SYNC_STATE, UPDATE_POLICY, ACTION_RESULT)
+    // Octopus protocol commands from server (all server→client commands)
     this.socket.on('OCTOPUS_COMMAND', (command: { commandType: string; payload: unknown }) => {
       console.log('[ConnectionManager] OCTOPUS_COMMAND received:', command.commandType);
-      if (command.commandType === 'SYNC_STATE') {
-        this.sendToRenderer('octopus:stateSync', command);
+      switch (command.commandType) {
+        case 'SYNC_STATE': {
+          this.sendToRenderer('octopus:stateSync', command);
+          // Extract systemState for state change handlers
+          const payload = command.payload as { systemState?: { state?: string } };
+          if (payload?.systemState?.state) {
+            this.notifyStateChange(payload.systemState.state);
+            this.sendToRenderer('system:stateChange', { state: payload.systemState.state });
+          }
+          break;
+        }
+        case 'UPDATE_POLICY': {
+          const policyPayload = command.payload as { policy?: DesktopPolicy };
+          if (policyPayload?.policy) {
+            console.log('[ConnectionManager] Policy update received via OCTOPUS_COMMAND, version:', policyPayload.policy.config.version);
+            this.state.policyVersion = policyPayload.policy.config.version;
+            this.notifyPolicyUpdate(policyPayload.policy);
+          }
+          break;
+        }
+        case 'EXECUTE_ACTION': {
+          const execPayload = command.payload as { action?: string; parameters?: Record<string, unknown> };
+          if (execPayload) {
+            const legacyCommand: ExecuteCommand = {
+              action: execPayload.action as ExecuteCommand['action'],
+              params: execPayload.parameters ?? {},
+            };
+            this.notifyExecuteCommand(legacyCommand);
+            this.sendToRenderer('execute:command', legacyCommand);
+          }
+          break;
+        }
+        case 'SHOW_UI': {
+          this.sendToRenderer('octopus:showUI', command.payload);
+          break;
+        }
+        default:
+          console.warn(`[ConnectionManager] Unknown OCTOPUS_COMMAND type: ${command.commandType}, ignoring`);
+          break;
       }
-    });
-
-    // State change from server (real-time state updates)
-    // This event is sent when system state changes (e.g., FOCUS -> REST, REST -> PLANNING)
-    this.socket.on('STATE_CHANGE', (payload: { state: string }) => {
-      console.log('[ConnectionManager] STATE_CHANGE received:', payload.state);
-      this.notifyStateChange(payload.state);
-      this.sendToRenderer('system:stateChange', payload);
-    });
-
-    // Execute command from server (pomodoro complete, idle alert, etc.)
-    // This event is sent when server wants client to execute an action
-    this.socket.on('EXECUTE', (command: ExecuteCommand) => {
-      console.log('[ConnectionManager] EXECUTE received:', command.action);
-      this.notifyExecuteCommand(command);
-      this.sendToRenderer('execute:command', command);
     });
 
     // Error from server

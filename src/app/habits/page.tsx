@@ -59,7 +59,7 @@ export default function HabitsPage() {
     onSuccess: () => utils.habit.list.invalidate(),
   });
 
-  // Listen to socket events for real-time refresh
+  // Listen to OCTOPUS_COMMAND SYNC_STATE for real-time refresh
   const invalidate = useCallback(() => {
     utils.habit.list.invalidate();
   }, [utils]);
@@ -68,14 +68,16 @@ export default function HabitsPage() {
     const socket = getSocket();
     if (!socket) return;
 
-    socket.on('habit:created' as never, invalidate);
-    socket.on('habit:updated' as never, invalidate);
-    socket.on('habit:deleted' as never, invalidate);
+    const handleCommand = (command: { commandType: string }) => {
+      if (command.commandType === 'SYNC_STATE') {
+        invalidate();
+      }
+    };
+
+    socket.on('OCTOPUS_COMMAND', handleCommand as never);
 
     return () => {
-      socket.off('habit:created' as never, invalidate);
-      socket.off('habit:updated' as never, invalidate);
-      socket.off('habit:deleted' as never, invalidate);
+      socket.off('OCTOPUS_COMMAND', handleCommand as never);
     };
   }, [invalidate]);
 

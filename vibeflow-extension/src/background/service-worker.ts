@@ -4,7 +4,7 @@ import { activityTracker } from '../lib/activity-tracker.js';
 import { getWorkStartTracker } from '../lib/work-start-tracker.js';
 import { entertainmentManager } from '../lib/entertainment-manager.js';
 import { normalizeSystemState } from '../types/index.js';
-import type { PolicyCache, SystemState, TimeContext, ActivityLog, ExecuteCommand, TimelineEvent, BlockEvent, InterruptionEvent, EnhancedUrlCheckResult, WorkStartPayload, EntertainmentModePayload } from '../types/index.js';
+import type { PolicyCache, SystemState, TimeContext, ActivityLog, ExecuteCommand, TimelineEvent, BlockEvent, InterruptionEvent, EnhancedUrlCheckResult, WorkStartPayload, EntertainmentModePayload, OctopusPolicy } from '../types/index.js';
 
 // Global state
 let wsClient: VibeFlowWebSocket | null = null;
@@ -245,6 +245,87 @@ const wsHandlers: WebSocketEventHandler = {
     }
   },
 
+  // Octopus protocol handlers — unified command routing
+  onOctopusCommand: async (command: { commandType: string; payload: unknown }) => {
+    // Handle all Octopus commands in a single handler for maximum flexibility
+    switch (command.commandType) {
+      case 'SYNC_STATE': {
+        const payload = command.payload as Record<string, unknown>;
+        const sysState = (payload?.systemState as Record<string, unknown>)?.state as string | undefined;
+        if (sysState) {
+          const normalizedState = normalizeSystemState(sysState as SystemState);
+          console.log('[ServiceWorker] SYNC_STATE received, state:', normalizedState);
+          await policyCache.updateState(normalizedState);
+
+          const workStartTracker = getWorkStartTracker();
+          await workStartTracker.handleStateChange(normalizedState);
+
+          if (normalizedState !== 'FOCUS') {
+            await policyCache.clearSessionWhitelist();
+          }
+
+          await updateBlockingRules();
+
+          if (normalizedState === 'OVER_REST') {
+            await enforceStateRestrictions();
+          }
+
+          broadcastToPopup({ type: 'STATE_CHANGED', payload: { state: normalizedState } });
+        }
+        break;
+      }
+      case 'UPDATE_POLICY': {
+        const payload = command.payload as { policy?: OctopusPolicy };
+        if (payload?.policy) {
+          console.log('[ServiceWorker] UPDATE_POLICY received via OCTOPUS_COMMAND');
+          // Convert Octopus Policy to legacy PolicyCache for compatibility with existing policy-cache module
+          const policy = payload.policy;
+          const currentState = policyCache.getState();
+          await policyCache.updatePolicy({
+            globalState: currentState,
+            blacklist: policy.config?.blacklist ?? [],
+            whitelist: policy.config?.whitelist ?? [],
+            isAuthenticated: true,
+          } as PolicyCache);
+          await updateBlockingRules();
+          broadcastToPopup({ type: 'POLICY_UPDATED', payload: policyCache.getPolicy() });
+        }
+        break;
+      }
+      case 'EXECUTE_ACTION': {
+        const payload = command.payload as { action?: string; parameters?: Record<string, unknown> };
+        console.log('[ServiceWorker] EXECUTE_ACTION received:', payload?.action);
+        if (payload?.action) {
+          handleExecuteCommand({ action: payload.action, params: payload.parameters ?? {} } as ExecuteCommand);
+        }
+        break;
+      }
+      case 'SHOW_UI': {
+        const payload = command.payload as { uiType?: string; content?: Record<string, unknown> };
+        console.log('[ServiceWorker] SHOW_UI received:', payload?.uiType);
+        if (payload?.content?.type === 'entertainment_mode_change') {
+          const entPayload = payload.content as { isActive: boolean; sessionId: string | null; endTime: number | null };
+          console.log('[ServiceWorker] Entertainment mode change via SHOW_UI:', entPayload.isActive);
+          await entertainmentManager.initialize();
+          if (entPayload.isActive) {
+            // Start entertainment mode
+            broadcastToPopup({
+              type: 'ENTERTAINMENT_STATUS_CHANGED',
+              payload: entertainmentManager.getStatus(),
+            });
+          } else {
+            // Stop entertainment mode
+            broadcastToPopup({
+              type: 'ENTERTAINMENT_STATUS_CHANGED',
+              payload: entertainmentManager.getStatus(),
+            });
+          }
+        }
+        break;
+      }
+    }
+  },
+
   // Entertainment quota sync handler (Requirements: 5.11, 8.7)
   onEntertainmentQuotaSync: async (payload: { quotaUsed: number; quotaTotal: number; quotaRemaining: number }) => {
     console.log('[ServiceWorker] Entertainment quota sync received:', payload);
@@ -297,7 +378,28 @@ async function connect(serverUrl: string): Promise<void> {
   // Set up activity tracker callbacks for sending events via WebSocket
   activityTracker.setSyncCallback(async (logs: ActivityLog[]) => {
     if (wsClient?.isConnected()) {
-      wsClient.sendEvent('ACTIVITY_LOG', logs);
+      // Send individual BROWSER_ACTIVITY events via Octopus protocol
+      for (const log of logs) {
+        let domain = log.url;
+        try { domain = new URL(log.url).hostname; } catch { /* use url as-is */ }
+        wsClient.sendBrowserActivity({
+          url: log.url,
+          domain,
+          title: log.title ?? '',
+          category: log.category,
+          startTime: Date.now() - log.duration * 1000,
+          endTime: Date.now(),
+          duration: log.duration,
+          activeDuration: log.duration,
+          idleTime: 0,
+          scrollDepth: 0,
+          interactionCount: 0,
+          productivityScore: log.category === 'productive' ? 1 : log.category === 'distracting' ? -1 : 0,
+          isMediaPlaying: false,
+          mediaPlayDuration: 0,
+          navigationType: 'other',
+        });
+      }
     } else {
       throw new Error('WebSocket not connected');
     }
@@ -305,7 +407,10 @@ async function connect(serverUrl: string): Promise<void> {
 
   activityTracker.setTimelineEventCallback(async (events: TimelineEvent[]) => {
     if (wsClient?.isConnected()) {
-      wsClient.sendEvent('TIMELINE_EVENTS_BATCH', events);
+      // Timeline events are now processed via BROWSER_ACTIVITY/BROWSER_SESSION Octopus events.
+      // The activity tracker already sends detailed Octopus events via its own callbacks.
+      // This callback is a legacy path — log and skip.
+      console.log(`[ServiceWorker] Timeline events (${events.length}) — legacy callback, skipped`);
     } else {
       throw new Error('WebSocket not connected');
     }
@@ -313,7 +418,9 @@ async function connect(serverUrl: string): Promise<void> {
 
   activityTracker.setBlockEventCallback(async (event: BlockEvent) => {
     if (wsClient?.isConnected()) {
-      wsClient.sendEvent('BLOCK_EVENT', event);
+      // Block events are tracked locally via activity tracker.
+      // Server-side handler was removed; block data is captured via BROWSER_ACTIVITY events.
+      console.log(`[ServiceWorker] Block event — legacy callback, skipped:`, event.url);
     } else {
       throw new Error('WebSocket not connected');
     }
@@ -321,7 +428,9 @@ async function connect(serverUrl: string): Promise<void> {
 
   activityTracker.setInterruptionEventCallback(async (event: InterruptionEvent) => {
     if (wsClient?.isConnected()) {
-      wsClient.sendEvent('INTERRUPTION_EVENT', event);
+      // Interruption events are tracked locally via activity tracker.
+      // Server-side handler was removed; interruption data is captured via BROWSER_ACTIVITY events.
+      console.log(`[ServiceWorker] Interruption event — legacy callback, skipped:`, event.source);
     } else {
       throw new Error('WebSocket not connected');
     }
@@ -1135,7 +1244,28 @@ async function syncActivityLogs(): Promise<void> {
   const logsToSync = [...pendingActivityLogs];
   pendingActivityLogs.length = 0;
 
-  wsClient.sendEvent('ACTIVITY_LOG', logsToSync);
+  // Send individual BROWSER_ACTIVITY events via Octopus protocol
+  for (const log of logsToSync) {
+    let domain = log.url;
+    try { domain = new URL(log.url).hostname; } catch { /* use url as-is */ }
+    wsClient.sendBrowserActivity({
+      url: log.url,
+      domain,
+      title: log.title ?? '',
+      category: log.category,
+      startTime: Date.now() - log.duration * 1000,
+      endTime: Date.now(),
+      duration: log.duration,
+      activeDuration: log.duration,
+      idleTime: 0,
+      scrollDepth: 0,
+      interactionCount: 0,
+      productivityScore: log.category === 'productive' ? 1 : log.category === 'distracting' ? -1 : 0,
+      isMediaPlaying: false,
+      mediaPlayDuration: 0,
+      navigationType: 'other',
+    });
+  }
 
   console.log('[ServiceWorker] Synced activity logs:', logsToSync.length);
 
@@ -1295,11 +1425,9 @@ async function handleMessage(
       return { success: true };
 
     case 'USER_RESPONSE':
-      // Forward user response to server
-      if (wsClient?.isConnected()) {
-        wsClient.sendEvent('USER_RESPONSE', message.payload as { questionId: string; response: boolean });
-      }
-      
+      // User response tracking — server-side handler removed in Phase B2.
+      // Block event recording still happens locally below.
+
       // Update block event with user action if it was a soft block response
       const response = message.payload as { questionId: string; response: boolean; url?: string };
       if (response.url) {
@@ -1340,10 +1468,6 @@ async function handleMessage(
     case 'CONSUME_SKIP_TOKEN':
       // Consume a skip token for skip/delay action (Requirements 5.2, 5.3)
       const consumed = policyCache.consumeSkipToken();
-      if (consumed && wsClient?.isConnected()) {
-        // Notify server about token consumption
-        wsClient.sendEvent('CONSUME_SKIP_TOKEN', {});
-      }
       return { 
         success: consumed, 
         remaining: policyCache.getSkipTokensRemaining() 

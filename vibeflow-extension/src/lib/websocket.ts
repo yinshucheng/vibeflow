@@ -1,7 +1,5 @@
-import type { 
-  ServerMessage, 
-  ClientMessage, 
-  PolicyCache, 
+import type {
+  PolicyCache,
   SystemState,
   OctopusEvent,
   OctopusCommand,
@@ -24,7 +22,7 @@ import { EventQueue, EventReplayManager, getEventQueue } from './event-queue.js'
 export type WebSocketEventHandler = {
   onPolicySync: (policy: PolicyCache) => void;
   onStateChange: (state: SystemState, timeContext?: string) => void;
-  onExecute: (command: ServerMessage['payload']) => void;
+  onExecute: (command: unknown) => void;
   onConnect: () => void;
   onDisconnect: () => void;
   onError: (error: Error) => void;
@@ -95,7 +93,7 @@ export class VibeFlowWebSocket {
           return false;
         }
         try {
-          this.sendEvent('OCTOPUS_EVENT_BATCH', events);
+          this.sendEvent('OCTOPUS_EVENTS_BATCH',events);
           return true;
         } catch {
           return false;
@@ -276,10 +274,9 @@ export class VibeFlowWebSocket {
     console.log('[WebSocket] Successfully connected to Socket.io namespace');
     this.isAuthenticated = true;
     this.handlers.onConnect();
-    
-    // Request initial policy sync
-    this.sendEvent('REQUEST_POLICY');
-    
+
+    // Policy and state are automatically sent by the server on connection via OCTOPUS_COMMAND.
+
     // Replay queued events on reconnect (Requirements: 5.28)
     this.replayQueuedEvents();
   }
@@ -327,52 +324,9 @@ export class VibeFlowWebSocket {
       console.log('[WebSocket] Event received:', eventName);
 
       switch (eventName) {
-        case 'SYNC_POLICY':
-          this.handlers.onPolicySync(eventData as PolicyCache);
-          break;
-        case 'STATE_CHANGE': {
-          const statePayload = eventData as { state: SystemState; timeContext?: string };
-          this.handlers.onStateChange(statePayload.state, statePayload.timeContext);
-          break;
-        }
-        case 'EXECUTE':
-          this.handlers.onExecute(eventData as ServerMessage['payload']);
-          break;
-        // New Octopus protocol commands (Requirements 5.21, 5.23)
+        // Unified Octopus protocol (all server→client commands)
         case 'OCTOPUS_COMMAND':
           this.handleOctopusCommand(eventData as OctopusCommand);
-          break;
-        case 'SYNC_STATE':
-          if (this.handlers.onSyncState) {
-            this.handlers.onSyncState((eventData as SyncStateCommand).payload);
-          }
-          break;
-        case 'EXECUTE_ACTION':
-          if (this.handlers.onExecuteAction) {
-            this.handlers.onExecuteAction((eventData as ExecuteActionCommand).payload);
-          }
-          break;
-        case 'UPDATE_POLICY':
-          if (this.handlers.onPolicyUpdate) {
-            this.handlers.onPolicyUpdate((eventData as UpdatePolicyCommand).payload.policy);
-          }
-          break;
-        case 'SHOW_UI':
-          if (this.handlers.onShowUI) {
-            this.handlers.onShowUI((eventData as ShowUICommand).payload);
-          }
-          break;
-        // Entertainment mode state change (Requirements 8.6, 10.3)
-        case 'ENTERTAINMENT_MODE_CHANGE':
-          if (this.handlers.onEntertainmentModeChange) {
-            this.handlers.onEntertainmentModeChange(eventData as { isActive: boolean; sessionId: string | null; endTime: number | null });
-          }
-          break;
-        // Entertainment quota sync (Requirements 5.11, 8.7)
-        case 'ENTERTAINMENT_QUOTA_SYNC':
-          if (this.handlers.onEntertainmentQuotaSync) {
-            this.handlers.onEntertainmentQuotaSync(eventData as { quotaUsed: number; quotaTotal: number; quotaRemaining: number });
-          }
           break;
         case 'error':
           console.error('[WebSocket] Server error:', eventData);
@@ -449,12 +403,6 @@ export class VibeFlowWebSocket {
     this.sendRaw(packet);
   }
 
-  /**
-   * Send a client message (for compatibility)
-   */
-  send(message: ClientMessage): void {
-    this.sendEvent(message.type, message.payload);
-  }
 
   private sendRaw(data: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -528,7 +476,7 @@ export class VibeFlowWebSocket {
   /**
    * Create base event fields for Octopus events
    */
-  private createBaseEventFields(eventType: OctopusBaseEvent['eventType']): Omit<OctopusBaseEvent, 'payload'> {
+  createBaseEventFields(eventType: OctopusBaseEvent['eventType']): Omit<OctopusBaseEvent, 'payload'> {
     return {
       eventId: this.generateEventId(),
       eventType,
@@ -679,7 +627,7 @@ export class VibeFlowWebSocket {
     const batchSize = 50;
     for (let i = 0; i < events.length; i += batchSize) {
       const batch = events.slice(i, i + batchSize);
-      this.sendEvent('OCTOPUS_EVENT_BATCH', batch);
+      this.sendEvent('OCTOPUS_EVENTS_BATCH',batch);
     }
   }
 

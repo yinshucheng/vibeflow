@@ -273,35 +273,11 @@ let socketCleanups: (() => void)[] = [];
 export function initHabitSocketListeners(): void {
   cleanupHabitSocketListeners();
 
-  const store = useHabitStore.getState();
+  // Legacy habit:* socket listeners removed in Phase B2.
+  // Habit data changes are now received via OCTOPUS_COMMAND SYNC_STATE.
+  // The habit store auto-refreshes when the app store receives a full state sync.
 
-  const socket = (websocketService as unknown as { socket: {
-    on: (event: string, handler: (...args: unknown[]) => void) => void;
-    off: (event: string, handler: (...args: unknown[]) => void) => void;
-  } | null }).socket;
-
-  if (!socket) {
-    console.warn('[HabitStore] Socket not available, deferring listener setup');
-    return;
-  }
-
-  const handlers = {
-    'habit:created': (payload: unknown) =>
-      store.handleHabitCreated(payload as { habit: Record<string, unknown> }),
-    'habit:updated': (payload: unknown) =>
-      store.handleHabitUpdated(payload as { habit: Record<string, unknown> }),
-    'habit:deleted': (payload: unknown) =>
-      store.handleHabitDeleted(payload as { habitId: string }),
-    'habit:entry_updated': (payload: unknown) =>
-      store.handleEntryUpdated(payload as { habitId: string; date: string; entry?: Record<string, unknown> }),
-  };
-
-  for (const [event, handler] of Object.entries(handlers)) {
-    socket.on(event, handler);
-    socketCleanups.push(() => socket.off(event, handler));
-  }
-
-  // Listen for EXECUTE commands (legacy format) for HABIT_REMINDER
+  // Listen for EXECUTE_ACTION commands via Octopus protocol for HABIT_REMINDER
   const handleHabitReminder = async (params: {
     habitId?: string;
     title?: string;
@@ -320,16 +296,6 @@ export function initHabitSocketListeners(): void {
     }
   };
 
-  const handleExecute = (command: unknown) => {
-    const cmd = command as { action?: string; params?: Record<string, unknown> };
-    if (cmd.action === 'HABIT_REMINDER' && cmd.params) {
-      handleHabitReminder(cmd.params as { habitId?: string; title?: string; question?: string; streak?: number });
-    }
-  };
-  socket.on('EXECUTE', handleExecute);
-  socketCleanups.push(() => socket.off('EXECUTE', handleExecute));
-
-  // Also listen for Octopus EXECUTE_ACTION command
   const cleanupExecuteAction = websocketService.onCommand<{
     action: string;
     params?: Record<string, unknown>;

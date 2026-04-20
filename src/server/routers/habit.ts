@@ -33,7 +33,7 @@ export const habitRouter = router({
         });
       }
 
-      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:created', habit: result.data as unknown as Record<string, unknown> });
+      await socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:created', habit: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -68,7 +68,7 @@ export const habitRouter = router({
         });
       }
 
-      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
+      await socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -97,7 +97,7 @@ export const habitRouter = router({
         });
       }
 
-      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
+      await socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:updated', habit: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -117,7 +117,7 @@ export const habitRouter = router({
         });
       }
 
-      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:deleted', habitId: input.id });
+      await socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:deleted', habitId: input.id });
 
       return { success: true };
     }),
@@ -149,7 +149,7 @@ export const habitRouter = router({
         });
       }
 
-      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
+      await socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -184,7 +184,7 @@ export const habitRouter = router({
         });
       }
 
-      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
+      await socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', entry: result.data as unknown as Record<string, unknown> });
 
       return result.data;
     }),
@@ -213,7 +213,7 @@ export const habitRouter = router({
         });
       }
 
-      socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', habitId: input.habitId, date: input.date });
+      await socketServer.broadcastHabitUpdate(ctx.user.userId, { type: 'habit:entry_updated', habitId: input.habitId, date: input.date });
 
       return { success: true };
     }),
