@@ -11,7 +11,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**/*.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**', '**/.claude/worktrees/**', '**/tests/helpers/**', '**/tests/global-setup.ts', '**/vibeflow-ios/**', '**/vibeflow-desktop/**', '**/vibeflow-extension/**'],
+    exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**', '**/.claude/worktrees/**', '**/tests/helpers/**', '**/tests/global-setup.ts', '**/vibeflow-ios/**', '**/vibeflow-desktop/**', '**/vibeflow-extension/**', '**/packages/**'],
     globalSetup: ['./tests/global-setup.ts'],
     env: {
       DATABASE_URL: `postgresql://${dbUser}@localhost:5432/vibeflow_test?schema=public`,

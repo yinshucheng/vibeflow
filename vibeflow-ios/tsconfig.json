@@ -6,6 +6,12 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@vibeflow/octopus-protocol": [
+        "../packages/octopus-protocol/src/index.ts"
+      ],
+      "@vibeflow/octopus-protocol/*": [
+        "../packages/octopus-protocol/src/*.ts"
       ]
     }
   },

@@ -9,6 +9,7 @@ module.exports = function (api) {
           root: ['./'],
           alias: {
             '@': './src',
+            '@vibeflow/octopus-protocol': '../packages/octopus-protocol/src',
           },
         },
       ],

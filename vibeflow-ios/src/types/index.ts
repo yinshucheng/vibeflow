@@ -1,9 +1,139 @@
 /**
  * iOS App Type Definitions
+ *
+ * Re-exports shared protocol types from @vibeflow/octopus-protocol
+ * and defines iOS-specific types.
  */
 
-export * from './octopus';
-export * from './chat';
+// =============================================================================
+// SHARED PROTOCOL TYPES (from @vibeflow/octopus-protocol)
+// =============================================================================
+
+// Enums
+export type {
+  EventType,
+  ClientType,
+  CommandType,
+  ActionType,
+  ActivityCategory,
+  ConnectionQuality,
+  CommandPriority,
+  EnforcementMode,
+  UserActionType,
+} from '@vibeflow/octopus-protocol';
+
+// Event stream types (Tentacle -> Vibe Brain)
+export type {
+  BaseEvent,
+  HeartbeatPayload,
+  HeartbeatEvent,
+} from '@vibeflow/octopus-protocol';
+
+// Command stream types (Vibe Brain -> Tentacle)
+export type {
+  BaseCommand,
+  UpdatePolicyPayload,
+  UpdatePolicyCommand,
+} from '@vibeflow/octopus-protocol';
+
+// State types
+export type {
+  SystemState,
+  DailyState,
+  PomodoroState,
+  TaskState,
+  UserSettingsState,
+  FullState,
+  SyncStatePayload,
+  SyncStateCommand,
+} from '@vibeflow/octopus-protocol';
+
+// Policy types
+export type {
+  DistractionApp,
+  TimeSlot,
+  SkipTokenConfig,
+  SleepEnforcementAppPolicy,
+  SleepTimePolicy,
+  OverRestPolicy,
+  AdhocFocusSession,
+  WorkTimePolicy,
+  Policy,
+} from '@vibeflow/octopus-protocol';
+
+// Action result types (Vibe Brain -> iOS)
+export type {
+  ActionResultPayload,
+  ActionResultCommand,
+} from '@vibeflow/octopus-protocol';
+
+// Mobile user action types (aliased to match iOS convention)
+export type {
+  MobileUserActionPayload as UserActionPayload,
+  MobileUserActionEvent as UserActionEvent,
+} from '@vibeflow/octopus-protocol';
+
+// Chat protocol types
+export type {
+  ChatAttachment,
+  ChatMessagePayload,
+  ChatActionPayload,
+  ChatResponsePayload,
+  ChatToolCallPayload,
+  ChatToolResultPayload,
+} from '@vibeflow/octopus-protocol';
+
+// Chat event/command types
+export type {
+  ChatMessageEvent,
+  ChatActionEvent,
+  ChatHistoryRequestEvent,
+  ChatResponseCommand,
+  ChatToolCallCommand,
+  ChatToolResultCommand,
+  ChatSyncCommand,
+} from '@vibeflow/octopus-protocol';
+
+// Union types
+export type {
+  OctopusEvent,
+  OctopusCommand,
+} from '@vibeflow/octopus-protocol';
+
+// =============================================================================
+// iOS-SPECIFIC CHAT TYPES (not in shared package)
+// =============================================================================
+
+export type ChatMessageRole = 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'system';
+
+export interface ChatMessage {
+  id: string;
+  role: ChatMessageRole;
+  content: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface PendingToolCall {
+  toolCallId: string;
+  toolName: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  requiresConfirmation: boolean;
+  messageId: string;
+  conversationId: string;
+}
+
+/**
+ * ChatSyncPayload - iOS-specific override with typed ChatMessage[]
+ * (shared package uses inline type with role: string, iOS needs ChatMessageRole)
+ */
+export interface ChatSyncPayload {
+  conversationId: string;
+  messages: ChatMessage[];
+}
+
+export type PanelHeight = 'half' | 'full';
 
 // =============================================================================
 // APP STATE TYPES

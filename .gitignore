@@ -8,6 +8,7 @@ node_modules/
 out/
 build/
 dist/
+!packages/octopus-protocol/dist/
 
 # Testing
 coverage/

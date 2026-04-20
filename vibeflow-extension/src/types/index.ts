@@ -1,3 +1,64 @@
+// =============================================================================
+// SHARED PROTOCOL TYPES (from @vibeflow/octopus-protocol)
+// =============================================================================
+// CRITICAL: All imports from the shared package MUST be `export type`.
+// Extension compiles with plain `tsc` to JS files loaded directly by Chrome.
+// Runtime imports to @vibeflow/octopus-protocol would fail in the browser.
+// Type-only exports are erased during compilation.
+
+// --- Enums / string unions ---
+export type { EventType } from '@vibeflow/octopus-protocol';
+export type { ClientType } from '@vibeflow/octopus-protocol';
+export type { CommandType } from '@vibeflow/octopus-protocol';
+export type { ActivityCategory } from '@vibeflow/octopus-protocol';
+export type { NavigationType } from '@vibeflow/octopus-protocol';
+export type { SearchEngine } from '@vibeflow/octopus-protocol';
+export type { BrowserFocusState } from '@vibeflow/octopus-protocol';
+export type { InteractionType } from '@vibeflow/octopus-protocol';
+export type { ConnectionQuality } from '@vibeflow/octopus-protocol';
+export type { CommandPriority } from '@vibeflow/octopus-protocol';
+export type { EnforcementMode } from '@vibeflow/octopus-protocol';
+export type { EntertainmentStopReason } from '@vibeflow/octopus-protocol';
+export type { UIType } from '@vibeflow/octopus-protocol';
+
+// --- Event stream types ---
+export type { BaseEvent } from '@vibeflow/octopus-protocol';
+export type { HeartbeatPayload, HeartbeatEvent } from '@vibeflow/octopus-protocol';
+export type { BrowserActivityPayload, BrowserActivityEvent } from '@vibeflow/octopus-protocol';
+export type { DomainBreakdownEntry } from '@vibeflow/octopus-protocol';
+export type { BrowserSessionPayload, BrowserSessionEvent } from '@vibeflow/octopus-protocol';
+export type { TabSwitchPayload, TabSwitchEvent } from '@vibeflow/octopus-protocol';
+export type { BrowserFocusPayload, BrowserFocusEvent } from '@vibeflow/octopus-protocol';
+export type { EntertainmentModePayload, EntertainmentModeEvent } from '@vibeflow/octopus-protocol';
+export type { WorkStartPayload, WorkStartEvent } from '@vibeflow/octopus-protocol';
+export type { OctopusEvent } from '@vibeflow/octopus-protocol';
+
+// --- Command stream types ---
+export type { BaseCommand } from '@vibeflow/octopus-protocol';
+export type { SyncStatePayload, SyncStateCommand } from '@vibeflow/octopus-protocol';
+export type { ExecuteActionPayload, ExecuteActionCommand } from '@vibeflow/octopus-protocol';
+export type { UpdatePolicyPayload, UpdatePolicyCommand } from '@vibeflow/octopus-protocol';
+export type { ShowUIPayload, ShowUICommand } from '@vibeflow/octopus-protocol';
+export type { OctopusCommand } from '@vibeflow/octopus-protocol';
+
+// --- Policy types ---
+export type { DistractionApp } from '@vibeflow/octopus-protocol';
+export type { TimeSlot } from '@vibeflow/octopus-protocol';
+export type { SkipTokenConfig } from '@vibeflow/octopus-protocol';
+export type { Policy } from '@vibeflow/octopus-protocol';
+
+// --- Backward-compatible aliases for renamed types ---
+export type { EventType as OctopusEventType } from '@vibeflow/octopus-protocol';
+export type { CommandType as OctopusCommandType } from '@vibeflow/octopus-protocol';
+export type { BaseEvent as OctopusBaseEvent } from '@vibeflow/octopus-protocol';
+export type { BaseCommand as OctopusBaseCommand } from '@vibeflow/octopus-protocol';
+export type { TimeSlot as OctopusTimeSlot } from '@vibeflow/octopus-protocol';
+export type { Policy as OctopusPolicy } from '@vibeflow/octopus-protocol';
+
+// =============================================================================
+// EXTENSION-LOCAL TYPES (not shared)
+// =============================================================================
+
 // System state types matching the main VibeFlow application (3-state model)
 // Legacy values (LOCKED, PLANNING, REST) may still arrive during transition — normalize to IDLE.
 export type SystemState = 'IDLE' | 'FOCUS' | 'OVER_REST';
@@ -17,532 +78,17 @@ export function normalizeSystemState(raw: string): SystemState {
   }
 }
 
-// Enforcement mode types (Requirements 4.1)
-export type EnforcementMode = 'strict' | 'gentle';
+// Time context from server (mirrors progress-calculation.service TimeContext)
+export type TimeContext = 'work_time' | 'sleep_time' | 'free_time' | 'adhoc_focus';
 
-// =============================================================================
-// OCTOPUS PROTOCOL TYPES (Requirements 2.3, 2.4, 5.18, 5.19)
-// =============================================================================
-
-/**
- * Event types for Event Stream (Browser Sentinel → Vibe Brain)
- */
-export type OctopusEventType =
-  | 'ACTIVITY_LOG'
-  | 'STATE_CHANGE'
-  | 'USER_ACTION'
-  | 'HEARTBEAT'
-  | 'TIMELINE_EVENT'
-  | 'BLOCK_EVENT'
-  | 'INTERRUPTION_EVENT'
-  | 'BROWSER_ACTIVITY'
-  | 'BROWSER_SESSION'
-  | 'TAB_SWITCH'
-  | 'BROWSER_FOCUS'
-  | 'ENTERTAINMENT_MODE'
-  | 'WORK_START';
-
-/**
- * Client types for identifying the source/target
- */
-export type ClientType = 'web' | 'desktop' | 'browser_ext' | 'mobile';
-
-/**
- * Command types for Command Stream (Vibe Brain → Browser Sentinel)
- */
-export type OctopusCommandType =
-  | 'SYNC_STATE'
-  | 'EXECUTE_ACTION'
-  | 'UPDATE_POLICY'
-  | 'SHOW_UI';
-
-/**
- * Action types that can be executed by browser extension
- */
+// Action types that can be executed by browser extension
 export type BrowserActionType =
   | 'CLOSE_TAB'
   | 'REDIRECT_TAB'
   | 'INJECT_OVERLAY'
   | 'ADD_SESSION_WHITELIST';
 
-/**
- * Activity categories for productivity tracking
- */
-export type ActivityCategory = 'productive' | 'neutral' | 'distracting';
-
-/**
- * Navigation types for browser activity
- */
-export type NavigationType = 'link' | 'typed' | 'reload' | 'back_forward' | 'other';
-
-/**
- * Search engine types
- */
-export type SearchEngine = 'google' | 'bing' | 'duckduckgo' | 'other';
-
-/**
- * Browser focus states
- */
-export type BrowserFocusState = 'focused' | 'blurred' | 'unknown';
-
-/**
- * Interaction types for user engagement tracking
- */
-export type InteractionType = 'click' | 'input' | 'scroll' | 'keypress' | 'video_play' | 'video_pause';
-
-/**
- * Connection quality levels
- */
-export type ConnectionQuality = 'good' | 'degraded' | 'poor';
-
-/**
- * Command priority levels
- */
-export type CommandPriority = 'low' | 'normal' | 'high' | 'critical';
-
-// =============================================================================
-// BASE EVENT INTERFACE (Requirements 2.3, 7.6)
-// =============================================================================
-
-/**
- * Base interface for all events from Browser Sentinel to Vibe Brain
- */
-export interface OctopusBaseEvent {
-  /** UUID, generated by client */
-  eventId: string;
-  /** Event type discriminator */
-  eventType: OctopusEventType;
-  /** User identifier */
-  userId: string;
-  /** Unique client instance ID */
-  clientId: string;
-  /** Client type identifier */
-  clientType: ClientType;
-  /** Unix timestamp (ms) */
-  timestamp: number;
-  /** Monotonic counter per client */
-  sequenceNumber: number;
-}
-
-// =============================================================================
-// BROWSER ACTIVITY EVENT (Requirements 5.18)
-// =============================================================================
-
-/**
- * Enhanced browser activity payload
- * Requirements: 5.6-5.20
- */
-export interface BrowserActivityPayload {
-  // Basic info
-  url: string;
-  title: string;
-  domain: string;
-
-  // Time tracking
-  /** Unix timestamp (ms) */
-  startTime: number;
-  /** Unix timestamp (ms) */
-  endTime: number;
-  /** Total time on page (seconds) */
-  duration: number;
-  /** Time with user interaction (seconds) */
-  activeDuration: number;
-  /** Time without interaction (seconds) */
-  idleTime: number;
-
-  // Categorization
-  category: ActivityCategory;
-  /** 0-100 */
-  productivityScore: number;
-
-  // User engagement metrics
-  /** 0-100 percentage */
-  scrollDepth: number;
-  /** clicks, inputs, etc. */
-  interactionCount: number;
-
-  // Media tracking
-  isMediaPlaying: boolean;
-  /** seconds */
-  mediaPlayDuration: number;
-
-  // Navigation context
-  referrer?: string;
-  navigationType: NavigationType;
-
-  // Search tracking (for search engines)
-  searchQuery?: string;
-  searchEngine?: SearchEngine;
-}
-
-/**
- * Enhanced browser activity log with detailed tracking
- * Requirements: 5.6-5.20
- */
-export interface BrowserActivityEvent extends OctopusBaseEvent {
-  eventType: 'BROWSER_ACTIVITY';
-  payload: BrowserActivityPayload;
-}
-
-// =============================================================================
-// BROWSER SESSION EVENT (Requirements 5.19)
-// =============================================================================
-
-/**
- * Domain breakdown entry for browser sessions
- */
-export interface DomainBreakdownEntry {
-  domain: string;
-  /** Duration in seconds */
-  duration: number;
-  /** Active duration in seconds */
-  activeDuration: number;
-  category: ActivityCategory;
-  visitCount: number;
-}
-
-/**
- * Browser session payload
- * Requirements: 5.13-5.17
- */
-export interface BrowserSessionPayload {
-  sessionId: string;
-  startTime: number;
-  endTime: number;
-  /** seconds */
-  totalDuration: number;
-  /** seconds with browser focused */
-  activeDuration: number;
-
-  // Domain breakdown
-  domainBreakdown: DomainBreakdownEntry[];
-
-  // Behavior patterns
-  tabSwitchCount: number;
-  /** switches within 3 seconds */
-  rapidTabSwitches: number;
-  uniqueDomainsVisited: number;
-
-  // Productivity summary
-  productiveTime: number;
-  distractingTime: number;
-  neutralTime: number;
-  /** 0-100 */
-  productivityScore: number;
-}
-
-/**
- * Browser session summary event
- * Requirements: 5.13-5.17
- */
-export interface BrowserSessionEvent extends OctopusBaseEvent {
-  eventType: 'BROWSER_SESSION';
-  payload: BrowserSessionPayload;
-}
-
-// =============================================================================
-// TAB SWITCH EVENT (Requirements 5.3, 5.17)
-// =============================================================================
-
-/**
- * Tab switch payload
- */
-export interface TabSwitchPayload {
-  fromTabId: number;
-  toTabId: number;
-  fromUrl: string;
-  toUrl: string;
-  fromDomain: string;
-  toDomain: string;
-  /** milliseconds */
-  timeSinceLastSwitch: number;
-  /** < 3 seconds since last switch */
-  isRapidSwitch: boolean;
-}
-
-/**
- * Tab switch event for distraction detection
- * Requirements: 5.3, 5.17
- */
-export interface TabSwitchEvent extends OctopusBaseEvent {
-  eventType: 'TAB_SWITCH';
-  payload: TabSwitchPayload;
-}
-
-// =============================================================================
-// BROWSER FOCUS EVENT (Requirements 5.9, 5.16)
-// =============================================================================
-
-/**
- * Browser focus payload
- */
-export interface BrowserFocusPayload {
-  /** true = browser gained focus, false = lost focus */
-  isFocused: boolean;
-  previousState: BrowserFocusState;
-  /** seconds (only when losing focus) */
-  focusDuration?: number;
-}
-
-/**
- * Browser focus event
- * Requirements: 5.9, 5.16
- */
-export interface BrowserFocusEvent extends OctopusBaseEvent {
-  eventType: 'BROWSER_FOCUS';
-  payload: BrowserFocusPayload;
-}
-
-// =============================================================================
-// HEARTBEAT EVENT
-// =============================================================================
-
-/**
- * Heartbeat payload
- */
-export interface HeartbeatPayload {
-  clientVersion: string;
-  platform: string;
-  connectionQuality: ConnectionQuality;
-  localStateHash: string;
-  capabilities: string[];
-  uptime: number;
-}
-
-/**
- * Periodic heartbeat from browser extension
- */
-export interface HeartbeatEvent extends OctopusBaseEvent {
-  eventType: 'HEARTBEAT';
-  payload: HeartbeatPayload;
-}
-
-// =============================================================================
-// ENTERTAINMENT MODE EVENT (Requirements 8.6, 10.3)
-// =============================================================================
-
-/**
- * Entertainment mode stop reason
- */
-export type EntertainmentStopReason = 'manual' | 'quota_exhausted' | 'work_time_start';
-
-/**
- * Entertainment mode event payload
- */
-export interface EntertainmentModePayload {
-  action: 'start' | 'stop';
-  sessionId: string;
-  timestamp: number;
-  quotaUsedBefore: number;   // minutes
-  quotaUsedAfter?: number;   // minutes (only for stop)
-  duration?: number;         // seconds (only for stop)
-  sitesVisited?: string[];   // domains visited during session
-  reason?: EntertainmentStopReason;
-}
-
-/**
- * Entertainment mode event
- * Requirements: 8.6, 10.3
- */
-export interface EntertainmentModeEvent extends OctopusBaseEvent {
-  eventType: 'ENTERTAINMENT_MODE';
-  payload: EntertainmentModePayload;
-}
-
-// =============================================================================
-// WORK START EVENT (Requirements 14.1, 14.2, 14.9, 14.10)
-// =============================================================================
-
-/**
- * Work start event payload
- * Requirements: 14.1, 14.2, 14.9, 14.10
- */
-export interface WorkStartPayload {
-  date: string;                  // YYYY-MM-DD
-  configuredStartTime: string;   // HH:mm
-  actualStartTime: number;       // Unix timestamp
-  delayMinutes: number;          // 0 if on-time or early, positive if late
-  trigger: 'first_pomodoro';     // What triggered the work start
-}
-
-/**
- * Work start event
- * Requirements: 14.1, 14.2, 14.9, 14.10
- */
-export interface WorkStartEvent extends OctopusBaseEvent {
-  eventType: 'WORK_START';
-  payload: WorkStartPayload;
-}
-
-// =============================================================================
-// UNION TYPE FOR ALL OCTOPUS EVENTS
-// =============================================================================
-
-/**
- * Union type for all browser sentinel events
- */
-export type OctopusEvent =
-  | BrowserActivityEvent
-  | BrowserSessionEvent
-  | TabSwitchEvent
-  | BrowserFocusEvent
-  | HeartbeatEvent
-  | EntertainmentModeEvent
-  | WorkStartEvent;
-
-// =============================================================================
-// COMMAND STREAM TYPES (Vibe Brain → Browser Sentinel)
-// =============================================================================
-
-/**
- * Base interface for all commands from Vibe Brain to Browser Sentinel
- * Requirements: 2.4, 8.6
- */
-export interface OctopusBaseCommand {
-  /** UUID */
-  commandId: string;
-  /** Command type discriminator */
-  commandType: OctopusCommandType;
-  /** Target client type or 'all' for broadcast */
-  targetClient: ClientType | 'all';
-  priority: CommandPriority;
-  /** Whether client must acknowledge */
-  requiresAck: boolean;
-  /** Unix timestamp, command expires after this */
-  expiryTime?: number;
-  /** Unix timestamp */
-  createdAt: number;
-}
-
-/**
- * Sync state command payload
- */
-export interface SyncStatePayload {
-  syncType: 'full';
-  version: number;
-  state?: unknown;
-}
-
-/**
- * Sync state command
- */
-export interface SyncStateCommand extends OctopusBaseCommand {
-  commandType: 'SYNC_STATE';
-  payload: SyncStatePayload;
-}
-
-/**
- * Execute action command payload
- */
-export interface ExecuteActionPayload {
-  action: BrowserActionType;
-  parameters: Record<string, unknown>;
-  timeout?: number;
-  fallbackAction?: BrowserActionType;
-}
-
-/**
- * Execute action command
- */
-export interface ExecuteActionCommand extends OctopusBaseCommand {
-  commandType: 'EXECUTE_ACTION';
-  payload: ExecuteActionPayload;
-}
-
-/**
- * Time slot for work time configuration
- */
-export interface OctopusTimeSlot {
-  dayOfWeek: number;
-  startHour: number;
-  startMinute: number;
-  endHour: number;
-  endMinute: number;
-}
-
-/**
- * Skip token configuration
- */
-export interface SkipTokenConfig {
-  remaining: number;
-  maxPerDay: number;
-  delayMinutes: number;
-}
-
-/**
- * Distraction app configuration
- */
-export interface DistractionApp {
-  bundleId: string;
-  name: string;
-  action: 'force_quit' | 'hide_window';
-}
-
-/**
- * Policy object distributed to clients
- * Requirements: 10.5, 10.6
- */
-export interface OctopusPolicy {
-  version: number;
-  blacklist: string[];
-  whitelist: string[];
-  enforcementMode: EnforcementMode;
-  workTimeSlots: OctopusTimeSlot[];
-  skipTokens: SkipTokenConfig;
-  distractionApps: DistractionApp[];
-  updatedAt: number;
-}
-
-/**
- * Update policy command payload
- */
-export interface UpdatePolicyPayload {
-  policyType: 'full' | 'partial';
-  policy: OctopusPolicy;
-  effectiveTime: number;
-}
-
-/**
- * Update policy command
- */
-export interface UpdatePolicyCommand extends OctopusBaseCommand {
-  commandType: 'UPDATE_POLICY';
-  payload: UpdatePolicyPayload;
-}
-
-/**
- * UI types for show UI command
- */
-export type UIType = 'notification' | 'modal' | 'overlay' | 'toast';
-
-/**
- * Show UI command payload
- */
-export interface ShowUIPayload {
-  uiType: UIType;
-  content: Record<string, unknown>;
-  duration?: number;
-  dismissible: boolean;
-}
-
-/**
- * Show UI command
- */
-export interface ShowUICommand extends OctopusBaseCommand {
-  commandType: 'SHOW_UI';
-  payload: ShowUIPayload;
-}
-
-/**
- * Union type for all commands
- */
-export type OctopusCommand =
-  | SyncStateCommand
-  | ExecuteActionCommand
-  | UpdatePolicyCommand
-  | ShowUICommand;
-
-// Work time slot for checking work hours
+// Work time slot for checking work hours (Extension-local version with string times)
 export interface WorkTimeSlot {
   id: string;
   startTime: string; // HH:mm format
@@ -576,7 +122,7 @@ export interface PolicyCache {
   sessionWhitelist: string[];
   lastSync: number;
   // Enhanced fields for focus enforcement (Requirements 4.1, 6.1)
-  enforcementMode: EnforcementMode;
+  enforcementMode: 'strict' | 'gentle';
   workTimeSlots: WorkTimeSlot[];
   skipTokensRemaining: number;
   skipTokenDailyLimit: number;
@@ -602,7 +148,7 @@ export interface ActivityLog {
 }
 
 // Timeline event types (Requirements: 7.1, 7.2)
-export type TimelineEventType = 
+export type TimelineEventType =
   | 'pomodoro'
   | 'distraction'
   | 'break'
@@ -643,9 +189,6 @@ export interface InterruptionEvent {
     idleSeconds?: number;
   };
 }
-
-// Time context from server (mirrors progress-calculation.service TimeContext)
-export type TimeContext = 'work_time' | 'sleep_time' | 'free_time' | 'adhoc_focus';
 
 // Server messages (Server -> Extension)
 export type ServerMessage =
@@ -697,7 +240,7 @@ export type UrlCheckResult = 'allow' | 'block' | 'soft_block';
 // Enhanced URL check result with mode information (Requirements 4.3, 6.1)
 export interface EnhancedUrlCheckResult {
   action: UrlCheckResult;
-  enforcementMode: EnforcementMode;
+  enforcementMode: 'strict' | 'gentle';
   isWithinWorkHours: boolean;
   isPomodoroActive: boolean;
   skipTokensRemaining: number;

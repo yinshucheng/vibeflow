@@ -1,0 +1,26 @@
+{
+  "name": "@vibeflow/octopus-protocol",
+  "version": "0.1.0",
+  "description": "Shared protocol types for VibeFlow octopus architecture",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./validation": {
+      "types": "./dist/validation.d.ts",
+      "default": "./src/validation.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --build",
+    "test": "echo 'No tests yet (Phase D)'"
+  },
+  "peerDependencies": {
+    "zod": "^3.24.0"
+  }
+}

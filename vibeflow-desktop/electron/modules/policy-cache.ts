@@ -72,6 +72,8 @@ const DEFAULT_MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const DEFAULT_POLICY: DesktopPolicy = {
   version: 0,
   enforcementMode: 'gentle',
+  blacklist: [],
+  whitelist: [],
   workTimeSlots: [],
   skipTokens: {
     remaining: 3,
