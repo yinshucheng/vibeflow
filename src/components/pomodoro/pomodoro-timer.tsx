@@ -88,12 +88,19 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
   // Get current pomodoro if any
   const { data: currentPomodoro, isLoading: pomodoroLoading, refetch: refetchCurrent } = trpc.pomodoro.getCurrent.useQuery();
 
-  // Log WebSocket state changes for debugging (no refetch needed — realtime store has latest data)
+  // Invalidate React Query cache only when systemState VALUE changes (not on every WS push).
+  // This bridges the gap: realtime store has latest state, but components still reading
+  // from React Query (currentPomodoro, dailyState) need to refetch on actual transitions.
+  const prevStateRef = useRef<string | null>(null);
   useEffect(() => {
-    if (socketState) {
-      console.log('[PomodoroTimer] State change detected via WebSocket:', socketState);
+    if (socketState && socketState !== prevStateRef.current) {
+      console.log('[PomodoroTimer] State transition:', prevStateRef.current, '→', socketState);
+      prevStateRef.current = socketState;
+      refetchCurrent();
+      utils.dailyState.canStartPomodoro.invalidate();
+      utils.dailyState.getToday.invalidate();
     }
-  }, [socketState]);
+  }, [socketState, refetchCurrent, utils]);
 
   // Get time slices for current pomodoro (Multi-task Req 4)
   const { data: timeSlices } = trpc.timeSlice.getByPomodoro.useQuery(

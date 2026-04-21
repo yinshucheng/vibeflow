@@ -242,9 +242,16 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
     }
   }, [isLoading, currentPomodoro, systemState, phase, userIntentPhase, dailyState?.lastPomodoroEndTime]);
 
-  // Note: Previously invalidated React Query cache on every WS state change,
-  // causing ~50 HTTP req/min polling. Removed — realtime store now has latest data.
-  // Mutation onSuccess callbacks still invalidate relevant queries as needed.
+  // Invalidate React Query cache only on actual state VALUE transitions (not every WS push).
+  // Prevents the ~50 req/min loop while keeping data fresh on real transitions (idle→focus etc).
+  const prevMachineStateRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (socketState && socketState !== prevMachineStateRef.current) {
+      prevMachineStateRef.current = socketState;
+      utils.dailyState.getToday.invalidate();
+      utils.pomodoro.getCurrent.invalidate();
+    }
+  }, [socketState, utils]);
 
   /**
    * Start a new pomodoro
