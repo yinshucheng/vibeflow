@@ -11,6 +11,7 @@ RUN apk add --no-cache openssl
 
 COPY package.json package-lock.json .npmrc ./
 COPY prisma ./prisma/
+COPY packages/ ./packages/
 
 RUN npm config set registry https://registry.npmmirror.com \
     && npm ci --omit=dev
@@ -26,6 +27,7 @@ RUN apk add --no-cache openssl
 
 COPY package.json package-lock.json .npmrc ./
 COPY prisma ./prisma/
+COPY packages/ ./packages/
 RUN npm config set registry https://registry.npmmirror.com \
     && npm ci
 RUN npx prisma generate
@@ -71,6 +73,9 @@ COPY --from=builder /app/prisma ./prisma
 
 # Package.json (needed for node resolution)
 COPY --from=builder /app/package.json ./
+
+# Workspace packages (needed for @vibeflow/octopus-protocol resolution)
+COPY --from=builder /app/packages ./packages
 
 # Next.js config
 COPY --from=builder /app/next.config.js ./

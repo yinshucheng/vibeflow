@@ -8,10 +8,12 @@
     "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@vibeflow/octopus-protocol": ["./packages/octopus-protocol/src/index.ts"],
+      "@vibeflow/octopus-protocol/validation": ["./packages/octopus-protocol/src/validation.ts"]
     }
   },
-  "include": ["server.ts", "src/server/**/*.ts", "src/lib/**/*.ts", "src/services/**/*.ts", "src/mcp/**/*.ts", "src/types/**/*.ts", "src/machines/**/*.ts", "src/middleware/**/*.ts"],
+  "include": ["server.ts", "src/server/**/*.ts", "src/lib/**/*.ts", "src/services/**/*.ts", "src/mcp/**/*.ts", "src/types/**/*.ts", "src/machines/**/*.ts", "src/middleware/**/*.ts", "src/stores/**/*.ts", "packages/octopus-protocol/src/**/*.ts"],
   "exclude": [
     "node_modules",
     "**/*.test.ts",

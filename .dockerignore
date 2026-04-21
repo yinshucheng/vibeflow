@@ -1,6 +1,7 @@
 node_modules
 .next
-dist
+# Exclude root dist/ but keep packages/*/dist/ (needed for workspace resolution)
+/dist
 .git
 .gitignore
 

@@ -23,7 +23,7 @@ TMPFILE=$(mktemp /tmp/vibeflow-deploy-XXXXXX.tar.gz)
 tar czf "$TMPFILE" -C "$LOCAL_DIR" \
     --exclude='node_modules' \
     --exclude='.next' \
-    --exclude='dist' \
+    --exclude='./dist' \
     --exclude='.env' \
     --exclude='.env.local' \
     --exclude='.env.dev' \
