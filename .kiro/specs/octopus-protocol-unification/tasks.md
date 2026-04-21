@@ -259,16 +259,16 @@ it('policy update uses Config/State split', async () => {
 
 ## Phase D: Conformance 测试 + 性能验证
 
-- [ ] 74. 创建 `packages/octopus-protocol/tests/conformance.test.ts`
-- [ ] 75. 测试所有 EventType ↔ interface ↔ Zod schema 映射完整
-- [ ] 76. 测试所有 CommandType ↔ interface ↔ Zod schema 映射完整
-- [ ] 77. 测试 Policy (Config + State) JSON roundtrip
-- [ ] 78. 测试未知 commandType 优雅忽略
-- [ ] 79. 测试 State Manager: full sync 覆盖 + initialize 恢复 + getState 快照正确
-- [ ] 80. 测试 ActionRPC 超时 + clearAll
-- [ ] 81. 测试 EventBuilder 无 getUptime 时不 crash
-- [ ] 82. 性能基准：每秒 10 次 full sync 的对象创建开销 < 1ms/次
-- [ ] 83. 各端编译通过: `tsc --noEmit` for all projects
+- [x] 74. 创建 `packages/octopus-protocol/tests/conformance.test.ts`
+- [x] 75. 测试所有 EventType ↔ interface ↔ Zod schema 映射完整
+- [x] 76. 测试所有 CommandType ↔ interface ↔ Zod schema 映射完整
+- [x] 77. 测试 Policy (Config + State) JSON roundtrip
+- [x] 78. 测试未知 commandType 优雅忽略
+- [x] 79. 测试 State Manager: full sync 覆盖 + initialize 恢复 + getState 快照正确
+- [x] 80. 测试 ActionRPC 超时 + clearAll
+- [x] 81. 测试 EventBuilder 无 getUptime 时不 crash
+- [x] 82. 性能基准：每秒 10 次 full sync 的对象创建开销 < 1ms/次
+- [x] 83. 各端编译通过: `tsc --noEmit` for all projects <!-- D done -->
 
 ---
 

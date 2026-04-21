@@ -27,10 +27,14 @@ export const EventTypeSchema = z.enum([
   'WORK_START',
   'CHAT_MESSAGE',
   'CHAT_ACTION',
+  'CHAT_HISTORY_REQUEST',
+  'DESKTOP_APP_USAGE',
+  'DESKTOP_IDLE',
+  'DESKTOP_WINDOW_CHANGE',
 ]);
 
 // Client type enum schema
-export const ClientTypeSchema = z.enum(['web', 'desktop', 'browser_ext', 'mobile']);
+export const ClientTypeSchema = z.enum(['web', 'desktop', 'browser_ext', 'mobile', 'api']);
 
 // Command type enum schema
 export const CommandTypeSchema = z.enum([
@@ -38,6 +42,7 @@ export const CommandTypeSchema = z.enum([
   'EXECUTE_ACTION',
   'UPDATE_POLICY',
   'SHOW_UI',
+  'ACTION_RESULT',
   'CHAT_RESPONSE',
   'CHAT_TOOL_CALL',
   'CHAT_TOOL_RESULT',
@@ -283,7 +288,7 @@ export const WorkStartPayloadSchema = z.object({
   configuredStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format. Use HH:mm'),
   actualStartTime: z.number().int().positive(),
   delayMinutes: z.number().int().nonnegative(),
-  trigger: z.literal('first_pomodoro'),
+  trigger: z.enum(['first_pomodoro', 'airlock_complete']),
 });
 
 // Work start event schema
@@ -364,6 +369,7 @@ export const BaseCommandSchema = z.object({
 // System state schema
 export const SystemStateSchema = z.object({
   state: z.string(),
+  timeContext: z.string().optional(),
   dailyCapReached: z.boolean(),
   skipTokensRemaining: z.number().int().nonnegative(),
 });
@@ -379,7 +385,8 @@ export const DailyStateSchema = z.object({
 // Pomodoro state schema
 export const PomodoroStateSchema = z.object({
   id: z.string(),
-  taskId: z.string(),
+  taskId: z.string().nullable(),
+  taskTitle: z.string().nullable().optional(),
   startTime: z.number().int().positive(),
   duration: z.number().positive(),
   status: z.enum(['active', 'paused', 'completed', 'aborted']),
@@ -629,6 +636,20 @@ export const ShowUICommandSchema = BaseCommandSchema.extend({
   payload: ShowUIPayloadSchema,
 });
 
+// Action result payload schema
+export const ActionResultPayloadSchema = z.object({
+  optimisticId: z.string(),
+  success: z.boolean(),
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+  data: z.record(z.unknown()).optional(),
+});
+
+// Action result command schema
+export const ActionResultCommandSchema = BaseCommandSchema.extend({
+  commandType: z.literal('ACTION_RESULT'),
+  payload: ActionResultPayloadSchema,
+});
+
 // ---- AI Chat Command Schemas ----
 
 export const ChatResponsePayloadSchema = z.object({
@@ -699,6 +720,7 @@ export const OctopusCommandSchema = z.discriminatedUnion('commandType', [
   ExecuteActionCommandSchema,
   UpdatePolicyCommandSchema,
   ShowUICommandSchema,
+  ActionResultCommandSchema,
   ChatResponseCommandSchema,
   ChatToolCallCommandSchema,
   ChatToolResultCommandSchema,
