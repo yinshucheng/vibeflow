@@ -75,9 +75,7 @@ export function DashboardStatus({ compact = false }: DashboardStatusProps) {
     data: status,
     isLoading,
     error,
-  } = trpc.dailyState.getCurrentStatus.useQuery(undefined, {
-    refetchInterval: 30000, // Refetch every 30 seconds
-  });
+  } = trpc.dailyState.getCurrentStatus.useQuery();
 
   // Update current time every second
   useEffect(() => {

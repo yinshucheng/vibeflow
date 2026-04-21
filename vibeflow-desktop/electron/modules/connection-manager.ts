@@ -14,6 +14,7 @@ import * as https from 'https';
 import * as tls from 'tls';
 import { io, Socket } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
+import { createCommandHandler, createStateManager, type StateSnapshot } from '@vibeflow/octopus-protocol';
 import type {
   DesktopEvent,
   DesktopCommand,
@@ -207,6 +208,51 @@ class ConnectionManager {
   private socket: Socket | null = null;
   private startTime: number = Date.now();
 
+  // SDK state manager — tracks local state snapshot for main process consumers
+  private stateManager = createStateManager({
+    onStateChange: (snapshot: StateSnapshot, changedKeys: (keyof StateSnapshot)[]) => {
+      // Forward full snapshot to renderer
+      this.sendToRenderer('octopus:stateSync', {
+        commandType: 'SYNC_STATE',
+        payload: { syncType: 'full' as const, version: 0, state: snapshot },
+      });
+      // Notify state change handlers if systemState changed
+      if (changedKeys.includes('systemState') && snapshot.systemState?.state) {
+        this.notifyStateChange(snapshot.systemState.state);
+        this.sendToRenderer('system:stateChange', { state: snapshot.systemState.state });
+      }
+      // Notify policy update handlers if policy changed
+      if (changedKeys.includes('policy') && snapshot.policy) {
+        this.state.policyVersion = snapshot.policy.config.version;
+        this.notifyPolicyUpdate(snapshot.policy as DesktopPolicy);
+      }
+    },
+  });
+
+  // SDK command handler — shared switch/case for OCTOPUS_COMMAND routing
+  private handleOctopusCommand = createCommandHandler({
+    onStateSync: (payload) => {
+      this.stateManager.handleSync(payload);
+    },
+    onPolicyUpdate: (payload) => {
+      this.stateManager.handlePolicyUpdate(payload);
+    },
+    onExecuteAction: (payload) => {
+      const legacyCommand: ExecuteCommand = {
+        action: payload.action as string,
+        params: payload.parameters ?? {},
+      };
+      this.notifyExecuteCommand(legacyCommand);
+      this.sendToRenderer('execute:command', legacyCommand);
+    },
+    onShowUI: (payload) => {
+      this.sendToRenderer('octopus:showUI', payload);
+    },
+    onActionResult: (payload) => {
+      this.sendToRenderer('octopus:actionResult', payload);
+    },
+  });
+
   constructor(config: Partial<ConnectionManagerConfig> = {}) {
     this.config = { 
       ...DEFAULT_CONFIG, 
@@ -263,6 +309,20 @@ class ConnectionManager {
    */
   getState(): ConnectionState {
     return { ...this.state };
+  }
+
+  /**
+   * Get protocol state snapshot (from SDK state manager)
+   */
+  getStateSnapshot(): StateSnapshot {
+    return this.stateManager.getState();
+  }
+
+  /**
+   * Check if full sync has been received since last reconnect
+   */
+  isFullSyncReceived(): boolean {
+    return this.stateManager.isFullSyncReceived();
   }
 
   /**
@@ -618,7 +678,8 @@ class ConnectionManager {
       console.log('[ConnectionManager] Socket disconnected:', reason);
       this.state.lastDisconnectedAt = Date.now();
       this.stopHeartbeat();
-      
+      this.stateManager.onReconnecting();
+
       if (!this.state.isManualDisconnect) {
         this.handleConnectionError(`Disconnected: ${reason}`);
       } else {
@@ -645,49 +706,10 @@ class ConnectionManager {
       this.handleCommand(command);
     });
 
-    // Octopus protocol commands from server (all server→client commands)
+    // Octopus protocol commands from server — routed via SDK createCommandHandler
     this.socket.on('OCTOPUS_COMMAND', (command: { commandType: string; payload: unknown }) => {
       console.log('[ConnectionManager] OCTOPUS_COMMAND received:', command.commandType);
-      switch (command.commandType) {
-        case 'SYNC_STATE': {
-          this.sendToRenderer('octopus:stateSync', command);
-          // Extract systemState for state change handlers
-          const payload = command.payload as { systemState?: { state?: string } };
-          if (payload?.systemState?.state) {
-            this.notifyStateChange(payload.systemState.state);
-            this.sendToRenderer('system:stateChange', { state: payload.systemState.state });
-          }
-          break;
-        }
-        case 'UPDATE_POLICY': {
-          const policyPayload = command.payload as { policy?: DesktopPolicy };
-          if (policyPayload?.policy) {
-            console.log('[ConnectionManager] Policy update received via OCTOPUS_COMMAND, version:', policyPayload.policy.config.version);
-            this.state.policyVersion = policyPayload.policy.config.version;
-            this.notifyPolicyUpdate(policyPayload.policy);
-          }
-          break;
-        }
-        case 'EXECUTE_ACTION': {
-          const execPayload = command.payload as { action?: string; parameters?: Record<string, unknown> };
-          if (execPayload) {
-            const legacyCommand: ExecuteCommand = {
-              action: execPayload.action as ExecuteCommand['action'],
-              params: execPayload.parameters ?? {},
-            };
-            this.notifyExecuteCommand(legacyCommand);
-            this.sendToRenderer('execute:command', legacyCommand);
-          }
-          break;
-        }
-        case 'SHOW_UI': {
-          this.sendToRenderer('octopus:showUI', command.payload);
-          break;
-        }
-        default:
-          console.warn(`[ConnectionManager] Unknown OCTOPUS_COMMAND type: ${command.commandType}, ignoring`);
-          break;
-      }
+      this.handleOctopusCommand(command as import('@vibeflow/octopus-protocol').OctopusCommand);
     });
 
     // Error from server

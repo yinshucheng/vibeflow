@@ -9,6 +9,7 @@
 
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
+import type { StateSnapshot } from '@vibeflow/octopus-protocol';
 import type {
   ConnectionStatus,
   DailyStateData,
@@ -83,7 +84,10 @@ export interface AppActions {
   // Connection actions
   setConnectionStatus: (status: ConnectionStatus) => void;
 
-  // Sync handlers (read-only updates from server)
+  // SDK state manager callback — maps protocol StateSnapshot to iOS store format
+  handleStateSnapshot: (snapshot: StateSnapshot, changedKeys: (keyof StateSnapshot)[]) => void;
+
+  // Legacy sync handlers (kept for direct invocation compat)
   handleSyncState: (command: SyncStateCommand) => void;
   handlePolicyUpdate: (command: UpdatePolicyCommand) => void;
 
@@ -236,6 +240,42 @@ function mapPriority(priority: string): TaskData['priority'] {
 }
 
 /**
+ * Map protocol Policy to iOS PolicyData format
+ */
+function mapPolicyToAppFormat(policy: import('@vibeflow/octopus-protocol').Policy): PolicyData {
+  return {
+    version: policy.config.version,
+    distractionApps: policy.config.distractionApps.map((app) => ({
+      bundleId: app.bundleId,
+      name: app.name,
+    })),
+    updatedAt: policy.config.updatedAt,
+    sleepTime: policy.config.sleepTime
+      ? {
+          enabled: policy.config.sleepTime.enabled,
+          startTime: policy.config.sleepTime.startTime,
+          endTime: policy.config.sleepTime.endTime,
+          isCurrentlyActive: policy.state.isSleepTimeActive,
+          isSnoozed: policy.state.isSleepSnoozed,
+          snoozeEndTime: policy.state.sleepSnoozeEndTime,
+        }
+      : undefined,
+    overRest: policy.state.isOverRest
+      ? {
+          isOverRest: policy.state.isOverRest,
+          overRestMinutes: policy.state.overRestMinutes,
+        }
+      : undefined,
+    temporaryUnblock: policy.state.temporaryUnblock
+      ? {
+          active: policy.state.temporaryUnblock.active,
+          endTime: policy.state.temporaryUnblock.endTime,
+        }
+      : undefined,
+  };
+}
+
+/**
  * Map server task status to app status
  */
 function mapTaskStatus(status: string): TaskData['status'] {
@@ -267,14 +307,77 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   },
 
   // ===========================================================================
-  // SYNC HANDLERS (READ-ONLY UPDATES FROM SERVER)
+  // SDK STATE MANAGER CALLBACK
+  // ===========================================================================
+
+  handleStateSnapshot: (snapshot: StateSnapshot, changedKeys: (keyof StateSnapshot)[]) => {
+    const updates: Partial<AppState> = {};
+
+    if (changedKeys.includes('systemState') || changedKeys.includes('dailyState') || changedKeys.includes('settings')) {
+      const normalizedState = normalizeState(snapshot.systemState.state);
+      updates.dailyState = {
+        state: normalizedState,
+        completedPomodoros: snapshot.dailyState?.completedPomodoros ?? 0,
+        dailyCap: snapshot.settings?.dailyCap ?? 8,
+        totalFocusMinutes: snapshot.dailyState?.totalFocusMinutes ?? 0,
+      };
+    }
+
+    if (changedKeys.includes('activePomodoro')) {
+      const ap = snapshot.activePomodoro;
+      updates.activePomodoro = ap
+        ? {
+            id: ap.id,
+            taskId: ap.taskId,
+            taskTitle: ap.taskTitle ?? findTaskTitle(snapshot.top3Tasks, ap.taskId),
+            startTime: ap.startTime,
+            duration: ap.duration,
+            status: ap.status === 'active' || ap.status === 'paused' ? ap.status : 'active',
+          }
+        : null;
+    }
+
+    if (changedKeys.includes('top3Tasks')) {
+      const mappedTasks: TaskData[] = snapshot.top3Tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        priority: mapPriority(task.priority),
+        status: mapTaskStatus(task.status),
+        isTop3: true,
+        isCurrentTask: snapshot.activePomodoro?.taskId === task.id,
+        planDate: snapshot.dailyState?.date,
+      }));
+      updates.top3Tasks = mappedTasks;
+      updates.todayTasks = mappedTasks; // MVP: today = top3
+    }
+
+    if (changedKeys.includes('policy') && snapshot.policy) {
+      updates.policy = mapPolicyToAppFormat(snapshot.policy);
+    }
+
+    set({
+      ...updates,
+      lastSyncTime: Date.now(),
+      isAuthenticated: true,
+    });
+
+    // After state sync, fetch full today/overdue task lists (top3 is just a subset)
+    if (changedKeys.includes('top3Tasks') || changedKeys.includes('systemState')) {
+      setTimeout(() => {
+        get().fetchTodayTasks();
+        get().fetchOverdueTasks();
+      }, 0);
+    }
+  },
+
+  // ===========================================================================
+  // LEGACY SYNC HANDLERS (kept for direct invocation)
   // ===========================================================================
 
   handleSyncState: (command: SyncStateCommand) => {
     const { payload } = command;
 
     if (payload.state) {
-      // Full state sync — server always sends complete ground truth
       const mappedState = mapFullStateToAppState(payload.state);
       set({
         ...mappedState,
@@ -282,8 +385,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         stateVersion: payload.version,
         isAuthenticated: true,
       });
-      // After full sync, fetch complete today tasks and overdue tasks
-      // (FullState only has top3, not full today list or overdue)
       setTimeout(() => {
         get().fetchTodayTasks();
         get().fetchOverdueTasks();

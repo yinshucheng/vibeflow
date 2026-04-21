@@ -60,9 +60,7 @@ export function DailyProgressCard({ compact = false, showPace = true }: DailyPro
     data: progress,
     isLoading,
     error,
-  } = trpc.dailyState.getDailyProgress.useQuery(undefined, {
-    refetchInterval: 60000, // Refetch every minute
-  });
+  } = trpc.dailyState.getDailyProgress.useQuery();
 
   // Check if today's goal is adjusted (Requirements: 23.4)
   const { data: goalAdjustment } = trpc.dailyState.isTodayGoalAdjusted.useQuery();

@@ -25,8 +25,6 @@ export function DemoModeBanner({ onExit }: DemoModeBannerProps) {
 
   // Get demo mode state - Requirements 6.5
   const { data: demoState, isLoading } = trpc.demoMode.getDemoModeState.useQuery(
-    undefined,
-    { refetchInterval: 30000 } // Refetch every 30 seconds
   );
 
   // Deactivate mutation - Requirements 6.6

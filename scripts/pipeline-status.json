@@ -1,185 +1,47 @@
 {
-  "started_at": "2026-03-23T20:56:11Z",
-  "config": ".kiro/specs/state-management-overhaul/pipeline.config.sh",
-  "branch": "feature/state-management-overhaul",
-  "current_module": "p4_6",
+  "started_at": "2026-04-21T03:08:58Z",
+  "config": ".kiro/specs/octopus-protocol-unification/pipeline.config.sh",
+  "branch": "main",
+  "current_module": "c-clients",
   "current_phase": "executing",
   "modules": [
     {
-      "id": "p1_1",
+      "id": "b2",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "p1_2",
+      "id": "c-sdk",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "p1_3",
+      "id": "c-clients",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "p1_4",
+      "id": "c-web",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "p2_1",
+      "id": "c-verify",
       "status": "pending",
       "duration": null,
       "blocker": null
     },
     {
-      "id": "p2_2",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_3",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_4",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_5",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_6",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_7",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_8",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_9",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_10",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_11",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p2_12",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p3_1",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p3_2",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p3_3",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p3_4",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p3_5",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p3_6",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p3_7",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p4_1",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p4_2",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p4_3",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p4_4",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p4_5",
-      "status": "pending",
-      "duration": null,
-      "blocker": null
-    },
-    {
-      "id": "p4_6",
+      "id": "d",
       "status": "pending",
       "duration": null,
       "blocker": null
     }
   ],
-  "wall_clock": "33m1s",
-  "last_test_output": "\u251c \u25cb /projects/new                        376 B           154 kB\n\u251c \u25cb /register                            1.7 kB          121 kB\n\u251c \u25cb /settings                            46.5 kB         213 kB\n\u251c \u25cb /stats                               17.2 kB         169 kB\n\u251c \u25cb /tasks                               2.4 kB          160 kB\n\u251c \u0192 /tasks/[id]                          2.26 kB         158 kB\n\u251c \u0192 /tasks/[id]/edit                     765 B           155 kB\n\u251c \u25cb /tasks/new                           416 B           155 kB\n\u2514 \u25cb /timeline                            5.72 kB         158 kB\n+ First Load JS shared by all            87.3 kB\n  \u251c chunks/117-ec5b0fe67c9dc3d0.js       31.7 kB\n  \u251c chunks/fd9d1056-90e27c5daf44f13b.js  53.6 kB\n  \u2514 other shared chunks (total)          1.95 kB\n\n\n\u0192 Middleware                             46.7 kB\n\n\u25cb  (Static)   prerendered as static content\n\u0192  (Dynamic)  server-rendered on demand\n\n"
+  "wall_clock": "0s",
+  "last_test_output": null
 }

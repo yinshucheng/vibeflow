@@ -1,13 +1,14 @@
 /**
  * State Sync Service
  *
- * Connects WebSocket events to the Zustand store.
- * Handles SYNC_STATE and UPDATE_POLICY commands from the server.
- * All operations are read-only - no state modifications are sent to server.
+ * Connects WebSocket events to the Zustand store via SDK createStateManager.
+ * The state manager handles all merge logic; this service maps protocol types
+ * to iOS-specific store format.
  *
  * Requirements: 2.3
  */
 
+import { createStateManager, type StateSnapshot } from '@vibeflow/octopus-protocol';
 import { websocketService } from './websocket.service';
 import { useAppStore } from '@/store';
 import type { SyncStateCommand, UpdatePolicyCommand } from '@/types';
@@ -27,6 +28,14 @@ export interface SyncServiceConfig {
 class SyncService {
   private isInitialized = false;
   private unsubscribers: Array<() => void> = [];
+
+  // SDK state manager — single source of truth for protocol state
+  private stateManager = createStateManager({
+    onStateChange: (snapshot: StateSnapshot, changedKeys: (keyof StateSnapshot)[]) => {
+      // Map protocol state to iOS store format and push to Zustand
+      useAppStore.getState().handleStateSnapshot(snapshot, changedKeys);
+    },
+  });
 
   /**
    * Initialize the sync service.
@@ -52,13 +61,9 @@ class SyncService {
    * Removes all event listeners and disconnects WebSocket.
    */
   cleanup(): void {
-    // Unsubscribe from all events
     this.unsubscribers.forEach((unsubscribe) => unsubscribe());
     this.unsubscribers = [];
-
-    // Disconnect WebSocket
     websocketService.disconnect();
-
     this.isInitialized = false;
   }
 
@@ -70,19 +75,22 @@ class SyncService {
   }
 
   /**
+   * Whether the SDK state manager has received a full sync since last reconnect.
+   * Used for offline queue flush timing.
+   */
+  isFullSyncReceived(): boolean {
+    return this.stateManager.isFullSyncReceived();
+  }
+
+  /**
    * Request a full state sync from the server.
-   * This is called when connection is restored.
    */
   requestFullSync(): void {
-    // The server automatically sends a full sync on connection
-    // This method is here for explicit sync requests if needed
     if (!websocketService.isConnected()) {
       console.warn('Cannot request sync: not connected');
       return;
     }
-
-    // Server will send SYNC_STATE command automatically on connection
-    // No explicit request needed in current implementation
+    // Server sends SYNC_STATE automatically on connection — no explicit request needed
   }
 
   // ===========================================================================
@@ -90,8 +98,6 @@ class SyncService {
   // ===========================================================================
 
   private setupEventListeners(): void {
-    const store = useAppStore.getState();
-
     // Listen for connection status changes
     const unsubStatus = websocketService.onStatusChange((status) => {
       console.log('[SyncService] Connection status changed to:', status);
@@ -99,57 +105,32 @@ class SyncService {
     });
     this.unsubscribers.push(unsubStatus);
 
-    // Listen for SYNC_STATE commands
+    // Listen for SYNC_STATE commands — delegate to SDK state manager
     const unsubSync = websocketService.onSyncState((command: SyncStateCommand) => {
-      this.handleSyncState(command);
+      console.log('[SyncService] Received full state sync, version:', command.payload.version);
+      this.stateManager.handleSync(command.payload);
     });
     this.unsubscribers.push(unsubSync);
 
-    // Listen for UPDATE_POLICY commands
+    // Listen for UPDATE_POLICY commands — delegate to SDK state manager
     const unsubPolicy = websocketService.onPolicyUpdate((command: UpdatePolicyCommand) => {
-      this.handlePolicyUpdate(command);
+      console.log('[SyncService] Received policy update, version:', command.payload.policy.config.version);
+      this.stateManager.handlePolicyUpdate(command.payload);
     });
     this.unsubscribers.push(unsubPolicy);
 
-    // Listen for reconnection events
+    // Listen for reconnection events — reset state manager full sync flag
     const unsubReconnect = websocketService.onReconnect(() => {
-      // Server will send full sync on reconnection
-      console.log('Reconnected to server, awaiting state sync');
+      console.log('[SyncService] Reconnected to server, awaiting state sync');
+      this.stateManager.onReconnecting();
     });
     this.unsubscribers.push(unsubReconnect);
 
     // Listen for disconnect events
     const unsubDisconnect = websocketService.onDisconnect(() => {
-      console.log('Disconnected from server');
+      console.log('[SyncService] Disconnected from server');
     });
     this.unsubscribers.push(unsubDisconnect);
-  }
-
-  /**
-   * Handle SYNC_STATE command from server (full sync only).
-   */
-  private handleSyncState(command: SyncStateCommand): void {
-    const { payload } = command;
-    console.log('[SyncService] Received full state sync, version:', payload.version);
-
-    // Delegate to store handler
-    try {
-      useAppStore.getState().handleSyncState(command);
-      console.log('[SyncService] State sync applied successfully');
-    } catch (error) {
-      console.error('[SyncService] Error applying state sync:', error);
-    }
-  }
-
-  /**
-   * Handle UPDATE_POLICY command from server.
-   */
-  private handlePolicyUpdate(command: UpdatePolicyCommand): void {
-    const { payload } = command;
-    console.log('Received policy update, version:', payload.policy.config.version);
-
-    // Delegate to store handler
-    useAppStore.getState().handlePolicyUpdate(command);
   }
 }
 
@@ -165,6 +146,5 @@ export const syncService = new SyncService();
  * Should be called once at app root level.
  */
 export function useSyncServiceInit(): void {
-  // This is a placeholder for React integration
-  // The actual initialization should happen in App.tsx or a provider
+  // Placeholder for React integration
 }

@@ -29,9 +29,7 @@ export function Header({ title = 'VibeFlow' }: HeaderProps) {
   const { systemState: socketState } = useSocket();
 
   // Fallback to tRPC for initial load and progress data
-  const { data: dailyState, isLoading } = trpc.dailyState.getToday.useQuery(undefined, {
-    refetchInterval: 30000, // Refetch every 30 seconds for progress data
-  });
+  const { data: dailyState, isLoading } = trpc.dailyState.getToday.useQuery();
 
   // Prefer WebSocket state (real-time) over tRPC state (polled)
   const systemState =

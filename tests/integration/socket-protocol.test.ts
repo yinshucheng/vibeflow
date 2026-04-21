@@ -50,7 +50,7 @@ describe('Phase B2: Socket Protocol Compliance', () => {
 
         // Filter out matches that are in comments
         const actualEmits = matches.filter((_m, index) => {
-          const matchIndex = socketSource.indexOf(matches[0]);
+          const matchIndex = socketSource.indexOf(matches[0]!);
           if (matchIndex === -1) return true;
           // Check if this is in a comment
           const lineStart = socketSource.lastIndexOf('\n', matchIndex);

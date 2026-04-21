@@ -3,48 +3,41 @@
 import { useEffect, useRef } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useSocket } from '@/hooks/use-socket';
+import { useRealtimeStore } from '@/stores/realtime.store';
 import { trayIntegrationService } from '@/services/tray-integration.service';
 import { normalizeState } from '@/lib/state-utils';
 import { showBrowserNotification } from '@/services/notification.service';
 import { onExecuteCommand } from '@/lib/socket-client';
 
 /**
- * Global provider that syncs app state to desktop tray
- * Must be rendered within TRPCProvider
+ * Global provider that syncs app state to desktop tray.
+ * Real-time state comes from the realtime Zustand store (WebSocket-driven).
+ * React Query is only used for non-realtime data (healthLimit, sleepTime).
+ *
  * Requirements: 6.7 - Real-time state updates via WebSocket
  * Requirements: 7.1 - Rest period tracking with countdown display
  */
 export function TraySyncProvider({ children }: { children: React.ReactNode }) {
-  // Use WebSocket for real-time state updates
-  const { systemState: socketState } = useSocket();
+  // Ensure WebSocket is connected
+  useSocket();
+
+  // Real-time state from Zustand (driven by SDK state manager, no polling)
+  const snapshot = useRealtimeStore((s) => s.snapshot);
+  const systemState = useRealtimeStore((s) => s.systemState);
 
   // Track if we've started the main process countdown for the current pomodoro
   const mainProcessCountdownStartedRef = useRef<string | null>(null);
 
-  const { data: currentPomodoro } = trpc.pomodoro.getCurrent.useQuery(undefined, {
-    refetchInterval: 10000, // WebSocket handles real-time updates, polling is fallback
-  });
-
-  // tRPC as fallback for initial load
-  const { data: dailyState } = trpc.dailyState.getToday.useQuery(undefined, {
-    refetchInterval: 5000, // Reduced frequency since we have WebSocket
-  });
-  const { data: dailyProgress } = trpc.dailyState.getDailyProgress.useQuery();
+  // Non-realtime queries that need polling (not pushed via WebSocket)
   const { data: isInSleepTime } = trpc.sleepTime.isInSleepTime.useQuery(undefined, {
     refetchInterval: 60000,
   });
 
-  // Get rest status for tray display (when in over_rest state)
-  const currentState = socketState || dailyState?.systemState?.toLowerCase();
-  const isInRestState = currentState === 'over_rest';
-
   const { data: overRestStatus } = trpc.overRest.checkStatus.useQuery(undefined, {
-    refetchInterval: isInRestState ? 5000 : 30000, // Higher frequency only when in over_rest
+    refetchInterval: systemState === 'over_rest' ? 5000 : 30000,
   });
-  const { data: restStatus } = trpc.dailyState.getRestStatus.useQuery(undefined, {
-    refetchInterval: 5000,
-    enabled: !currentPomodoro && isInRestState,
-  });
+
+  const { data: dailyProgress } = trpc.dailyState.getDailyProgress.useQuery();
 
   // Single unified effect to sync state to tray
   useEffect(() => {
@@ -52,7 +45,6 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     if (isInSleepTime) {
       trayIntegrationService.updatePomodoroState(null);
       trayIntegrationService.updateSystemState('idle', undefined, undefined, true);
-      // Stop main process countdown if any
       if (mainProcessCountdownStartedRef.current && window.vibeflow?.pomodoro?.stopCountdown) {
         window.vibeflow.pomodoro.stopCountdown();
         mainProcessCountdownStartedRef.current = null;
@@ -60,54 +52,49 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const activePomodoro = snapshot.activePomodoro;
+
     // Active pomodoro takes priority
-    if (currentPomodoro) {
-      // Update tray state via renderer
+    if (activePomodoro) {
+      const pomodoroStartTime = typeof activePomodoro.startTime === 'number'
+        ? new Date(activePomodoro.startTime)
+        : new Date(activePomodoro.startTime);
       trayIntegrationService.updatePomodoroState({
-        id: currentPomodoro.id,
-        taskId: currentPomodoro.taskId,
-        duration: currentPomodoro.duration,
-        startTime: currentPomodoro.startTime,
-        task: currentPomodoro.task,
+        id: activePomodoro.id,
+        taskId: activePomodoro.taskId,
+        duration: activePomodoro.duration,
+        startTime: pomodoroStartTime,
+        task: activePomodoro.taskTitle ? { title: activePomodoro.taskTitle } : undefined,
       });
 
-      // Start main process countdown if not already started for this pomodoro
-      // This ensures tray updates continue when app is in background
-      if (mainProcessCountdownStartedRef.current !== currentPomodoro.id && window.vibeflow?.pomodoro?.startCountdown) {
-        const startTime = new Date(currentPomodoro.startTime).getTime();
-        const durationMs = currentPomodoro.duration * 60 * 1000;
+      if (mainProcessCountdownStartedRef.current !== activePomodoro.id && window.vibeflow?.pomodoro?.startCountdown) {
+        const startTime = pomodoroStartTime.getTime();
+        const durationMs = activePomodoro.duration * 60 * 1000;
         window.vibeflow.pomodoro.startCountdown({
           startTime,
           durationMs,
-          taskTitle: currentPomodoro.task?.title,
+          taskTitle: activePomodoro.taskTitle ?? undefined,
         });
-        mainProcessCountdownStartedRef.current = currentPomodoro.id;
+        mainProcessCountdownStartedRef.current = activePomodoro.id;
       }
       return;
     }
 
-    // No active pomodoro - show system state
+    // No active pomodoro — show system state
     trayIntegrationService.updatePomodoroState(null);
-
-    // Stop main process countdown if it was running
     if (mainProcessCountdownStartedRef.current && window.vibeflow?.pomodoro?.stopCountdown) {
       window.vibeflow.pomodoro.stopCountdown();
       mainProcessCountdownStartedRef.current = null;
     }
 
-    // Prefer WebSocket state (real-time) over tRPC state (polled)
-    const rawState = socketState || dailyState?.systemState?.toLowerCase();
-
-    if (rawState) {
-      const state = normalizeState(rawState);
+    const state = systemState;
+    if (state) {
       const progress = dailyProgress
         ? `${dailyProgress.completedPomodoros}/${dailyProgress.targetPomodoros}`
         : undefined;
 
-      // Build restData for over_rest state (REST no longer exists as separate state)
       let restData: { startTime: Date; duration: number; isOverRest: boolean } | undefined;
       if (state === 'over_rest' && overRestStatus?.isOverRest && overRestStatus?.lastPomodoroEndTime) {
-        // Over rest
         restData = {
           startTime: new Date(overRestStatus.lastPomodoroEndTime),
           duration: 0,
@@ -117,7 +104,7 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
 
       trayIntegrationService.updateSystemState(state, restData, progress);
     }
-  }, [currentPomodoro, socketState, dailyState?.systemState, dailyProgress, isInSleepTime, overRestStatus, restStatus]);
+  }, [snapshot.activePomodoro, systemState, dailyProgress, isInSleepTime, overRestStatus]);
 
   // Habit reminder notification — listen for HABIT_REMINDER execute command
   useEffect(() => {
@@ -143,9 +130,9 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     return unsub;
   }, []);
 
-  // Health limit notification — poll health limit status and show browser notifications
+  // Health limit notification — still polled (not pushed via WebSocket)
   const { data: healthLimitData } = trpc.healthLimit.checkLimit.useQuery(undefined, {
-    refetchInterval: 60000, // Check every minute
+    refetchInterval: 60000,
   });
 
   const healthLimitTypeRef = useRef<string | null>(null);
@@ -158,7 +145,6 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
         ? "You've been working for 2+ hours continuously. Consider a longer break."
         : "You've worked over 10 hours today. Please take care of yourself.";
 
-      // Show notification on first trigger or type change
       if (type !== healthLimitTypeRef.current) {
         showBrowserNotification('⏰ Health Reminder', {
           body: message,
@@ -166,7 +152,6 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
         });
         healthLimitTypeRef.current = type;
 
-        // Set up repeating notifications (every 10 minutes)
         if (healthLimitTimerRef.current) {
           clearInterval(healthLimitTimerRef.current);
         }
@@ -184,12 +169,8 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
         healthLimitTimerRef.current = null;
       }
     }
-    // NOTE: No cleanup here — timer is managed by refs and cleared in the else branch
-    // or by the unmount-only effect below. Returning cleanup would kill the repeating
-    // timer every time healthLimitData re-fetches (every 60s).
   }, [healthLimitData]);
 
-  // Cleanup repeating timer only on component unmount
   useEffect(() => {
     return () => {
       if (healthLimitTimerRef.current) {

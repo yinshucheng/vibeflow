@@ -47,3 +47,5 @@ Parse `$ARGUMENTS` and act accordingly:
 - The pipeline script uses `--dangerously-skip-permissions` for nested Claude Code calls
 - Logs are saved to `scripts/logs/` — mention the log path after execution
 - If the pipeline stops due to a wall hit, suggest: `./scripts/run-pipeline.sh <config> <failed-module>` to resume
+- **Pipeline 运行时间很长**（每个 module 通常 20-50 分钟）。启动 pipeline 时必须使用 `run_in_background: true` + `timeout: 600000`（10 分钟，仅用于 Bash tool 超时，不影响 pipeline 本身），不要等待命令完成。pipeline 的进度通过 `scripts/pipeline-status.json` 和日志文件追踪。
+- **Pipeline config 中的 `PIPELINE_MODULE_TIMEOUT`** 控制每个 module 的最大执行时间。对于大型重构任务（涉及多文件、多端），建议设为 `3600`（1 小时）而非默认的 `600`（10 分钟）。

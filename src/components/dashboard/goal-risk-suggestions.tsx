@@ -28,18 +28,12 @@ export function GoalRiskSuggestions({
   const utils = trpc.useUtils();
 
   // Get daily progress to check pressure level
-  const { data: progress } = trpc.dailyState.getDailyProgress.useQuery(
-    undefined,
-    { refetchInterval: 60000 }
-  );
+  const { data: progress } = trpc.dailyState.getDailyProgress.useQuery();
 
   // Get goal risk suggestions (Requirements: 19.1.1-19.1.7)
   const { data: suggestions, isLoading } = trpc.dailyState.getGoalRiskSuggestions.useQuery(
     undefined,
-    { 
-      enabled: progress?.isGoalAtRisk === true,
-      refetchInterval: 60000 
-    }
+    { enabled: progress?.isGoalAtRisk === true }
   );
 
   // Mutation for adjusting today's goal (Requirements: 19.1.5)

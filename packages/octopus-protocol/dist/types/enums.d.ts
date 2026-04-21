@@ -1,8 +1,10 @@
 /**
  * Octopus Architecture - Enum Type Definitions
  *
- * String union types used across the protocol.
+ * String union types and constants used across the protocol.
  */
+/** Current protocol version — bump when breaking changes are made */
+export declare const PROTOCOL_VERSION = "1.0.0";
 /**
  * Event types for Event Stream (Tentacle -> Vibe Brain)
  */

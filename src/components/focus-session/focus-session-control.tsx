@@ -55,8 +55,6 @@ export function FocusSessionControl({
 
   // Get active session (Requirements: 5.1)
   const { data: activeSession, isLoading } = trpc.focusSession.getActiveSession.useQuery(
-    undefined,
-    { refetchInterval: 10000 } // Refetch every 10 seconds to stay in sync
   );
 
   // Get duration config

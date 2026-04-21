@@ -2,9 +2,10 @@
  * Action Service
  *
  * Handles user actions with optimistic updates.
- * Sends events to server and manages action results.
+ * Uses SDK createActionRPC for request/response pairing.
  */
 
+import { createActionRPC } from '@vibeflow/octopus-protocol';
 import { websocketService } from './websocket.service';
 import type { UserActionType, ActionResultCommand } from '@/types';
 
@@ -18,23 +19,32 @@ export interface ActionResult<T = void> {
   error?: { code: string; message: string };
 }
 
-type PendingAction = {
-  optimisticId: string;
-  resolve: (result: ActionResult<unknown>) => void;
-  timeout: ReturnType<typeof setTimeout>;
-};
-
 // =============================================================================
 // ACTION SERVICE
 // =============================================================================
 
 class ActionService {
-  private pendingActions: Map<string, PendingAction> = new Map();
-  private actionTimeout = 10000; // 10 seconds
+  // SDK Action RPC — handles request/response pairing and timeouts
+  private rpc = createActionRPC({
+    timeout: 10000,
+    sendEvent: (event) => {
+      websocketService.sendUserAction(
+        event.payload.actionType,
+        event.payload.data,
+        event.payload.optimisticId
+      );
+    },
+  });
 
   constructor() {
-    // Subscribe to action results
-    websocketService.onActionResult(this.handleActionResult.bind(this));
+    // Subscribe to action results — route to SDK RPC handler
+    websocketService.onActionResult((command: ActionResultCommand) => {
+      this.rpc.handleResult(command.payload);
+    });
+    // Clear pending on disconnect
+    websocketService.onDisconnect(() => {
+      this.rpc.clearAll();
+    });
   }
 
   // ===========================================================================
@@ -148,53 +158,18 @@ class ActionService {
   // PRIVATE METHODS
   // ===========================================================================
 
-  private generateOptimisticId(): string {
-    return `opt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  }
-
   private async sendAction<T>(
     actionType: UserActionType,
     data: Record<string, unknown>
   ): Promise<ActionResult<T>> {
-    const optimisticId = this.generateOptimisticId();
-
-    return new Promise((resolve) => {
-      // Set timeout for action
-      const timeout = setTimeout(() => {
-        this.pendingActions.delete(optimisticId);
-        resolve({
-          success: false,
-          error: { code: 'TIMEOUT', message: 'Action timed out' },
-        });
-      }, this.actionTimeout);
-
-      // Store pending action
-      this.pendingActions.set(optimisticId, {
-        optimisticId,
-        resolve: resolve as (result: ActionResult<unknown>) => void,
-        timeout,
-      });
-
-      // Send action via WebSocket
-      websocketService.sendUserAction(actionType, data, optimisticId);
-    });
-  }
-
-  private handleActionResult(command: ActionResultCommand): void {
-    const { optimisticId, success, error, data } = command.payload;
-
-    const pending = this.pendingActions.get(optimisticId);
-    if (!pending) {
-      console.warn('[ActionService] Received result for unknown action:', optimisticId);
-      return;
+    try {
+      const result = await this.rpc.send(actionType, data);
+      return { success: result.success, error: result.error, data: result.data as T | undefined };
+    } catch (err) {
+      // RPC rejects on timeout or connection loss
+      const message = err instanceof Error ? err.message : 'Action failed';
+      return { success: false, error: { code: 'TIMEOUT', message } };
     }
-
-    // Clear timeout and remove from pending
-    clearTimeout(pending.timeout);
-    this.pendingActions.delete(optimisticId);
-
-    // Resolve the promise
-    pending.resolve({ success, error, data });
   }
 }
 

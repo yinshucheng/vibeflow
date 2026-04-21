@@ -19,6 +19,10 @@ import {
 import { getSocketAuthPayload, getCachedEmail } from '@/config/auth';
 import { serverConfigService } from './server-config.service';
 import { useAppStore } from '@/store';
+import {
+  createCommandHandler,
+  type CommandHandlers,
+} from '@vibeflow/octopus-protocol';
 import type {
   SyncStateCommand,
   UpdatePolicyCommand,
@@ -28,6 +32,11 @@ import type {
   UserActionEvent,
   UserActionType,
   CommandType,
+  SyncStatePayload,
+  UpdatePolicyPayload,
+  ActionResultPayload,
+  ExecuteActionPayload,
+  ShowUIPayload,
 } from '@/types';
 
 // =============================================================================
@@ -99,6 +108,43 @@ class WebSocketService {
   private reconnectHandlers: ConnectionHandler[] = [];
   private statusChangeHandlers: StatusChangeHandler[] = [];
   private commandHandlers: Map<string, GenericCommandHandler[]> = new Map();
+
+  // SDK command handler — single switch/case shared with all clients
+  private handleOctopusCommand = createCommandHandler({
+    onStateSync: (payload: SyncStatePayload) => {
+      // Wrap as SyncStateCommand for backward compat with existing handlers
+      // Use assertion — handlers only access .payload, not BaseCommand fields
+      const command = { commandType: 'SYNC_STATE' as const, payload } as SyncStateCommand;
+      this.syncStateHandlers.forEach((handler) => handler(command));
+    },
+    onPolicyUpdate: (payload: UpdatePolicyPayload) => {
+      const command = { commandType: 'UPDATE_POLICY' as const, payload } as UpdatePolicyCommand;
+      this.policyUpdateHandlers.forEach((handler) => handler(command));
+    },
+    onExecuteAction: (_payload: ExecuteActionPayload) => {
+      // iOS doesn't handle EXECUTE_ACTION — no-op
+    },
+    onShowUI: (_payload: ShowUIPayload) => {
+      // iOS doesn't handle SHOW_UI — no-op
+    },
+    onActionResult: (payload: ActionResultPayload) => {
+      console.log('[WebSocket] Received ACTION_RESULT:', payload.optimisticId);
+      const command = { commandType: 'ACTION_RESULT' as const, payload } as ActionResultCommand;
+      this.actionResultHandlers.forEach((handler) => handler(command));
+    },
+    onChatResponse: (payload) => {
+      const handlers = this.commandHandlers.get('CHAT_RESPONSE');
+      handlers?.forEach((handler) => handler(payload));
+    },
+    onChatToolCall: (payload) => {
+      const handlers = this.commandHandlers.get('CHAT_TOOL_CALL');
+      handlers?.forEach((handler) => handler(payload));
+    },
+    onChatSync: (payload) => {
+      const handlers = this.commandHandlers.get('CHAT_SYNC');
+      handlers?.forEach((handler) => handler(payload));
+    },
+  });
 
   // Configuration
   private config: Required<WebSocketServiceConfig> = {
@@ -403,52 +449,11 @@ class WebSocketService {
       }
     });
 
-    // Listen for Octopus commands
+    // Listen for Octopus commands — routed via SDK createCommandHandler
     this.socket.on('OCTOPUS_COMMAND', (command: OctopusCommand) => {
       console.log('[WebSocket] Received OCTOPUS_COMMAND:', command.commandType);
-      this.handleCommand(command);
+      this.handleOctopusCommand(command);
     });
-
-    // Also listen for specific command types (legacy)
-    this.socket.on('sync:state', (command: SyncStateCommand) => {
-      console.log('[WebSocket] Received sync:state');
-      this.syncStateHandlers.forEach((handler) => handler(command));
-    });
-
-    this.socket.on('update:policy', (command: UpdatePolicyCommand) => {
-      console.log('[WebSocket] Received update:policy');
-      this.policyUpdateHandlers.forEach((handler) => handler(command));
-    });
-  }
-
-  private handleCommand(command: OctopusCommand): void {
-    switch (command.commandType) {
-      case 'SYNC_STATE':
-        this.syncStateHandlers.forEach((handler) =>
-          handler(command as SyncStateCommand)
-        );
-        break;
-      case 'UPDATE_POLICY':
-        this.policyUpdateHandlers.forEach((handler) =>
-          handler(command as UpdatePolicyCommand)
-        );
-        break;
-      case 'ACTION_RESULT':
-        console.log('[WebSocket] Received ACTION_RESULT:', (command as ActionResultCommand).payload.optimisticId);
-        this.actionResultHandlers.forEach((handler) =>
-          handler(command as ActionResultCommand)
-        );
-        break;
-      default: {
-        // Dispatch to generic command handlers (used by chat service etc.)
-        const handlers = this.commandHandlers.get(command.commandType);
-        if (handlers && handlers.length > 0) {
-          const payload = (command as OctopusCommand & { payload: unknown }).payload;
-          handlers.forEach((handler) => handler(payload));
-        }
-        break;
-      }
-    }
   }
 
   private setStatus(status: ConnectionStatus): void {

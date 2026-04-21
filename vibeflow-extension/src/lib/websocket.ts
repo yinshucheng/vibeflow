@@ -1,3 +1,4 @@
+import { createCommandHandler } from '@vibeflow/octopus-protocol';
 import type {
   PolicyCache,
   SystemState,
@@ -270,31 +271,64 @@ export class VibeFlowWebSocket {
     }
   }
 
+  // Full sync tracking for offline queue flush timing
+  private fullSyncReceived = false;
+  private fullSyncResolve: (() => void) | null = null;
+
   private handleSocketIOConnect(payload: string): void {
     console.log('[WebSocket] Successfully connected to Socket.io namespace');
     this.isAuthenticated = true;
+    this.fullSyncReceived = false;
     this.handlers.onConnect();
 
     // Policy and state are automatically sent by the server on connection via OCTOPUS_COMMAND.
 
-    // Replay queued events on reconnect (Requirements: 5.28)
-    this.replayQueuedEvents();
+    // Wait for full sync before replaying queued events (Requirements: 5.28)
+    this.waitForFullSyncThenReplay();
   }
 
   /**
-   * Replay queued events after reconnection
-   * Requirements: 5.28
+   * Wait for SYNC_STATE before replaying offline queue.
+   * Timeout 10s — flush anyway (best effort) if server doesn't send sync.
    */
-  private async replayQueuedEvents(): Promise<void> {
+  private async waitForFullSyncThenReplay(): Promise<void> {
     if (!this.replayManager) return;
-    
+
+    // Wait for full sync or timeout (10s)
+    await new Promise<void>((resolve) => {
+      if (this.fullSyncReceived) {
+        resolve();
+        return;
+      }
+      const timeout = setTimeout(() => {
+        console.log('[WebSocket] Full sync timeout (10s), replaying offline events anyway');
+        this.fullSyncResolve = null;
+        resolve();
+      }, 10000);
+      this.fullSyncResolve = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+    });
+
     try {
       const replayedCount = await this.replayManager.replayAll();
       if (replayedCount > 0) {
-        console.log(`[WebSocket] Replayed ${replayedCount} queued events`);
+        console.log(`[WebSocket] Replayed ${replayedCount} queued events after full sync`);
       }
     } catch (error) {
       console.error('[WebSocket] Failed to replay queued events:', error);
+    }
+  }
+
+  /**
+   * Called when SYNC_STATE command is received — signals full sync complete.
+   */
+  notifyFullSyncReceived(): void {
+    this.fullSyncReceived = true;
+    if (this.fullSyncResolve) {
+      this.fullSyncResolve();
+      this.fullSyncResolve = null;
     }
   }
 
@@ -339,41 +373,40 @@ export class VibeFlowWebSocket {
     }
   }
 
+  // SDK command handler — shared routing logic
+  private sdkCommandHandler = createCommandHandler({
+    onStateSync: (payload) => {
+      this.notifyFullSyncReceived();
+      this.handlers.onSyncState?.(payload);
+    },
+    onPolicyUpdate: (payload) => {
+      this.handlers.onPolicyUpdate?.(payload.policy);
+    },
+    onExecuteAction: (payload) => {
+      this.handlers.onExecuteAction?.(payload);
+    },
+    onShowUI: (payload) => {
+      this.handlers.onShowUI?.(payload);
+    },
+    onActionResult: () => {
+      // Extension doesn't use ACTION_RESULT — no-op
+    },
+  });
+
   /**
    * Handle Octopus protocol commands
    * Requirements: 5.21, 5.23
    */
   private handleOctopusCommand(command: OctopusCommand): void {
     console.log('[WebSocket] Octopus command received:', command.commandType);
-    
-    // Call the generic handler if provided
+
+    // Call the generic handler if provided (used by service-worker for its own routing)
     if (this.handlers.onOctopusCommand) {
       this.handlers.onOctopusCommand(command);
     }
 
-    // Route to specific handlers based on command type
-    switch (command.commandType) {
-      case 'SYNC_STATE':
-        if (this.handlers.onSyncState) {
-          this.handlers.onSyncState((command as SyncStateCommand).payload);
-        }
-        break;
-      case 'EXECUTE_ACTION':
-        if (this.handlers.onExecuteAction) {
-          this.handlers.onExecuteAction((command as ExecuteActionCommand).payload);
-        }
-        break;
-      case 'UPDATE_POLICY':
-        if (this.handlers.onPolicyUpdate) {
-          this.handlers.onPolicyUpdate((command as UpdatePolicyCommand).payload.policy);
-        }
-        break;
-      case 'SHOW_UI':
-        if (this.handlers.onShowUI) {
-          this.handlers.onShowUI((command as ShowUICommand).payload);
-        }
-        break;
-    }
+    // Route via SDK command handler
+    this.sdkCommandHandler(command);
 
     // Send acknowledgment if required
     if (command.requiresAck) {

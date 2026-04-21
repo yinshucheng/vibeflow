@@ -34,6 +34,8 @@ export type {
   BaseCommand,
   UpdatePolicyPayload,
   UpdatePolicyCommand,
+  ExecuteActionPayload,
+  ShowUIPayload,
 } from '@vibeflow/octopus-protocol';
 
 // State types

@@ -1,33 +1,35 @@
 /**
  * useSocket Hook
- * 
+ *
  * React hook for managing Socket.io connection and real-time updates.
- * 
+ * Routes all OCTOPUS_COMMAND events through the SDK command handler
+ * into the realtime Zustand store.
+ *
  * Requirements: 6.7
  */
 
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { normalizeState } from '@/lib/state-utils';
+import { useEffect, useCallback, useRef } from 'react';
 import {
   initializeSocket,
   disconnectSocket,
-  isConnected,
-  onPolicyUpdate,
-  onStateChange,
-  onExecuteCommand,
+  isConnected as checkIsConnected,
+  onOctopusCommand,
   onError,
   onConnectionChange,
   sendActivityLogs,
   checkUrl,
   sendUserResponse,
   requestPolicy,
-  type PolicyCache,
-  type SystemState,
-  type ExecuteCommand,
   type ActivityLogEntry,
 } from '@/lib/socket-client';
+import {
+  useRealtimeStore,
+  commandHandler,
+  stateManager,
+  type SystemState,
+} from '@/stores/realtime.store';
 
 export interface UseSocketOptions {
   email?: string;
@@ -37,9 +39,7 @@ export interface UseSocketOptions {
 
 export interface UseSocketReturn {
   connected: boolean;
-  policy: PolicyCache | null;
   systemState: SystemState | null;
-  lastCommand: ExecuteCommand | null;
   error: { code: string; message: string } | null;
   connect: () => void;
   disconnect: () => void;
@@ -50,17 +50,16 @@ export interface UseSocketReturn {
 }
 
 /**
- * Hook for managing Socket.io connection
+ * Hook for managing Socket.io connection.
+ * All real-time state is available via useRealtimeStore selectors.
  */
 export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   const { email, token, autoConnect = true } = options;
-  
-  const [connected, setConnected] = useState(false);
-  const [policy, setPolicy] = useState<PolicyCache | null>(null);
-  const [systemState, setSystemState] = useState<SystemState | null>(null);
-  const [lastCommand, setLastCommand] = useState<ExecuteCommand | null>(null);
-  const [error, setError] = useState<{ code: string; message: string } | null>(null);
-  
+
+  const connected = useRealtimeStore((s) => s.connected);
+  const systemState = useRealtimeStore((s) => s.systemState);
+  const error = useRealtimeStore((s) => s.error);
+
   const initialized = useRef(false);
 
   const connect = useCallback(() => {
@@ -69,52 +68,36 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
   const disconnect = useCallback(() => {
     disconnectSocket();
-    setConnected(false);
-    setPolicy(null);
-    setSystemState(null);
+    useRealtimeStore.getState()._setConnected(false);
   }, []);
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
-    // Subscribe to events
-    const unsubPolicy = onPolicyUpdate((newPolicy) => {
-      setPolicy(newPolicy);
-      setSystemState(normalizeState(newPolicy.globalState));
-    });
-
-    const unsubState = onStateChange((state) => {
-      setSystemState(normalizeState(state));
-    });
-
-    const unsubCommand = onExecuteCommand((command) => {
-      setLastCommand(command);
+    // Route OCTOPUS_COMMAND events through SDK command handler → realtime store
+    const unsubCommand = onOctopusCommand((command) => {
+      commandHandler(command);
     });
 
     const unsubError = onError((err) => {
-      setError(err);
+      useRealtimeStore.getState()._setError(err);
     });
 
-    const unsubConnection = onConnectionChange((isConnected) => {
-      setConnected(isConnected);
-      if (isConnected) {
-        setError(null);
+    const unsubConnection = onConnectionChange((isConn) => {
+      useRealtimeStore.getState()._setConnected(isConn);
+      if (!isConn) {
+        stateManager.onReconnecting();
       }
     });
 
-    // Auto-connect if enabled
     if (autoConnect) {
       connect();
     }
 
-    // Check initial connection status
-    setConnected(isConnected());
+    useRealtimeStore.getState()._setConnected(checkIsConnected());
 
-    // Cleanup
     return () => {
-      unsubPolicy();
-      unsubState();
       unsubCommand();
       unsubError();
       unsubConnection();
@@ -123,9 +106,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
   return {
     connected,
-    policy,
     systemState,
-    lastCommand,
     error,
     connect,
     disconnect,

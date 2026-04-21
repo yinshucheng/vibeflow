@@ -339,19 +339,19 @@ export declare const HeartbeatPayloadSchema: z.ZodObject<{
     capabilities: z.ZodArray<z.ZodString, "many">;
     uptime: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    uptime: number;
     clientVersion: string;
     platform: string;
     connectionQuality: "good" | "degraded" | "poor";
     localStateHash: string;
     capabilities: string[];
-    uptime: number;
 }, {
+    uptime: number;
     clientVersion: string;
     platform: string;
     connectionQuality: "good" | "degraded" | "poor";
     localStateHash: string;
     capabilities: string[];
-    uptime: number;
 }>;
 export declare const HeartbeatEventSchema: z.ZodObject<{
     eventId: z.ZodString;
@@ -370,19 +370,19 @@ export declare const HeartbeatEventSchema: z.ZodObject<{
         capabilities: z.ZodArray<z.ZodString, "many">;
         uptime: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        uptime: number;
         clientVersion: string;
         platform: string;
         connectionQuality: "good" | "degraded" | "poor";
         localStateHash: string;
         capabilities: string[];
-        uptime: number;
     }, {
+        uptime: number;
         clientVersion: string;
         platform: string;
         connectionQuality: "good" | "degraded" | "poor";
         localStateHash: string;
         capabilities: string[];
-        uptime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
     eventId: string;
@@ -393,12 +393,12 @@ export declare const HeartbeatEventSchema: z.ZodObject<{
     timestamp: number;
     sequenceNumber: number;
     payload: {
+        uptime: number;
         clientVersion: string;
         platform: string;
         connectionQuality: "good" | "degraded" | "poor";
         localStateHash: string;
         capabilities: string[];
-        uptime: number;
     };
 }, {
     eventId: string;
@@ -409,12 +409,12 @@ export declare const HeartbeatEventSchema: z.ZodObject<{
     timestamp: number;
     sequenceNumber: number;
     payload: {
+        uptime: number;
         clientVersion: string;
         platform: string;
         connectionQuality: "good" | "degraded" | "poor";
         localStateHash: string;
         capabilities: string[];
-        uptime: number;
     };
 }>;
 export declare const BrowserActivityPayloadSchema: z.ZodObject<{
@@ -1626,19 +1626,19 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         capabilities: z.ZodArray<z.ZodString, "many">;
         uptime: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        uptime: number;
         clientVersion: string;
         platform: string;
         connectionQuality: "good" | "degraded" | "poor";
         localStateHash: string;
         capabilities: string[];
-        uptime: number;
     }, {
+        uptime: number;
         clientVersion: string;
         platform: string;
         connectionQuality: "good" | "degraded" | "poor";
         localStateHash: string;
         capabilities: string[];
-        uptime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
     eventId: string;
@@ -1649,12 +1649,12 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     timestamp: number;
     sequenceNumber: number;
     payload: {
+        uptime: number;
         clientVersion: string;
         platform: string;
         connectionQuality: "good" | "degraded" | "poor";
         localStateHash: string;
         capabilities: string[];
-        uptime: number;
     };
 }, {
     eventId: string;
@@ -1665,12 +1665,12 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     timestamp: number;
     sequenceNumber: number;
     payload: {
+        uptime: number;
         clientVersion: string;
         platform: string;
         connectionQuality: "good" | "degraded" | "poor";
         localStateHash: string;
         capabilities: string[];
-        uptime: number;
     };
 }>, z.ZodObject<{
     eventId: z.ZodString;
@@ -2410,13 +2410,13 @@ export declare const PomodoroStateSchema: z.ZodObject<{
     duration: z.ZodNumber;
     status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
 }, "strip", z.ZodTypeAny, {
-    status: "aborted" | "active" | "paused" | "completed";
+    status: "active" | "paused" | "completed" | "aborted";
     duration: number;
     startTime: number;
     id: string;
     taskId: string;
 }, {
-    status: "aborted" | "active" | "paused" | "completed";
+    status: "active" | "paused" | "completed" | "aborted";
     duration: number;
     startTime: number;
     id: string;
@@ -2494,13 +2494,13 @@ export declare const FullStateSchema: z.ZodObject<{
         duration: z.ZodNumber;
         status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
     }, "strip", z.ZodTypeAny, {
-        status: "aborted" | "active" | "paused" | "completed";
+        status: "active" | "paused" | "completed" | "aborted";
         duration: number;
         startTime: number;
         id: string;
         taskId: string;
     }, {
-        status: "aborted" | "active" | "paused" | "completed";
+        status: "active" | "paused" | "completed" | "aborted";
         duration: number;
         startTime: number;
         id: string;
@@ -2547,19 +2547,19 @@ export declare const FullStateSchema: z.ZodObject<{
         dailyCapReached: boolean;
         skipTokensRemaining: number;
     };
+    activePomodoro: {
+        status: "active" | "paused" | "completed" | "aborted";
+        duration: number;
+        startTime: number;
+        id: string;
+        taskId: string;
+    } | null;
     dailyState: {
         date: string;
         completedPomodoros: number;
         totalFocusMinutes: number;
         top3TaskIds: string[];
     };
-    activePomodoro: {
-        status: "aborted" | "active" | "paused" | "completed";
-        duration: number;
-        startTime: number;
-        id: string;
-        taskId: string;
-    } | null;
     top3Tasks: {
         status: string;
         title: string;
@@ -2579,19 +2579,19 @@ export declare const FullStateSchema: z.ZodObject<{
         dailyCapReached: boolean;
         skipTokensRemaining: number;
     };
+    activePomodoro: {
+        status: "active" | "paused" | "completed" | "aborted";
+        duration: number;
+        startTime: number;
+        id: string;
+        taskId: string;
+    } | null;
     dailyState: {
         date: string;
         completedPomodoros: number;
         totalFocusMinutes: number;
         top3TaskIds: string[];
     };
-    activePomodoro: {
-        status: "aborted" | "active" | "paused" | "completed";
-        duration: number;
-        startTime: number;
-        id: string;
-        taskId: string;
-    } | null;
     top3Tasks: {
         status: string;
         title: string;
@@ -2646,13 +2646,13 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             duration: z.ZodNumber;
             status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
         }, "strip", z.ZodTypeAny, {
-            status: "aborted" | "active" | "paused" | "completed";
+            status: "active" | "paused" | "completed" | "aborted";
             duration: number;
             startTime: number;
             id: string;
             taskId: string;
         }, {
-            status: "aborted" | "active" | "paused" | "completed";
+            status: "active" | "paused" | "completed" | "aborted";
             duration: number;
             startTime: number;
             id: string;
@@ -2699,19 +2699,19 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             dailyCapReached: boolean;
             skipTokensRemaining: number;
         };
+        activePomodoro: {
+            status: "active" | "paused" | "completed" | "aborted";
+            duration: number;
+            startTime: number;
+            id: string;
+            taskId: string;
+        } | null;
         dailyState: {
             date: string;
             completedPomodoros: number;
             totalFocusMinutes: number;
             top3TaskIds: string[];
         };
-        activePomodoro: {
-            status: "aborted" | "active" | "paused" | "completed";
-            duration: number;
-            startTime: number;
-            id: string;
-            taskId: string;
-        } | null;
         top3Tasks: {
             status: string;
             title: string;
@@ -2731,19 +2731,19 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             dailyCapReached: boolean;
             skipTokensRemaining: number;
         };
+        activePomodoro: {
+            status: "active" | "paused" | "completed" | "aborted";
+            duration: number;
+            startTime: number;
+            id: string;
+            taskId: string;
+        } | null;
         dailyState: {
             date: string;
             completedPomodoros: number;
             totalFocusMinutes: number;
             top3TaskIds: string[];
         };
-        activePomodoro: {
-            status: "aborted" | "active" | "paused" | "completed";
-            duration: number;
-            startTime: number;
-            id: string;
-            taskId: string;
-        } | null;
         top3Tasks: {
             status: string;
             title: string;
@@ -2767,19 +2767,19 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             dailyCapReached: boolean;
             skipTokensRemaining: number;
         };
+        activePomodoro: {
+            status: "active" | "paused" | "completed" | "aborted";
+            duration: number;
+            startTime: number;
+            id: string;
+            taskId: string;
+        } | null;
         dailyState: {
             date: string;
             completedPomodoros: number;
             totalFocusMinutes: number;
             top3TaskIds: string[];
         };
-        activePomodoro: {
-            status: "aborted" | "active" | "paused" | "completed";
-            duration: number;
-            startTime: number;
-            id: string;
-            taskId: string;
-        } | null;
         top3Tasks: {
             status: string;
             title: string;
@@ -2803,19 +2803,19 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             dailyCapReached: boolean;
             skipTokensRemaining: number;
         };
+        activePomodoro: {
+            status: "active" | "paused" | "completed" | "aborted";
+            duration: number;
+            startTime: number;
+            id: string;
+            taskId: string;
+        } | null;
         dailyState: {
             date: string;
             completedPomodoros: number;
             totalFocusMinutes: number;
             top3TaskIds: string[];
         };
-        activePomodoro: {
-            status: "aborted" | "active" | "paused" | "completed";
-            duration: number;
-            startTime: number;
-            id: string;
-            taskId: string;
-        } | null;
         top3Tasks: {
             status: string;
             title: string;
@@ -2880,13 +2880,13 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 duration: z.ZodNumber;
                 status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
             }, "strip", z.ZodTypeAny, {
-                status: "aborted" | "active" | "paused" | "completed";
+                status: "active" | "paused" | "completed" | "aborted";
                 duration: number;
                 startTime: number;
                 id: string;
                 taskId: string;
             }, {
-                status: "aborted" | "active" | "paused" | "completed";
+                status: "active" | "paused" | "completed" | "aborted";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -2933,19 +2933,19 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -2965,19 +2965,19 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -3001,19 +3001,19 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -3037,19 +3037,19 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -3075,19 +3075,19 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -3120,19 +3120,19 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -3274,13 +3274,13 @@ export declare const AdhocFocusSessionSchema: z.ZodObject<{
     overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
     overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
-    endTime: number;
     active: boolean;
+    endTime: number;
     overridesSleepTime?: boolean | undefined;
     overridesWorkHours?: boolean | undefined;
 }, {
-    endTime: number;
     active: boolean;
+    endTime: number;
     overridesSleepTime?: boolean | undefined;
     overridesWorkHours?: boolean | undefined;
 }>;
@@ -3582,11 +3582,11 @@ export declare const TemporaryUnblockSchema: z.ZodObject<{
     active: z.ZodBoolean;
     endTime: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    endTime: number;
     active: boolean;
+    endTime: number;
 }, {
-    endTime: number;
     active: boolean;
+    endTime: number;
 }>;
 export declare const PolicyStateSchema: z.ZodObject<{
     skipTokensRemaining: z.ZodNumber;
@@ -3613,13 +3613,13 @@ export declare const PolicyStateSchema: z.ZodObject<{
         overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
         overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
-        endTime: number;
         active: boolean;
+        endTime: number;
         overridesSleepTime?: boolean | undefined;
         overridesWorkHours?: boolean | undefined;
     }, {
-        endTime: number;
         active: boolean;
+        endTime: number;
         overridesSleepTime?: boolean | undefined;
         overridesWorkHours?: boolean | undefined;
     }>>;
@@ -3627,11 +3627,11 @@ export declare const PolicyStateSchema: z.ZodObject<{
         active: z.ZodBoolean;
         endTime: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        endTime: number;
         active: boolean;
+        endTime: number;
     }, {
-        endTime: number;
         active: boolean;
+        endTime: number;
     }>>;
     healthLimit: z.ZodOptional<z.ZodObject<{
         type: z.ZodEnum<["2hours", "daily"]>;
@@ -3663,14 +3663,14 @@ export declare const PolicyStateSchema: z.ZodObject<{
         remaining: number;
     } | undefined;
     adhocFocusSession?: {
-        endTime: number;
         active: boolean;
+        endTime: number;
         overridesSleepTime?: boolean | undefined;
         overridesWorkHours?: boolean | undefined;
     } | undefined;
     temporaryUnblock?: {
-        endTime: number;
         active: boolean;
+        endTime: number;
     } | undefined;
     healthLimit?: {
         message: string;
@@ -3692,14 +3692,14 @@ export declare const PolicyStateSchema: z.ZodObject<{
         remaining: number;
     } | undefined;
     adhocFocusSession?: {
-        endTime: number;
         active: boolean;
+        endTime: number;
         overridesSleepTime?: boolean | undefined;
         overridesWorkHours?: boolean | undefined;
     } | undefined;
     temporaryUnblock?: {
-        endTime: number;
         active: boolean;
+        endTime: number;
     } | undefined;
     healthLimit?: {
         message: string;
@@ -3943,13 +3943,13 @@ export declare const PolicySchema: z.ZodObject<{
             overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
             overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
         }, "strip", z.ZodTypeAny, {
-            endTime: number;
             active: boolean;
+            endTime: number;
             overridesSleepTime?: boolean | undefined;
             overridesWorkHours?: boolean | undefined;
         }, {
-            endTime: number;
             active: boolean;
+            endTime: number;
             overridesSleepTime?: boolean | undefined;
             overridesWorkHours?: boolean | undefined;
         }>>;
@@ -3957,11 +3957,11 @@ export declare const PolicySchema: z.ZodObject<{
             active: z.ZodBoolean;
             endTime: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            endTime: number;
             active: boolean;
+            endTime: number;
         }, {
-            endTime: number;
             active: boolean;
+            endTime: number;
         }>>;
         healthLimit: z.ZodOptional<z.ZodObject<{
             type: z.ZodEnum<["2hours", "daily"]>;
@@ -3993,14 +3993,14 @@ export declare const PolicySchema: z.ZodObject<{
             remaining: number;
         } | undefined;
         adhocFocusSession?: {
-            endTime: number;
             active: boolean;
+            endTime: number;
             overridesSleepTime?: boolean | undefined;
             overridesWorkHours?: boolean | undefined;
         } | undefined;
         temporaryUnblock?: {
-            endTime: number;
             active: boolean;
+            endTime: number;
         } | undefined;
         healthLimit?: {
             message: string;
@@ -4022,14 +4022,14 @@ export declare const PolicySchema: z.ZodObject<{
             remaining: number;
         } | undefined;
         adhocFocusSession?: {
-            endTime: number;
             active: boolean;
+            endTime: number;
             overridesSleepTime?: boolean | undefined;
             overridesWorkHours?: boolean | undefined;
         } | undefined;
         temporaryUnblock?: {
-            endTime: number;
             active: boolean;
+            endTime: number;
         } | undefined;
         healthLimit?: {
             message: string;
@@ -4053,14 +4053,14 @@ export declare const PolicySchema: z.ZodObject<{
             remaining: number;
         } | undefined;
         adhocFocusSession?: {
-            endTime: number;
             active: boolean;
+            endTime: number;
             overridesSleepTime?: boolean | undefined;
             overridesWorkHours?: boolean | undefined;
         } | undefined;
         temporaryUnblock?: {
-            endTime: number;
             active: boolean;
+            endTime: number;
         } | undefined;
         healthLimit?: {
             message: string;
@@ -4129,14 +4129,14 @@ export declare const PolicySchema: z.ZodObject<{
             remaining: number;
         } | undefined;
         adhocFocusSession?: {
-            endTime: number;
             active: boolean;
+            endTime: number;
             overridesSleepTime?: boolean | undefined;
             overridesWorkHours?: boolean | undefined;
         } | undefined;
         temporaryUnblock?: {
-            endTime: number;
             active: boolean;
+            endTime: number;
         } | undefined;
         healthLimit?: {
             message: string;
@@ -4269,11 +4269,11 @@ export declare const TemporaryUnblockPolicySchema: z.ZodObject<{
     active: z.ZodBoolean;
     endTime: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    endTime: number;
     active: boolean;
+    endTime: number;
 }, {
-    endTime: number;
     active: boolean;
+    endTime: number;
 }>;
 /** @deprecated Use RestEnforcementConfigSchema + PolicyStateSchema */
 export declare const RestEnforcementPolicySchema: z.ZodObject<{
@@ -4596,13 +4596,13 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
                 overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
             }, "strip", z.ZodTypeAny, {
-                endTime: number;
                 active: boolean;
+                endTime: number;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             }, {
-                endTime: number;
                 active: boolean;
+                endTime: number;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             }>>;
@@ -4610,11 +4610,11 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 active: z.ZodBoolean;
                 endTime: z.ZodNumber;
             }, "strip", z.ZodTypeAny, {
-                endTime: number;
                 active: boolean;
+                endTime: number;
             }, {
-                endTime: number;
                 active: boolean;
+                endTime: number;
             }>>;
             healthLimit: z.ZodOptional<z.ZodObject<{
                 type: z.ZodEnum<["2hours", "daily"]>;
@@ -4646,14 +4646,14 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 remaining: number;
             } | undefined;
             adhocFocusSession?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
             temporaryUnblock?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -4675,14 +4675,14 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 remaining: number;
             } | undefined;
             adhocFocusSession?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
             temporaryUnblock?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -4706,14 +4706,14 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 remaining: number;
             } | undefined;
             adhocFocusSession?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
             temporaryUnblock?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -4782,14 +4782,14 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 remaining: number;
             } | undefined;
             adhocFocusSession?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
             temporaryUnblock?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -4846,7 +4846,6 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
     }>;
     effectiveTime: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    policyType: "full" | "partial";
     policy: {
         state: {
             skipTokensRemaining: number;
@@ -4862,14 +4861,14 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 remaining: number;
             } | undefined;
             adhocFocusSession?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
             temporaryUnblock?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -4924,9 +4923,9 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
             } | undefined;
         };
     };
+    policyType: "full" | "partial";
     effectiveTime: number;
 }, {
-    policyType: "full" | "partial";
     policy: {
         state: {
             skipTokensRemaining: number;
@@ -4942,14 +4941,14 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 remaining: number;
             } | undefined;
             adhocFocusSession?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
                 overridesSleepTime?: boolean | undefined;
                 overridesWorkHours?: boolean | undefined;
             } | undefined;
             temporaryUnblock?: {
-                endTime: number;
                 active: boolean;
+                endTime: number;
             } | undefined;
             healthLimit?: {
                 message: string;
@@ -5004,6 +5003,7 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
             } | undefined;
         };
     };
+    policyType: "full" | "partial";
     effectiveTime: number;
 }>;
 export declare const UpdatePolicyCommandSchema: z.ZodObject<{
@@ -5252,13 +5252,13 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
                     overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
                 }, "strip", z.ZodTypeAny, {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 }, {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 }>>;
@@ -5266,11 +5266,11 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     active: z.ZodBoolean;
                     endTime: z.ZodNumber;
                 }, "strip", z.ZodTypeAny, {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 }, {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 }>>;
                 healthLimit: z.ZodOptional<z.ZodObject<{
                     type: z.ZodEnum<["2hours", "daily"]>;
@@ -5302,14 +5302,14 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -5331,14 +5331,14 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -5362,14 +5362,14 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -5438,14 +5438,14 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -5502,7 +5502,6 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
         }>;
         effectiveTime: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        policyType: "full" | "partial";
         policy: {
             state: {
                 skipTokensRemaining: number;
@@ -5518,14 +5517,14 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -5580,9 +5579,9 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
         };
+        policyType: "full" | "partial";
         effectiveTime: number;
     }, {
-        policyType: "full" | "partial";
         policy: {
             state: {
                 skipTokensRemaining: number;
@@ -5598,14 +5597,14 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -5660,11 +5659,11 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
         };
+        policyType: "full" | "partial";
         effectiveTime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
     payload: {
-        policyType: "full" | "partial";
         policy: {
             state: {
                 skipTokensRemaining: number;
@@ -5680,14 +5679,14 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -5742,6 +5741,7 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
         };
+        policyType: "full" | "partial";
         effectiveTime: number;
     };
     commandId: string;
@@ -5753,7 +5753,6 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
     expiryTime?: number | undefined;
 }, {
     payload: {
-        policyType: "full" | "partial";
         policy: {
             state: {
                 skipTokensRemaining: number;
@@ -5769,14 +5768,14 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -5831,6 +5830,7 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
         };
+        policyType: "full" | "partial";
         effectiveTime: number;
     };
     commandId: string;
@@ -6388,13 +6388,13 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 duration: z.ZodNumber;
                 status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
             }, "strip", z.ZodTypeAny, {
-                status: "aborted" | "active" | "paused" | "completed";
+                status: "active" | "paused" | "completed" | "aborted";
                 duration: number;
                 startTime: number;
                 id: string;
                 taskId: string;
             }, {
-                status: "aborted" | "active" | "paused" | "completed";
+                status: "active" | "paused" | "completed" | "aborted";
                 duration: number;
                 startTime: number;
                 id: string;
@@ -6441,19 +6441,19 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -6473,19 +6473,19 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -6509,19 +6509,19 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -6545,19 +6545,19 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -6583,19 +6583,19 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -6628,19 +6628,19 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
             };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string;
+            } | null;
             dailyState: {
                 date: string;
                 completedPomodoros: number;
                 totalFocusMinutes: number;
                 top3TaskIds: string[];
             };
-            activePomodoro: {
-                status: "aborted" | "active" | "paused" | "completed";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
             top3Tasks: {
                 status: string;
                 title: string;
@@ -6962,13 +6962,13 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     overridesSleepTime: z.ZodOptional<z.ZodBoolean>;
                     overridesWorkHours: z.ZodOptional<z.ZodBoolean>;
                 }, "strip", z.ZodTypeAny, {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 }, {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 }>>;
@@ -6976,11 +6976,11 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     active: z.ZodBoolean;
                     endTime: z.ZodNumber;
                 }, "strip", z.ZodTypeAny, {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 }, {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 }>>;
                 healthLimit: z.ZodOptional<z.ZodObject<{
                     type: z.ZodEnum<["2hours", "daily"]>;
@@ -7012,14 +7012,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -7041,14 +7041,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -7072,14 +7072,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -7148,14 +7148,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -7212,7 +7212,6 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         }>;
         effectiveTime: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        policyType: "full" | "partial";
         policy: {
             state: {
                 skipTokensRemaining: number;
@@ -7228,14 +7227,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -7290,9 +7289,9 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
         };
+        policyType: "full" | "partial";
         effectiveTime: number;
     }, {
-        policyType: "full" | "partial";
         policy: {
             state: {
                 skipTokensRemaining: number;
@@ -7308,14 +7307,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -7370,11 +7369,11 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
         };
+        policyType: "full" | "partial";
         effectiveTime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
     payload: {
-        policyType: "full" | "partial";
         policy: {
             state: {
                 skipTokensRemaining: number;
@@ -7390,14 +7389,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -7452,6 +7451,7 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
         };
+        policyType: "full" | "partial";
         effectiveTime: number;
     };
     commandId: string;
@@ -7463,7 +7463,6 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     expiryTime?: number | undefined;
 }, {
     payload: {
-        policyType: "full" | "partial";
         policy: {
             state: {
                 skipTokensRemaining: number;
@@ -7479,14 +7478,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     remaining: number;
                 } | undefined;
                 adhocFocusSession?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                     overridesSleepTime?: boolean | undefined;
                     overridesWorkHours?: boolean | undefined;
                 } | undefined;
                 temporaryUnblock?: {
-                    endTime: number;
                     active: boolean;
+                    endTime: number;
                 } | undefined;
                 healthLimit?: {
                     message: string;
@@ -7541,6 +7540,7 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
         };
+        policyType: "full" | "partial";
         effectiveTime: number;
     };
     commandId: string;

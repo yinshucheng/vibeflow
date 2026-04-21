@@ -1,25 +1,25 @@
 /**
  * Socket.io Client
- * 
+ *
  * Client-side Socket.io connection manager for the VibeFlow web dashboard.
- * Provides hooks and utilities for real-time communication.
- * 
+ * Uses the unified OCTOPUS_COMMAND protocol for all server→client events.
+ *
  * Requirements: 6.7
  */
 
 import { io, Socket } from 'socket.io-client';
+import type {
+  OctopusCommand,
+  ExecuteActionPayload,
+  ShowUIPayload,
+} from '@vibeflow/octopus-protocol';
 
-// Re-export types locally (avoid importing from server in client code)
-// 3-state model: idle (was locked/planning/rest), focus, over_rest
+// Re-export types for backward compat
 export type SystemState = 'idle' | 'focus' | 'over_rest';
 
-export interface PolicyCache {
-  globalState: SystemState;
-  blacklist: string[];
-  whitelist: string[];
-  sessionWhitelist: string[];
-  lastSync: number;
-  isAuthenticated?: boolean;
+export interface ExecuteCommand {
+  action: 'INJECT_TOAST' | 'SHOW_OVERLAY' | 'REDIRECT' | 'POMODORO_COMPLETE' | 'IDLE_ALERT' | 'HABIT_REMINDER';
+  params: Record<string, unknown>;
 }
 
 export interface ActivityLogEntry {
@@ -30,22 +30,15 @@ export interface ActivityLogEntry {
   timestamp?: number;
 }
 
-export interface ExecuteCommand {
-  action: 'INJECT_TOAST' | 'SHOW_OVERLAY' | 'REDIRECT' | 'POMODORO_COMPLETE' | 'IDLE_ALERT' | 'HABIT_REMINDER';
-  params: Record<string, unknown>;
-}
-
-// Server -> Client message types
+// Server -> Client events (OCTOPUS protocol only)
 interface ServerToClientEvents {
-  SYNC_POLICY: (payload: PolicyCache) => void;
-  STATE_CHANGE: (payload: { state: SystemState }) => void;
-  EXECUTE: (payload: ExecuteCommand) => void;
-  OCTOPUS_COMMAND: (command: { commandType: string; payload: unknown }) => void;
+  OCTOPUS_COMMAND: (command: OctopusCommand) => void;
   error: (payload: { code: string; message: string }) => void;
 }
 
-// Client -> Server message types
+// Client -> Server events
 interface ClientToServerEvents {
+  OCTOPUS_EVENT: (event: unknown) => void;
   ACTIVITY_LOG: (payload: ActivityLogEntry[]) => void;
   URL_CHECK: (payload: { url: string }, callback: (response: { allowed: boolean; action?: string }) => void) => void;
   USER_RESPONSE: (payload: { questionId: string; response: boolean }) => void;
@@ -56,14 +49,12 @@ interface ClientToServerEvents {
 let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 
 // Event listeners
-type PolicyListener = (policy: PolicyCache) => void;
-type StateChangeListener = (state: SystemState) => void;
+type OctopusCommandListener = (command: OctopusCommand) => void;
 type ExecuteListener = (command: ExecuteCommand) => void;
 type ErrorListener = (error: { code: string; message: string }) => void;
 type ConnectionListener = (connected: boolean) => void;
 
-const policyListeners = new Set<PolicyListener>();
-const stateChangeListeners = new Set<StateChangeListener>();
+const octopusCommandListeners = new Set<OctopusCommandListener>();
 const executeListeners = new Set<ExecuteListener>();
 const errorListeners = new Set<ErrorListener>();
 const connectionListeners = new Set<ConnectionListener>();
@@ -79,13 +70,10 @@ export function initializeSocket(options?: {
     return socket;
   }
 
-  // In dev mode, read email from localStorage if not explicitly provided
   let email = options?.email;
   if (!email && typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
     email = localStorage.getItem('dev-user-email') || undefined;
   }
-  // In production mode (no dev mode), Web socket relies on same-origin
-  // NextAuth session cookies for authentication (sent automatically)
 
   const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 
@@ -114,26 +102,26 @@ export function initializeSocket(options?: {
 
   socket.on('connect_error', (error) => {
     console.error('[Socket.io Client] Connection error:', error.message);
-    errorListeners.forEach((listener) => listener({ 
-      code: 'CONNECTION_ERROR', 
-      message: error.message 
+    errorListeners.forEach((listener) => listener({
+      code: 'CONNECTION_ERROR',
+      message: error.message,
     }));
   });
 
-  // Server events
-  socket.on('SYNC_POLICY', (policy) => {
-    console.log('[Socket.io Client] Policy sync received');
-    policyListeners.forEach((listener) => listener(policy));
-  });
+  // Unified Octopus protocol handler
+  socket.on('OCTOPUS_COMMAND', (command) => {
+    console.log('[Socket.io Client] OCTOPUS_COMMAND:', command.commandType);
+    octopusCommandListeners.forEach((listener) => listener(command));
 
-  socket.on('STATE_CHANGE', ({ state }) => {
-    console.log('[Socket.io Client] State change:', state);
-    stateChangeListeners.forEach((listener) => listener(state));
-  });
-
-  socket.on('EXECUTE', (command) => {
-    console.log('[Socket.io Client] Execute command:', command.action);
-    executeListeners.forEach((listener) => listener(command));
+    // Legacy execute listener compat (for tray-sync habit reminders)
+    if (command.commandType === 'EXECUTE_ACTION') {
+      const payload = command.payload as ExecuteActionPayload;
+      const legacyCommand: ExecuteCommand = {
+        action: payload.action as ExecuteCommand['action'],
+        params: payload.parameters ?? {},
+      };
+      executeListeners.forEach((listener) => listener(legacyCommand));
+    }
   });
 
   socket.on('error', (error) => {
@@ -173,23 +161,15 @@ export function isConnected(): boolean {
 // ============================================================================
 
 /**
- * Subscribe to policy updates
+ * Subscribe to OCTOPUS_COMMAND events (primary listener)
  */
-export function onPolicyUpdate(listener: PolicyListener): () => void {
-  policyListeners.add(listener);
-  return () => policyListeners.delete(listener);
+export function onOctopusCommand(listener: OctopusCommandListener): () => void {
+  octopusCommandListeners.add(listener);
+  return () => octopusCommandListeners.delete(listener);
 }
 
 /**
- * Subscribe to state changes
- */
-export function onStateChange(listener: StateChangeListener): () => void {
-  stateChangeListeners.add(listener);
-  return () => stateChangeListeners.delete(listener);
-}
-
-/**
- * Subscribe to execute commands
+ * Subscribe to execute commands (legacy compat for habit reminders)
  */
 export function onExecuteCommand(listener: ExecuteListener): () => void {
   executeListeners.add(listener);
@@ -233,7 +213,6 @@ export function sendActivityLogs(logs: ActivityLogEntry[]): void {
 export function checkUrl(url: string): Promise<{ allowed: boolean; action?: string }> {
   return new Promise((resolve) => {
     if (!socket?.connected) {
-      console.warn('[Socket.io Client] Not connected, allowing URL by default');
       resolve({ allowed: true });
       return;
     }
@@ -245,10 +224,7 @@ export function checkUrl(url: string): Promise<{ allowed: boolean; action?: stri
  * Send user response to soft intervention
  */
 export function sendUserResponse(questionId: string, response: boolean): void {
-  if (!socket?.connected) {
-    console.warn('[Socket.io Client] Not connected, cannot send user response');
-    return;
-  }
+  if (!socket?.connected) return;
   socket.emit('USER_RESPONSE', { questionId, response });
 }
 
@@ -256,9 +232,6 @@ export function sendUserResponse(questionId: string, response: boolean): void {
  * Request policy sync from server
  */
 export function requestPolicy(): void {
-  if (!socket?.connected) {
-    console.warn('[Socket.io Client] Not connected, cannot request policy');
-    return;
-  }
+  if (!socket?.connected) return;
   socket.emit('REQUEST_POLICY');
 }

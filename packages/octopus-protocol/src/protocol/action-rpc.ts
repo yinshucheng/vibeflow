@@ -60,10 +60,10 @@ export function createActionRPC(config: ActionRPCConfig) {
 
     /** Clear all pending actions on disconnect */
     clearAll(): void {
-      for (const [, entry] of pending) {
+      pending.forEach((entry) => {
         clearTimeout(entry.timer);
         entry.reject(new Error('Connection lost'));
-      }
+      });
       pending.clear();
     },
 

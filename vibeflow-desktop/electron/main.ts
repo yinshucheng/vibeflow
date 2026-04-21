@@ -1579,19 +1579,52 @@ app.whenReady().then(async () => {
   });
 
   // Sync offline events when connection is restored
+  // Wait for full sync (SYNC_STATE) before flushing — ensures server state is current
+  let fullSyncReceived = false;
+  let pendingFlush: (() => void) | null = null;
+
+  connectionManager.onStateChange(() => {
+    // First SYNC_STATE after reconnect — trigger deferred flush
+    if (!fullSyncReceived) {
+      fullSyncReceived = true;
+      if (pendingFlush) {
+        pendingFlush();
+        pendingFlush = null;
+      }
+    }
+  });
+
   connectionManager.onConnectionChange(async (event) => {
     if (event.status === 'connected') {
+      fullSyncReceived = false;
       const queueState = offlineQueue.getState();
       if (queueState.pendingCount > 0) {
-        console.log('[Main] Connection restored, syncing', queueState.pendingCount, 'offline events');
-        const result = await offlineQueue.syncAll();
-        console.log('[Main] Offline event sync result:', result);
-        
-        // Notify renderer about sync result
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('offlineQueue:syncComplete', result);
-        }
+        console.log('[Main] Connection restored, waiting for full sync before flushing', queueState.pendingCount, 'offline events');
+        const flushFn = async () => {
+          console.log('[Main] Full sync received, flushing offline events');
+          const result = await offlineQueue.syncAll();
+          console.log('[Main] Offline event sync result:', result);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('offlineQueue:syncComplete', result);
+          }
+        };
+        // Wait up to 10s for full sync, then flush anyway (best effort)
+        const timeout = setTimeout(() => {
+          if (!fullSyncReceived) {
+            console.log('[Main] Full sync timeout (10s), flushing offline events anyway');
+            fullSyncReceived = true;
+            pendingFlush = null;
+            flushFn();
+          }
+        }, 10000);
+        pendingFlush = () => {
+          clearTimeout(timeout);
+          flushFn();
+        };
       }
+    } else if (event.status === 'disconnected' || event.status === 'reconnecting') {
+      fullSyncReceived = false;
+      pendingFlush = null;
     }
   });
 

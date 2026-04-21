@@ -183,7 +183,16 @@ function scheduleOverRestTimer(
       const inFocusSession = focusSessionResult.success && focusSessionResult.data === true;
 
       if (!withinWorkHours && !inFocusSession) {
-        return; // Don't schedule OVER_REST outside work hours without focus session
+        // Non-work time without focus session: clear lastPomodoroEndTime to prevent
+        // stale timestamp from triggering OVER_REST when work hours resume
+        const dsResult = await dailyStateService.getOrCreateToday(userId);
+        if (dsResult.success && dsResult.data?.lastPomodoroEndTime) {
+          await prisma.dailyState.update({
+            where: { id: dsResult.data.id },
+            data: { lastPomodoroEndTime: null },
+          });
+        }
+        return;
       }
 
       // Re-validate state after async operations — user may have started a new pomodoro
