@@ -242,13 +242,9 @@ export function usePomodoroMachine(): UsePomodoroMachineReturn {
     }
   }, [isLoading, currentPomodoro, systemState, phase, userIntentPhase, dailyState?.lastPomodoroEndTime]);
 
-  // Refresh data when WebSocket state changes
-  useEffect(() => {
-    if (socketState) {
-      utils.dailyState.getToday.invalidate();
-      utils.pomodoro.getCurrent.invalidate();
-    }
-  }, [socketState, utils]);
+  // Note: Previously invalidated React Query cache on every WS state change,
+  // causing ~50 HTTP req/min polling. Removed — realtime store now has latest data.
+  // Mutation onSuccess callbacks still invalidate relevant queries as needed.
 
   /**
    * Start a new pomodoro

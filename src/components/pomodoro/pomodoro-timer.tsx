@@ -88,16 +88,12 @@ export function PomodoroTimer({ taskId: preSelectedTaskId, onComplete, onAbort, 
   // Get current pomodoro if any
   const { data: currentPomodoro, isLoading: pomodoroLoading, refetch: refetchCurrent } = trpc.pomodoro.getCurrent.useQuery();
 
-  // Refetch pomodoro state when system state changes via WebSocket
-  // This ensures the timer updates immediately when pomodoro completes server-side
+  // Log WebSocket state changes for debugging (no refetch needed — realtime store has latest data)
   useEffect(() => {
     if (socketState) {
       console.log('[PomodoroTimer] State change detected via WebSocket:', socketState);
-      refetchCurrent();
-      utils.dailyState.canStartPomodoro.invalidate();
-      utils.dailyState.getToday.invalidate();
     }
-  }, [socketState, refetchCurrent, utils.dailyState.canStartPomodoro, utils.dailyState.getToday]);
+  }, [socketState]);
 
   // Get time slices for current pomodoro (Multi-task Req 4)
   const { data: timeSlices } = trpc.timeSlice.getByPomodoro.useQuery(
