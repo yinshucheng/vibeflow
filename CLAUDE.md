@@ -157,6 +157,15 @@ Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access l
 - **Web/Backend 验证**: `npm run dev`
 - 启动前先检查端口是否已占用，已占用则先 kill 再启动
 
+## npm Registry 规则
+
+**禁止使用美团内网 npm 源**（`r.npm.sankuai.com`、`npm.sankuai.com`）。本项目部署在阿里云 ECS，无法访问美团内网。
+
+- `package-lock.json` 中的 `resolved` URL 不允许包含 `sankuai.com`
+- `.npmrc` 不允许配置美团 registry
+- 如果发现 lockfile 中有美团源 URL，立即替换为 `https://registry.npmmirror.com` 或 `https://registry.npmjs.org`
+- 安装依赖前确认当前 npm registry 不是美团源：`npm config get registry`
+
 ## Development Principles
 
 - 整体架构按照DDD方式构建，不做过度抽象
