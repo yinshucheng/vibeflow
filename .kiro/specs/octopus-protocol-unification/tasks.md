@@ -324,6 +324,63 @@ it('policy update uses Config/State split', async () => {
 
 ---
 
+## 手动验收 Checklist
+
+> 启动方式：
+> - Web + Backend: `cd ~/code/creo/vibeflow && npm run dev` → http://localhost:3000
+> - iOS: `cd ~/code/creo/vibeflow/vibeflow-ios && EXPO_PUBLIC_SERVER_HOST=$(ipconfig getifaddr en0) npx expo start --port 8081`
+> - Desktop: `cd ~/code/creo/vibeflow/vibeflow-desktop && npm run dev`（连 localhost:3000）
+> - Extension: `cd ~/code/creo/vibeflow/vibeflow-extension && npm run build`，然后 Chrome → chrome://extensions → 加载 `vibeflow-extension/`
+
+### Web 端
+
+- [ ] W1. Dashboard 正常加载 — 打开 http://localhost:3000，看到状态、番茄钟、任务
+- [ ] W2. 无周期性轮询 — DevTools Network → 等 60s 不操作 → 无重复 tRPC 请求（`task-suggestions` 120s 一次除外）
+- [ ] W3. 番茄钟启动实时更新 — 开始番茄钟 → 状态立即变为 FOCUS（不需等轮询）
+- [ ] W4. 番茄钟结束实时更新 — 完成/中止番茄钟 → 状态立即回到 IDLE
+- [ ] W5. Policy 推送 — 修改设置（如 enforcementMode）→ 不刷新页面 → UI 反映新 policy
+- [ ] W6. 习惯数据同步 — 习惯状态通过 WS 推送更新（DevTools 不再看到 `habit:*` 事件）
+
+### iOS
+
+- [ ] I1. 连接正常 — 打开 app → 看到数据显示（非空白/loading）
+- [ ] I2. 状态同步 — Web 上开始番茄钟 → iOS 实时显示 FOCUS 状态
+- [ ] I3. Action RPC — iOS 上完成任务 → 收到结果 → UI 更新
+- [ ] I4. Policy 更新 — Web 修改设置 → iOS 控制台显示 `[SyncService] State sync applied`
+- [ ] I5. 断线重连 — 关闭 WiFi → 重新打开 → 自动重连 + 恢复状态
+
+### Desktop
+
+- [ ] D1. 连接正常 — 启动后控制台显示 connected + 收到 OCTOPUS_COMMAND
+- [ ] D2. 只收 OCTOPUS_COMMAND — 控制台日志中只有 `OCTOPUS_COMMAND received:`，无 `policy:update`、`EXECUTE`、`SYNC_POLICY` 等 legacy 事件名
+- [ ] D3. Policy Config/State — 日志显示 `Policy update received, version: X`，sleepTime 等配置正确
+- [ ] D4. 应用封锁 — FOCUS 状态下分心 app 被封锁（如已配置）
+- [ ] D5. 番茄钟同步 — Web 开始番茄钟 → Desktop tray 显示倒计时
+
+### Extension
+
+- [ ] E1. 加载正常 — Chrome Extensions 页面无报错，popup 正常显示
+- [ ] E2. 只收 OCTOPUS_COMMAND — Extension background 控制台只有 `Octopus command received:`，无 `SYNC_POLICY`、`STATE_CHANGE`、`EXECUTE` legacy 事件
+- [ ] E3. URL blocking — FOCUS 状态访问黑名单网站 → 被拦截（如已配置）
+- [ ] E4. 状态显示 — popup 显示当前系统状态（IDLE/FOCUS/OVER_REST）
+
+### 跨端一致性
+
+- [ ] X1. 状态广播 — Web 开始番茄钟 → iOS + Desktop + Extension 同时更新为 FOCUS
+- [ ] X2. 延迟 — 状态变更从操作到所有端感知 < 1 秒
+- [ ] X3. Policy 同步 — Web 修改设置 → 所有端收到新 Policy（`config` + `state` 结构）
+
+### 自动化测试确认
+
+- [ ] T1. `npx tsc --noEmit` — Server 零错误
+- [ ] T2. `cd vibeflow-desktop && npx tsc --noEmit` — Desktop 零错误
+- [ ] T3. `cd vibeflow-extension && npx tsc --noEmit` — Extension 零错误
+- [ ] T4. `npm test` — 全部通过（flaky property tests 除外）
+- [ ] T5. `npm run lint` — 零警告
+- [ ] T6. `cd packages/octopus-protocol && npm test` — SDK 71 tests + conformance 全绿
+
+---
+
 ## Pipeline 适用性评估
 
 | Phase | 适合 Pipeline？ | 理由 |
