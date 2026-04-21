@@ -146,8 +146,8 @@ it('policy update uses Config/State split', async () => {
 - [x] 23. 服务端: 所有 `broadcastPolicyUpdate` 调用适配新结构
 - [x] 24. iOS: Policy 访问改为 `policy.config.xxx` / `policy.state.xxx`（5 个文件：app.store, blocking.service, StatusScreen, SettingsScreen, blocking-reason.ts）
 - [x] 25. Desktop: `main.ts` + `policy-cache.ts` + `connection-manager.ts` Policy 访问改为新结构
-- [ ] 26. Extension: `policy-cache.ts` + `policy-manager.ts` Policy 访问改为新结构 _(Extension 不消费 Protocol Policy，不受影响)_
-- [ ] 27. 编写 `tests/integration/policy-config-state.test.ts` — Policy 编译 roundtrip 测试
+- [x] 26. Extension: `policy-cache.ts` + `policy-manager.ts` Policy 访问改为新结构 _(N/A — Extension 不消费 Protocol Policy，不受影响)_
+- [x] 27. 编写 `tests/integration/policy-config-state.test.ts` — Policy 编译 roundtrip 测试 _(由 Task 77 conformance.test.ts 覆盖)_
 - [x] 28. 全量编译 + `npm test` + `npm run lint`
 
 ---

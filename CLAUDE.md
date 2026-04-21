@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VibeFlow is an AI-Native Output Engine — 帮助用户心想事成的系统。核心理念：**用户有预期状态（工作、休息、睡眠、目标达成），现实往往偏离，系统持续校正帮用户回归预期。** 目标管理、任务拆解、番茄钟、休息保护、睡眠管理、AI 建议都是手段。
-
-It has four clients sharing one backend:
+VibeFlow is an AI-Native Output Engine — a productivity and focus management system built around the Pomodoro technique. It has four clients sharing one backend:
 
 | Client | Path | Stack |
 |--------|------|-------|
@@ -70,39 +68,23 @@ Goals (1 week–5 years)
               └── Pomodoros (10–120 min focus sessions, always tied to a task)
 ```
 
-### Daily State Machine (3-state model)
+### Daily State Machine
 
 ```
-IDLE ──START_POMODORO──→ FOCUS ──COMPLETE/ABORT──→ IDLE
-  ↑                                                  │
-  └──RETURN_TO_IDLE/START_POMODORO── OVER_REST ←─────┘
-                                     (rest exceeded)
+LOCKED → PLANNING → FOCUS ↔ REST → LOCKED
+                              ↓
+                          OVER_REST
 ```
 
-| State | DB Value | User Can Do |
-|-------|----------|-------------|
-| `idle` | `IDLE` | Start pomodoro, manage tasks, plan day |
-| `focus` | `FOCUS` | Complete/abort active pomodoro, switch tasks |
-| `over_rest` | `OVER_REST` | Start pomodoro (forced return) or acknowledge |
+| State | User Can Do |
+|-------|-------------|
+| `LOCKED` | Complete airlock only |
+| `PLANNING` | Start pomodoro, manage tasks |
+| `FOCUS` | Complete/abort active pomodoro, switch tasks |
+| `REST` | Complete rest, override daily cap |
+| `OVER_REST` | Forced return after exceeding rest time |
 
-REST is a **sub-phase of IDLE** — determined by `lastPomodoroEndTime` (recent completion = resting). Desktop tray shows `READY` or `RESTING` accordingly.
-
-**OVER_REST trigger conditions** (`scheduleOverRestTimer` + 30s fallback):
-- State is `idle` AND `lastPomodoroEndTime` exists (pomodoro was completed, not aborted)
-- AND (`isWithinWorkHours` OR `inFocusSession`) — without either, OVER_REST does not trigger
-- Timer delay = `shortRestDuration + overRestGracePeriod` (default: 5+5 = 10 min)
-
-**Time windows and their effects:**
-
-| Window | Can start pomodoro? | OVER_REST triggers? | Enforcement |
-|--------|--------------------|--------------------|-------------|
-| Work time | ✅ | ✅ | Distraction apps blocked during FOCUS |
-| Non-work, no Focus Session | ✅ | ❌ | No enforcement |
-| Non-work + Focus Session (overtime) | ✅ | ✅ | Distraction + sleep apps blocked |
-| Sleep time, no Focus Session | ✅ | ❌ | Sleep enforcement active |
-| Sleep time + Focus Session | ✅ | ✅ | Sleep enforcement overridden |
-
-Machine: `src/machines/vibeflow.machine.ts`. StateEngine: `src/services/state-engine.service.ts`. Daily reset at 04:00 AM. Default cap: 8 pomodoros/day.
+Machine: `src/machines/vibeflow.machine.ts`. Daily reset at 04:00 AM. Default cap: 8 pomodoros/day. Top 3 task selection during airlock (0–3 tasks).
 
 ### Service Layer Pattern
 
@@ -186,32 +168,9 @@ Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access l
 - 修改服务端 API/Socket 事件/数据结构时，必须检查所有 4 个客户端（Web、Desktop、Extension、iOS）是否需要同步调整
 - Bug 修复流程：先写测试复现 bug（单测优先，必要时用 E2E），再修复代码。如果 bug 难以用自动化测试复现（如纯 UI/环境相关），需在 commit message 中说明理由和手动复现步骤。
 
-## Deployment
-
-Production runs on Alibaba Cloud ECS via Docker. Key commands:
-
-```bash
-./deploy/deploy.sh              # Deploy to production (one command)
-./scripts/start-remote.sh ios   # Start iOS connected to remote server
-./scripts/start-remote.sh desktop  # Start Desktop connected to remote server (dev mode)
-
-# Desktop release build (packaged .app auto-connects to remote server)
-cd vibeflow-desktop && npm run build:mac && open release/mac-arm64/VibeFlow.app
-```
-
-Local `npm run dev` connects to local DB — isolated from production.
-
-See `.kiro/steering/deployment.md` for full deployment guide, server operations, and data backup.
-
 ## Reference Documents
 
-`.kiro/steering/` 中有专题参考文档，仅在涉及相关功能时按需查阅。核心架构和约束以本文件（CLAUDE.md）为唯一 truth source。
-
-| Document | When to read |
-|----------|-------------|
-| `deployment.md` | 部署、服务器运维、客户端连接远程服务器 |
-| `desktop-window-behavior.md` | Desktop 窗口行为 |
-| `e2e-testing.md` | E2E 测试 |
+`.kiro/steering/` 中有专题参考文档（如 `desktop-window-behavior.md`、`e2e-testing.md`），仅在涉及相关功能时按需查阅。核心架构和约束以本文件（CLAUDE.md）为唯一 truth source。
 
 ## Feature Specs (Required)
 
@@ -247,6 +206,7 @@ Each spec has a status label. When working on a spec, update the table below.
 | `ad-hoc-focus-session` | done | Focus sessions, sleep time, progress calculations |
 | `ios-mvp` | done | iOS read-only client, Screen Time, notifications |
 | `octopus-architecture` | done | Protocol types, client registry, policy distribution |
+| `octopus-protocol-unification` | done | 共享类型包、Policy Config/State 拆分、删 legacy 事件、协议层 SDK、消除 Web 轮询、conformance 测试 |
 | `pomodoro-enhancement` | partial | Tasks 16.5–16.8 (WebsiteStatsService) not done |
 | `pomodoro-multitask-enhancement` | partial | Phase 1–2 done, Phase 3 ~80%, Phase 4–8 not started |
 | `e2e-testing` | partial | Fixtures + core flows done; Page Objects, CRUD E2E, CI/CD missing |
@@ -264,15 +224,13 @@ Each spec has a status label. When working on a spec, update the table below.
 | `public-network-deployment` | requirements | Public network deployment plan |
 | `state-aware-enforcement` | requirements | State-aware enforcement rules |
 | `task-categorization` | requirements | Task categorization system |
-| `pomodoro-state-transition` | deprecated | Superseded by state-management-overhaul |
-| `state-management-overhaul` | not-started | 状态管理系统重构：3 状态模型、统一转换引擎、OVER_REST 显式化 |
+| `pomodoro-state-transition` | requirements | Architecture refactor docs |
 | `ios-screen-time` | requirements | Has design + pipeline config, no tasks |
 | `mobile-app` | deprecated | Superseded by ios-mvp |
 | `dashboard-command-center` | not-started | Dashboard 指挥部改造，内嵌番茄钟+任务操作 |
-| `work-rhythm-enhancement` | tested | OVER_REST 一致性、UI 显示修复、加班模式、健康提醒、跨客户端通知 |
-| `auth-and-skill-api` | tested | Phase 1/2/4/5 完成并验收。剩余：Phase 3（iOS/Desktop 认证）、task 16（上架 README/LICENSE） |
-| `octopus-protocol-unification` | partial | 八爪鱼协议统一：共享类型包、清理 legacy 事件、统一 Policy、客户端 SDK。Delta sync 死代码已清理。 |
-
+| `work-rhythm-analytics` | requirements | 工作节奏统计：上班效率、加班检测、休息保护、节奏评分 |
+o'n'g's
 ## Environment Setup
 
 See `.env.example` for required variables: `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `DEV_MODE`, `DEV_USER_EMAIL`.
+hua
