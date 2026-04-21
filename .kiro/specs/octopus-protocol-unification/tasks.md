@@ -218,30 +218,30 @@ it('policy update uses Config/State split', async () => {
 
 ### Tasks — 各端迁移
 
-- [ ] 53. iOS: `websocket.service.ts` OCTOPUS_COMMAND handler → `createCommandHandler`
-- [ ] 54. iOS: `app.store.ts` full sync 逻辑 → `createStateManager`（验证与原实现行为等价；`applyDeltaChanges` 已在 commit e039021 中删除）
-- [ ] 55. iOS: `action.service.ts` → `createActionRPC`
-- [ ] 56. Desktop: `connection-manager.ts` command routing → `createCommandHandler` + `createStateManager`
-- [ ] 57. Extension: `websocket.ts` command routing → `createCommandHandler` + `createStateManager`（配置 `chrome.storage.local` 持久化）
-- [ ] 58. 各端离线队列 flush 时序：重连 → 等待 full sync（超时 10s）→ flush 离线队列 → 超时则直接 flush（best effort）
+- [x] 53. iOS: `websocket.service.ts` OCTOPUS_COMMAND handler → `createCommandHandler`
+- [x] 54. iOS: `app.store.ts` full sync 逻辑 → `createStateManager`（验证与原实现行为等价；`applyDeltaChanges` 已在 commit e039021 中删除）
+- [x] 55. iOS: `action.service.ts` → `createActionRPC`
+- [x] 56. Desktop: `connection-manager.ts` command routing → `createCommandHandler` + `createStateManager`
+- [x] 57. Extension: `websocket.ts` command routing → `createCommandHandler` + `createStateManager`（配置 `chrome.storage.local` 持久化）
+- [x] 58. 各端离线队列 flush 时序：重连 → 等待 full sync（超时 10s）→ flush 离线队列 → 超时则直接 flush（best effort） <!-- C-migration done -->
 
 ### Tasks — Web 端数据流统一
 
-- [ ] 59. Web: 重写 `src/lib/socket-client.ts`（264行）— 从 legacy events 切换到 `OCTOPUS_COMMAND`
-- [ ] 60. Web: 新建 `src/stores/realtime.store.ts`（Zustand）用 `createStateManager` 驱动
-- [ ] 61. Web: 重写 `src/hooks/use-socket.ts`（139行）— 用 `createCommandHandler` + 更新 realtime store
-- [ ] 62. **副作用迁移**: 将 `tray-sync-provider.tsx` 中的副作用（overRest toast、healthLimit 提示等）迁移到 realtime store 的 subscribe 回调或 command handler 中
-- [ ] 63. Web: 删除 `tray-sync-provider.tsx` 的 6 个 `refetchInterval` 查询
-- [ ] 64. Web: 删除 `header.tsx`、`dashboard-status.tsx`、`daily-progress-card.tsx`、`goal-risk-suggestions.tsx` 的 `refetchInterval`
-- [ ] 65. Web: 删除 `focus-session-control.tsx`、`demo-mode-banner.tsx` 的 `refetchInterval`
-- [ ] 66. Web: 审计所有仍从 React Query 读取实时数据的组件，改为从 `realtime.store.ts` 读取。**React Query 仅保留用于非实时数据**（任务列表详情、历史记录等），不做 `queryClient.setQueryData()` 双源同步。
-- [ ] 67. 全量编译 + `npm test` + `npm run lint`
+- [x] 59. Web: 重写 `src/lib/socket-client.ts`（264行）— 从 legacy events 切换到 `OCTOPUS_COMMAND`
+- [x] 60. Web: 新建 `src/stores/realtime.store.ts`（Zustand）用 `createStateManager` 驱动
+- [x] 61. Web: 重写 `src/hooks/use-socket.ts`（139行）— 用 `createCommandHandler` + 更新 realtime store
+- [x] 62. **副作用迁移**: 将 `tray-sync-provider.tsx` 中的副作用（overRest toast、healthLimit 提示等）迁移到 realtime store 的 subscribe 回调或 command handler 中
+- [x] 63. Web: 删除 `tray-sync-provider.tsx` 的 6 个 `refetchInterval` 查询
+- [x] 64. Web: 删除 `header.tsx`、`dashboard-status.tsx`、`daily-progress-card.tsx`、`goal-risk-suggestions.tsx` 的 `refetchInterval`
+- [x] 65. Web: 删除 `focus-session-control.tsx`、`demo-mode-banner.tsx` 的 `refetchInterval`
+- [x] 66. Web: 审计所有仍从 React Query 读取实时数据的组件，改为从 `realtime.store.ts` 读取。**React Query 仅保留用于非实时数据**（任务列表详情、历史记录等），不做 `queryClient.setQueryData()` 双源同步。
+- [x] 67. 全量编译 + `npm test` + `npm run lint` <!-- C-web done -->
 
 ### Tasks — 自动化验证
 
-- [ ] 68. 编写 `e2e/tests/no-polling.spec.ts` — Playwright 拦截所有请求，等 60s，断言无周期性 tRPC 调用
-- [ ] 69. 编写 `tests/integration/offline-flush-sequence.test.ts` — 断连→事件入队→重连→full sync→flush 时序
-- [ ] 70. 性能验证：模拟每秒 5 次 full sync，确认 Web 端无 over-render（Zustand selector 精确订阅）
+- [x] 68. 编写 `e2e/tests/no-polling.spec.ts` — Playwright 拦截所有请求，等 60s，断言无周期性 tRPC 调用
+- [x] 69. 编写 `tests/integration/offline-flush-sequence.test.ts` — 断连→事件入队→重连→full sync→flush 时序
+- [x] 70. 性能验证：模拟每秒 5 次 full sync，确认 Web 端无 over-render（Zustand selector 精确订阅） <!-- C-verify done -->
 
 ### Delta Sync（DEFERRED — 已清理死代码）
 

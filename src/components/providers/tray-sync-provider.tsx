@@ -1,18 +1,16 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { trpc } from '@/lib/trpc';
 import { useSocket } from '@/hooks/use-socket';
 import { useRealtimeStore } from '@/stores/realtime.store';
 import { trayIntegrationService } from '@/services/tray-integration.service';
-import { normalizeState } from '@/lib/state-utils';
 import { showBrowserNotification } from '@/services/notification.service';
-import { onExecuteCommand } from '@/lib/socket-client';
 
 /**
  * Global provider that syncs app state to desktop tray.
- * Real-time state comes from the realtime Zustand store (WebSocket-driven).
- * React Query is only used for non-realtime data (healthLimit, sleepTime).
+ * All real-time state comes from the realtime Zustand store (WebSocket-driven).
+ * No refetchInterval polling — sleep time, overRest, and health limit
+ * are all derived from the policy state pushed via UPDATE_POLICY.
  *
  * Requirements: 6.7 - Real-time state updates via WebSocket
  * Requirements: 7.1 - Rest period tracking with countdown display
@@ -24,25 +22,25 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
   // Real-time state from Zustand (driven by SDK state manager, no polling)
   const snapshot = useRealtimeStore((s) => s.snapshot);
   const systemState = useRealtimeStore((s) => s.systemState);
+  const lastExecuteAction = useRealtimeStore((s) => s.lastExecuteAction);
 
   // Track if we've started the main process countdown for the current pomodoro
   const mainProcessCountdownStartedRef = useRef<string | null>(null);
 
-  // Non-realtime queries that need polling (not pushed via WebSocket)
-  const { data: isInSleepTime } = trpc.sleepTime.isInSleepTime.useQuery(undefined, {
-    refetchInterval: 60000,
-  });
+  // Derive policy state values (pushed via UPDATE_POLICY, no polling needed)
+  const policy = snapshot.policy;
+  const isSleepTimeActive = policy?.state?.isSleepTimeActive ?? false;
+  const isOverRest = policy?.state?.isOverRest ?? false;
+  const overRestMinutes = policy?.state?.overRestMinutes ?? 0;
 
-  const { data: overRestStatus } = trpc.overRest.checkStatus.useQuery(undefined, {
-    refetchInterval: systemState === 'over_rest' ? 5000 : 30000,
-  });
-
-  const { data: dailyProgress } = trpc.dailyState.getDailyProgress.useQuery();
+  // Derive daily progress from realtime store (pushed via SYNC_STATE)
+  const completedPomodoros = snapshot.dailyState?.completedPomodoros ?? 0;
+  const targetPomodoros = snapshot.settings?.dailyCap ?? 8;
 
   // Single unified effect to sync state to tray
   useEffect(() => {
     // Sleep time takes highest priority
-    if (isInSleepTime) {
+    if (isSleepTimeActive) {
       trayIntegrationService.updatePomodoroState(null);
       trayIntegrationService.updateSystemState('idle', undefined, undefined, true);
       if (mainProcessCountdownStartedRef.current && window.vibeflow?.pomodoro?.stopCountdown) {
@@ -89,14 +87,14 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
 
     const state = systemState;
     if (state) {
-      const progress = dailyProgress
-        ? `${dailyProgress.completedPomodoros}/${dailyProgress.targetPomodoros}`
-        : undefined;
+      const progress = `${completedPomodoros}/${targetPomodoros}`;
 
       let restData: { startTime: Date; duration: number; isOverRest: boolean } | undefined;
-      if (state === 'over_rest' && overRestStatus?.isOverRest && overRestStatus?.lastPomodoroEndTime) {
+      if (state === 'over_rest' && isOverRest) {
+        // Compute rest start time from overRestMinutes (pushed via UPDATE_POLICY)
+        const restStartTime = new Date(Date.now() - overRestMinutes * 60 * 1000);
         restData = {
-          startTime: new Date(overRestStatus.lastPomodoroEndTime),
+          startTime: restStartTime,
           duration: 0,
           isOverRest: true,
         };
@@ -104,43 +102,44 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
 
       trayIntegrationService.updateSystemState(state, restData, progress);
     }
-  }, [snapshot.activePomodoro, systemState, dailyProgress, isInSleepTime, overRestStatus]);
+  }, [snapshot.activePomodoro, systemState, completedPomodoros, targetPomodoros, isSleepTimeActive, isOverRest, overRestMinutes]);
 
-  // Habit reminder notification — listen for HABIT_REMINDER execute command
+  // Habit reminder notification — listen for EXECUTE_ACTION via realtime store
+  const prevExecuteActionRef = useRef(lastExecuteAction);
   useEffect(() => {
-    const unsub = onExecuteCommand((command) => {
-      if (command.action !== 'HABIT_REMINDER') return;
-      const params = command.params as {
-        title?: string;
-        question?: string;
-        streak?: number;
-        reminderType?: string;
-      };
-      const title = params.title ?? '习惯提醒';
-      const body =
-        params.question ??
-        (params.streak && params.streak > 1
-          ? `「${title}」已连续 ${params.streak} 天，今天还没打卡！`
-          : `该完成「${title}」了`);
-      showBrowserNotification('🔄 ' + title, {
-        body,
-        tag: 'habit-reminder',
-      });
+    // Skip if it's the same action reference (no new action)
+    if (lastExecuteAction === prevExecuteActionRef.current) return;
+    prevExecuteActionRef.current = lastExecuteAction;
+
+    if (!lastExecuteAction) return;
+    if ((lastExecuteAction.action as string) !== 'HABIT_REMINDER') return;
+
+    const params = lastExecuteAction.parameters as {
+      title?: string;
+      question?: string;
+      streak?: number;
+      reminderType?: string;
+    };
+    const title = (params.title as string) ?? '习惯提醒';
+    const body =
+      (params.question as string) ??
+      (params.streak && (params.streak as number) > 1
+        ? `「${title}」已连续 ${params.streak} 天，今天还没打卡！`
+        : `该完成「${title}」了`);
+    showBrowserNotification('🔄 ' + title, {
+      body,
+      tag: 'habit-reminder',
     });
-    return unsub;
-  }, []);
+  }, [lastExecuteAction]);
 
-  // Health limit notification — still polled (not pushed via WebSocket)
-  const { data: healthLimitData } = trpc.healthLimit.checkLimit.useQuery(undefined, {
-    refetchInterval: 60000,
-  });
-
+  // Health limit notification — derived from policy state (no polling)
+  const healthLimit = policy?.state?.healthLimit;
   const healthLimitTypeRef = useRef<string | null>(null);
   const healthLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (healthLimitData?.exceeded && healthLimitData.type) {
-      const type = healthLimitData.type;
+    if (healthLimit?.type) {
+      const type = healthLimit.type;
       const message = type === '2hours'
         ? "You've been working for 2+ hours continuously. Consider a longer break."
         : "You've worked over 10 hours today. Please take care of yourself.";
@@ -155,12 +154,16 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
         if (healthLimitTimerRef.current) {
           clearInterval(healthLimitTimerRef.current);
         }
+
+        const intervalMs = healthLimit.intervalMinutes
+          ? healthLimit.intervalMinutes * 60 * 1000
+          : 10 * 60 * 1000;
         healthLimitTimerRef.current = setInterval(() => {
           showBrowserNotification('⏰ Health Reminder', {
             body: message,
             tag: 'health-limit',
           });
-        }, 10 * 60 * 1000);
+        }, intervalMs);
       }
     } else {
       healthLimitTypeRef.current = null;
@@ -169,7 +172,7 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
         healthLimitTimerRef.current = null;
       }
     }
-  }, [healthLimitData]);
+  }, [healthLimit]);
 
   useEffect(() => {
     return () => {

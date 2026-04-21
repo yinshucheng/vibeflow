@@ -1,4 +1,4 @@
-import { createCommandHandler } from '@vibeflow/octopus-protocol';
+import { createCommandHandler, createStateManager, type StateSnapshot } from '@vibeflow/octopus-protocol';
 import type {
   PolicyCache,
   SystemState,
@@ -72,6 +72,33 @@ export class VibeFlowWebSocket {
 
   private authToken: string | null = null;
 
+  // SDK state manager — tracks protocol state with chrome.storage.local persistence
+  private stateManager = createStateManager({
+    onStateChange: (_snapshot: StateSnapshot, _changedKeys: (keyof StateSnapshot)[]) => {
+      // State changes are propagated to handlers via the command handler callbacks
+    },
+    loadFromStorage: async () => {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+          const result = await chrome.storage.local.get('octopus_state_snapshot');
+          return result.octopus_state_snapshot ?? null;
+        }
+      } catch {
+        // Storage unavailable, proceed without cached state
+      }
+      return null;
+    },
+    saveToStorage: async (state: StateSnapshot) => {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+          await chrome.storage.local.set({ octopus_state_snapshot: state });
+        }
+      } catch {
+        // Storage write failed, non-critical
+      }
+    },
+  });
+
   constructor(serverUrl: string, handlers: WebSocketEventHandler, authToken?: string) {
     this.serverUrl = serverUrl;
     this.handlers = handlers;
@@ -129,6 +156,20 @@ export class VibeFlowWebSocket {
     return this.clientId;
   }
 
+  /**
+   * Get protocol state snapshot (from SDK state manager)
+   */
+  getStateSnapshot(): StateSnapshot {
+    return this.stateManager.getState();
+  }
+
+  /**
+   * Check if full sync has been received since last reconnect
+   */
+  isFullSyncReceived(): boolean {
+    return this.stateManager.isFullSyncReceived();
+  }
+
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       return;
@@ -170,6 +211,7 @@ export class VibeFlowWebSocket {
       console.log('[WebSocket] Disconnected:', event.code, event.reason || '(no reason)');
       this.cleanup();
       this.isAuthenticated = false;
+      this.stateManager.onReconnecting();
       this.handlers.onDisconnect();
       // Reconnect is handled by service-worker, not here
     };
@@ -279,6 +321,7 @@ export class VibeFlowWebSocket {
     console.log('[WebSocket] Successfully connected to Socket.io namespace');
     this.isAuthenticated = true;
     this.fullSyncReceived = false;
+    this.stateManager.initialize().catch(() => { /* non-critical */ });
     this.handlers.onConnect();
 
     // Policy and state are automatically sent by the server on connection via OCTOPUS_COMMAND.
@@ -376,10 +419,12 @@ export class VibeFlowWebSocket {
   // SDK command handler — shared routing logic
   private sdkCommandHandler = createCommandHandler({
     onStateSync: (payload) => {
+      this.stateManager.handleSync(payload);
       this.notifyFullSyncReceived();
       this.handlers.onSyncState?.(payload);
     },
     onPolicyUpdate: (payload) => {
+      this.stateManager.handlePolicyUpdate(payload);
       this.handlers.onPolicyUpdate?.(payload.policy);
     },
     onExecuteAction: (payload) => {

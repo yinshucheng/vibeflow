@@ -8,19 +8,7 @@
  */
 
 import { io, Socket } from 'socket.io-client';
-import type {
-  OctopusCommand,
-  ExecuteActionPayload,
-  ShowUIPayload,
-} from '@vibeflow/octopus-protocol';
-
-// Re-export types for backward compat
-export type SystemState = 'idle' | 'focus' | 'over_rest';
-
-export interface ExecuteCommand {
-  action: 'INJECT_TOAST' | 'SHOW_OVERLAY' | 'REDIRECT' | 'POMODORO_COMPLETE' | 'IDLE_ALERT' | 'HABIT_REMINDER';
-  params: Record<string, unknown>;
-}
+import type { OctopusCommand } from '@vibeflow/octopus-protocol';
 
 export interface ActivityLogEntry {
   url: string;
@@ -50,12 +38,10 @@ let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 
 // Event listeners
 type OctopusCommandListener = (command: OctopusCommand) => void;
-type ExecuteListener = (command: ExecuteCommand) => void;
 type ErrorListener = (error: { code: string; message: string }) => void;
 type ConnectionListener = (connected: boolean) => void;
 
 const octopusCommandListeners = new Set<OctopusCommandListener>();
-const executeListeners = new Set<ExecuteListener>();
 const errorListeners = new Set<ErrorListener>();
 const connectionListeners = new Set<ConnectionListener>();
 
@@ -112,16 +98,6 @@ export function initializeSocket(options?: {
   socket.on('OCTOPUS_COMMAND', (command) => {
     console.log('[Socket.io Client] OCTOPUS_COMMAND:', command.commandType);
     octopusCommandListeners.forEach((listener) => listener(command));
-
-    // Legacy execute listener compat (for tray-sync habit reminders)
-    if (command.commandType === 'EXECUTE_ACTION') {
-      const payload = command.payload as ExecuteActionPayload;
-      const legacyCommand: ExecuteCommand = {
-        action: payload.action as ExecuteCommand['action'],
-        params: payload.parameters ?? {},
-      };
-      executeListeners.forEach((listener) => listener(legacyCommand));
-    }
   });
 
   socket.on('error', (error) => {
@@ -166,14 +142,6 @@ export function isConnected(): boolean {
 export function onOctopusCommand(listener: OctopusCommandListener): () => void {
   octopusCommandListeners.add(listener);
   return () => octopusCommandListeners.delete(listener);
-}
-
-/**
- * Subscribe to execute commands (legacy compat for habit reminders)
- */
-export function onExecuteCommand(listener: ExecuteListener): () => void {
-  executeListeners.add(listener);
-  return () => executeListeners.delete(listener);
 }
 
 /**
