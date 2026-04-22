@@ -94,44 +94,25 @@ ok "Workspace package exists"
 log "[1/6] Syncing files to server..."
 TMPFILE=$(mktemp /tmp/vibeflow-deploy-XXXXXX.tar.gz)
 
-# Use --no-mac-metadata to suppress xattr warnings on Linux
-tar czf "$TMPFILE" -C "$LOCAL_DIR" \
-    --no-mac-metadata 2>/dev/null || \
-tar czf "$TMPFILE" -C "$LOCAL_DIR" \
-    --exclude='node_modules' \
-    --exclude='.next' \
-    --exclude='./dist' \
-    --exclude='.env' \
-    --exclude='.env.local' \
-    --exclude='.env.dev' \
-    --exclude='.env.test' \
-    --exclude='.env.e2e' \
-    --exclude='.envs' \
-    --exclude='.git' \
-    --exclude='vibeflow-desktop' \
-    --exclude='vibeflow-extension' \
-    --exclude='vibeflow-ios' \
-    --exclude='vibeflow-app' \
-    --exclude='e2e' \
-    --exclude='tests' \
-    --exclude='coverage' \
-    --exclude='playwright-report' \
-    --exclude='test-results' \
-    --exclude='.DS_Store' \
-    --exclude='.debug' \
-    --exclude='.kiro' \
-    --exclude='.claude' \
-    --exclude='.claude-trace' \
-    --exclude='.serena' \
-    --exclude='.impeccable.md' \
-    --exclude='logs' \
-    --exclude='.idea' \
-    --exclude='.vscode' \
-    --exclude='docs' \
-    --exclude='image' \
-    --exclude='temp-next' \
-    --exclude='scripts/logs' \
-    .
+# Common exclude list
+TAR_EXCLUDES=(
+    --exclude='node_modules'
+    --exclude='.next'
+    --exclude='./dist'
+    --exclude='.env' --exclude='.env.local' --exclude='.env.dev' --exclude='.env.test' --exclude='.env.e2e' --exclude='.envs'
+    --exclude='.git'
+    --exclude='vibeflow-desktop' --exclude='vibeflow-extension' --exclude='vibeflow-ios' --exclude='vibeflow-app'
+    --exclude='e2e' --exclude='tests' --exclude='coverage' --exclude='playwright-report' --exclude='test-results'
+    --exclude='.DS_Store' --exclude='.debug'
+    --exclude='.kiro' --exclude='.claude' --exclude='.claude-trace' --exclude='.serena' --exclude='.impeccable.md'
+    --exclude='logs' --exclude='scripts/logs'
+    --exclude='.idea' --exclude='.vscode'
+    --exclude='docs' --exclude='image' --exclude='temp-next'
+)
+
+# Try with --no-mac-metadata (suppresses xattr warnings), fallback without it
+tar czf "$TMPFILE" -C "$LOCAL_DIR" --no-mac-metadata "${TAR_EXCLUDES[@]}" . 2>/dev/null || \
+tar czf "$TMPFILE" -C "$LOCAL_DIR" "${TAR_EXCLUDES[@]}" .
 
 ok "Archive: $(du -h "$TMPFILE" | cut -f1)"
 scp -q "$TMPFILE" "$REMOTE:/tmp/vibeflow-deploy.tar.gz"
