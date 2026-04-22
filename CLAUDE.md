@@ -199,6 +199,15 @@ Next.js custom server（Node.js 原生加载）和 App Router route handlers（w
 ### deploy.sh 不截断日志
 `docker compose build 2>&1 | tail -5` 会隐藏编译错误（如 `ENOSPC`、`npm error`）。改为 `| tail -20` 或在失败时 dump 完整日志。部署脚本中任何可能失败的步骤都要 `set -e` + 有意义的错误输出。
 
+### 桌面端 renderer 来自远程服务器——改本地代码不够，必须部署
+Release app 的 renderer（webContents）加载的是**远程服务器的 Next.js 页面**（`http://39.105.213.147:4000`），不是本地代码。`src/components/` 下的前端修改（如 `tray-sync-provider.tsx`）只有**部署到远程服务器后**才能生效。桌面端 `npm run build` 只编译 Electron main process（`electron/` 目录），不影响 renderer 页面。排查桌面端 bug 时第一步确认：**这个逻辑跑在 main process 还是 renderer？** renderer 的修复 = 部署远程服务器。
+
+### 桌面端 tsc 编译输出路径陷阱
+`vibeflow-desktop/tsconfig.json` 的 paths 映射了 `@vibeflow/octopus-protocol` 到 `../packages/` 源码，导致 tsc 推断 rootDir 为 monorepo 根目录，输出到 `dist/vibeflow-desktop/electron/` 而非 `dist/electron/`。但 `package.json` 的 `main` 是 `dist/electron/main.js`。**编译后必须确认产物路径**：`ls dist/electron/main.js` 且 `grep` 确认包含新代码。如果路径不对，用 `rsync` 同步。
+
+### 桌面端 tray 状态的数据所有权
+`tray-manager` 的 `pomodoroActive` 和 `isInSleepTime` 有两个写入者竞争：renderer（通过 IPC `tray:updateMenu`）和 main process（通过 `startPomodoroCountdown` / `onPolicyUpdate`）。**当两者冲突时，main process 应该是 owner**——renderer 可能是旧代码（远程未部署）。对于关键状态（pomodoro、sleep），main process 应 `delete` renderer 发来的值，自己通过 `onStateChange` / `sleepEnforcer` 判断。
+
 ### iOS Release build 需要单独验证网络
 Debug build 中 iOS 自动放行 HTTP（ATS 豁免），但 Release build 严格执行 ATS。**对纯 IP 地址的 HTTP 请求，即使 `NSAllowsArbitraryLoads: true` 也不够——需要 `NSExceptionDomains` 显式豁免。** 上 HTTPS + 域名后此问题消失。
 
@@ -263,6 +272,7 @@ Each spec has a status label. When working on a spec, update the table below.
 | `mobile-app` | deprecated | Superseded by ios-mvp |
 | `dashboard-command-center` | not-started | Dashboard 指挥部改造，内嵌番茄钟+任务操作 |
 | `work-rhythm-analytics` | requirements | 工作节奏统计：上班效率、加班检测、休息保护、节奏评分 |
+| `desktop-tray-self-driven` | not-started | Tray 状态由 main process 自驱动（读 stateSnapshot），去掉 renderer IPC 依赖 |
 o'n'g's
 ## Environment Setup
 

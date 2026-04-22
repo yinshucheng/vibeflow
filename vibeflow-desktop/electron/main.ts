@@ -368,6 +368,7 @@ function startPomodoroCountdown(startTime: number, durationMs: number, taskTitle
     pomodoroTimeRemaining: timeStr,
     currentTask: taskTitle,
     systemState: 'FOCUS',
+    isInSleepTime: false, // Active pomodoro overrides sleep display
   });
 
   // Subsequent ticks only update title text (lightweight, no menu rebuild)
@@ -599,8 +600,15 @@ function setupIpcHandlers(): void {
   });
 
   // Tray menu update - now accepts full state object
+  // IMPORTANT: renderer's isInSleepTime is IGNORED — main process owns this via sleep enforcer.
+  // This prevents stale remote-page code from overriding tray during active pomodoro.
   ipcMain.on('tray:updateMenu', (_, state: Partial<TrayMenuState>) => {
-    console.log('[Main] Received tray:updateMenu:', JSON.stringify(state));
+    // Main process owns pomodoroActive and isInSleepTime — never accept from renderer.
+    // Renderer (especially stale remote code) sends wrong values during sleep time.
+    // The only source of truth for pomodoro: startPomodoroCountdown/stopPomodoroCountdown IPC.
+    // The only source of truth for sleep: sleepEnforcer in onPolicyUpdate.
+    delete state.isInSleepTime;
+    delete state.pomodoroActive;
     updateTrayMenu(state);
   });
 
@@ -627,7 +635,9 @@ function setupIpcHandlers(): void {
     taskName?: string;
     taskId?: string;
   }) => {
-    console.log('[Main] Pomodoro state change received:', payload);
+    if (!payload.active && pomodoroCountdown?.active) {
+      return; // Don't let renderer deactivate while main countdown is running
+    }
     updateTrayMenu({
       pomodoroActive: payload.active,
       pomodoroTimeRemaining: payload.timeRemaining,
@@ -637,7 +647,8 @@ function setupIpcHandlers(): void {
 
   // Handle general tray state updates (enhanced version)
   ipcMain.on('tray:updateState', (_, payload: Partial<TrayMenuState>) => {
-    console.log('[Main] Tray state update received:', payload);
+    delete payload.isInSleepTime;
+    delete payload.pomodoroActive;
     updateTrayMenu(payload);
   });
 
@@ -648,6 +659,9 @@ function setupIpcHandlers(): void {
 
   // Legacy support for simple pomodoro active boolean
   ipcMain.on('tray:updatePomodoroState', (_, pomodoroActive: boolean) => {
+    if (!pomodoroActive && pomodoroCountdown?.active) {
+      return;
+    }
     updateTrayMenu({ pomodoroActive });
   });
 
@@ -1186,6 +1200,25 @@ app.whenReady().then(async () => {
 
     // Handle focus session enforcement (pomodoro time)
     const isFocusSessionActive = policy.state.adhocFocusSession?.active ?? false;
+
+    // Auto-start main process countdown when policy reports active focus session
+    // but main process doesn't have a running countdown (e.g. renderer's old code
+    // skipped startCountdown during sleep time)
+    if (isFocusSessionActive && !pomodoroCountdown?.active) {
+      const snapshot = connectionManager.getStateSnapshot();
+      if (snapshot.activePomodoro) {
+        const pom = snapshot.activePomodoro;
+        const durationMs = pom.duration * 60 * 1000;
+        console.log('[Main] Auto-starting pomodoro countdown from policy update:', {
+          id: pom.id, startTime: pom.startTime, duration: pom.duration, task: pom.taskTitle,
+        });
+        startPomodoroCountdown(pom.startTime, durationMs, pom.taskTitle ?? undefined);
+      }
+    }
+
+    // Sync isInSleepTime to tray from sleep enforcer (main process owns this, not renderer)
+    const isSleepActive = sleepEnforcer.isInSleepTime();
+    updateTrayMenu({ isInSleepTime: pomodoroCountdown?.active ? false : isSleepActive });
     const focusSessionOverridesSleepTime = policy.state.adhocFocusSession?.overridesSleepTime ?? false;
     const hasDistractionApps = (policy.config.distractionApps?.length ?? 0) > 0;
     
@@ -1435,6 +1468,20 @@ app.whenReady().then(async () => {
       if (mappedState !== 'FOCUS' && pomodoroCountdown?.active) {
         console.log('[Main] Stopping main process countdown due to state change to:', mappedState);
         stopPomodoroCountdown();
+      }
+
+      // Auto-start main process countdown when entering FOCUS (in case renderer doesn't trigger it,
+      // e.g. remote page's old code skips startCountdown during sleep time)
+      if (mappedState === 'FOCUS' && !pomodoroCountdown?.active) {
+        const snapshot = connectionManager.getStateSnapshot();
+        if (snapshot.activePomodoro) {
+          const pom = snapshot.activePomodoro;
+          const durationMs = pom.duration * 60 * 1000;
+          console.log('[Main] Auto-starting pomodoro countdown from state snapshot:', {
+            id: pom.id, startTime: pom.startTime, duration: pom.duration, task: pom.taskTitle,
+          });
+          startPomodoroCountdown(pom.startTime, durationMs, pom.taskTitle ?? undefined);
+        }
       }
 
       // Handle rest timer based on state transitions

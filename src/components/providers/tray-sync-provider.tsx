@@ -70,20 +70,9 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
 
   // Single unified effect to sync state to tray
   useEffect(() => {
-    // Sleep time takes highest priority
-    if (isSleepTimeActive) {
-      trayIntegrationService.updatePomodoroState(null);
-      trayIntegrationService.updateSystemState('idle', undefined, undefined, true);
-      if (mainProcessCountdownStartedRef.current && window.vibeflow?.pomodoro?.stopCountdown) {
-        window.vibeflow.pomodoro.stopCountdown();
-        mainProcessCountdownStartedRef.current = null;
-      }
-      return;
-    }
-
     const activePomodoro = snapshot.activePomodoro;
 
-    // Active pomodoro takes priority
+    // Active pomodoro takes highest priority — user is working (even during sleep time / overtime)
     if (activePomodoro) {
       const pomodoroStartTime = typeof activePomodoro.startTime === 'number'
         ? new Date(activePomodoro.startTime)
@@ -114,6 +103,12 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
     if (mainProcessCountdownStartedRef.current && window.vibeflow?.pomodoro?.stopCountdown) {
       window.vibeflow.pomodoro.stopCountdown();
       mainProcessCountdownStartedRef.current = null;
+    }
+
+    // Sleep time — only applies when no active pomodoro
+    if (isSleepTimeActive) {
+      trayIntegrationService.updateSystemState('idle', undefined, undefined, true);
+      return;
     }
 
     const state = systemState;

@@ -700,8 +700,14 @@ export class TrayManager {
 
     let title = '';
 
-    // Sleep time takes priority
-    if (isInSleepTime) {
+    // Active pomodoro takes highest priority — user is working (even during sleep time / overtime)
+    if (pomodoroActive) {
+      // Show countdown + task name in menu bar during pomodoro
+      const timeDisplay = pomodoroTimeRemaining || '';
+      const taskDisplay = currentTask ? ` ${currentTask}` : '';
+      title = `🎯 ${timeDisplay}${taskDisplay}`.trim();
+    } else if (isInSleepTime) {
+      // Sleep time tips — only when no active pomodoro
       const sleepTips = [
         '该睡觉了，明天继续',
         '好好休息，明天更高效',
@@ -710,13 +716,8 @@ export class TrayManager {
       ];
       const sleepTipIndex = Math.floor(Date.now() / 30000) % sleepTips.length;
       title = `🌙 ${sleepTips[sleepTipIndex]}`;
-    } else if (pomodoroActive) {
-      // Show countdown + task name in menu bar during pomodoro
-      const timeDisplay = pomodoroTimeRemaining || '';
-      const taskDisplay = currentTask ? ` ${currentTask}` : '';
-      title = `🎯 ${timeDisplay}${taskDisplay}`.trim();
     } else {
-      // Show state indicator when not in pomodoro
+      // Show state indicator when not in pomodoro and not in sleep time
       switch (systemState) {
         case 'FOCUS':
           // Focus without active pomodoro (shouldn't happen often)
