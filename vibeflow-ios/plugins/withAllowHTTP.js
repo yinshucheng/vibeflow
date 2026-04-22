@@ -14,10 +14,24 @@ const { withInfoPlist, withPodfileProperties } = require('expo/config-plugins');
 
 function withAllowHTTP(config) {
   // ATS overrides
+  // NSAllowsArbitraryLoads alone is NOT enough for Release builds on iOS 17+
+  // when connecting to plain IP addresses via HTTP. Must add explicit exception domains.
   config = withInfoPlist(config, (mod) => {
     mod.modResults.NSAppTransportSecurity = {
       NSAllowsArbitraryLoads: true,
       NSAllowsLocalNetworking: true,
+      NSExceptionDomains: {
+        // Production server IP — remove after migrating to HTTPS domain
+        '39.105.213.147': {
+          NSExceptionAllowsInsecureHTTPLoads: true,
+          NSIncludesSubdomains: false,
+        },
+        // Localhost for dev
+        'localhost': {
+          NSExceptionAllowsInsecureHTTPLoads: true,
+          NSIncludesSubdomains: false,
+        },
+      },
     };
     return mod;
   });
