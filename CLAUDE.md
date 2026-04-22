@@ -176,6 +176,9 @@ Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access l
 - Multi-client support with offline resilience
 - 修改服务端 API/Socket 事件/数据结构时，必须检查所有 4 个客户端（Web、Desktop、Extension、iOS）是否需要同步调整
 - Bug 修复流程：先写测试复现 bug（单测优先，必要时用 E2E），再修复代码。如果 bug 难以用自动化测试复现（如纯 UI/环境相关），需在 commit message 中说明理由和手动复现步骤。
+- **重写/大幅修改文件前，必须先查所有消费者**：用 `grep` 或 LSP `findReferences` 检查该文件的所有 export 被哪些文件 import。重写后逐一确认每个 export 仍然存在且签名兼容。常见事故：简化模块时删掉了被其他文件依赖的导出函数（如 `setCachedEmail`、`getSocketAuthPayload`），TypeScript 编译通过（因为 iOS 子项目有独立 tsconfig），但运行时 `undefined is not a function`。
+- **修改 shared 模块的检查清单**：1) `grep -rn 'from.*模块名' src/ vibeflow-ios/ vibeflow-desktop/ vibeflow-extension/` 列出所有消费者 2) 确认所有 import 的名称在新代码中仍然 export 3) 跑所有子项目的 `tsc --noEmit`（不只是主项目）
+- **iOS 子项目必须单独验证编译**：主项目 `npx tsc --noEmit` 不覆盖 iOS 的 tsconfig。修改 iOS 代码后必须跑 `cd vibeflow-ios && npx tsc --noEmit`。
 
 ## Reference Documents
 
