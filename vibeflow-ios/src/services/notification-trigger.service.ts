@@ -11,7 +11,7 @@
  * Requirements: 8.2, 8.3, 8.4
  */
 
-import { useAppStore, type AppState } from '@/store';
+import { useAppStore, type AppState } from '@/store/app.store';
 import { notificationService } from './notification.service';
 import type { DailyStateData, ActivePomodoroData } from '@/types';
 

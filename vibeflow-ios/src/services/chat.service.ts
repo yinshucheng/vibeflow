@@ -7,7 +7,7 @@
  */
 
 import { websocketService } from './websocket.service';
-import { useChatStore, generateUUID } from '@/store';
+import { useChatStore, generateUUID } from '@/store/chat.store';
 import type {
   ChatResponsePayload,
   ChatToolCallPayload,

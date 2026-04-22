@@ -10,7 +10,7 @@
 
 import { createStateManager, type StateSnapshot } from '@vibeflow/octopus-protocol';
 import { websocketService } from './websocket.service';
-import { useAppStore } from '@/store';
+import { useAppStore } from '@/store/app.store';
 import type { SyncStateCommand, UpdatePolicyCommand } from '@/types';
 
 // =============================================================================

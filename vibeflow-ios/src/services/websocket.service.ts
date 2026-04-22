@@ -18,7 +18,7 @@ import {
 } from '@/config';
 import { getSocketAuthPayload, getCachedEmail } from '@/config/auth';
 import { serverConfigService } from './server-config.service';
-import { useAppStore } from '@/store';
+import { useAppStore } from '@/store/app.store';
 import {
   createCommandHandler,
   type CommandHandlers,
