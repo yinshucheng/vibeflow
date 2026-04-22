@@ -16,6 +16,7 @@ import {
 import { stateEngineService } from '@/services/state-engine.service';
 import { progressCalculationService } from '@/services/progress-calculation.service';
 import { parseSystemState } from '@/machines/vibeflow.machine';
+import { broadcastDataChange } from '@/services/socket-broadcast.service';
 
 export const dailyStateRouter = router({
   /**
@@ -68,7 +69,7 @@ export const dailyStateRouter = router({
     .input(OverrideCapSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await dailyStateService.overrideCap(ctx.user.userId, input);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
@@ -76,7 +77,8 @@ export const dailyStateRouter = router({
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'dailyState', 'update', ['dailyState']);
       return result.data;
     }),
 
@@ -178,14 +180,15 @@ export const dailyStateRouter = router({
     .input(z.object({ newTarget: z.number().int().min(0).max(50) }))
     .mutation(async ({ ctx, input }) => {
       const result = await progressCalculationService.adjustTodayGoal(ctx.user.userId, input.newTarget);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to adjust today\'s goal',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'dailyState', 'update', ['dailyState']);
       return { success: true };
     }),
 
@@ -212,14 +215,15 @@ export const dailyStateRouter = router({
    */
   resetTodayGoal: writeProcedure.mutation(async ({ ctx }) => {
     const result = await progressCalculationService.resetTodayGoal(ctx.user.userId);
-    
+
     if (!result.success) {
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: result.error?.message ?? 'Failed to reset today\'s goal',
       });
     }
-    
+
+    broadcastDataChange(ctx.user.userId, 'dailyState', 'update', ['dailyState']);
     return { success: true };
   }),
 

@@ -16,7 +16,16 @@ export type ClientType = 'web' | 'desktop' | 'browser_ext' | 'mobile' | 'api';
 /**
  * Command types for Command Stream (Vibe Brain -> Tentacle)
  */
-export type CommandType = 'SYNC_STATE' | 'EXECUTE_ACTION' | 'UPDATE_POLICY' | 'SHOW_UI' | 'ACTION_RESULT' | 'CHAT_RESPONSE' | 'CHAT_TOOL_CALL' | 'CHAT_TOOL_RESULT' | 'CHAT_SYNC';
+export type CommandType = 'SYNC_STATE' | 'EXECUTE_ACTION' | 'UPDATE_POLICY' | 'SHOW_UI' | 'ACTION_RESULT' | 'DATA_CHANGE' | 'CHAT_RESPONSE' | 'CHAT_TOOL_CALL' | 'CHAT_TOOL_RESULT' | 'CHAT_SYNC';
+/**
+ * Entity types for DATA_CHANGE notifications.
+ * Tells clients which data category changed so they can refetch.
+ */
+export type DataChangeEntity = 'task' | 'project' | 'goal' | 'settings' | 'dailyState' | 'habit';
+/**
+ * Action types for DATA_CHANGE notifications.
+ */
+export type DataChangeAction = 'create' | 'update' | 'delete' | 'batch';
 /**
  * Action types that can be executed by clients
  */

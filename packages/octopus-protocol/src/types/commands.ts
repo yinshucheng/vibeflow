@@ -4,7 +4,7 @@
  * Command Stream types (Vibe Brain -> Tentacle).
  */
 
-import type { CommandType, CommandPriority, ClientType, ActionType, UIType } from './enums';
+import type { CommandType, CommandPriority, ClientType, ActionType, UIType, DataChangeEntity, DataChangeAction } from './enums';
 import type { SyncStateCommand } from './state';
 import type { Policy } from './policy';
 import type { ActionResultCommand } from './actions';
@@ -102,6 +102,27 @@ export interface ShowUICommand extends BaseCommand {
 }
 
 /**
+ * DATA_CHANGE notification — tells clients that a data entity was modified.
+ * Clients should refetch the relevant data (now) or pull incremental ops (future).
+ * The timestamp field enables future incremental sync: "give me changes since X".
+ */
+export interface DataChangePayload {
+  entity: DataChangeEntity;
+  action: DataChangeAction;
+  /** IDs of changed entities */
+  ids: string[];
+  /** Server timestamp of the change — for future incremental sync */
+  timestamp: number;
+  /** Optional: ID of the client that originated the change (to skip self-update) */
+  sourceClientId?: string;
+}
+
+export interface DataChangeCommand extends BaseCommand {
+  commandType: 'DATA_CHANGE';
+  payload: DataChangePayload;
+}
+
+/**
  * Union type for all command types
  */
 export type OctopusCommand =
@@ -110,6 +131,7 @@ export type OctopusCommand =
   | UpdatePolicyCommand
   | ShowUICommand
   | ActionResultCommand
+  | DataChangeCommand
   | ChatResponseCommand
   | ChatToolCallCommand
   | ChatToolResultCommand

@@ -10,6 +10,7 @@ import { TRPCError } from '@trpc/server';
 import { router, readProcedure, writeProcedure, adminProcedure } from '../trpc';
 import { userService, UpdateSettingsSchema, WorkTimeSlotSchema, IdleAlertActionSchema, WeekdayExpectationSchema } from '@/services/user.service';
 import { settingsLockService, canModifySetting, isLockableSetting, LOCKABLE_SETTINGS } from '@/services/settings-lock.service';
+import { broadcastDataChange } from '@/services/socket-broadcast.service';
 import { settingsModificationLogService } from '@/services/settings-modification-log.service';
 import type { WorkTimeSlot } from '@/components/settings/work-time-settings';
 
@@ -121,7 +122,7 @@ export const settingsRouter = router({
       }
       
       const result = await userService.updateSettings(ctx.user.userId, input);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
@@ -129,7 +130,8 @@ export const settingsRouter = router({
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data;
     }),
 
@@ -141,7 +143,7 @@ export const settingsRouter = router({
     .input(TimerSettingsSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await userService.updateSettings(ctx.user.userId, input);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
@@ -149,7 +151,8 @@ export const settingsRouter = router({
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data;
     }),
 
@@ -210,7 +213,7 @@ export const settingsRouter = router({
         maxIdleMinutes: input.maxIdleMinutes,
         idleAlertActions: input.idleAlertActions,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
@@ -218,7 +221,8 @@ export const settingsRouter = router({
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data;
     }),
 
@@ -249,14 +253,15 @@ export const settingsRouter = router({
       const result = await userService.updateSettings(ctx.user.userId, {
         blacklist: input.patterns,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to update blacklist',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data?.blacklist ?? [];
     }),
 
@@ -288,14 +293,15 @@ export const settingsRouter = router({
       const result = await userService.updateSettings(ctx.user.userId, {
         blacklist: [...currentBlacklist, input.pattern],
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to add to blacklist',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data?.blacklist ?? [];
     }),
 
@@ -320,14 +326,15 @@ export const settingsRouter = router({
       const result = await userService.updateSettings(ctx.user.userId, {
         blacklist: newBlacklist,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to remove from blacklist',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data?.blacklist ?? [];
     }),
 
@@ -358,14 +365,15 @@ export const settingsRouter = router({
       const result = await userService.updateSettings(ctx.user.userId, {
         whitelist: input.patterns,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to update whitelist',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data?.whitelist ?? [];
     }),
 
@@ -397,14 +405,15 @@ export const settingsRouter = router({
       const result = await userService.updateSettings(ctx.user.userId, {
         whitelist: [...currentWhitelist, input.pattern],
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to add to whitelist',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data?.whitelist ?? [];
     }),
 
@@ -429,14 +438,15 @@ export const settingsRouter = router({
       const result = await userService.updateSettings(ctx.user.userId, {
         whitelist: newWhitelist,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to remove from whitelist',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data?.whitelist ?? [];
     }),
 
@@ -465,14 +475,15 @@ export const settingsRouter = router({
       const result = await userService.updateSettings(ctx.user.userId, {
         codingStandards: input.standards,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to update coding standards',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data?.codingStandards ?? [];
     }),
 
@@ -501,14 +512,15 @@ export const settingsRouter = router({
       const result = await userService.updateSettings(ctx.user.userId, {
         preferences: input.preferences,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to update preferences',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return result.data?.preferences ?? {};
     }),
 
@@ -531,7 +543,7 @@ export const settingsRouter = router({
         expectedPomodoroCount: input.expectedPomodoroCount,
         weekdayExpectations: input.weekdayExpectations,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
@@ -539,7 +551,8 @@ export const settingsRouter = router({
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       return {
         expectedWorkMinutes: result.data?.expectedWorkMinutes ?? 360,
         expectedPomodoroCount: result.data?.expectedPomodoroCount ?? 10,
@@ -563,7 +576,7 @@ export const settingsRouter = router({
         autoStartNextPomodoro: input.autoStartNextPomodoro,
         autoStartCountdown: input.autoStartCountdown,
       });
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
@@ -571,7 +584,8 @@ export const settingsRouter = router({
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'settings', 'update', ['settings']);
       // Type assertion needed as Prisma types may not be fully synced
       const data = result.data as {
         autoStartBreak?: boolean;

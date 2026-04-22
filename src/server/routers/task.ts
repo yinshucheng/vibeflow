@@ -8,11 +8,12 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, readProcedure, writeProcedure } from '../trpc';
-import { 
-  taskService, 
-  CreateTaskSchema, 
-  UpdateTaskSchema 
+import {
+  taskService,
+  CreateTaskSchema,
+  UpdateTaskSchema
 } from '@/services/task.service';
+import { broadcastDataChange } from '@/services/socket-broadcast.service';
 
 export const taskRouter = router({
   /**
@@ -124,7 +125,7 @@ export const taskRouter = router({
     .input(CreateTaskSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await taskService.create(ctx.user.userId, input);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
@@ -132,7 +133,8 @@ export const taskRouter = router({
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'task', 'create', [result.data!.id]);
       return result.data;
     }),
 
@@ -153,20 +155,21 @@ export const taskRouter = router({
         ctx.user.userId,
         input.data
       );
-      
+
       if (!result.success) {
-        const code = 
+        const code =
           result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' :
           result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' :
           'INTERNAL_SERVER_ERROR';
-          
+
         throw new TRPCError({
           code,
           message: result.error?.message ?? 'Failed to update task',
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'task', 'update', [input.id]);
       return result.data;
     }),
 
@@ -189,14 +192,15 @@ export const taskRouter = router({
         input.status,
         input.cascadeToSubtasks
       );
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to update task status',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'task', 'update', [input.id]);
       return result.data;
     }),
 
@@ -217,14 +221,15 @@ export const taskRouter = router({
         ctx.user.userId,
         input.newIndex
       );
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to reorder task',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'task', 'update', [input.taskId]);
       return { success: true };
     }),
 
@@ -235,14 +240,15 @@ export const taskRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const result = await taskService.delete(input.id, ctx.user.userId);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to delete task',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'task', 'delete', [input.id]);
       return { success: true };
     }),
 
@@ -271,14 +277,15 @@ export const taskRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const result = await taskService.deferToToday(input.id, ctx.user.userId);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to defer task',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'task', 'update', [input.id]);
       return result.data;
     }),
 
@@ -293,14 +300,15 @@ export const taskRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const result = await taskService.setPlanDate(input.id, ctx.user.userId, input.planDate);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to set plan date',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'task', 'update', [input.id]);
       return result.data;
     }),
 
@@ -362,6 +370,7 @@ export const taskRouter = router({
         });
       }
 
+      broadcastDataChange(ctx.user.userId, 'task', 'create', [result.data!.id]);
       return result.data;
     }),
 });

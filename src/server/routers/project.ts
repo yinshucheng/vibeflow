@@ -8,11 +8,12 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, readProcedure, writeProcedure } from '../trpc';
-import { 
-  projectService, 
-  CreateProjectSchema, 
-  UpdateProjectSchema 
+import {
+  projectService,
+  CreateProjectSchema,
+  UpdateProjectSchema
 } from '@/services/project.service';
+import { broadcastDataChange } from '@/services/socket-broadcast.service';
 
 export const projectRouter = router({
   /**
@@ -58,7 +59,7 @@ export const projectRouter = router({
     .input(CreateProjectSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await projectService.create(ctx.user.userId, input);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
@@ -66,7 +67,8 @@ export const projectRouter = router({
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'project', 'create', [result.data!.id]);
       return result.data;
     }),
 
@@ -87,20 +89,21 @@ export const projectRouter = router({
         ctx.user.userId,
         input.data
       );
-      
+
       if (!result.success) {
-        const code = 
+        const code =
           result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' :
           result.error?.code === 'VALIDATION_ERROR' ? 'BAD_REQUEST' :
           'INTERNAL_SERVER_ERROR';
-          
+
         throw new TRPCError({
           code,
           message: result.error?.message ?? 'Failed to update project',
           cause: result.error?.details,
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'project', 'update', [input.id]);
       return result.data;
     }),
 
@@ -112,14 +115,15 @@ export const projectRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const result = await projectService.archive(input.id, ctx.user.userId);
-      
+
       if (!result.success) {
         throw new TRPCError({
           code: result.error?.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
           message: result.error?.message ?? 'Failed to archive project',
         });
       }
-      
+
+      broadcastDataChange(ctx.user.userId, 'project', 'delete', [input.id]);
       return result.data;
     }),
 

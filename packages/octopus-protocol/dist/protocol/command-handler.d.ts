@@ -5,13 +5,14 @@
  * then routes every incoming command through the returned handler function.
  * The switch/case lives here; clients never write their own.
  */
-import type { OctopusCommand, SyncStatePayload, UpdatePolicyPayload, ExecuteActionPayload, ShowUIPayload, ActionResultPayload, ChatResponsePayload, ChatToolCallPayload, ChatSyncPayload } from '../types';
+import type { OctopusCommand, SyncStatePayload, UpdatePolicyPayload, ExecuteActionPayload, ShowUIPayload, ActionResultPayload, DataChangePayload, ChatResponsePayload, ChatToolCallPayload, ChatSyncPayload } from '../types';
 export interface CommandHandlers {
     onStateSync: (payload: SyncStatePayload) => void;
     onPolicyUpdate: (payload: UpdatePolicyPayload) => void;
     onExecuteAction: (payload: ExecuteActionPayload) => void;
     onShowUI: (payload: ShowUIPayload) => void;
     onActionResult: (payload: ActionResultPayload) => void;
+    onDataChange?: (payload: DataChangePayload) => void;
     onChatResponse?: (payload: ChatResponsePayload) => void;
     onChatToolCall?: (payload: ChatToolCallPayload) => void;
     onChatSync?: (payload: ChatSyncPayload) => void;

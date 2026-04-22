@@ -13,6 +13,7 @@ import type {
   ExecuteActionPayload,
   ShowUIPayload,
   ActionResultPayload,
+  DataChangePayload,
   ChatResponsePayload,
   ChatToolCallPayload,
   ChatSyncPayload,
@@ -24,6 +25,7 @@ export interface CommandHandlers {
   onExecuteAction: (payload: ExecuteActionPayload) => void;
   onShowUI: (payload: ShowUIPayload) => void;
   onActionResult: (payload: ActionResultPayload) => void;
+  onDataChange?: (payload: DataChangePayload) => void;
   onChatResponse?: (payload: ChatResponsePayload) => void;
   onChatToolCall?: (payload: ChatToolCallPayload) => void;
   onChatSync?: (payload: ChatSyncPayload) => void;
@@ -51,6 +53,9 @@ export function createCommandHandler(handlers: CommandHandlers) {
         break;
       case 'ACTION_RESULT':
         handlers.onActionResult(command.payload);
+        break;
+      case 'DATA_CHANGE':
+        handlers.onDataChange?.(command.payload);
         break;
       case 'CHAT_RESPONSE':
         handlers.onChatResponse?.(command.payload);

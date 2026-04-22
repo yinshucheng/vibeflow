@@ -4,9 +4,9 @@
  * Runtime validation schemas for all protocol types.
  */
 import { z } from 'zod';
-export declare const EventTypeSchema: z.ZodEnum<["ACTIVITY_LOG", "STATE_CHANGE", "USER_ACTION", "HEARTBEAT", "TIMELINE_EVENT", "BLOCK_EVENT", "INTERRUPTION_EVENT", "BROWSER_ACTIVITY", "BROWSER_SESSION", "TAB_SWITCH", "BROWSER_FOCUS", "ENTERTAINMENT_MODE", "WORK_START", "CHAT_MESSAGE", "CHAT_ACTION"]>;
-export declare const ClientTypeSchema: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
-export declare const CommandTypeSchema: z.ZodEnum<["SYNC_STATE", "EXECUTE_ACTION", "UPDATE_POLICY", "SHOW_UI", "CHAT_RESPONSE", "CHAT_TOOL_CALL", "CHAT_TOOL_RESULT", "CHAT_SYNC"]>;
+export declare const EventTypeSchema: z.ZodEnum<["ACTIVITY_LOG", "STATE_CHANGE", "USER_ACTION", "HEARTBEAT", "TIMELINE_EVENT", "BLOCK_EVENT", "INTERRUPTION_EVENT", "BROWSER_ACTIVITY", "BROWSER_SESSION", "TAB_SWITCH", "BROWSER_FOCUS", "ENTERTAINMENT_MODE", "WORK_START", "CHAT_MESSAGE", "CHAT_ACTION", "CHAT_HISTORY_REQUEST", "DESKTOP_APP_USAGE", "DESKTOP_IDLE", "DESKTOP_WINDOW_CHANGE"]>;
+export declare const ClientTypeSchema: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
+export declare const CommandTypeSchema: z.ZodEnum<["SYNC_STATE", "EXECUTE_ACTION", "UPDATE_POLICY", "SHOW_UI", "ACTION_RESULT", "CHAT_RESPONSE", "CHAT_TOOL_CALL", "CHAT_TOOL_RESULT", "CHAT_SYNC"]>;
 export declare const ActionTypeSchema: z.ZodEnum<["CLOSE_APP", "HIDE_APP", "BRING_TO_FRONT", "SHOW_NOTIFICATION", "CLOSE_TAB", "REDIRECT_TAB", "INJECT_OVERLAY", "ADD_SESSION_WHITELIST", "SEND_PUSH", "PLAY_SOUND", "VIBRATE"]>;
 export declare const ActivityCategorySchema: z.ZodEnum<["productive", "neutral", "distracting"]>;
 export declare const ConnectionQualitySchema: z.ZodEnum<["good", "degraded", "poor"]>;
@@ -18,26 +18,26 @@ export declare const CommandPrioritySchema: z.ZodEnum<["low", "normal", "high", 
 export declare const UITypeSchema: z.ZodEnum<["notification", "modal", "overlay", "toast"]>;
 export declare const BaseEventSchema: z.ZodObject<{
     eventId: z.ZodString;
-    eventType: z.ZodEnum<["ACTIVITY_LOG", "STATE_CHANGE", "USER_ACTION", "HEARTBEAT", "TIMELINE_EVENT", "BLOCK_EVENT", "INTERRUPTION_EVENT", "BROWSER_ACTIVITY", "BROWSER_SESSION", "TAB_SWITCH", "BROWSER_FOCUS", "ENTERTAINMENT_MODE", "WORK_START", "CHAT_MESSAGE", "CHAT_ACTION"]>;
+    eventType: z.ZodEnum<["ACTIVITY_LOG", "STATE_CHANGE", "USER_ACTION", "HEARTBEAT", "TIMELINE_EVENT", "BLOCK_EVENT", "INTERRUPTION_EVENT", "BROWSER_ACTIVITY", "BROWSER_SESSION", "TAB_SWITCH", "BROWSER_FOCUS", "ENTERTAINMENT_MODE", "WORK_START", "CHAT_MESSAGE", "CHAT_ACTION", "CHAT_HISTORY_REQUEST", "DESKTOP_APP_USAGE", "DESKTOP_IDLE", "DESKTOP_WINDOW_CHANGE"]>;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    eventType: "ACTIVITY_LOG" | "STATE_CHANGE" | "USER_ACTION" | "HEARTBEAT" | "TIMELINE_EVENT" | "BLOCK_EVENT" | "INTERRUPTION_EVENT" | "BROWSER_ACTIVITY" | "BROWSER_SESSION" | "TAB_SWITCH" | "BROWSER_FOCUS" | "ENTERTAINMENT_MODE" | "WORK_START" | "CHAT_MESSAGE" | "CHAT_ACTION" | "CHAT_HISTORY_REQUEST" | "DESKTOP_APP_USAGE" | "DESKTOP_IDLE" | "DESKTOP_WINDOW_CHANGE";
     eventId: string;
-    eventType: "ACTIVITY_LOG" | "STATE_CHANGE" | "USER_ACTION" | "HEARTBEAT" | "TIMELINE_EVENT" | "BLOCK_EVENT" | "INTERRUPTION_EVENT" | "BROWSER_ACTIVITY" | "BROWSER_SESSION" | "TAB_SWITCH" | "BROWSER_FOCUS" | "ENTERTAINMENT_MODE" | "WORK_START" | "CHAT_MESSAGE" | "CHAT_ACTION";
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
 }, {
+    eventType: "ACTIVITY_LOG" | "STATE_CHANGE" | "USER_ACTION" | "HEARTBEAT" | "TIMELINE_EVENT" | "BLOCK_EVENT" | "INTERRUPTION_EVENT" | "BROWSER_ACTIVITY" | "BROWSER_SESSION" | "TAB_SWITCH" | "BROWSER_FOCUS" | "ENTERTAINMENT_MODE" | "WORK_START" | "CHAT_MESSAGE" | "CHAT_ACTION" | "CHAT_HISTORY_REQUEST" | "DESKTOP_APP_USAGE" | "DESKTOP_IDLE" | "DESKTOP_WINDOW_CHANGE";
     eventId: string;
-    eventType: "ACTIVITY_LOG" | "STATE_CHANGE" | "USER_ACTION" | "HEARTBEAT" | "TIMELINE_EVENT" | "BLOCK_EVENT" | "INTERRUPTION_EVENT" | "BROWSER_ACTIVITY" | "BROWSER_SESSION" | "TAB_SWITCH" | "BROWSER_FOCUS" | "ENTERTAINMENT_MODE" | "WORK_START" | "CHAT_MESSAGE" | "CHAT_ACTION";
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
 }>;
@@ -87,7 +87,7 @@ export declare const ActivityLogEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -135,11 +135,11 @@ export declare const ActivityLogEventSchema: z.ZodObject<{
         } | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "ACTIVITY_LOG";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -155,11 +155,11 @@ export declare const ActivityLogEventSchema: z.ZodObject<{
         } | undefined;
     };
 }, {
-    eventId: string;
     eventType: "ACTIVITY_LOG";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -195,7 +195,7 @@ export declare const StateChangeEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -217,11 +217,11 @@ export declare const StateChangeEventSchema: z.ZodObject<{
         trigger: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "STATE_CHANGE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -231,11 +231,11 @@ export declare const StateChangeEventSchema: z.ZodObject<{
         trigger: string;
     };
 }, {
-    eventId: string;
     eventType: "STATE_CHANGE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -271,7 +271,7 @@ export declare const UserActionEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -299,11 +299,11 @@ export declare const UserActionEventSchema: z.ZodObject<{
         data?: Record<string, unknown> | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "USER_ACTION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -315,11 +315,11 @@ export declare const UserActionEventSchema: z.ZodObject<{
         data?: Record<string, unknown> | undefined;
     };
 }, {
-    eventId: string;
     eventType: "USER_ACTION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -357,7 +357,7 @@ export declare const HeartbeatEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -385,11 +385,11 @@ export declare const HeartbeatEventSchema: z.ZodObject<{
         capabilities: string[];
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "HEARTBEAT";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -401,11 +401,11 @@ export declare const HeartbeatEventSchema: z.ZodObject<{
         capabilities: string[];
     };
 }, {
-    eventId: string;
     eventType: "HEARTBEAT";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -479,7 +479,7 @@ export declare const BrowserActivityEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -543,11 +543,11 @@ export declare const BrowserActivityEventSchema: z.ZodObject<{
         searchEngine?: "other" | "google" | "bing" | "duckduckgo" | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "BROWSER_ACTIVITY";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -571,11 +571,11 @@ export declare const BrowserActivityEventSchema: z.ZodObject<{
         searchEngine?: "other" | "google" | "bing" | "duckduckgo" | undefined;
     };
 }, {
-    eventId: string;
     eventType: "BROWSER_ACTIVITY";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -695,7 +695,7 @@ export declare const BrowserSessionEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -774,11 +774,11 @@ export declare const BrowserSessionEventSchema: z.ZodObject<{
         neutralTime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "BROWSER_SESSION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -803,11 +803,11 @@ export declare const BrowserSessionEventSchema: z.ZodObject<{
         neutralTime: number;
     };
 }, {
-    eventId: string;
     eventType: "BROWSER_SESSION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -864,7 +864,7 @@ export declare const TabSwitchEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -898,11 +898,11 @@ export declare const TabSwitchEventSchema: z.ZodObject<{
         isRapidSwitch: boolean;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "TAB_SWITCH";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -916,11 +916,11 @@ export declare const TabSwitchEventSchema: z.ZodObject<{
         isRapidSwitch: boolean;
     };
 }, {
-    eventId: string;
     eventType: "TAB_SWITCH";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -951,7 +951,7 @@ export declare const BrowserFocusEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -970,11 +970,11 @@ export declare const BrowserFocusEventSchema: z.ZodObject<{
         focusDuration?: number | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "BROWSER_FOCUS";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -983,11 +983,11 @@ export declare const BrowserFocusEventSchema: z.ZodObject<{
         focusDuration?: number | undefined;
     };
 }, {
-    eventId: string;
     eventType: "BROWSER_FOCUS";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1028,7 +1028,7 @@ export declare const EntertainmentModeEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1062,11 +1062,11 @@ export declare const EntertainmentModeEventSchema: z.ZodObject<{
         reason?: "manual" | "quota_exhausted" | "work_time_start" | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "ENTERTAINMENT_MODE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1080,11 +1080,11 @@ export declare const EntertainmentModeEventSchema: z.ZodObject<{
         reason?: "manual" | "quota_exhausted" | "work_time_start" | undefined;
     };
 }, {
-    eventId: string;
     eventType: "ENTERTAINMENT_MODE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1103,16 +1103,16 @@ export declare const WorkStartPayloadSchema: z.ZodObject<{
     configuredStartTime: z.ZodString;
     actualStartTime: z.ZodNumber;
     delayMinutes: z.ZodNumber;
-    trigger: z.ZodLiteral<"first_pomodoro">;
+    trigger: z.ZodEnum<["first_pomodoro", "airlock_complete"]>;
 }, "strip", z.ZodTypeAny, {
     date: string;
-    trigger: "first_pomodoro";
+    trigger: "first_pomodoro" | "airlock_complete";
     configuredStartTime: string;
     actualStartTime: number;
     delayMinutes: number;
 }, {
     date: string;
-    trigger: "first_pomodoro";
+    trigger: "first_pomodoro" | "airlock_complete";
     configuredStartTime: string;
     actualStartTime: number;
     delayMinutes: number;
@@ -1121,7 +1121,7 @@ export declare const WorkStartEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1131,46 +1131,46 @@ export declare const WorkStartEventSchema: z.ZodObject<{
         configuredStartTime: z.ZodString;
         actualStartTime: z.ZodNumber;
         delayMinutes: z.ZodNumber;
-        trigger: z.ZodLiteral<"first_pomodoro">;
+        trigger: z.ZodEnum<["first_pomodoro", "airlock_complete"]>;
     }, "strip", z.ZodTypeAny, {
         date: string;
-        trigger: "first_pomodoro";
+        trigger: "first_pomodoro" | "airlock_complete";
         configuredStartTime: string;
         actualStartTime: number;
         delayMinutes: number;
     }, {
         date: string;
-        trigger: "first_pomodoro";
+        trigger: "first_pomodoro" | "airlock_complete";
         configuredStartTime: string;
         actualStartTime: number;
         delayMinutes: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "WORK_START";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
         date: string;
-        trigger: "first_pomodoro";
+        trigger: "first_pomodoro" | "airlock_complete";
         configuredStartTime: string;
         actualStartTime: number;
         delayMinutes: number;
     };
 }, {
-    eventId: string;
     eventType: "WORK_START";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
         date: string;
-        trigger: "first_pomodoro";
+        trigger: "first_pomodoro" | "airlock_complete";
         configuredStartTime: string;
         actualStartTime: number;
         delayMinutes: number;
@@ -1229,7 +1229,7 @@ export declare const ChatMessageEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1271,11 +1271,11 @@ export declare const ChatMessageEventSchema: z.ZodObject<{
         }[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "CHAT_MESSAGE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1289,11 +1289,11 @@ export declare const ChatMessageEventSchema: z.ZodObject<{
         }[] | undefined;
     };
 }, {
-    eventId: string;
     eventType: "CHAT_MESSAGE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1324,7 +1324,7 @@ export declare const ChatActionEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1343,11 +1343,11 @@ export declare const ChatActionEventSchema: z.ZodObject<{
         toolCallId: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "CHAT_ACTION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1356,11 +1356,11 @@ export declare const ChatActionEventSchema: z.ZodObject<{
         toolCallId: string;
     };
 }, {
-    eventId: string;
     eventType: "CHAT_ACTION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1373,29 +1373,29 @@ export declare const ChatHistoryRequestEventSchema: z.ZodObject<{
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
     eventType: z.ZodLiteral<"CHAT_HISTORY_REQUEST">;
     payload: z.ZodObject<{}, "passthrough", z.ZodTypeAny, z.objectOutputType<{}, z.ZodTypeAny, "passthrough">, z.objectInputType<{}, z.ZodTypeAny, "passthrough">>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "CHAT_HISTORY_REQUEST";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {} & {
         [k: string]: unknown;
     };
 }, {
-    eventId: string;
     eventType: "CHAT_HISTORY_REQUEST";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {} & {
@@ -1406,7 +1406,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1454,11 +1454,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         } | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "ACTIVITY_LOG";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1474,11 +1474,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         } | undefined;
     };
 }, {
-    eventId: string;
     eventType: "ACTIVITY_LOG";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1497,7 +1497,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1519,11 +1519,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         trigger: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "STATE_CHANGE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1533,11 +1533,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         trigger: string;
     };
 }, {
-    eventId: string;
     eventType: "STATE_CHANGE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1550,7 +1550,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1578,11 +1578,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         data?: Record<string, unknown> | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "USER_ACTION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1594,11 +1594,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         data?: Record<string, unknown> | undefined;
     };
 }, {
-    eventId: string;
     eventType: "USER_ACTION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1613,7 +1613,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1641,11 +1641,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         capabilities: string[];
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "HEARTBEAT";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1657,11 +1657,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         capabilities: string[];
     };
 }, {
-    eventId: string;
     eventType: "HEARTBEAT";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1676,7 +1676,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1740,11 +1740,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         searchEngine?: "other" | "google" | "bing" | "duckduckgo" | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "BROWSER_ACTIVITY";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1768,11 +1768,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         searchEngine?: "other" | "google" | "bing" | "duckduckgo" | undefined;
     };
 }, {
-    eventId: string;
     eventType: "BROWSER_ACTIVITY";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1799,7 +1799,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1878,11 +1878,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         neutralTime: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "BROWSER_SESSION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1907,11 +1907,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         neutralTime: number;
     };
 }, {
-    eventId: string;
     eventType: "BROWSER_SESSION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1939,7 +1939,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -1973,11 +1973,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         isRapidSwitch: boolean;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "TAB_SWITCH";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -1991,11 +1991,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         isRapidSwitch: boolean;
     };
 }, {
-    eventId: string;
     eventType: "TAB_SWITCH";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2012,7 +2012,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -2031,11 +2031,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         focusDuration?: number | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "BROWSER_FOCUS";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2044,11 +2044,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         focusDuration?: number | undefined;
     };
 }, {
-    eventId: string;
     eventType: "BROWSER_FOCUS";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2060,7 +2060,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -2094,11 +2094,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         reason?: "manual" | "quota_exhausted" | "work_time_start" | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "ENTERTAINMENT_MODE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2112,11 +2112,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         reason?: "manual" | "quota_exhausted" | "work_time_start" | undefined;
     };
 }, {
-    eventId: string;
     eventType: "ENTERTAINMENT_MODE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2133,7 +2133,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -2143,46 +2143,46 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         configuredStartTime: z.ZodString;
         actualStartTime: z.ZodNumber;
         delayMinutes: z.ZodNumber;
-        trigger: z.ZodLiteral<"first_pomodoro">;
+        trigger: z.ZodEnum<["first_pomodoro", "airlock_complete"]>;
     }, "strip", z.ZodTypeAny, {
         date: string;
-        trigger: "first_pomodoro";
+        trigger: "first_pomodoro" | "airlock_complete";
         configuredStartTime: string;
         actualStartTime: number;
         delayMinutes: number;
     }, {
         date: string;
-        trigger: "first_pomodoro";
+        trigger: "first_pomodoro" | "airlock_complete";
         configuredStartTime: string;
         actualStartTime: number;
         delayMinutes: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "WORK_START";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
         date: string;
-        trigger: "first_pomodoro";
+        trigger: "first_pomodoro" | "airlock_complete";
         configuredStartTime: string;
         actualStartTime: number;
         delayMinutes: number;
     };
 }, {
-    eventId: string;
     eventType: "WORK_START";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
         date: string;
-        trigger: "first_pomodoro";
+        trigger: "first_pomodoro" | "airlock_complete";
         configuredStartTime: string;
         actualStartTime: number;
         delayMinutes: number;
@@ -2191,7 +2191,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -2233,11 +2233,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         }[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "CHAT_MESSAGE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2251,11 +2251,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         }[] | undefined;
     };
 }, {
-    eventId: string;
     eventType: "CHAT_MESSAGE";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2272,7 +2272,7 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
@@ -2291,11 +2291,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         toolCallId: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "CHAT_ACTION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2304,11 +2304,11 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
         toolCallId: string;
     };
 }, {
-    eventId: string;
     eventType: "CHAT_ACTION";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {
@@ -2320,29 +2320,29 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
     eventId: z.ZodString;
     userId: z.ZodString;
     clientId: z.ZodString;
-    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>;
+    clientType: z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>;
     timestamp: z.ZodNumber;
     sequenceNumber: z.ZodNumber;
 } & {
     eventType: z.ZodLiteral<"CHAT_HISTORY_REQUEST">;
     payload: z.ZodObject<{}, "passthrough", z.ZodTypeAny, z.objectOutputType<{}, z.ZodTypeAny, "passthrough">, z.objectInputType<{}, z.ZodTypeAny, "passthrough">>;
 }, "strip", z.ZodTypeAny, {
-    eventId: string;
     eventType: "CHAT_HISTORY_REQUEST";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {} & {
         [k: string]: unknown;
     };
 }, {
-    eventId: string;
     eventType: "CHAT_HISTORY_REQUEST";
+    eventId: string;
     userId: string;
     clientId: string;
-    clientType: "web" | "desktop" | "browser_ext" | "mobile";
+    clientType: "web" | "desktop" | "browser_ext" | "mobile" | "api";
     timestamp: number;
     sequenceNumber: number;
     payload: {} & {
@@ -2351,24 +2351,24 @@ export declare const OctopusEventSchema: z.ZodDiscriminatedUnion<"eventType", [z
 }>]>;
 export declare const BaseCommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    commandType: z.ZodEnum<["SYNC_STATE", "EXECUTE_ACTION", "UPDATE_POLICY", "SHOW_UI", "CHAT_RESPONSE", "CHAT_TOOL_CALL", "CHAT_TOOL_RESULT", "CHAT_SYNC"]>;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    commandType: z.ZodEnum<["SYNC_STATE", "EXECUTE_ACTION", "UPDATE_POLICY", "SHOW_UI", "ACTION_RESULT", "CHAT_RESPONSE", "CHAT_TOOL_CALL", "CHAT_TOOL_RESULT", "CHAT_SYNC"]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
     createdAt: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    commandType: "SYNC_STATE" | "EXECUTE_ACTION" | "UPDATE_POLICY" | "SHOW_UI" | "ACTION_RESULT" | "CHAT_RESPONSE" | "CHAT_TOOL_CALL" | "CHAT_TOOL_RESULT" | "CHAT_SYNC";
     commandId: string;
-    commandType: "SYNC_STATE" | "EXECUTE_ACTION" | "UPDATE_POLICY" | "SHOW_UI" | "CHAT_RESPONSE" | "CHAT_TOOL_CALL" | "CHAT_TOOL_RESULT" | "CHAT_SYNC";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }, {
+    commandType: "SYNC_STATE" | "EXECUTE_ACTION" | "UPDATE_POLICY" | "SHOW_UI" | "ACTION_RESULT" | "CHAT_RESPONSE" | "CHAT_TOOL_CALL" | "CHAT_TOOL_RESULT" | "CHAT_SYNC";
     commandId: string;
-    commandType: "SYNC_STATE" | "EXECUTE_ACTION" | "UPDATE_POLICY" | "SHOW_UI" | "CHAT_RESPONSE" | "CHAT_TOOL_CALL" | "CHAT_TOOL_RESULT" | "CHAT_SYNC";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -2376,16 +2376,19 @@ export declare const BaseCommandSchema: z.ZodObject<{
 }>;
 export declare const SystemStateSchema: z.ZodObject<{
     state: z.ZodString;
+    timeContext: z.ZodOptional<z.ZodString>;
     dailyCapReached: z.ZodBoolean;
     skipTokensRemaining: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     state: string;
     dailyCapReached: boolean;
     skipTokensRemaining: number;
+    timeContext?: string | undefined;
 }, {
     state: string;
     dailyCapReached: boolean;
     skipTokensRemaining: number;
+    timeContext?: string | undefined;
 }>;
 export declare const DailyStateSchema: z.ZodObject<{
     date: z.ZodString;
@@ -2405,7 +2408,8 @@ export declare const DailyStateSchema: z.ZodObject<{
 }>;
 export declare const PomodoroStateSchema: z.ZodObject<{
     id: z.ZodString;
-    taskId: z.ZodString;
+    taskId: z.ZodNullable<z.ZodString>;
+    taskTitle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     startTime: z.ZodNumber;
     duration: z.ZodNumber;
     status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
@@ -2414,13 +2418,15 @@ export declare const PomodoroStateSchema: z.ZodObject<{
     duration: number;
     startTime: number;
     id: string;
-    taskId: string;
+    taskId: string | null;
+    taskTitle?: string | null | undefined;
 }, {
     status: "active" | "paused" | "completed" | "aborted";
     duration: number;
     startTime: number;
     id: string;
-    taskId: string;
+    taskId: string | null;
+    taskTitle?: string | null | undefined;
 }>;
 export declare const TaskStateSchema: z.ZodObject<{
     id: z.ZodString;
@@ -2460,16 +2466,19 @@ export declare const UserSettingsStateSchema: z.ZodObject<{
 export declare const FullStateSchema: z.ZodObject<{
     systemState: z.ZodObject<{
         state: z.ZodString;
+        timeContext: z.ZodOptional<z.ZodString>;
         dailyCapReached: z.ZodBoolean;
         skipTokensRemaining: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         state: string;
         dailyCapReached: boolean;
         skipTokensRemaining: number;
+        timeContext?: string | undefined;
     }, {
         state: string;
         dailyCapReached: boolean;
         skipTokensRemaining: number;
+        timeContext?: string | undefined;
     }>;
     dailyState: z.ZodObject<{
         date: z.ZodString;
@@ -2489,7 +2498,8 @@ export declare const FullStateSchema: z.ZodObject<{
     }>;
     activePomodoro: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
-        taskId: z.ZodString;
+        taskId: z.ZodNullable<z.ZodString>;
+        taskTitle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         startTime: z.ZodNumber;
         duration: z.ZodNumber;
         status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
@@ -2498,13 +2508,15 @@ export declare const FullStateSchema: z.ZodObject<{
         duration: number;
         startTime: number;
         id: string;
-        taskId: string;
+        taskId: string | null;
+        taskTitle?: string | null | undefined;
     }, {
         status: "active" | "paused" | "completed" | "aborted";
         duration: number;
         startTime: number;
         id: string;
-        taskId: string;
+        taskId: string | null;
+        taskTitle?: string | null | undefined;
     }>>;
     top3Tasks: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -2542,30 +2554,6 @@ export declare const FullStateSchema: z.ZodObject<{
         enforcementMode: "strict" | "gentle";
     }>;
 }, "strip", z.ZodTypeAny, {
-    systemState: {
-        state: string;
-        dailyCapReached: boolean;
-        skipTokensRemaining: number;
-    };
-    activePomodoro: {
-        status: "active" | "paused" | "completed" | "aborted";
-        duration: number;
-        startTime: number;
-        id: string;
-        taskId: string;
-    } | null;
-    dailyState: {
-        date: string;
-        completedPomodoros: number;
-        totalFocusMinutes: number;
-        top3TaskIds: string[];
-    };
-    top3Tasks: {
-        status: string;
-        title: string;
-        id: string;
-        priority: string;
-    }[];
     settings: {
         pomodoroDuration: number;
         shortBreakDuration: number;
@@ -2573,31 +2561,33 @@ export declare const FullStateSchema: z.ZodObject<{
         dailyCap: number;
         enforcementMode: "strict" | "gentle";
     };
+    dailyState: {
+        date: string;
+        completedPomodoros: number;
+        totalFocusMinutes: number;
+        top3TaskIds: string[];
+    };
+    systemState: {
+        state: string;
+        dailyCapReached: boolean;
+        skipTokensRemaining: number;
+        timeContext?: string | undefined;
+    };
+    activePomodoro: {
+        status: "active" | "paused" | "completed" | "aborted";
+        duration: number;
+        startTime: number;
+        id: string;
+        taskId: string | null;
+        taskTitle?: string | null | undefined;
+    } | null;
+    top3Tasks: {
+        status: string;
+        title: string;
+        id: string;
+        priority: string;
+    }[];
 }, {
-    systemState: {
-        state: string;
-        dailyCapReached: boolean;
-        skipTokensRemaining: number;
-    };
-    activePomodoro: {
-        status: "active" | "paused" | "completed" | "aborted";
-        duration: number;
-        startTime: number;
-        id: string;
-        taskId: string;
-    } | null;
-    dailyState: {
-        date: string;
-        completedPomodoros: number;
-        totalFocusMinutes: number;
-        top3TaskIds: string[];
-    };
-    top3Tasks: {
-        status: string;
-        title: string;
-        id: string;
-        priority: string;
-    }[];
     settings: {
         pomodoroDuration: number;
         shortBreakDuration: number;
@@ -2605,6 +2595,32 @@ export declare const FullStateSchema: z.ZodObject<{
         dailyCap: number;
         enforcementMode: "strict" | "gentle";
     };
+    dailyState: {
+        date: string;
+        completedPomodoros: number;
+        totalFocusMinutes: number;
+        top3TaskIds: string[];
+    };
+    systemState: {
+        state: string;
+        dailyCapReached: boolean;
+        skipTokensRemaining: number;
+        timeContext?: string | undefined;
+    };
+    activePomodoro: {
+        status: "active" | "paused" | "completed" | "aborted";
+        duration: number;
+        startTime: number;
+        id: string;
+        taskId: string | null;
+        taskTitle?: string | null | undefined;
+    } | null;
+    top3Tasks: {
+        status: string;
+        title: string;
+        id: string;
+        priority: string;
+    }[];
 }>;
 export declare const SyncStatePayloadSchema: z.ZodObject<{
     syncType: z.ZodLiteral<"full">;
@@ -2612,16 +2628,19 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
     state: z.ZodOptional<z.ZodObject<{
         systemState: z.ZodObject<{
             state: z.ZodString;
+            timeContext: z.ZodOptional<z.ZodString>;
             dailyCapReached: z.ZodBoolean;
             skipTokensRemaining: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
             state: string;
             dailyCapReached: boolean;
             skipTokensRemaining: number;
+            timeContext?: string | undefined;
         }, {
             state: string;
             dailyCapReached: boolean;
             skipTokensRemaining: number;
+            timeContext?: string | undefined;
         }>;
         dailyState: z.ZodObject<{
             date: z.ZodString;
@@ -2641,7 +2660,8 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
         }>;
         activePomodoro: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
-            taskId: z.ZodString;
+            taskId: z.ZodNullable<z.ZodString>;
+            taskTitle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             startTime: z.ZodNumber;
             duration: z.ZodNumber;
             status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
@@ -2650,13 +2670,15 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             duration: number;
             startTime: number;
             id: string;
-            taskId: string;
+            taskId: string | null;
+            taskTitle?: string | null | undefined;
         }, {
             status: "active" | "paused" | "completed" | "aborted";
             duration: number;
             startTime: number;
             id: string;
-            taskId: string;
+            taskId: string | null;
+            taskTitle?: string | null | undefined;
         }>>;
         top3Tasks: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -2694,30 +2716,6 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             enforcementMode: "strict" | "gentle";
         }>;
     }, "strip", z.ZodTypeAny, {
-        systemState: {
-            state: string;
-            dailyCapReached: boolean;
-            skipTokensRemaining: number;
-        };
-        activePomodoro: {
-            status: "active" | "paused" | "completed" | "aborted";
-            duration: number;
-            startTime: number;
-            id: string;
-            taskId: string;
-        } | null;
-        dailyState: {
-            date: string;
-            completedPomodoros: number;
-            totalFocusMinutes: number;
-            top3TaskIds: string[];
-        };
-        top3Tasks: {
-            status: string;
-            title: string;
-            id: string;
-            priority: string;
-        }[];
         settings: {
             pomodoroDuration: number;
             shortBreakDuration: number;
@@ -2725,31 +2723,33 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             dailyCap: number;
             enforcementMode: "strict" | "gentle";
         };
+        dailyState: {
+            date: string;
+            completedPomodoros: number;
+            totalFocusMinutes: number;
+            top3TaskIds: string[];
+        };
+        systemState: {
+            state: string;
+            dailyCapReached: boolean;
+            skipTokensRemaining: number;
+            timeContext?: string | undefined;
+        };
+        activePomodoro: {
+            status: "active" | "paused" | "completed" | "aborted";
+            duration: number;
+            startTime: number;
+            id: string;
+            taskId: string | null;
+            taskTitle?: string | null | undefined;
+        } | null;
+        top3Tasks: {
+            status: string;
+            title: string;
+            id: string;
+            priority: string;
+        }[];
     }, {
-        systemState: {
-            state: string;
-            dailyCapReached: boolean;
-            skipTokensRemaining: number;
-        };
-        activePomodoro: {
-            status: "active" | "paused" | "completed" | "aborted";
-            duration: number;
-            startTime: number;
-            id: string;
-            taskId: string;
-        } | null;
-        dailyState: {
-            date: string;
-            completedPomodoros: number;
-            totalFocusMinutes: number;
-            top3TaskIds: string[];
-        };
-        top3Tasks: {
-            status: string;
-            title: string;
-            id: string;
-            priority: string;
-        }[];
         settings: {
             pomodoroDuration: number;
             shortBreakDuration: number;
@@ -2757,35 +2757,37 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             dailyCap: number;
             enforcementMode: "strict" | "gentle";
         };
+        dailyState: {
+            date: string;
+            completedPomodoros: number;
+            totalFocusMinutes: number;
+            top3TaskIds: string[];
+        };
+        systemState: {
+            state: string;
+            dailyCapReached: boolean;
+            skipTokensRemaining: number;
+            timeContext?: string | undefined;
+        };
+        activePomodoro: {
+            status: "active" | "paused" | "completed" | "aborted";
+            duration: number;
+            startTime: number;
+            id: string;
+            taskId: string | null;
+            taskTitle?: string | null | undefined;
+        } | null;
+        top3Tasks: {
+            status: string;
+            title: string;
+            id: string;
+            priority: string;
+        }[];
     }>>;
 }, "strip", z.ZodTypeAny, {
     syncType: "full";
     version: number;
     state?: {
-        systemState: {
-            state: string;
-            dailyCapReached: boolean;
-            skipTokensRemaining: number;
-        };
-        activePomodoro: {
-            status: "active" | "paused" | "completed" | "aborted";
-            duration: number;
-            startTime: number;
-            id: string;
-            taskId: string;
-        } | null;
-        dailyState: {
-            date: string;
-            completedPomodoros: number;
-            totalFocusMinutes: number;
-            top3TaskIds: string[];
-        };
-        top3Tasks: {
-            status: string;
-            title: string;
-            id: string;
-            priority: string;
-        }[];
         settings: {
             pomodoroDuration: number;
             shortBreakDuration: number;
@@ -2793,35 +2795,37 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             dailyCap: number;
             enforcementMode: "strict" | "gentle";
         };
+        dailyState: {
+            date: string;
+            completedPomodoros: number;
+            totalFocusMinutes: number;
+            top3TaskIds: string[];
+        };
+        systemState: {
+            state: string;
+            dailyCapReached: boolean;
+            skipTokensRemaining: number;
+            timeContext?: string | undefined;
+        };
+        activePomodoro: {
+            status: "active" | "paused" | "completed" | "aborted";
+            duration: number;
+            startTime: number;
+            id: string;
+            taskId: string | null;
+            taskTitle?: string | null | undefined;
+        } | null;
+        top3Tasks: {
+            status: string;
+            title: string;
+            id: string;
+            priority: string;
+        }[];
     } | undefined;
 }, {
     syncType: "full";
     version: number;
     state?: {
-        systemState: {
-            state: string;
-            dailyCapReached: boolean;
-            skipTokensRemaining: number;
-        };
-        activePomodoro: {
-            status: "active" | "paused" | "completed" | "aborted";
-            duration: number;
-            startTime: number;
-            id: string;
-            taskId: string;
-        } | null;
-        dailyState: {
-            date: string;
-            completedPomodoros: number;
-            totalFocusMinutes: number;
-            top3TaskIds: string[];
-        };
-        top3Tasks: {
-            status: string;
-            title: string;
-            id: string;
-            priority: string;
-        }[];
         settings: {
             pomodoroDuration: number;
             shortBreakDuration: number;
@@ -2829,11 +2833,37 @@ export declare const SyncStatePayloadSchema: z.ZodObject<{
             dailyCap: number;
             enforcementMode: "strict" | "gentle";
         };
+        dailyState: {
+            date: string;
+            completedPomodoros: number;
+            totalFocusMinutes: number;
+            top3TaskIds: string[];
+        };
+        systemState: {
+            state: string;
+            dailyCapReached: boolean;
+            skipTokensRemaining: number;
+            timeContext?: string | undefined;
+        };
+        activePomodoro: {
+            status: "active" | "paused" | "completed" | "aborted";
+            duration: number;
+            startTime: number;
+            id: string;
+            taskId: string | null;
+            taskTitle?: string | null | undefined;
+        } | null;
+        top3Tasks: {
+            status: string;
+            title: string;
+            id: string;
+            priority: string;
+        }[];
     } | undefined;
 }>;
 export declare const SyncStateCommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -2846,16 +2876,19 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
         state: z.ZodOptional<z.ZodObject<{
             systemState: z.ZodObject<{
                 state: z.ZodString;
+                timeContext: z.ZodOptional<z.ZodString>;
                 dailyCapReached: z.ZodBoolean;
                 skipTokensRemaining: z.ZodNumber;
             }, "strip", z.ZodTypeAny, {
                 state: string;
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
+                timeContext?: string | undefined;
             }, {
                 state: string;
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
+                timeContext?: string | undefined;
             }>;
             dailyState: z.ZodObject<{
                 date: z.ZodString;
@@ -2875,7 +2908,8 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
             }>;
             activePomodoro: z.ZodNullable<z.ZodObject<{
                 id: z.ZodString;
-                taskId: z.ZodString;
+                taskId: z.ZodNullable<z.ZodString>;
+                taskTitle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 startTime: z.ZodNumber;
                 duration: z.ZodNumber;
                 status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
@@ -2884,13 +2918,15 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 duration: number;
                 startTime: number;
                 id: string;
-                taskId: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
             }, {
                 status: "active" | "paused" | "completed" | "aborted";
                 duration: number;
                 startTime: number;
                 id: string;
-                taskId: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
             }>>;
             top3Tasks: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;
@@ -2928,30 +2964,6 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 enforcementMode: "strict" | "gentle";
             }>;
         }, "strip", z.ZodTypeAny, {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -2959,31 +2971,33 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         }, {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -2991,35 +3005,37 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         }>>;
     }, "strip", z.ZodTypeAny, {
         syncType: "full";
         version: number;
         state?: {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -3027,35 +3043,37 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         } | undefined;
     }, {
         syncType: "full";
         version: number;
         state?: {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -3063,6 +3081,32 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         } | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
@@ -3070,30 +3114,6 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
         syncType: "full";
         version: number;
         state?: {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -3101,11 +3121,37 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         } | undefined;
     };
-    commandId: string;
     commandType: "SYNC_STATE";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -3115,30 +3161,6 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
         syncType: "full";
         version: number;
         state?: {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -3146,11 +3168,37 @@ export declare const SyncStateCommandSchema: z.ZodObject<{
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         } | undefined;
     };
-    commandId: string;
     commandType: "SYNC_STATE";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -3174,7 +3222,7 @@ export declare const ExecuteActionPayloadSchema: z.ZodObject<{
 }>;
 export declare const ExecuteActionCommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -3204,9 +3252,9 @@ export declare const ExecuteActionCommandSchema: z.ZodObject<{
         timeout?: number | undefined;
         fallbackAction?: "CLOSE_APP" | "HIDE_APP" | "BRING_TO_FRONT" | "SHOW_NOTIFICATION" | "CLOSE_TAB" | "REDIRECT_TAB" | "INJECT_OVERLAY" | "ADD_SESSION_WHITELIST" | "SEND_PUSH" | "PLAY_SOUND" | "VIBRATE" | undefined;
     };
-    commandId: string;
     commandType: "EXECUTE_ACTION";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -3218,9 +3266,9 @@ export declare const ExecuteActionCommandSchema: z.ZodObject<{
         timeout?: number | undefined;
         fallbackAction?: "CLOSE_APP" | "HIDE_APP" | "BRING_TO_FRONT" | "SHOW_NOTIFICATION" | "CLOSE_TAB" | "REDIRECT_TAB" | "INJECT_OVERLAY" | "ADD_SESSION_WHITELIST" | "SEND_PUSH" | "PLAY_SOUND" | "VIBRATE" | undefined;
     };
-    commandId: string;
     commandType: "EXECUTE_ACTION";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -3474,8 +3522,8 @@ export declare const PolicyConfigSchema: z.ZodObject<{
         graceDurationMinutes: number;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    enforcementMode: "strict" | "gentle";
     version: number;
+    enforcementMode: "strict" | "gentle";
     updatedAt: number;
     blacklist: string[];
     whitelist: string[];
@@ -3518,8 +3566,8 @@ export declare const PolicyConfigSchema: z.ZodObject<{
         graceDurationMinutes: number;
     } | undefined;
 }, {
-    enforcementMode: "strict" | "gentle";
     version: number;
+    enforcementMode: "strict" | "gentle";
     updatedAt: number;
     blacklist: string[];
     whitelist: string[];
@@ -3830,8 +3878,8 @@ export declare const PolicySchema: z.ZodObject<{
             graceDurationMinutes: number;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        enforcementMode: "strict" | "gentle";
         version: number;
+        enforcementMode: "strict" | "gentle";
         updatedAt: number;
         blacklist: string[];
         whitelist: string[];
@@ -3874,8 +3922,8 @@ export declare const PolicySchema: z.ZodObject<{
             graceDurationMinutes: number;
         } | undefined;
     }, {
-        enforcementMode: "strict" | "gentle";
         version: number;
+        enforcementMode: "strict" | "gentle";
         updatedAt: number;
         blacklist: string[];
         whitelist: string[];
@@ -4070,8 +4118,8 @@ export declare const PolicySchema: z.ZodObject<{
         } | undefined;
     };
     config: {
-        enforcementMode: "strict" | "gentle";
         version: number;
+        enforcementMode: "strict" | "gentle";
         updatedAt: number;
         blacklist: string[];
         whitelist: string[];
@@ -4146,8 +4194,8 @@ export declare const PolicySchema: z.ZodObject<{
         } | undefined;
     };
     config: {
-        enforcementMode: "strict" | "gentle";
         version: number;
+        enforcementMode: "strict" | "gentle";
         updatedAt: number;
         blacklist: string[];
         whitelist: string[];
@@ -4483,8 +4531,8 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 graceDurationMinutes: number;
             }>>;
         }, "strip", z.ZodTypeAny, {
-            enforcementMode: "strict" | "gentle";
             version: number;
+            enforcementMode: "strict" | "gentle";
             updatedAt: number;
             blacklist: string[];
             whitelist: string[];
@@ -4527,8 +4575,8 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
                 graceDurationMinutes: number;
             } | undefined;
         }, {
-            enforcementMode: "strict" | "gentle";
             version: number;
+            enforcementMode: "strict" | "gentle";
             updatedAt: number;
             blacklist: string[];
             whitelist: string[];
@@ -4723,8 +4771,8 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
             } | undefined;
         };
         config: {
-            enforcementMode: "strict" | "gentle";
             version: number;
+            enforcementMode: "strict" | "gentle";
             updatedAt: number;
             blacklist: string[];
             whitelist: string[];
@@ -4799,8 +4847,8 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
             } | undefined;
         };
         config: {
-            enforcementMode: "strict" | "gentle";
             version: number;
+            enforcementMode: "strict" | "gentle";
             updatedAt: number;
             blacklist: string[];
             whitelist: string[];
@@ -4878,8 +4926,8 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
             } | undefined;
         };
         config: {
-            enforcementMode: "strict" | "gentle";
             version: number;
+            enforcementMode: "strict" | "gentle";
             updatedAt: number;
             blacklist: string[];
             whitelist: string[];
@@ -4958,8 +5006,8 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
             } | undefined;
         };
         config: {
-            enforcementMode: "strict" | "gentle";
             version: number;
+            enforcementMode: "strict" | "gentle";
             updatedAt: number;
             blacklist: string[];
             whitelist: string[];
@@ -5008,7 +5056,7 @@ export declare const UpdatePolicyPayloadSchema: z.ZodObject<{
 }>;
 export declare const UpdatePolicyCommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -5139,8 +5187,8 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     graceDurationMinutes: number;
                 }>>;
             }, "strip", z.ZodTypeAny, {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -5183,8 +5231,8 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                     graceDurationMinutes: number;
                 } | undefined;
             }, {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -5379,8 +5427,8 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -5455,8 +5503,8 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -5534,8 +5582,8 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -5614,8 +5662,8 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -5696,8 +5744,8 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -5744,9 +5792,9 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
         policyType: "full" | "partial";
         effectiveTime: number;
     };
-    commandId: string;
     commandType: "UPDATE_POLICY";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -5785,8 +5833,8 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -5833,9 +5881,9 @@ export declare const UpdatePolicyCommandSchema: z.ZodObject<{
         policyType: "full" | "partial";
         effectiveTime: number;
     };
-    commandId: string;
     commandType: "UPDATE_POLICY";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -5859,7 +5907,7 @@ export declare const ShowUIPayloadSchema: z.ZodObject<{
 }>;
 export declare const ShowUICommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -5889,9 +5937,9 @@ export declare const ShowUICommandSchema: z.ZodObject<{
         dismissible: boolean;
         duration?: number | undefined;
     };
-    commandId: string;
     commandType: "SHOW_UI";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -5903,9 +5951,115 @@ export declare const ShowUICommandSchema: z.ZodObject<{
         dismissible: boolean;
         duration?: number | undefined;
     };
-    commandId: string;
     commandType: "SHOW_UI";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
+    priority: "low" | "normal" | "high" | "critical";
+    requiresAck: boolean;
+    createdAt: number;
+    expiryTime?: number | undefined;
+}>;
+export declare const ActionResultPayloadSchema: z.ZodObject<{
+    optimisticId: z.ZodString;
+    success: z.ZodBoolean;
+    error: z.ZodOptional<z.ZodObject<{
+        code: z.ZodString;
+        message: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        code: string;
+        message: string;
+    }, {
+        code: string;
+        message: string;
+    }>>;
+    data: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+}, "strip", z.ZodTypeAny, {
+    optimisticId: string;
+    success: boolean;
+    data?: Record<string, unknown> | undefined;
+    error?: {
+        code: string;
+        message: string;
+    } | undefined;
+}, {
+    optimisticId: string;
+    success: boolean;
+    data?: Record<string, unknown> | undefined;
+    error?: {
+        code: string;
+        message: string;
+    } | undefined;
+}>;
+export declare const ActionResultCommandSchema: z.ZodObject<{
+    commandId: z.ZodString;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
+    priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
+    requiresAck: z.ZodBoolean;
+    expiryTime: z.ZodOptional<z.ZodNumber>;
+    createdAt: z.ZodNumber;
+} & {
+    commandType: z.ZodLiteral<"ACTION_RESULT">;
+    payload: z.ZodObject<{
+        optimisticId: z.ZodString;
+        success: z.ZodBoolean;
+        error: z.ZodOptional<z.ZodObject<{
+            code: z.ZodString;
+            message: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            message: string;
+        }, {
+            code: string;
+            message: string;
+        }>>;
+        data: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+    }, "strip", z.ZodTypeAny, {
+        optimisticId: string;
+        success: boolean;
+        data?: Record<string, unknown> | undefined;
+        error?: {
+            code: string;
+            message: string;
+        } | undefined;
+    }, {
+        optimisticId: string;
+        success: boolean;
+        data?: Record<string, unknown> | undefined;
+        error?: {
+            code: string;
+            message: string;
+        } | undefined;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    payload: {
+        optimisticId: string;
+        success: boolean;
+        data?: Record<string, unknown> | undefined;
+        error?: {
+            code: string;
+            message: string;
+        } | undefined;
+    };
+    commandType: "ACTION_RESULT";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
+    priority: "low" | "normal" | "high" | "critical";
+    requiresAck: boolean;
+    createdAt: number;
+    expiryTime?: number | undefined;
+}, {
+    payload: {
+        optimisticId: string;
+        success: boolean;
+        data?: Record<string, unknown> | undefined;
+        error?: {
+            code: string;
+            message: string;
+        } | undefined;
+    };
+    commandType: "ACTION_RESULT";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -5953,7 +6107,7 @@ export declare const ChatResponsePayloadSchema: z.ZodObject<{
 }>;
 export declare const ChatResponseCommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -6013,9 +6167,9 @@ export declare const ChatResponseCommandSchema: z.ZodObject<{
         isProactive?: boolean | undefined;
         triggerId?: string | undefined;
     };
-    commandId: string;
     commandType: "CHAT_RESPONSE";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6033,9 +6187,9 @@ export declare const ChatResponseCommandSchema: z.ZodObject<{
         isProactive?: boolean | undefined;
         triggerId?: string | undefined;
     };
-    commandId: string;
     commandType: "CHAT_RESPONSE";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6068,7 +6222,7 @@ export declare const ChatToolCallPayloadSchema: z.ZodObject<{
 }>;
 export declare const ChatToolCallCommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -6110,9 +6264,9 @@ export declare const ChatToolCallCommandSchema: z.ZodObject<{
         description: string;
         requiresConfirmation: boolean;
     };
-    commandId: string;
     commandType: "CHAT_TOOL_CALL";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6127,9 +6281,9 @@ export declare const ChatToolCallCommandSchema: z.ZodObject<{
         description: string;
         requiresConfirmation: boolean;
     };
-    commandId: string;
     commandType: "CHAT_TOOL_CALL";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6156,7 +6310,7 @@ export declare const ChatToolResultPayloadSchema: z.ZodObject<{
 }>;
 export declare const ChatToolResultCommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -6190,9 +6344,9 @@ export declare const ChatToolResultCommandSchema: z.ZodObject<{
         success: boolean;
         summary: string;
     };
-    commandId: string;
     commandType: "CHAT_TOOL_RESULT";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6205,9 +6359,9 @@ export declare const ChatToolResultCommandSchema: z.ZodObject<{
         success: boolean;
         summary: string;
     };
-    commandId: string;
     commandType: "CHAT_TOOL_RESULT";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6222,14 +6376,14 @@ export declare const ChatSyncPayloadSchema: z.ZodObject<{
         metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        id: string;
         content: string;
+        id: string;
         createdAt: string;
         role: string;
         metadata?: Record<string, unknown> | undefined;
     }, {
-        id: string;
         content: string;
+        id: string;
         createdAt: string;
         role: string;
         metadata?: Record<string, unknown> | undefined;
@@ -6237,8 +6391,8 @@ export declare const ChatSyncPayloadSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     conversationId: string;
     messages: {
-        id: string;
         content: string;
+        id: string;
         createdAt: string;
         role: string;
         metadata?: Record<string, unknown> | undefined;
@@ -6246,8 +6400,8 @@ export declare const ChatSyncPayloadSchema: z.ZodObject<{
 }, {
     conversationId: string;
     messages: {
-        id: string;
         content: string;
+        id: string;
         createdAt: string;
         role: string;
         metadata?: Record<string, unknown> | undefined;
@@ -6255,7 +6409,7 @@ export declare const ChatSyncPayloadSchema: z.ZodObject<{
 }>;
 export declare const ChatSyncCommandSchema: z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -6271,14 +6425,14 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
             metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }, {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -6286,8 +6440,8 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         conversationId: string;
         messages: {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -6295,8 +6449,8 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
     }, {
         conversationId: string;
         messages: {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -6306,16 +6460,16 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
     payload: {
         conversationId: string;
         messages: {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }[];
     };
-    commandId: string;
     commandType: "CHAT_SYNC";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6324,16 +6478,16 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
     payload: {
         conversationId: string;
         messages: {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }[];
     };
-    commandId: string;
     commandType: "CHAT_SYNC";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6341,7 +6495,7 @@ export declare const ChatSyncCommandSchema: z.ZodObject<{
 }>;
 export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType", [z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -6354,16 +6508,19 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         state: z.ZodOptional<z.ZodObject<{
             systemState: z.ZodObject<{
                 state: z.ZodString;
+                timeContext: z.ZodOptional<z.ZodString>;
                 dailyCapReached: z.ZodBoolean;
                 skipTokensRemaining: z.ZodNumber;
             }, "strip", z.ZodTypeAny, {
                 state: string;
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
+                timeContext?: string | undefined;
             }, {
                 state: string;
                 dailyCapReached: boolean;
                 skipTokensRemaining: number;
+                timeContext?: string | undefined;
             }>;
             dailyState: z.ZodObject<{
                 date: z.ZodString;
@@ -6383,7 +6540,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
             }>;
             activePomodoro: z.ZodNullable<z.ZodObject<{
                 id: z.ZodString;
-                taskId: z.ZodString;
+                taskId: z.ZodNullable<z.ZodString>;
+                taskTitle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 startTime: z.ZodNumber;
                 duration: z.ZodNumber;
                 status: z.ZodEnum<["active", "paused", "completed", "aborted"]>;
@@ -6392,13 +6550,15 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 duration: number;
                 startTime: number;
                 id: string;
-                taskId: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
             }, {
                 status: "active" | "paused" | "completed" | "aborted";
                 duration: number;
                 startTime: number;
                 id: string;
-                taskId: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
             }>>;
             top3Tasks: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;
@@ -6436,30 +6596,6 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 enforcementMode: "strict" | "gentle";
             }>;
         }, "strip", z.ZodTypeAny, {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -6467,31 +6603,33 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         }, {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -6499,35 +6637,37 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         }>>;
     }, "strip", z.ZodTypeAny, {
         syncType: "full";
         version: number;
         state?: {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -6535,35 +6675,37 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         } | undefined;
     }, {
         syncType: "full";
         version: number;
         state?: {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -6571,6 +6713,32 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         } | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
@@ -6578,30 +6746,6 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         syncType: "full";
         version: number;
         state?: {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -6609,11 +6753,37 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         } | undefined;
     };
-    commandId: string;
     commandType: "SYNC_STATE";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6623,30 +6793,6 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         syncType: "full";
         version: number;
         state?: {
-            systemState: {
-                state: string;
-                dailyCapReached: boolean;
-                skipTokensRemaining: number;
-            };
-            activePomodoro: {
-                status: "active" | "paused" | "completed" | "aborted";
-                duration: number;
-                startTime: number;
-                id: string;
-                taskId: string;
-            } | null;
-            dailyState: {
-                date: string;
-                completedPomodoros: number;
-                totalFocusMinutes: number;
-                top3TaskIds: string[];
-            };
-            top3Tasks: {
-                status: string;
-                title: string;
-                id: string;
-                priority: string;
-            }[];
             settings: {
                 pomodoroDuration: number;
                 shortBreakDuration: number;
@@ -6654,18 +6800,44 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 dailyCap: number;
                 enforcementMode: "strict" | "gentle";
             };
+            dailyState: {
+                date: string;
+                completedPomodoros: number;
+                totalFocusMinutes: number;
+                top3TaskIds: string[];
+            };
+            systemState: {
+                state: string;
+                dailyCapReached: boolean;
+                skipTokensRemaining: number;
+                timeContext?: string | undefined;
+            };
+            activePomodoro: {
+                status: "active" | "paused" | "completed" | "aborted";
+                duration: number;
+                startTime: number;
+                id: string;
+                taskId: string | null;
+                taskTitle?: string | null | undefined;
+            } | null;
+            top3Tasks: {
+                status: string;
+                title: string;
+                id: string;
+                priority: string;
+            }[];
         } | undefined;
     };
-    commandId: string;
     commandType: "SYNC_STATE";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }>, z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -6695,9 +6867,9 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         timeout?: number | undefined;
         fallbackAction?: "CLOSE_APP" | "HIDE_APP" | "BRING_TO_FRONT" | "SHOW_NOTIFICATION" | "CLOSE_TAB" | "REDIRECT_TAB" | "INJECT_OVERLAY" | "ADD_SESSION_WHITELIST" | "SEND_PUSH" | "PLAY_SOUND" | "VIBRATE" | undefined;
     };
-    commandId: string;
     commandType: "EXECUTE_ACTION";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -6709,16 +6881,16 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         timeout?: number | undefined;
         fallbackAction?: "CLOSE_APP" | "HIDE_APP" | "BRING_TO_FRONT" | "SHOW_NOTIFICATION" | "CLOSE_TAB" | "REDIRECT_TAB" | "INJECT_OVERLAY" | "ADD_SESSION_WHITELIST" | "SEND_PUSH" | "PLAY_SOUND" | "VIBRATE" | undefined;
     };
-    commandId: string;
     commandType: "EXECUTE_ACTION";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }>, z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -6849,8 +7021,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     graceDurationMinutes: number;
                 }>>;
             }, "strip", z.ZodTypeAny, {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -6893,8 +7065,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                     graceDurationMinutes: number;
                 } | undefined;
             }, {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -7089,8 +7261,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -7165,8 +7337,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -7244,8 +7416,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -7324,8 +7496,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -7406,8 +7578,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -7454,9 +7626,9 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         policyType: "full" | "partial";
         effectiveTime: number;
     };
-    commandId: string;
     commandType: "UPDATE_POLICY";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -7495,8 +7667,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
                 } | undefined;
             };
             config: {
-                enforcementMode: "strict" | "gentle";
                 version: number;
+                enforcementMode: "strict" | "gentle";
                 updatedAt: number;
                 blacklist: string[];
                 whitelist: string[];
@@ -7543,16 +7715,16 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         policyType: "full" | "partial";
         effectiveTime: number;
     };
-    commandId: string;
     commandType: "UPDATE_POLICY";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }>, z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -7582,9 +7754,9 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         dismissible: boolean;
         duration?: number | undefined;
     };
-    commandId: string;
     commandType: "SHOW_UI";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -7596,16 +7768,90 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         dismissible: boolean;
         duration?: number | undefined;
     };
-    commandId: string;
     commandType: "SHOW_UI";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }>, z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
+    priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
+    requiresAck: z.ZodBoolean;
+    expiryTime: z.ZodOptional<z.ZodNumber>;
+    createdAt: z.ZodNumber;
+} & {
+    commandType: z.ZodLiteral<"ACTION_RESULT">;
+    payload: z.ZodObject<{
+        optimisticId: z.ZodString;
+        success: z.ZodBoolean;
+        error: z.ZodOptional<z.ZodObject<{
+            code: z.ZodString;
+            message: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            message: string;
+        }, {
+            code: string;
+            message: string;
+        }>>;
+        data: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+    }, "strip", z.ZodTypeAny, {
+        optimisticId: string;
+        success: boolean;
+        data?: Record<string, unknown> | undefined;
+        error?: {
+            code: string;
+            message: string;
+        } | undefined;
+    }, {
+        optimisticId: string;
+        success: boolean;
+        data?: Record<string, unknown> | undefined;
+        error?: {
+            code: string;
+            message: string;
+        } | undefined;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    payload: {
+        optimisticId: string;
+        success: boolean;
+        data?: Record<string, unknown> | undefined;
+        error?: {
+            code: string;
+            message: string;
+        } | undefined;
+    };
+    commandType: "ACTION_RESULT";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
+    priority: "low" | "normal" | "high" | "critical";
+    requiresAck: boolean;
+    createdAt: number;
+    expiryTime?: number | undefined;
+}, {
+    payload: {
+        optimisticId: string;
+        success: boolean;
+        data?: Record<string, unknown> | undefined;
+        error?: {
+            code: string;
+            message: string;
+        } | undefined;
+    };
+    commandType: "ACTION_RESULT";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
+    priority: "low" | "normal" | "high" | "critical";
+    requiresAck: boolean;
+    createdAt: number;
+    expiryTime?: number | undefined;
+}>, z.ZodObject<{
+    commandId: z.ZodString;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -7665,9 +7911,9 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         isProactive?: boolean | undefined;
         triggerId?: string | undefined;
     };
-    commandId: string;
     commandType: "CHAT_RESPONSE";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -7685,16 +7931,16 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         isProactive?: boolean | undefined;
         triggerId?: string | undefined;
     };
-    commandId: string;
     commandType: "CHAT_RESPONSE";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }>, z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -7736,9 +7982,9 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         description: string;
         requiresConfirmation: boolean;
     };
-    commandId: string;
     commandType: "CHAT_TOOL_CALL";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -7753,16 +7999,16 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         description: string;
         requiresConfirmation: boolean;
     };
-    commandId: string;
     commandType: "CHAT_TOOL_CALL";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }>, z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -7796,9 +8042,9 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         success: boolean;
         summary: string;
     };
-    commandId: string;
     commandType: "CHAT_TOOL_RESULT";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -7811,16 +8057,16 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
         success: boolean;
         summary: string;
     };
-    commandId: string;
     commandType: "CHAT_TOOL_RESULT";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
     expiryTime?: number | undefined;
 }>, z.ZodObject<{
     commandId: z.ZodString;
-    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile"]>, z.ZodLiteral<"all">]>;
+    targetClient: z.ZodUnion<[z.ZodEnum<["web", "desktop", "browser_ext", "mobile", "api"]>, z.ZodLiteral<"all">]>;
     priority: z.ZodEnum<["low", "normal", "high", "critical"]>;
     requiresAck: z.ZodBoolean;
     expiryTime: z.ZodOptional<z.ZodNumber>;
@@ -7836,14 +8082,14 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
             metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }, {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -7851,8 +8097,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     }, "strip", z.ZodTypeAny, {
         conversationId: string;
         messages: {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -7860,8 +8106,8 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     }, {
         conversationId: string;
         messages: {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
@@ -7871,16 +8117,16 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     payload: {
         conversationId: string;
         messages: {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }[];
     };
-    commandId: string;
     commandType: "CHAT_SYNC";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;
@@ -7889,16 +8135,16 @@ export declare const OctopusCommandSchema: z.ZodDiscriminatedUnion<"commandType"
     payload: {
         conversationId: string;
         messages: {
-            id: string;
             content: string;
+            id: string;
             createdAt: string;
             role: string;
             metadata?: Record<string, unknown> | undefined;
         }[];
     };
-    commandId: string;
     commandType: "CHAT_SYNC";
-    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "all";
+    commandId: string;
+    targetClient: "web" | "desktop" | "browser_ext" | "mobile" | "api" | "all";
     priority: "low" | "normal" | "high" | "critical";
     requiresAck: boolean;
     createdAt: number;

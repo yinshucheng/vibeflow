@@ -14,6 +14,7 @@ import {
   registerExecuteCommandBroadcaster,
   registerEntertainmentModeChangeBroadcaster,
   registerMCPEventBroadcaster,
+  registerDataChangeBroadcaster,
 } from '@/services/socket-broadcast.service';
 import { registerMCPEventBroadcaster as registerMCPServiceBroadcaster, mcpEventService } from '@/services/mcp-event.service';
 import { dailyResetSchedulerService } from '@/services/daily-reset-scheduler.service';
@@ -53,6 +54,18 @@ export function initializeSocketServer(httpServer: HttpServer): void {
   
   registerExecuteCommandBroadcaster((userId, command) => {
     socketServer.sendExecuteCommand(userId, command);
+  });
+
+  registerDataChangeBroadcaster((userId, entity, action, ids, sourceClientId) => {
+    socketServer.broadcastOctopusCommand(userId, {
+      commandId: crypto.randomUUID(),
+      commandType: 'DATA_CHANGE',
+      targetClient: 'all',
+      priority: 'normal',
+      requiresAck: false,
+      createdAt: Date.now(),
+      payload: { entity, action, ids, timestamp: Date.now(), sourceClientId },
+    } as import('@/types/octopus').OctopusCommand);
   });
   
   registerEntertainmentModeChangeBroadcaster((userId, payload) => {

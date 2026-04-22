@@ -8,12 +8,14 @@
  */
 
 import type { ExecuteCommand } from '@/server/socket';
+import type { DataChangeEntity, DataChangeAction } from '@vibeflow/octopus-protocol';
 
 // Broadcast function types
 type PolicyUpdateBroadcaster = (userId: string) => Promise<void>;
 type ExecuteCommandBroadcaster = (userId: string, command: ExecuteCommand) => void;
 type EntertainmentModeChangeBroadcaster = (userId: string, payload: { isActive: boolean; sessionId: string | null; endTime: number | null }) => void;
 type MCPEventBroadcaster = (userId: string, event: MCPEventPayload) => void;
+type DataChangeBroadcaster = (userId: string, entity: DataChangeEntity, action: DataChangeAction, ids: string[], sourceClientId?: string) => void;
 
 // MCP Event payload type
 export interface MCPEventPayload {
@@ -29,6 +31,7 @@ let policyUpdateBroadcaster: PolicyUpdateBroadcaster | null = null;
 let executeCommandBroadcaster: ExecuteCommandBroadcaster | null = null;
 let entertainmentModeChangeBroadcaster: EntertainmentModeChangeBroadcaster | null = null;
 let mcpEventBroadcaster: MCPEventBroadcaster | null = null;
+let dataChangeBroadcaster: DataChangeBroadcaster | null = null;
 
 /**
  * Register the policy update broadcaster
@@ -135,6 +138,32 @@ export function broadcastMCPEvent(userId: string, event: MCPEventPayload): void 
 }
 
 /**
+ * Register the data change broadcaster
+ * Called by socket-init when the server starts
+ */
+export function registerDataChangeBroadcaster(broadcaster: DataChangeBroadcaster): void {
+  dataChangeBroadcaster = broadcaster;
+}
+
+/**
+ * Broadcast a DATA_CHANGE notification to all connected clients for a user.
+ * Tells clients that a data entity was modified so they can refetch.
+ * The timestamp field enables future incremental sync (方案 3).
+ */
+export function broadcastDataChange(
+  userId: string,
+  entity: DataChangeEntity,
+  action: DataChangeAction,
+  ids: string[],
+  sourceClientId?: string,
+): void {
+  if (dataChangeBroadcaster) {
+    dataChangeBroadcaster(userId, entity, action, ids, sourceClientId);
+  }
+  // No "queued" log — DATA_CHANGE is best-effort, not critical
+}
+
+/**
  * Check if broadcasters are registered
  */
 export function isBroadcastReady(): boolean {
@@ -146,11 +175,13 @@ export const socketBroadcastService = {
   registerExecuteCommandBroadcaster,
   registerEntertainmentModeChangeBroadcaster,
   registerMCPEventBroadcaster,
+  registerDataChangeBroadcaster,
   broadcastPolicyUpdate,
   sendExecuteCommand,
   broadcastIdleAlert,
   broadcastEntertainmentModeChange,
   broadcastMCPEvent,
+  broadcastDataChange,
   isBroadcastReady,
 };
 
