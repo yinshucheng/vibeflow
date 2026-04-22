@@ -180,6 +180,28 @@ Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access l
 - **修改 shared 模块的检查清单**：1) `grep -rn 'from.*模块名' src/ vibeflow-ios/ vibeflow-desktop/ vibeflow-extension/` 列出所有消费者 2) 确认所有 import 的名称在新代码中仍然 export 3) 跑所有子项目的 `tsc --noEmit`（不只是主项目）
 - **iOS 子项目必须单独验证编译**：主项目 `npx tsc --noEmit` 不覆盖 iOS 的 tsconfig。修改 iOS 代码后必须跑 `cd vibeflow-ios && npx tsc --noEmit`。
 
+## 跨端开发防坑规则
+
+> 从八爪鱼协议统一化验收中总结的教训。
+
+### 模块共享状态必须用 globalThis
+Next.js custom server（Node.js 原生加载）和 App Router route handlers（webpack 编译）在同一进程但**不同模块图**。模块级 `let` 变量在两个图中是独立实例。**任何跨模块共享的 mutable state（singleton、broadcaster、registry）必须存在 `globalThis` 上。** 参考 `src/server/socket.ts` 的 `__vibeflow_socket_server__` 模式。
+
+### 跨端功能先写自动化测试再手动验证
+手动验证（启动模拟器、刷新浏览器、观察 UI）每次来回 5-10 分钟。写一个 `tests/integration/cross-client-sync.test.ts` 跑一次 15 秒。**任何涉及"端 A 操作 → 端 B 感知"的功能，必须先有集成测试覆盖**（真实 socket.io server + client），再做人工验证。测试要包含：1) 认证 2) 用户身份一致性断言 3) 消息到达。
+
+### 部署后必须验证编译产物
+`npx tsc --noEmit` 验证的是源码，Docker 里跑的是 `dist/server.js`（CJS 编译产物）。**本地测试全绿不代表生产环境正常。** 部署后至少检查一次关键日志：`docker compose logs --since=1m | grep "queued\|error\|not ready"`。后续考虑加 `npm run build:server && node -e "require('./dist/src/server/socket')"` 作为 CI smoke test。
+
+### 禁止 DEV_MODE 影响认证链路
+`DEV_MODE` 只用于开发便利（如跳过密码、自动创建用户），**绝不能绕过 middleware 认证或改变用户身份解析逻辑**。不同端走不同的 DEV_MODE fallback 会导致用户不一致——表面上"都能用"但实际是不同用户，跨端同步全部失效。middleware 的 DEV_MODE bypass 已移除（commit `53cac84`），其余 ~57 处待清理。
+
+### deploy.sh 不截断日志
+`docker compose build 2>&1 | tail -5` 会隐藏编译错误（如 `ENOSPC`、`npm error`）。改为 `| tail -20` 或在失败时 dump 完整日志。部署脚本中任何可能失败的步骤都要 `set -e` + 有意义的错误输出。
+
+### iOS Release build 需要单独验证网络
+Debug build 中 iOS 自动放行 HTTP（ATS 豁免），但 Release build 严格执行 ATS。**对纯 IP 地址的 HTTP 请求，即使 `NSAllowsArbitraryLoads: true` 也不够——需要 `NSExceptionDomains` 显式豁免。** 上 HTTPS + 域名后此问题消失。
+
 ## Reference Documents
 
 `.kiro/steering/` 中有专题参考文档（如 `desktop-window-behavior.md`、`e2e-testing.md`），仅在涉及相关功能时按需查阅。核心架构和约束以本文件（CLAUDE.md）为唯一 truth source。
