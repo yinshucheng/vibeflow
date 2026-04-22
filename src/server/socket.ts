@@ -413,6 +413,7 @@ export class VibeFlowSocketServer {
     // NextAuth cookie authentication (for Web and Browser Extension)
     // Extension sends empty auth payload — relies on handshake headers cookie
     try {
+      const cookies = socket.request.headers.cookie;
       const jwtToken = await getToken({
         req: socket.request as Parameters<typeof getToken>[0]['req'],
         secret: process.env.NEXTAUTH_SECRET,
@@ -433,7 +434,11 @@ export class VibeFlowSocketServer {
           },
         };
       }
-    } catch {
+      if (!jwtToken) {
+        console.log(`[Socket.io] NextAuth cookie auth failed: no JWT token (cookies present: ${!!cookies}, cookie keys: ${cookies ? cookies.split(';').map(c => c.trim().split('=')[0]).join(',') : 'none'})`);
+      }
+    } catch (err) {
+      console.log(`[Socket.io] NextAuth cookie auth error: ${err instanceof Error ? err.message : err}`);
       // Cookie parsing failed, fall through to API token auth
     }
 
