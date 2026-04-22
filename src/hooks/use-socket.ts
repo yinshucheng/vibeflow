@@ -11,6 +11,7 @@
 'use client';
 
 import { useEffect, useCallback, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   initializeSocket,
   disconnectSocket,
@@ -54,7 +55,10 @@ export interface UseSocketReturn {
  * All real-time state is available via useRealtimeStore selectors.
  */
 export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
-  const { email, token, autoConnect = true } = options;
+  const { email: emailOption, token, autoConnect = true } = options;
+  const { data: session } = useSession();
+  // Prefer explicitly passed email, then fall back to NextAuth session email
+  const email = emailOption ?? session?.user?.email ?? undefined;
 
   const connected = useRealtimeStore((s) => s.connected);
   const systemState = useRealtimeStore((s) => s.systemState);

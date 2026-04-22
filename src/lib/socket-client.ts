@@ -56,10 +56,7 @@ export function initializeSocket(options?: {
     return socket;
   }
 
-  let email = options?.email;
-  if (!email && typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
-    email = localStorage.getItem('dev-user-email') || undefined;
-  }
+  const email = options?.email;
 
   const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 
