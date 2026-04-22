@@ -21,7 +21,7 @@ import { registerProactiveBroadcaster } from '@/services/ai-trigger.service';
 import {
   registerFullStateBroadcaster,
   registerStateEnginePolicyBroadcaster,
-} from '@/services/state-engine.service';
+} from '@/services';
 
 let isInitialized = false;
 let mcpEventCleanupInterval: ReturnType<typeof setInterval> | null = null;
