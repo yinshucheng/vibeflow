@@ -144,6 +144,19 @@ class WebSocketService {
       const handlers = this.commandHandlers.get('CHAT_SYNC');
       handlers?.forEach((handler) => handler(payload));
     },
+    onDataChange: (payload) => {
+      console.log('[WebSocket] DATA_CHANGE:', payload.entity, payload.action, payload.ids);
+      // Refetch affected data
+      const { fetchTodayTasks, fetchOverdueTasks } = useAppStore.getState();
+      switch (payload.entity) {
+        case 'task':
+        case 'dailyState':
+          fetchTodayTasks();
+          fetchOverdueTasks();
+          break;
+        // project/goal/settings — iOS reads these from server via full sync, no action needed
+      }
+    },
   });
 
   // Configuration

@@ -17,6 +17,8 @@ import {
 import type {
   ExecuteActionPayload,
   ShowUIPayload,
+  DataChangePayload,
+  DataChangeEntity,
 } from '@vibeflow/octopus-protocol';
 import { normalizeState } from '@/lib/state-utils';
 
@@ -126,7 +128,27 @@ export const commandHandler = createCommandHandler({
   onActionResult: () => {
     // Web doesn't use ACTION_RESULT (tRPC handles request/response)
   },
+  onDataChange: (payload) => {
+    // Notify subscribers that a data entity changed
+    dataChangeListeners.forEach((listener) => listener(payload));
+  },
 });
+
+// =============================================================================
+// DATA_CHANGE EVENT BUS
+// =============================================================================
+
+type DataChangeListener = (payload: DataChangePayload) => void;
+const dataChangeListeners = new Set<DataChangeListener>();
+
+/**
+ * Subscribe to DATA_CHANGE events. Returns unsubscribe function.
+ * Web components use this to invalidate React Query cache.
+ */
+export function onDataChange(listener: DataChangeListener): () => void {
+  dataChangeListeners.add(listener);
+  return () => dataChangeListeners.delete(listener);
+}
 
 // =============================================================================
 // SELECTORS (precise subscriptions to avoid over-render)

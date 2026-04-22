@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { useSocket } from '@/hooks/use-socket';
-import { useRealtimeStore } from '@/stores/realtime.store';
+import { useRealtimeStore, onDataChange } from '@/stores/realtime.store';
+import { trpc } from '@/lib/trpc';
 import { trayIntegrationService } from '@/services/tray-integration.service';
 import { showBrowserNotification } from '@/services/notification.service';
 
@@ -18,6 +19,36 @@ import { showBrowserNotification } from '@/services/notification.service';
 export function TraySyncProvider({ children }: { children: React.ReactNode }) {
   // Ensure WebSocket is connected
   useSocket();
+
+  // Invalidate React Query cache when DATA_CHANGE arrives from server
+  const utils = trpc.useUtils();
+  useEffect(() => {
+    return onDataChange((payload) => {
+      console.log('[TraySyncProvider] DATA_CHANGE:', payload.entity, payload.action, payload.ids);
+      switch (payload.entity) {
+        case 'task':
+          utils.task.getTodayTasks.invalidate();
+          utils.task.getOverdue.invalidate();
+          utils.task.getBacklog.invalidate();
+          break;
+        case 'project':
+          utils.project.invalidate();
+          break;
+        case 'goal':
+          utils.goal.invalidate();
+          break;
+        case 'settings':
+          utils.settings.get.invalidate();
+          break;
+        case 'dailyState':
+          utils.dailyState.getToday.invalidate();
+          break;
+        case 'habit':
+          utils.habit.invalidate();
+          break;
+      }
+    });
+  }, [utils]);
 
   // Real-time state from Zustand (driven by SDK state manager, no polling)
   const snapshot = useRealtimeStore((s) => s.snapshot);
