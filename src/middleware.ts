@@ -12,11 +12,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // DEV_MODE — allow everything through
-  if (process.env.DEV_MODE === 'true') {
-    return NextResponse.next();
-  }
-
   // API routes with Bearer token — let tRPC/route handlers handle auth
   const authHeader = request.headers.get('authorization');
   if (pathname.startsWith('/api/') && authHeader?.startsWith('Bearer ')) {
