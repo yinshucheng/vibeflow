@@ -45,8 +45,7 @@ export interface SendOptions {
 }
 
 // Late-bound broadcaster (registered by socket-init at startup)
-type FullStateBroadcaster = (userId: string) => Promise<void>;
-type PolicyUpdateBroadcaster = (userId: string) => Promise<void>;
+// FullStateBroadcaster and PolicyUpdateBroadcaster types moved to state-engine-broadcaster.ts
 
 // ── Self-transition events (same state is valid, not a rejection) ──────
 
@@ -64,23 +63,19 @@ const locks = new Map<string, Promise<void>>();
 /** OVER_REST delayed timers */
 const overRestTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-/** Late-bound broadcasters */
-let fullStateBroadcaster: FullStateBroadcaster | null = null;
-let policyUpdateBroadcaster: PolicyUpdateBroadcaster | null = null;
+// Broadcaster functions live in a separate module to avoid CJS dual-instance issues.
+// When state-engine.service is imported via barrel (services/index) vs direct path,
+// CJS can create two module instances with separate `let` variables.
+// The isolated module ensures a single shared instance.
+import {
+  registerFullStateBroadcaster,
+  registerStateEnginePolicyBroadcaster,
+  broadcastFullState,
+  broadcastPolicyUpdate as broadcastPolicyUpdateToUser,
+} from './state-engine-broadcaster';
 
-/**
- * Register the full-state broadcaster (called by socket-init at startup).
- */
-export function registerFullStateBroadcaster(broadcaster: FullStateBroadcaster): void {
-  fullStateBroadcaster = broadcaster;
-}
-
-/**
- * Register the policy-update broadcaster (called by socket-init at startup).
- */
-export function registerStateEnginePolicyBroadcaster(broadcaster: PolicyUpdateBroadcaster): void {
-  policyUpdateBroadcaster = broadcaster;
-}
+// Re-export register functions so existing callers don't break
+export { registerFullStateBroadcaster, registerStateEnginePolicyBroadcaster };
 
 // ── withLock ───────────────────────────────────────────────────────────
 
@@ -264,27 +259,8 @@ function extractLogContext(
   return base;
 }
 
-/**
- * Broadcast full state to the user (via late-bound broadcaster).
- */
-async function broadcastFullState(userId: string): Promise<void> {
-  if (fullStateBroadcaster) {
-    await fullStateBroadcaster(userId);
-  } else {
-    console.log(`[StateEngine] broadcastFullState queued (server not ready): ${userId}`);
-  }
-}
-
-/**
- * Broadcast policy update to the user (via late-bound broadcaster).
- */
-async function broadcastPolicyUpdateToUser(userId: string): Promise<void> {
-  if (policyUpdateBroadcaster) {
-    await policyUpdateBroadcaster(userId);
-  } else {
-    console.log(`[StateEngine] broadcastPolicyUpdate queued (server not ready): ${userId}`);
-  }
-}
+// broadcastFullState and broadcastPolicyUpdateToUser are now imported
+// from ./state-engine-broadcaster (isolated module to avoid CJS dual-instance)
 
 /**
  * Publish MCP event for state transition (async, non-blocking).

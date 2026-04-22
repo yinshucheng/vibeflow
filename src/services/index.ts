@@ -58,7 +58,9 @@ export type { TransitionResult, SendOptions } from './state-engine.service';
 export {
   registerFullStateBroadcaster,
   registerStateEnginePolicyBroadcaster,
-} from './state-engine.service';
+  broadcastFullState,
+  broadcastPolicyUpdate as broadcastPolicyUpdateFromStateEngine,
+} from './state-engine-broadcaster';
 
 export { activityLogService } from './activity-log.service';
 export type {
