@@ -3,10 +3,10 @@ const prisma = new PrismaClient();
 
 async function seed() {
   const user = await prisma.user.upsert({
-    where: { email: 'dev@vibeflow.local' },
+    where: { email: 'ithinker1991@gmail.com' },
     update: {},
     create: {
-      email: 'dev@vibeflow.local',
+      email: 'ithinker1991@gmail.com',
       password: 'dev-password-hash',
     },
   });

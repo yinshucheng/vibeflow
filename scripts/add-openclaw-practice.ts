@@ -11,7 +11,7 @@ async function main() {
   // Get dev user (or first user)
   const user = await prisma.user.findFirst({
     where: {
-      email: 'dev@vibeflow.local'
+      email: 'ithinker1991@gmail.com'
     }
   });
 

@@ -31,7 +31,7 @@ curl -s -X POST '<SERVER>/api/trpc/<procedure>' \
 
 Response shape: `{"result":{"data":{"json": <payload>}}}`
 
-Use env vars: `VIBEFLOW_SERVER_URL` defaults to `http://39.105.213.147:4000`, `VIBEFLOW_USER_EMAIL` defaults to `dev@vibeflow.local`.
+Use env vars: `VIBEFLOW_SERVER_URL` defaults to `http://39.105.213.147:4000`, `VIBEFLOW_USER_EMAIL` defaults to `ithinker1991@gmail.com`.
 
 ## Available APIs
 
@@ -124,23 +124,23 @@ Use env vars: `VIBEFLOW_SERVER_URL` defaults to `http://39.105.213.147:4000`, `V
 
 ```bash
 # Get current state
-curl -s 'http://39.105.213.147:4000/api/trpc/dailyState.getCurrentState' -H 'x-dev-user-email: dev@vibeflow.local'
+curl -s 'http://39.105.213.147:4000/api/trpc/dailyState.getCurrentState' -H 'x-dev-user-email: ithinker1991@gmail.com'
 
 # Create a task
 curl -s -X POST 'http://39.105.213.147:4000/api/trpc/task.quickCreateInbox' \
-  -H 'x-dev-user-email: dev@vibeflow.local' \
+  -H 'x-dev-user-email: ithinker1991@gmail.com' \
   -H 'Content-Type: application/json' \
   -d '{"json":{"title":"Review PR #42"}}'
 
 # Start a pomodoro
 curl -s -X POST 'http://39.105.213.147:4000/api/trpc/pomodoro.start' \
-  -H 'x-dev-user-email: dev@vibeflow.local' \
+  -H 'x-dev-user-email: ithinker1991@gmail.com' \
   -H 'Content-Type: application/json' \
   -d '{"json":{"taskId":"<uuid>","duration":25}}'
 
 # Get daily summary
 curl -s 'http://39.105.213.147:4000/api/trpc/mcpBridge.generateDailySummary?input=%7B%22json%22%3A%7B%7D%7D' \
-  -H 'x-dev-user-email: dev@vibeflow.local'
+  -H 'x-dev-user-email: ithinker1991@gmail.com'
 ```
 
 ## Behavior Rules

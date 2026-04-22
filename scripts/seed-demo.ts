@@ -49,7 +49,7 @@ async function seed() {
 
   const user = await prisma.user.create({
     data: {
-      email: 'dev@vibeflow.local',
+      email: 'ithinker1991@gmail.com',
       password: 'demo-not-for-production',
     },
   });
