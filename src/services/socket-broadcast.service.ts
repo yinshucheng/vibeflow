@@ -158,9 +158,11 @@ export function broadcastDataChange(
   sourceClientId?: string,
 ): void {
   if (dataChangeBroadcaster) {
+    console.log(`[SocketBroadcast] DATA_CHANGE: ${entity}.${action} ids=${ids.join(',')} user=${userId}`);
     dataChangeBroadcaster(userId, entity, action, ids, sourceClientId);
+  } else {
+    console.log(`[SocketBroadcast] DATA_CHANGE broadcaster not registered! ${entity}.${action} user=${userId}`);
   }
-  // No "queued" log — DATA_CHANGE is best-effort, not critical
 }
 
 /**

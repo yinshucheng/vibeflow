@@ -2270,7 +2270,11 @@ export class VibeFlowSocketServer {
   }
 }
 
-// Singleton instance
-export const socketServer = new VibeFlowSocketServer();
+// Singleton instance — use globalThis to ensure one instance across
+// Next.js webpack modules and Node.js native modules in the same process
+const globalKey = '__vibeflow_socket_server__';
+export const socketServer: VibeFlowSocketServer =
+  (globalThis as Record<string, unknown>)[globalKey] as VibeFlowSocketServer ??
+  ((globalThis as Record<string, unknown>)[globalKey] = new VibeFlowSocketServer());
 
 export default socketServer;

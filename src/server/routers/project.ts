@@ -13,7 +13,20 @@ import {
   CreateProjectSchema,
   UpdateProjectSchema
 } from '@/services/project.service';
-import { broadcastDataChange } from '@/services/socket-broadcast.service';
+import { socketServer } from '@/server/socket';
+import type { OctopusCommand } from '@/types/octopus';
+
+function broadcastDataChange(userId: string, entity: string, action: string, ids: string[]) {
+  socketServer.broadcastOctopusCommand(userId, {
+    commandId: crypto.randomUUID(),
+    commandType: 'DATA_CHANGE',
+    targetClient: 'all',
+    priority: 'normal',
+    requiresAck: false,
+    createdAt: Date.now(),
+    payload: { entity, action, ids, timestamp: Date.now() },
+  } as OctopusCommand);
+}
 
 export const projectRouter = router({
   /**

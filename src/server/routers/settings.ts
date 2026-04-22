@@ -10,8 +10,9 @@ import { TRPCError } from '@trpc/server';
 import { router, readProcedure, writeProcedure, adminProcedure } from '../trpc';
 import { userService, UpdateSettingsSchema, WorkTimeSlotSchema, IdleAlertActionSchema, WeekdayExpectationSchema } from '@/services/user.service';
 import { settingsLockService, canModifySetting, isLockableSetting, LOCKABLE_SETTINGS } from '@/services/settings-lock.service';
-import { broadcastDataChange } from '@/services/socket-broadcast.service';
 import { settingsModificationLogService } from '@/services/settings-modification-log.service';
+import { socketServer } from '@/server/socket';
+import type { OctopusCommand } from '@/types/octopus';
 import type { WorkTimeSlot } from '@/components/settings/work-time-settings';
 
 // Timer settings schema
@@ -32,6 +33,18 @@ const WorkTimeSettingsSchema = z.object({
 
 // URL pattern schema for blacklist/whitelist
 const UrlPatternSchema = z.string().min(1).max(500);
+
+function broadcastDataChange(userId: string, entity: string, action: string, ids: string[]) {
+  socketServer.broadcastOctopusCommand(userId, {
+    commandId: crypto.randomUUID(),
+    commandType: 'DATA_CHANGE',
+    targetClient: 'all',
+    priority: 'normal',
+    requiresAck: false,
+    createdAt: Date.now(),
+    payload: { entity, action, ids, timestamp: Date.now() },
+  } as OctopusCommand);
+}
 
 /**
  * Helper function to check if settings can be modified and log blocked attempts

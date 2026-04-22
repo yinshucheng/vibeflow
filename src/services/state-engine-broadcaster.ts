@@ -1,37 +1,53 @@
 /**
  * State Engine Broadcaster Registry
  *
- * Isolated module for late-bound broadcaster functions.
- * Exists as a separate file to avoid CJS module dual-instance issues
- * when state-engine.service.ts is imported via different paths
- * (barrel vs direct).
+ * Uses globalThis to ensure a single shared state across Next.js webpack
+ * modules and Node.js native modules in the same process.
+ * This is necessary because Next.js App Router's route handlers are compiled
+ * by webpack, creating separate module instances from the custom server code.
  */
 
 type FullStateBroadcaster = (userId: string) => Promise<void>;
 type PolicyUpdateBroadcaster = (userId: string) => Promise<void>;
 
-let fullStateBroadcaster: FullStateBroadcaster | null = null;
-let policyUpdateBroadcaster: PolicyUpdateBroadcaster | null = null;
+interface BroadcasterState {
+  fullState: FullStateBroadcaster | null;
+  policyUpdate: PolicyUpdateBroadcaster | null;
+}
+
+const GLOBAL_KEY = '__vibeflow_state_engine_broadcasters__';
+
+function getState(): BroadcasterState {
+  if (!(globalThis as Record<string, unknown>)[GLOBAL_KEY]) {
+    (globalThis as Record<string, unknown>)[GLOBAL_KEY] = {
+      fullState: null,
+      policyUpdate: null,
+    };
+  }
+  return (globalThis as Record<string, unknown>)[GLOBAL_KEY] as BroadcasterState;
+}
 
 export function registerFullStateBroadcaster(broadcaster: FullStateBroadcaster): void {
-  fullStateBroadcaster = broadcaster;
+  getState().fullState = broadcaster;
 }
 
 export function registerStateEnginePolicyBroadcaster(broadcaster: PolicyUpdateBroadcaster): void {
-  policyUpdateBroadcaster = broadcaster;
+  getState().policyUpdate = broadcaster;
 }
 
 export async function broadcastFullState(userId: string): Promise<void> {
-  if (fullStateBroadcaster) {
-    await fullStateBroadcaster(userId);
+  const { fullState } = getState();
+  if (fullState) {
+    await fullState(userId);
   } else {
     console.log(`[StateEngine] broadcastFullState queued (server not ready): ${userId}`);
   }
 }
 
 export async function broadcastPolicyUpdate(userId: string): Promise<void> {
-  if (policyUpdateBroadcaster) {
-    await policyUpdateBroadcaster(userId);
+  const { policyUpdate } = getState();
+  if (policyUpdate) {
+    await policyUpdate(userId);
   } else {
     console.log(`[StateEngine] broadcastPolicyUpdate queued (server not ready): ${userId}`);
   }
