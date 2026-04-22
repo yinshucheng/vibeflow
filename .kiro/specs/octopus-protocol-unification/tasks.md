@@ -1,6 +1,8 @@
 # 八爪鱼协议统一化 - Tasks
 
-> **Rev 3** — 基于 Review 7/8/9 修订。Delta sync 代码已清理（commit e039021）、Phase B 拆为 B1+B2、废弃 React Query 双源同步、补充自动化测试策略、补充副作用迁移 task。
+> **Status: DONE** — Phase A-D 全部完成 + DATA_CHANGE 跨端同步 + 验收通过。遗留问题见文档末尾。
+>
+> Rev 4 — 最终收尾。在 Rev 3 基础上完成了：DATA_CHANGE 广播（方案 2）、globalThis singleton 修复、Web 认证统一（去掉 localStorage dev-user-email）、middleware DEV_MODE 后门移除。
 
 ## 修改范围总览
 
@@ -372,12 +374,13 @@ it('policy update uses Config/State split', async () => {
 
 ### 自动化测试确认
 
-- [ ] T1. `npx tsc --noEmit` — Server 零错误
-- [ ] T2. `cd vibeflow-desktop && npx tsc --noEmit` — Desktop 零错误
-- [ ] T3. `cd vibeflow-extension && npx tsc --noEmit` — Extension 零错误
-- [ ] T4. `npm test` — 全部通过（flaky property tests 除外）
-- [ ] T5. `npm run lint` — 零警告
-- [ ] T6. `cd packages/octopus-protocol && npm test` — SDK 71 tests + conformance 全绿
+- [x] T1. `npx tsc --noEmit` — Server 零错误
+- [x] T2. `cd vibeflow-desktop && npx tsc --noEmit` — Desktop 零错误
+- [x] T3. `cd vibeflow-extension && npx tsc --noEmit` — Extension 零错误
+- [x] T4. `npm test` — 1171 tests passed
+- [x] T5. `npm run lint` — 零警告
+- [x] T6. `cd packages/octopus-protocol && npm test` — 71 tests + conformance 全绿
+- [x] T7. `tests/integration/cross-client-sync.test.ts` — 7 tests: auth + WS + DATA_CHANGE + SYNC_STATE 全绿
 
 ---
 
@@ -419,3 +422,67 @@ it('policy update uses Config/State split', async () => {
 | R8-7 | Review 8 | Delta sync 标记 optional | **采纳** — full sync 对单用户够用 |
 | R9-1 | Review 9 | Delta sync 死代码直接删除 | **执行** — commit e039021 清理全部 delta sync 代码（-532 行） |
 | R9-2 | Review 9 | syncType 收窄为 'full' only | **执行** — 类型/Zod schema/property tests 全部更新 |
+
+---
+
+## 验收过程中修复的额外问题
+
+| 问题 | 根因 | 修复 | Commit |
+|------|------|------|--------|
+| Web 轮询未完全消除 | `useEffect` 在每次 WS push 时 invalidate React Query | 改为 useRef 只在 state 值变化时 invalidate | `a4fa367` |
+| CJS 模块双实例（Docker） | `state-engine.service` 通过 barrel 和直接路径导入创建两个实例 | 提取 `state-engine-broadcaster.ts` 隔离模块 | `a86bd29` |
+| Next.js webpack/Node 模块隔离 | tRPC route handlers (webpack) 和 custom server (Node) 的 socketServer 是不同实例 | `globalThis` singleton | `81f3b4a` |
+| Web 和 iOS 用户不一致 | Web socket 从 `localStorage['dev-user-email']` 读取（空 → fallback `dev@vibeflow.local`），iOS 用 API token（`ithinker1991@gmail.com`） | Web 改用 NextAuth session email | `d3f6594` |
+| DEV_MODE middleware 后门 | `DEV_MODE=true` 跳过所有认证 | 删除 middleware 中的 DEV_MODE bypass | `53cac84` |
+| iOS ATS 拦截 HTTP（Release build） | iOS 17+ Release 配置对 IP 地址的 HTTP 请求严格执行 ATS | 添加 NSExceptionDomains | `75b80ca` |
+| iOS 循环依赖 | `websocket.service → store/index → habit.store → action.service → websocket.service` | services 直接从具体 store 文件导入 | `54c5987` |
+| Extension build 缺少 entry points | `build.mjs` 遗漏 `overlay.ts` + `interaction-tracker.ts` | 添加到 entryPoints | `5bbf686` |
+| deploy.sh tar 排除规则 | `--no-mac-metadata` 成功时跳过了 exclude 规则 | 两个 tar 路径共享 exclude 数组 | `32650d6` |
+| Docker 磁盘满 | `--no-cache` build 累积旧镜像 | `docker system prune` + deploy.sh 提示 | 运维操作 |
+
+---
+
+## 遗留问题（新 session 处理）
+
+### 1. Extension over_rest 状态不更新
+- **现象**：Extension popup 始终显示 OVER_REST，即使实际状态已变为 FOCUS/IDLE
+- **可能原因**：Extension 的 `PolicyCache.globalState` 没有从 `SYNC_STATE` command 更新（之前靠 `SYNC_POLICY` legacy 事件推送 `globalState`，Phase B2 删了但替代逻辑不完整）
+- **影响范围**：`vibeflow-extension/src/lib/policy-manager.ts`、`websocket.ts` 的 `onSyncState` handler
+- **优先级**：中
+
+### 2. iOS 习惯取消完成无效
+- **现象**：部分习惯点击取消完成无反应
+- **可能原因**：`HABIT_DELETE_ENTRY` ACTION_RESULT 可能超时或数据不匹配
+- **排查路径**：检查 iOS 控制台是否有 `Sending USER_ACTION: HABIT_DELETE_ENTRY` 日志 + 服务端是否处理
+- **优先级**：低（不影响核心流程）
+
+### 3. DEV_MODE 全面清理
+- **现状**：middleware 后门已移除，但 `DEV_MODE` 在代码中仍有 ~57 处引用
+- **已知后门**：
+  - `src/lib/auth.ts:22` — NextAuth authorize 中 `devMode === 'true'` 跳过密码验证
+  - `src/server/socket.ts:390` — socket 认证中 `isDevModeEnabled()` 允许 email-only 登录
+  - `src/services/user.service.ts` — `getOrCreateDevUser()` 自动创建无密码用户
+- **建议**：创建 `dev-mode-cleanup` spec，逐一审计并移除
+- **优先级**：高（安全相关，上线前必须完成）
+
+### 4. Web NextAuth cookie 在 Socket.io 中无法解析
+- **现象**：`getToken({ req: socket.request })` 返回 null，即使 cookie 存在
+- **当前绕过**：Web socket 通过 `x-dev-user-email` header 认证（依赖 DEV_MODE）
+- **根因待查**：可能是 NEXTAUTH_SECRET 在 Docker build 时和 runtime 不一致
+- **影响**：DEV_MODE 清理后 Web socket 认证需要修复此问题
+- **优先级**：高（与 DEV_MODE 清理联动）
+
+---
+
+## 最终统计
+
+| 指标 | 数值 |
+|------|------|
+| 总 task 数 | 83（Phase A-D）+ DATA_CHANGE 扩展 |
+| 完成 task 数 | 80（71-73 delta sync deferred） |
+| 总 commit 数 | ~25 |
+| 总改动行数 | +15000 / -5000 |
+| 新增测试 | 7 个测试文件，~150 tests |
+| 消除的轮询 | ~50 HTTP req/min → 0 |
+| 消除的重复代码 | ~2500 行跨端类型定义 |
+| 共享 SDK | 5 个协议层函数，71 单元测试 |
