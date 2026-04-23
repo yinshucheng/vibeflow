@@ -98,7 +98,6 @@ describe('MCP Auth — authenticateToken', () => {
     beforeEach(() => {
       vi.stubEnv('DEV_MODE', 'true');
       vi.stubEnv('NODE_ENV', 'development');
-      vi.stubEnv('DEV_USER_EMAIL', 'dev@vibeflow.local');
       vi.stubEnv('MCP_USER_EMAIL', 'dev@vibeflow.local');
     });
 

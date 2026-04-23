@@ -2,10 +2,10 @@
  * Integration tests for backend auth checkpoint (tasks 1.2.1–1.2.5)
  *
  * Tests verify:
- *   1.2.1 — DEV_MODE=true + X-Dev-User-Email header → UserContext
- *   1.2.2 — DEV_MODE=false + NextAuth session → UserContext
- *   1.2.3 — DEV_MODE=false + Bearer vf_xxx → UserContext
- *   1.2.4 — DEV_MODE=false + X-Dev-User-Email → rejected
+ *   1.2.1 — No DEV_MODE fallback: X-Dev-User-Email header rejected
+ *   1.2.2 — NextAuth session → UserContext
+ *   1.2.3 — Bearer vf_xxx → UserContext
+ *   1.2.4 — X-Dev-User-Email header → rejected (no DEV_MODE fallback)
  *   1.2.5 — POST /api/auth/token issues token, GET verifies it
  */
 
@@ -69,56 +69,20 @@ afterAll(async () => {
   }
 });
 
-// ─── 1.2.1 DEV_MODE=true: X-Dev-User-Email header works ───────────────────
+// ─── 1.2.1 No DEV_MODE fallback: X-Dev-User-Email header rejected ─────────
 
-describe('1.2.1 DEV_MODE=true: X-Dev-User-Email header auth', () => {
-  it('returns UserContext with isDevMode=true when header is provided', () =>
+describe('1.2.1 No DEV_MODE fallback: X-Dev-User-Email header rejected', () => {
+  it('rejects X-Dev-User-Email header — no implicit auth fallback', () =>
     skipIfNoDb(async () => {
-      // Dynamically import to get fresh module state — mock devModeConfig
-      vi.doMock('@/services/user.service', async (importOriginal) => {
-        const original = await importOriginal<typeof import('@/services/user.service')>();
-        const originalService = original.userService;
-        return {
-          ...original,
-          userService: {
-            ...originalService,
-            // Override getCurrentUser to simulate DEV_MODE=true behavior
-            async getCurrentUser(ctx: {
-              headers?: Record<string, string | undefined>;
-              session?: { user: { id: string; email: string } } | null;
-            }) {
-              // Simulate dev mode path: use x-dev-user-email header
-              const email = ctx.headers?.['x-dev-user-email'];
-              if (email) {
-                const result = await originalService.getOrCreateDevUser(email);
-                if (result.success && result.data) {
-                  return {
-                    success: true,
-                    data: {
-                      userId: result.data.id,
-                      email: result.data.email,
-                      isDevMode: true,
-                    },
-                  };
-                }
-              }
-              return { success: false, error: { code: 'AUTH_ERROR', message: 'No auth' } };
-            },
-          },
-        };
-      });
-
       const { userService } = await import('@/services/user.service');
+
+      // X-Dev-User-Email header alone should NOT authenticate
       const result = await userService.getCurrentUser({
         headers: { 'x-dev-user-email': testUserEmail },
       });
 
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data!.email).toBe(testUserEmail);
-      expect(result.data!.isDevMode).toBe(true);
-
-      vi.doUnmock('@/services/user.service');
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('AUTH_ERROR');
     }));
 });
 
@@ -303,9 +267,9 @@ describe('1.2.5 /api/auth/token endpoint', () => {
       expect(json.expiresAt).toBeDefined();
     }));
 
-  it('POST allows dev user without password in DEV_MODE', () =>
+  it('POST rejects request without password even in DEV_MODE', () =>
     skipIfNoDb(async () => {
-      // In DEV_MODE, dev users (password=dev_mode_no_password) can login without password
+      // No passwordless login — email alone is not enough
       const request = new Request('http://localhost:3000/api/auth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -315,12 +279,8 @@ describe('1.2.5 /api/auth/token endpoint', () => {
       });
 
       const response = await POST(request);
-      // DEV_MODE=true in test env → passwordless login allowed
-      expect(response.status).toBe(200);
-
-      const json = await response.json();
-      expect(json.success).toBe(true);
-      expect(json.token).toMatch(/^vf_/);
+      // Without password, should require NextAuth session cookie (which we don't have)
+      expect(response.status).toBe(401);
     }));
 
   it('POST + GET: issue then verify token', () =>

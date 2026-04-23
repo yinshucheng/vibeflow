@@ -4,7 +4,7 @@
  * Tests verify:
  *   13.1 — skill-auth.ts: authenticateRequest validates Bearer vf_ tokens
  *   13.1 — skill-auth.ts: scope checking works correctly
- *   13.1 — skill-auth.ts: DEV_MODE x-dev-user-email header support
+ *   13.1 — skill-auth.ts: x-dev-user-email header is no longer supported
  *   13.2 — REST route handlers return standard JSON (no SuperJSON)
  */
 
@@ -17,20 +17,11 @@ vi.mock('../../src/services/auth.service', () => ({
   },
 }));
 
-// Mock userService for DEV_MODE support
-vi.mock('../../src/services/user.service', () => ({
-  userService: {
-    getCurrentUser: vi.fn(),
-  },
-}));
-
 import { authService } from '../../src/services/auth.service';
-import { userService } from '../../src/services/user.service';
 import { authenticateRequest, unauthorizedResponse, forbiddenResponse, serviceResultResponse } from '../../src/lib/skill-auth';
 import { NextRequest } from 'next/server';
 
 const mockValidateToken = vi.mocked(authService.validateToken);
-const mockGetCurrentUser = vi.mocked(userService.getCurrentUser);
 
 function makeRequest(opts: {
   url?: string;
@@ -48,7 +39,6 @@ function makeRequest(opts: {
 describe('Skill Auth — authenticateRequest', () => {
   beforeEach(() => {
     mockValidateToken.mockReset();
-    mockGetCurrentUser.mockReset();
   });
 
   afterEach(() => {
@@ -148,30 +138,17 @@ describe('Skill Auth — authenticateRequest', () => {
     if (result.status === 'ok') expect(result.user.userId).toBe('user-1');
   });
 
-  describe('DEV_MODE support', () => {
+  describe('DEV_MODE does not affect token auth', () => {
     beforeEach(() => {
       vi.stubEnv('DEV_MODE', 'true');
     });
 
-    it('accepts x-dev-user-email header in DEV_MODE', async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({
-        success: true,
-        data: {
-          userId: 'dev-user-1',
-          email: 'dev@vibeflow.local',
-          isDevMode: true,
-        },
-      });
-
+    it('x-dev-user-email header is ignored (no longer supported)', async () => {
       const req = makeRequest({
         headers: { 'x-dev-user-email': 'dev@vibeflow.local' },
       });
       const result = await authenticateRequest(req, 'write');
-      expect(result.status).toBe('ok');
-      if (result.status === 'ok') {
-        expect(result.user.userId).toBe('dev-user-1');
-        expect(result.user.isDevMode).toBe(true);
-      }
+      expect(result.status).toBe('unauthorized');
     });
 
     it('still accepts Bearer vf_ token in DEV_MODE', async () => {

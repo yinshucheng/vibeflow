@@ -16,7 +16,6 @@ export default defineConfig({
     env: {
       DATABASE_URL: `postgresql://${dbUser}@localhost:5432/vibeflow_test?schema=public`,
       DEV_MODE: 'true',
-      DEV_USER_EMAIL: 'test@vibeflow.local',
     },
   },
   resolve: {

@@ -13,10 +13,18 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import os from 'os';
 
 const SERVER = 'http://localhost:3000';
-const TEST_EMAIL = 'test@vibeflow.local';
+const TEST_EMAIL = 'cross-client-sync-test@vibeflow.local';
 const TEST_PASSWORD = 'testpass123';
+// Use the main dev database (same as the running server), not the test database
+const dbUser = os.userInfo().username;
+const prisma = new PrismaClient({
+  datasourceUrl: `postgresql://${dbUser}@localhost:5432/vibeflow?schema=public`,
+});
 
 // Helper: wait for socket event with timeout
 function waitFor(socket: ClientSocket, event: string, ms = 5000): Promise<unknown> {
@@ -46,6 +54,37 @@ describe('Cross-Client Sync (real server)', () => {
       serverAvailable = resp.ok;
     } catch {
       console.log('⚠️  Server not running on localhost:3000 — skipping');
+      return;
+    }
+
+    if (serverAvailable) {
+      // Ensure test user exists with a real bcrypt password
+      const hashedPassword = await bcrypt.hash(TEST_PASSWORD, 12);
+      await prisma.user.upsert({
+        where: { email: TEST_EMAIL },
+        update: { password: hashedPassword },
+        create: { email: TEST_EMAIL, password: hashedPassword },
+      });
+    }
+  });
+
+  afterAll(async () => {
+    // Clean up test user and related data
+    try {
+      const user = await prisma.user.findUnique({ where: { email: TEST_EMAIL } });
+      if (user) {
+        await prisma.apiToken.deleteMany({ where: { userId: user.id } });
+        await prisma.pomodoro.deleteMany({ where: { userId: user.id } });
+        await prisma.task.deleteMany({ where: { userId: user.id } });
+        await prisma.dailyState.deleteMany({ where: { userId: user.id } });
+        await prisma.stateTransitionLog.deleteMany({ where: { userId: user.id } });
+        await prisma.userSettings.deleteMany({ where: { userId: user.id } });
+        await prisma.user.delete({ where: { id: user.id } });
+      }
+    } catch (error) {
+      console.warn('[cross-client-sync] cleanup error:', error);
+    } finally {
+      await prisma.$disconnect();
     }
   });
 
@@ -107,12 +146,12 @@ describe('Cross-Client Sync (real server)', () => {
       client.disconnect();
     });
 
-    it('should connect via email (Web dev mode path)', async () => {
-      if (!serverAvailable) return;
+    it('should connect via API token (second client)', async () => {
+      if (!serverAvailable || !apiToken) return;
 
       const client = ioClient(SERVER, {
         transports: ['websocket'],
-        auth: { email: TEST_EMAIL },
+        auth: { token: apiToken },
       });
 
       await waitFor(client, 'connect');
@@ -132,8 +171,8 @@ describe('Cross-Client Sync (real server)', () => {
     beforeAll(async () => {
       if (!serverAvailable || !apiToken) return;
 
-      // Web client (email auth)
-      webClient = ioClient(SERVER, { transports: ['websocket'], auth: { email: TEST_EMAIL } });
+      // Web client (token auth)
+      webClient = ioClient(SERVER, { transports: ['websocket'], auth: { token: apiToken } });
       // iOS client (token auth)
       iosClient = ioClient(SERVER, { transports: ['websocket'], auth: { token: apiToken } });
 
@@ -157,10 +196,10 @@ describe('Cross-Client Sync (real server)', () => {
       // Start collecting events on iOS client
       const eventsPromise = collectEvents(iosClient, 'OCTOPUS_COMMAND', 3000);
 
-      // Web creates a task via HTTP (simulates browser tab action)
+      // Web creates a task via HTTP (simulates browser action with API token)
       const resp = await fetch(`${SERVER}/api/trpc/task.quickCreateInbox?batch=1`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Dev-User-Email': TEST_EMAIL },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiToken}` },
         body: JSON.stringify({ '0': { json: { title: `cross-client-test-${Date.now()}` } } }),
       });
       expect(resp.status).toBe(200);
@@ -228,7 +267,7 @@ describe('Cross-Client Sync (real server)', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Dev-User-Email': TEST_EMAIL,
+          Authorization: `Bearer ${apiToken}`,
         },
         body: JSON.stringify({ '0': { json: { duration: 1500 } } }),
       });
@@ -252,7 +291,7 @@ describe('Cross-Client Sync (real server)', () => {
       if (pomId) {
         await fetch(`${SERVER}/api/trpc/pomodoro.abort?batch=1`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Dev-User-Email': TEST_EMAIL },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiToken}` },
           body: JSON.stringify({ '0': { json: { id: pomId } } }),
         });
       }
