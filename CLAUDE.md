@@ -255,9 +255,17 @@ Release app 的 renderer（webContents）加载的是**远程服务器的 Next.j
 ### iOS Release build 需要单独验证网络
 Debug build 中 iOS 自动放行 HTTP（ATS 豁免），但 Release build 严格执行 ATS。**对纯 IP 地址的 HTTP 请求，即使 `NSAllowsArbitraryLoads: true` 也不够——需要 `NSExceptionDomains` 显式豁免。** 上 HTTPS + 域名后此问题消失。
 
+### 跨端同步必须走完全链路
+
+涉及"端 A 操作 → 端 B 感知"的功能，设计和实现时必须查阅 `.kiro/steering/cross-client-sync.md`，逐条检查 checklist。核心规则：
+- **React Query 刷新用 `refetch()` 而非 `invalidate()`**（当前配置下 invalidate 不触发立即更新）
+- **新增 tRPC 查询后，确认是否需要在 `tray-sync-provider.tsx` 的 `onDataChange` 中添加对应 refetch**
+- **带参数查询用 `invalidate(undefined, { refetchType: 'all' })`**
+- **design.md 必须回答**：广播策略、受影响的查询列表、身份一致性
+
 ## Reference Documents
 
-`.kiro/steering/` 中有专题参考文档（如 `desktop-window-behavior.md`、`e2e-testing.md`），仅在涉及相关功能时按需查阅。核心架构和约束以本文件（CLAUDE.md）为唯一 truth source。
+`.kiro/steering/` 中有专题参考文档（如 `desktop-window-behavior.md`、`e2e-testing.md`、`cross-client-sync.md`），仅在涉及相关功能时按需查阅。核心架构和约束以本文件（CLAUDE.md）为唯一 truth source。
 
 ## Feature Specs (Required)
 
