@@ -57,6 +57,31 @@ cd vibeflow-ios && npx jest             # iOS tests
 
 Cross-environment type compatibility: use `ReturnType<typeof setTimeout>` instead of `NodeJS.Timeout`.
 
+### 跨端同步测试（修改 Socket/广播/认证相关代码时必跑）
+
+```bash
+# 独立测试（不需要 dev server，任何时候可跑）
+npx vitest --run tests/integration/data-change-broadcast.test.ts  # 4 tests: socket room 广播正确性
+npx vitest --run tests/integration/socket-protocol.test.ts         # 39 tests: 无 legacy 事件残留
+npx vitest --run tests/integration/offline-flush-sequence.test.ts  # 22 tests: 离线 flush 时序
+
+# 端到端测试（需要先启动 npm run dev）
+npx vitest --run tests/integration/cross-client-sync.test.ts       # 7 tests: 完整链路验证
+```
+
+`cross-client-sync.test.ts` 验证：API token 认证 → WS 连接 → Web 创建任务 → iOS 收到 DATA_CHANGE → iOS 创建任务 → Web 收到 DATA_CHANGE → 番茄启动 → SYNC_STATE + UPDATE_POLICY 推送。
+
+**触发条件**：修改以下文件时必须跑 `cross-client-sync.test.ts`：
+- `src/server/socket.ts`（广播逻辑）
+- `src/server/socket-init.ts`（broadcaster 注册）
+- `src/services/state-engine*.ts`（状态广播）
+- `src/services/socket-broadcast.service.ts`（DATA_CHANGE 广播）
+- `src/server/routers/*.ts` 中的 `broadcastDataChange` 调用
+- `src/lib/socket-client.ts`（Web socket 认证）
+- `src/hooks/use-socket.ts`（Web socket 连接）
+- `src/stores/realtime.store.ts`（Web 实时状态）
+- `packages/octopus-protocol/src/protocol/`（SDK command handler/state manager）
+
 ## Architecture
 
 ### Domain Hierarchy
@@ -276,5 +301,5 @@ Each spec has a status label. When working on a spec, update the table below.
 o'n'g's
 ## Environment Setup
 
-See `.env.example` for required variables: `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `DEV_MODE`, `DEV_USER_EMAIL`.
+See `.env.example` for required variables: `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `DEV_MODE`.
 hua
