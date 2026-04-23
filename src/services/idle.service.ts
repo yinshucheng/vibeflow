@@ -71,7 +71,8 @@ export function getCurrentTimeMinutes(): number {
 }
 
 /**
- * Check if current time is within any enabled work time slot
+ * Check if current time is within any enabled work time slot.
+ * Supports cross-midnight slots (e.g., 22:00-02:00 for night shift).
  * Requirements: 5.10
  */
 export function isWithinWorkHours(
@@ -79,15 +80,21 @@ export function isWithinWorkHours(
   currentTimeMinutes?: number
 ): boolean {
   const currentTime = currentTimeMinutes ?? getCurrentTimeMinutes();
-  
+
   return slots.some((slot) => {
     if (!slot.enabled) return false;
-    
+
     const startMinutes = parseTimeToMinutes(slot.startTime);
     const endMinutes = parseTimeToMinutes(slot.endTime);
-    
-    // Handle normal case (start < end)
-    return currentTime >= startMinutes && currentTime < endMinutes;
+
+    if (startMinutes < endMinutes) {
+      // Normal case: e.g., 09:00-18:00
+      return currentTime >= startMinutes && currentTime < endMinutes;
+    } else {
+      // Cross-midnight case: e.g., 22:00-02:00
+      // True if current time is >= start OR < end
+      return currentTime >= startMinutes || currentTime < endMinutes;
+    }
   });
 }
 

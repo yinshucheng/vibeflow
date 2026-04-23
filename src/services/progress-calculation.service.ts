@@ -335,12 +335,9 @@ export const progressCalculationService = {
             }
           }
           
-          // For ad-hoc focus session, use session start time
-          // startTime = endTime - (elapsed time + remaining time)
-          if (timeContext === 'adhoc_focus' && focusSessionContext) {
-            const elapsedMs = focusSessionContext.endTime.getTime() - Date.now() - focusSessionContext.remainingMinutes * 60 * 1000;
-            const sessionStartMs = Date.now() - Math.abs(elapsedMs);
-            const sessionStartDate = new Date(sessionStartMs);
+          // For ad-hoc focus session, use session start time directly from TimeWindowContext
+          if (timeContext === 'adhoc_focus' && focusSessionContext?.startTime) {
+            const sessionStartDate = new Date(focusSessionContext.startTime);
             workStartMinutes = sessionStartDate.getHours() * 60 + sessionStartDate.getMinutes();
           }
           

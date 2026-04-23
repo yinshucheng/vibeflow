@@ -66,6 +66,7 @@ export interface TimeWindowContext {
   /** Focus session details (if active) */
   focusSession?: {
     id: string;
+    startTime: Date;
     endTime: Date;
     remainingMinutes: number;
     overridesSleepTime: boolean;
@@ -120,6 +121,10 @@ function getCurrentTimeMinutes(): number {
   return now.getHours() * 60 + now.getMinutes();
 }
 
+/**
+ * Find the current work slot.
+ * Supports cross-midnight slots (e.g., 22:00-02:00 for night shift).
+ */
 function findCurrentWorkSlot(slots: WorkTimeSlot[]): WorkTimeSlot | null {
   const currentMinutes = getCurrentTimeMinutes();
 
@@ -129,8 +134,16 @@ function findCurrentWorkSlot(slots: WorkTimeSlot[]): WorkTimeSlot | null {
     const startMinutes = parseTimeToMinutes(slot.startTime);
     const endMinutes = parseTimeToMinutes(slot.endTime);
 
-    if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
-      return slot;
+    if (startMinutes < endMinutes) {
+      // Normal case: e.g., 09:00-18:00
+      if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+        return slot;
+      }
+    } else {
+      // Cross-midnight case: e.g., 22:00-02:00
+      if (currentMinutes >= startMinutes || currentMinutes < endMinutes) {
+        return slot;
+      }
     }
   }
 
@@ -210,6 +223,7 @@ export const timeWindowService = {
         const remainingMs = activeFocusSession.plannedEndTime.getTime() - Date.now();
         context.focusSession = {
           id: activeFocusSession.id,
+          startTime: activeFocusSession.startTime,
           endTime: activeFocusSession.plannedEndTime,
           remainingMinutes: Math.max(0, Math.floor(remainingMs / 1000 / 60)),
           overridesSleepTime: activeFocusSession.overridesSleepTime ?? false,

@@ -140,7 +140,18 @@ async function buildContext(
 
 // ── OVER_REST timer management ─────────────────────────────────────────
 
+/**
+ * Generation counter per user to prevent race conditions.
+ * Incremented on each scheduleOverRestTimer call. Timer callbacks check
+ * if their generation matches the current one before proceeding.
+ */
+const timerGenerations = new Map<string, number>();
+
 function clearOverRestTimer(userId: string): void {
+  // Increment generation to invalidate any in-flight async operations
+  const currentGen = timerGenerations.get(userId) ?? 0;
+  timerGenerations.set(userId, currentGen + 1);
+
   const existing = overRestTimers.get(userId);
   if (existing) {
     clearTimeout(existing);
@@ -152,6 +163,11 @@ function clearOverRestTimer(userId: string): void {
  * Schedule OVER_REST entry after a completed pomodoro.
  * Only sets a timer when state is IDLE and lastPomodoroEndTime is set
  * (i.e., pomodoro was completed, not aborted).
+ *
+ * Uses a generation counter to prevent race conditions:
+ * - Each call increments the generation for this user
+ * - Async callbacks check if generation still matches before proceeding
+ * - This prevents stale async operations from creating timers after clearOverRestTimer
  */
 function scheduleOverRestTimer(
   userId: string,
@@ -162,6 +178,9 @@ function scheduleOverRestTimer(
 
   // Only schedule when transitioning to IDLE after a completed pomodoro
   if (state !== 'idle' || !context.lastPomodoroEndTime) return;
+
+  // Capture the current generation for this scheduling attempt
+  const myGeneration = timerGenerations.get(userId) ?? 0;
 
   // Read shortRestDuration + gracePeriod from DB asynchronously
   (async () => {
@@ -181,6 +200,11 @@ function scheduleOverRestTimer(
         return;
       }
 
+      // Check if this scheduling attempt was invalidated (user started new action)
+      if (timerGenerations.get(userId) !== myGeneration) {
+        return; // Generation changed, abort this stale scheduling attempt
+      }
+
       // Re-validate state after async operations — user may have started a new pomodoro
       const currentState = await stateEngineService.getState(userId);
       if (currentState !== 'idle') {
@@ -198,6 +222,11 @@ function scheduleOverRestTimer(
       const elapsed = Date.now() - context.lastPomodoroEndTime!;
       const remaining = delayMs - elapsed;
 
+      // Final generation check before creating timer
+      if (timerGenerations.get(userId) !== myGeneration) {
+        return; // Generation changed during settings read, abort
+      }
+
       if (remaining <= 0) {
         // Already past the threshold — trigger immediately
         await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
@@ -206,6 +235,12 @@ function scheduleOverRestTimer(
 
       const timer = setTimeout(async () => {
         overRestTimers.delete(userId);
+
+        // Check generation in timer callback — if changed, another schedule/clear happened
+        if (timerGenerations.get(userId) !== myGeneration) {
+          return; // Stale timer, skip
+        }
+
         try {
           // Re-check: must still be in a qualifying time window
           const stillAllowedResult = await timeWindowService.isOverRestAllowed(userId);

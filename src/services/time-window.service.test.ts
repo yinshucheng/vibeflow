@@ -63,11 +63,17 @@ function mockUserSettings(overrides: Record<string, unknown> = {}) {
 function mockFocusSession(session: {
   id: string;
   plannedEndTime: Date;
+  startTime?: Date;
   overridesSleepTime?: boolean;
 } | null) {
   mockGetActiveSession.mockResolvedValue({
     success: true,
-    data: session,
+    data: session
+      ? {
+          ...session,
+          startTime: session.startTime ?? new Date(Date.now() - 30 * 60 * 1000), // default 30 min ago
+        }
+      : null,
   });
 }
 
@@ -242,9 +248,11 @@ describe('TimeWindowService', () => {
 
     describe('Context Details', () => {
       it('should include focus session details when active', async () => {
+        const startTime = new Date(Date.now() - 30 * 60 * 1000); // 30 min ago
         const endTime = new Date(Date.now() + 30 * 60 * 1000); // 30 min from now
         mockFocusSession({
           id: 'session-abc',
+          startTime,
           plannedEndTime: endTime,
           overridesSleepTime: true,
         });
@@ -255,6 +263,7 @@ describe('TimeWindowService', () => {
         if (result.success) {
           expect(result.data.focusSession).toBeDefined();
           expect(result.data.focusSession?.id).toBe('session-abc');
+          expect(result.data.focusSession?.startTime).toEqual(startTime);
           expect(result.data.focusSession?.remainingMinutes).toBeGreaterThan(25);
           expect(result.data.focusSession?.remainingMinutes).toBeLessThanOrEqual(30);
           expect(result.data.focusSession?.overridesSleepTime).toBe(true);
