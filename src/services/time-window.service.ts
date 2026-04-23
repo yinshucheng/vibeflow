@@ -33,7 +33,7 @@
 
 import prisma from '@/lib/prisma';
 import { isWithinWorkHours } from './idle.service';
-import { sleepTimeService } from './sleep-time.service';
+import { isTimeInSleepWindow } from './sleep-time.service';
 import { focusSessionService } from './focus-session.service';
 import type { WorkTimeSlot } from './user.service';
 
@@ -175,20 +175,32 @@ export const timeWindowService = {
    */
   async getCurrentContext(userId: string): Promise<ServiceResult<TimeWindowContext>> {
     try {
-      // Fetch all data in parallel
-      const [settings, focusSessionResult, sleepTimeResult] = await Promise.all([
+      // Fetch settings and focus session in parallel (only 2 DB queries, not 3)
+      const [settings, focusSessionResult] = await Promise.all([
         prisma.userSettings.findFirst({ where: { userId } }),
         focusSessionService.getActiveSession(userId),
-        sleepTimeService.isInSleepTime(userId),
       ]);
 
       const settingsAny = settings as Record<string, unknown> | null;
       const workTimeSlots = (settingsAny?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
 
+      // Parse sleep time config directly from settings (avoid extra DB query)
+      const sleepTimeEnabled = (settingsAny?.sleepTimeEnabled as boolean) ?? false;
+      const sleepTimeStart = (settingsAny?.sleepTimeStart as string) ?? '23:00';
+      const sleepTimeEnd = (settingsAny?.sleepTimeEnd as string) ?? '07:00';
+
+      // Compute inSleepTime locally
+      let inSleepTime = false;
+      if (sleepTimeEnabled) {
+        const currentMinutes = getCurrentTimeMinutes();
+        const startMinutes = parseTimeToMinutes(sleepTimeStart);
+        const endMinutes = parseTimeToMinutes(sleepTimeEnd);
+        inSleepTime = isTimeInSleepWindow(currentMinutes, startMinutes, endMinutes);
+      }
+
       // Individual checks
-      const inFocusSession = focusSessionResult.success && focusSessionResult.data !== null;
       const activeFocusSession = focusSessionResult.success ? focusSessionResult.data : null;
-      const inSleepTime = sleepTimeResult.success && sleepTimeResult.data === true;
+      const inFocusSession = activeFocusSession !== null;
       const inWorkTime = isWithinWorkHours(workTimeSlots);
 
       // Determine period (priority order)
@@ -230,15 +242,12 @@ export const timeWindowService = {
         };
       }
 
-      // Add sleep time details
+      // Add sleep time details (use already-parsed config, no extra DB query)
       if (inSleepTime) {
-        const sleepConfig = await sleepTimeService.getConfig(userId);
-        if (sleepConfig.success && sleepConfig.data) {
-          context.sleepTime = {
-            endTime: sleepConfig.data.endTime,
-            remainingMinutes: calculateRemainingMinutes(sleepConfig.data.endTime),
-          };
-        }
+        context.sleepTime = {
+          endTime: sleepTimeEnd,
+          remainingMinutes: calculateRemainingMinutes(sleepTimeEnd),
+        };
       }
 
       // Add work time details

@@ -10,6 +10,7 @@
 
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import * as fs from 'fs';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { decodeSessionFromCookies } from '@/lib/session-token';
@@ -167,6 +168,9 @@ export interface ClientToServerEvents {
 
   // Application-layer keepalive ping (ADR-001)
   ping_custom: () => void;
+
+  // Remote client logging (for debugging iOS/Desktop in Release mode)
+  CLIENT_LOG: (data: { level: string; message: string; timestamp: number; screen?: string }) => void;
 }
 
 // Socket data attached to each connection
@@ -306,7 +310,8 @@ export class VibeFlowSocketServer {
             const wasInWorkHours = this.userWorkTimeState.get(userId) ?? false;
             this.userWorkTimeState.set(userId, withinWorkHours);
 
-            if (!wasInWorkHours && withinWorkHours && currentState === 'idle') {
+            // Notify when entering work time, except during active focus (pomodoro running)
+            if (!wasInWorkHours && withinWorkHours && currentState !== 'focus') {
               const [dailyStateForNotif, settings] = await Promise.all([
                 dailyStateService.getOrCreateToday(userId),
                 prisma.userSettings.findFirst({ where: { userId } }),
@@ -738,6 +743,25 @@ export class VibeFlowSocketServer {
     // Handle command acknowledgment (Requirements: 2.6)
     socket.on('COMMAND_ACK', async (payload) => {
       await this.handleCommandAck(socket, payload);
+    });
+
+    // Handle remote client logs (for debugging iOS/Desktop in Release mode)
+    socket.on('CLIENT_LOG', (data: { level: string; message: string; timestamp: number; screen?: string }) => {
+      const time = new Date(data.timestamp).toISOString().slice(11, 23);
+      const screenInfo = data.screen ? `:${data.screen}` : '';
+      const clientType = socket.data.clientType || 'unknown';
+      const line = `[${time}] [${clientType}${screenInfo}] [${data.level}] ${data.message}`;
+
+      // Print to server console (visible to AI tools and developers)
+      console.log(`\x1b[36m[CLIENT_LOG]\x1b[0m ${line}`);
+
+      // Also write to file for persistent access
+      const logFile = '/tmp/vibeflow-dev/client-remote.log';
+      try {
+        fs.appendFileSync(logFile, line + '\n');
+      } catch {
+        // Ignore file write errors (directory may not exist in production)
+      }
     });
 
     // Legacy event handlers removed in Phase B2 (octopus-protocol-unification).

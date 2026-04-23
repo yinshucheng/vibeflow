@@ -10,8 +10,9 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { timeWindowService, type TimePeriod } from './time-window.service';
 import { sleepTimeService, parseTimeToMinutes, getCurrentTimeMinutes } from './sleep-time.service';
-import { isWithinWorkHours, parseTimeToMinutes as parseIdleTimeToMinutes } from './idle.service';
+import { isWithinWorkHours } from './idle.service';
 import { calculateEstimatedPomodoros } from './task.service';
+import { calculateRemainingMinutesInSlots, parseTimeToMinutes as parseTimeUtilMinutes } from '@/lib/time-utils';
 import type { WorkTimeSlot } from './user.service';
 
 // Service result type
@@ -107,31 +108,12 @@ function getTodayDate(): Date {
 
 
 /**
- * Calculate remaining work minutes for today based on work time slots
+ * Calculate remaining work minutes for today based on work time slots.
+ * Supports cross-midnight slots (e.g., 22:00-02:00 for night shift).
  * Requirements: 18.1
  */
 function calculateRemainingWorkMinutes(workTimeSlots: WorkTimeSlot[]): number {
-  const now = new Date();
-  const currentMinutes = getCurrentTimeMinutes();
-  let remainingMinutes = 0;
-  
-  for (const slot of workTimeSlots) {
-    if (!slot.enabled) continue;
-    
-    const startMinutes = parseIdleTimeToMinutes(slot.startTime);
-    const endMinutes = parseIdleTimeToMinutes(slot.endTime);
-    
-    if (currentMinutes < startMinutes) {
-      // Slot hasn't started yet - count full duration
-      remainingMinutes += endMinutes - startMinutes;
-    } else if (currentMinutes < endMinutes) {
-      // Currently in this slot - count remaining time
-      remainingMinutes += endMinutes - currentMinutes;
-    }
-    // If currentMinutes >= endMinutes, slot has passed - don't count
-  }
-  
-  return remainingMinutes;
+  return calculateRemainingMinutesInSlots(workTimeSlots);
 }
 
 /**
@@ -326,9 +308,9 @@ export const progressCalculationService = {
           // Find the current active work slot
           for (const slot of workTimeSlots) {
             if (!slot.enabled) continue;
-            const startMinutes = parseIdleTimeToMinutes(slot.startTime);
-            const endMinutes = parseIdleTimeToMinutes(slot.endTime);
-            
+            const startMinutes = parseTimeUtilMinutes(slot.startTime);
+            const endMinutes = parseTimeUtilMinutes(slot.endTime);
+
             if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
               workStartMinutes = startMinutes;
               break;

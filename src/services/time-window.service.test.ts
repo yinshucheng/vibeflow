@@ -32,14 +32,11 @@ vi.mock('./focus-session.service', () => ({
   },
 }));
 
-const mockIsInSleepTime = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, data: false }));
-const mockGetSleepConfig = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, data: null }));
+// Mock isTimeInSleepWindow function used by timeWindowService
+const mockIsTimeInSleepWindow = vi.hoisted(() => vi.fn().mockReturnValue(false));
 
 vi.mock('./sleep-time.service', () => ({
-  sleepTimeService: {
-    isInSleepTime: mockIsInSleepTime,
-    getConfig: mockGetSleepConfig,
-  },
+  isTimeInSleepWindow: mockIsTimeInSleepWindow,
 }));
 
 // ── Import after mocks ─────────────────────────────────────────────────
@@ -77,6 +74,23 @@ function mockFocusSession(session: {
   });
 }
 
+/**
+ * Mock sleep time by setting sleepTimeEnabled in settings and mockIsTimeInSleepWindow return value.
+ * This reflects the new implementation that reads sleep config directly from settings.
+ */
+function mockSleepTime(inSleepTime: boolean, config?: { startTime?: string; endTime?: string }) {
+  mockIsTimeInSleepWindow.mockReturnValue(inSleepTime);
+  // Update settings with sleep time config
+  (prisma.userSettings.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+    id: 'settings-1',
+    userId: TEST_USER_ID,
+    workTimeSlots: [],
+    sleepTimeEnabled: inSleepTime || config !== undefined,
+    sleepTimeStart: config?.startTime ?? '23:00',
+    sleepTimeEnd: config?.endTime ?? '07:00',
+  });
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────
 
 describe('TimeWindowService', () => {
@@ -85,9 +99,7 @@ describe('TimeWindowService', () => {
     mockUserSettings();
     mockFocusSession(null);
     mockIsWithinWorkHours.mockReturnValue(false);
-    mockIsInFocusSession.mockResolvedValue({ success: true, data: false });
-    mockIsInSleepTime.mockResolvedValue({ success: true, data: false });
-    mockGetSleepConfig.mockResolvedValue({ success: true, data: null });
+    mockIsTimeInSleepWindow.mockReturnValue(false);
   });
 
   describe('getCurrentContext', () => {
@@ -117,7 +129,7 @@ describe('TimeWindowService', () => {
       });
 
       it('should return sleep_time when in sleep window', async () => {
-        mockIsInSleepTime.mockResolvedValue({ success: true, data: true });
+        mockSleepTime(true);
 
         const result = await timeWindowService.getCurrentContext(TEST_USER_ID);
 
@@ -146,7 +158,7 @@ describe('TimeWindowService', () => {
       });
 
       it('should prioritize focus_session over sleep_time', async () => {
-        mockIsInSleepTime.mockResolvedValue({ success: true, data: true });
+        mockSleepTime(true);
         mockFocusSession({
           id: 'session-1',
           plannedEndTime: new Date(Date.now() + 60 * 60 * 1000),
@@ -165,7 +177,7 @@ describe('TimeWindowService', () => {
 
       it('should prioritize sleep_time over work_time', async () => {
         mockIsWithinWorkHours.mockReturnValue(true);
-        mockIsInSleepTime.mockResolvedValue({ success: true, data: true });
+        mockSleepTime(true);
 
         const result = await timeWindowService.getCurrentContext(TEST_USER_ID);
 
@@ -207,7 +219,7 @@ describe('TimeWindowService', () => {
       });
 
       it('should NOT allow OVER_REST in sleep_time (without focus_session)', async () => {
-        mockIsInSleepTime.mockResolvedValue({ success: true, data: true });
+        mockSleepTime(true);
 
         const result = await timeWindowService.getCurrentContext(TEST_USER_ID);
 
@@ -228,7 +240,7 @@ describe('TimeWindowService', () => {
 
       it('should allow OVER_REST in focus_session even during sleep_time', async () => {
         // User started a focus session during sleep time (加班)
-        mockIsInSleepTime.mockResolvedValue({ success: true, data: true });
+        mockSleepTime(true);
         mockFocusSession({
           id: 'session-1',
           plannedEndTime: new Date(Date.now() + 60 * 60 * 1000),
@@ -271,15 +283,7 @@ describe('TimeWindowService', () => {
       });
 
       it('should include sleep time details when in sleep window', async () => {
-        mockIsInSleepTime.mockResolvedValue({ success: true, data: true });
-        mockGetSleepConfig.mockResolvedValue({
-          success: true,
-          data: {
-            enabled: true,
-            startTime: '23:00',
-            endTime: '07:00',
-          },
-        });
+        mockSleepTime(true, { startTime: '23:00', endTime: '07:00' });
 
         const result = await timeWindowService.getCurrentContext(TEST_USER_ID);
 
@@ -344,7 +348,7 @@ describe('TimeWindowService', () => {
             plannedEndTime: new Date(Date.now() + 60 * 60 * 1000),
           });
         } else if (period === 'sleep_time') {
-          mockIsInSleepTime.mockResolvedValue({ success: true, data: true });
+          mockSleepTime(true);
         } else if (period === 'work_time') {
           mockIsWithinWorkHours.mockReturnValue(true);
         }
@@ -359,7 +363,8 @@ describe('TimeWindowService', () => {
 
         // Reset mocks for next iteration
         mockFocusSession(null);
-        mockIsInSleepTime.mockResolvedValue({ success: true, data: false });
+        mockUserSettings(); // Reset to default (no sleep time)
+        mockIsTimeInSleepWindow.mockReturnValue(false);
         mockIsWithinWorkHours.mockReturnValue(false);
       });
     }
@@ -392,7 +397,7 @@ describe('TimeWindowService', () => {
     });
 
     it('should return false for sleep_time', async () => {
-      mockIsInSleepTime.mockResolvedValue({ success: true, data: true });
+      mockSleepTime(true);
 
       const result = await timeWindowService.isInProductiveWindow(TEST_USER_ID);
 

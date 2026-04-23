@@ -25,7 +25,7 @@ let testUserId: string;
 // ── Hoisted Mocks ──────────────────────────────────────────────────────
 
 const mockCurrentTimeMinutes = vi.hoisted(() => vi.fn().mockReturnValue(600));
-const mockIsInSleepTime = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, data: false }));
+const mockIsTimeInSleepWindow = vi.hoisted(() => vi.fn().mockReturnValue(false));
 const mockGetActiveSession = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, data: null }));
 
 // ── Mock Setup ─────────────────────────────────────────────────────────
@@ -49,18 +49,12 @@ vi.mock('@/services/idle.service', async (importOriginal) => {
   };
 });
 
+// Mock isTimeInSleepWindow function used directly by timeWindowService
 vi.mock('@/services/sleep-time.service', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/services/sleep-time.service')>();
   return {
     ...original,
-    sleepTimeService: {
-      ...original.sleepTimeService,
-      isInSleepTime: mockIsInSleepTime,
-      getConfig: vi.fn().mockResolvedValue({
-        success: true,
-        data: { enabled: true, startTime: '23:00', endTime: '07:00' },
-      }),
-    },
+    isTimeInSleepWindow: mockIsTimeInSleepWindow,
   };
 });
 
@@ -89,7 +83,7 @@ function setCurrentTime(hours: number, minutes: number) {
 }
 
 function setInSleepTime(value: boolean) {
-  mockIsInSleepTime.mockResolvedValue({ success: true, data: value });
+  mockIsTimeInSleepWindow.mockReturnValue(value);
 }
 
 function setInFocusSession(value: boolean, sessionData?: { id: string; plannedEndTime: Date }) {
@@ -126,19 +120,25 @@ describe('OVER_REST Time Window Rules', () => {
     });
     testUserId = user.id;
 
-    // Create user settings with work time 09:00-18:00
+    // Create user settings with work time 09:00-18:00 and sleep time enabled
     await prisma.userSettings.upsert({
       where: { userId: testUserId },
       update: {
         workTimeSlots: [{ id: '1', startTime: '09:00', endTime: '18:00', enabled: true }],
         shortRestDuration: 5,
         overRestGracePeriod: 5,
+        sleepTimeEnabled: true,
+        sleepTimeStart: '23:00',
+        sleepTimeEnd: '07:00',
       },
       create: {
         userId: testUserId,
         workTimeSlots: [{ id: '1', startTime: '09:00', endTime: '18:00', enabled: true }],
         shortRestDuration: 5,
         overRestGracePeriod: 5,
+        sleepTimeEnabled: true,
+        sleepTimeStart: '23:00',
+        sleepTimeEnd: '07:00',
       },
     });
   });
@@ -155,7 +155,7 @@ describe('OVER_REST Time Window Rules', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: 10:00 AM (within work hours), not in sleep, no focus session
+    // Default: 10:00 AM (within work hours), not in sleep window, no focus session
     setCurrentTime(10, 0);
     setInSleepTime(false);
     setInFocusSession(false);
