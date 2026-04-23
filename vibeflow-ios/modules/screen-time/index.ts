@@ -14,6 +14,12 @@ export interface SelectionSummary {
   hasSelection: boolean;
 }
 
+export interface TestScheduleResult {
+  success: boolean;
+  endTime: number; // Unix timestamp ms
+  durationSeconds: number;
+}
+
 interface ScreenTimeNativeModule {
   // Phase 1 (retained)
   requestAuthorization(): Promise<string>;
@@ -30,6 +36,10 @@ interface ScreenTimeNativeModule {
     endHour: number, endMinute: number
   ): Promise<void>;
   clearSleepSchedule(): Promise<void>;
+  // Test/Debug: one-shot schedule at exact time
+  registerTestSchedule(durationSeconds: number): Promise<TestScheduleResult>;
+  cancelTestSchedule(): Promise<void>;
+  getActiveSchedules(): Promise<string[]>;
 }
 
 let nativeModule: ScreenTimeNativeModule | null = null;
@@ -117,4 +127,52 @@ export async function clearSleepSchedule(): Promise<void> {
     return;
   }
   return nativeModule.clearSleepSchedule();
+}
+
+// =============================================================================
+// TEST/DEBUG: One-shot Schedule (for verifying DeviceActivityMonitor callbacks)
+// =============================================================================
+
+/**
+ * Register a test schedule that triggers after the specified duration.
+ * Used to verify that DeviceActivityMonitor extension callbacks work correctly.
+ *
+ * - intervalDidStart: called immediately, enables blocking
+ * - intervalDidEnd: called after durationSeconds, disables blocking
+ *
+ * @param durationSeconds - Number of seconds until the schedule ends
+ * @returns Info about the registered schedule
+ */
+export async function registerTestSchedule(durationSeconds: number): Promise<TestScheduleResult> {
+  if (!nativeModule) {
+    console.log(`[ScreenTime] Mock: registerTestSchedule(${durationSeconds}s) called`);
+    return {
+      success: true,
+      endTime: Date.now() + durationSeconds * 1000,
+      durationSeconds,
+    };
+  }
+  return nativeModule.registerTestSchedule(durationSeconds);
+}
+
+/**
+ * Cancel a previously registered test schedule.
+ */
+export async function cancelTestSchedule(): Promise<void> {
+  if (!nativeModule) {
+    console.log('[ScreenTime] Mock: cancelTestSchedule called');
+    return;
+  }
+  return nativeModule.cancelTestSchedule();
+}
+
+/**
+ * Get list of currently active DeviceActivity schedules (for debugging).
+ * Returns an array of activity names (e.g., ["sleepSchedule", "testSchedule"]).
+ */
+export async function getActiveSchedules(): Promise<string[]> {
+  if (!nativeModule) {
+    return [];
+  }
+  return nativeModule.getActiveSchedules();
 }

@@ -316,8 +316,8 @@ start_ios() {
     case "$mode" in
         release)
             echo -e "  ${YELLOW}编译 Release 包 (独立运行，不需要 Metro)${NC}"
-            ios_smart_prebuild "$log_file" "--clean"  # release 强制 clean
-            echo "  编译中... (需要几分钟)"
+            ios_smart_prebuild "$log_file" "$clean"  # 智能增量，除非指定 --clean
+            echo "  编译中..."
             eval npx expo run:ios $device_flag --configuration Release 2>&1 | tee -a "$log_file"
             ;;
         build)
@@ -417,7 +417,8 @@ iOS 构建模式:
   --build     Debug 编译   修改原生代码后需要，智能增量 (30-60s)
   --build -c  Debug 编译   强制 prebuild --clean (2-5min)，用于:
                            添加/删除 native module、改 bundle ID、升级 SDK、诡异错误
-  --release   Release 编译 独立运行，不需要 Metro，自动 --clean
+  --release   Release 编译 独立运行，不需要 Metro，智能增量
+  --release -c             Release + 强制 prebuild --clean
 
 Extension 说明:
   编译后在 Chrome 扩展页面 (chrome://extensions) 点击「刷新」按钮即可生效

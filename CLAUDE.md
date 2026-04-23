@@ -177,10 +177,29 @@ Schema: `prisma/schema.prisma` (34 models). Prisma is the only database access l
 
 ## Auto-Start Services for Verification
 
-代码修改后需要验证时（如真机测试），自动启动相关服务，除非用户明确说"我自己启动"：
-- **iOS 验证**: `cd vibeflow-ios && EXPO_PUBLIC_SERVER_HOST=$(ipconfig getifaddr en0) npx expo start --port 8081`
-- **Web/Backend 验证**: `npm run dev`
-- 启动前先检查端口是否已占用，已占用则先 kill 再启动
+代码修改后需要验证时，统一使用 `scripts/dev.sh`，除非用户明确说"我自己启动"：
+
+```bash
+# Web/Backend 验证
+./scripts/dev.sh                     # Web 本地开发 (端口 3000)
+
+# iOS 验证（默认部署到 USB 连接的真机）
+./scripts/dev.sh ios                 # Dev Server 模式 (JS 热更新，需设备已装 Dev Client)
+./scripts/dev.sh ios --build         # Debug 编译 (智能增量，30-60s)
+./scripts/dev.sh ios --build --clean # Debug 编译 (强制 prebuild --clean，2-5min)
+./scripts/dev.sh ios --build --sim   # Debug 编译到模拟器
+./scripts/dev.sh ios --release       # Release 编译 (独立运行，不需要 Metro)
+
+# 连接远程服务器
+./scripts/dev.sh ios --remote        # iOS 连 39.105.213.147:4000
+./scripts/dev.sh ios --only          # 只启动 iOS，不启动本地 Web
+
+# Desktop / Extension
+./scripts/dev.sh desktop             # Desktop 本地
+./scripts/dev.sh ext                 # Extension 编译
+```
+
+**禁止直接使用 `cd vibeflow-ios && npx expo ...`**，必须通过 `dev.sh` 入口，确保环境变量正确设置。
 
 ## npm Registry 规则
 
@@ -298,7 +317,8 @@ Each spec has a status label. When working on a spec, update the table below.
 | `dashboard-command-center` | not-started | Dashboard 指挥部改造，内嵌番茄钟+任务操作 |
 | `work-rhythm-analytics` | requirements | 工作节奏统计：上班效率、加班检测、休息保护、节奏评分 |
 | `desktop-tray-self-driven` | not-started | Tray 状态由 main process 自驱动（读 stateSnapshot），去掉 renderer IPC 依赖 |
-o'n'g's
+| `ios-offline-blocking` | not-started | iOS 离线屏蔽自动化：番茄钟结束、临时解锁到期、睡眠时间、AI Chat 解锁 |
+| `ios-automation-testing` | requirements | iOS 自动化测试：Maestro E2E + RNTL 组件测试，替代手动点击验证 |
 ## Environment Setup
 
 See `.env.example` for required variables: `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `DEV_MODE`.

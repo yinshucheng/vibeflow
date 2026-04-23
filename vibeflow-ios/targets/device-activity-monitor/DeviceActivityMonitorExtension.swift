@@ -3,9 +3,13 @@ import FamilyControls
 import Foundation
 import ManagedSettings
 
-/// DeviceActivityMonitor extension for offline sleep schedule enforcement.
-/// Activates/deactivates app blocking at scheduled sleep times, even when the main app is not running.
-/// Reads distraction/work app selections from App Group shared UserDefaults.
+/// DeviceActivityMonitor extension for offline schedule enforcement.
+/// Handles:
+/// - Sleep schedule (daily repeating)
+/// - Test schedule (one-shot, for verifying callback reliability)
+/// - Future: Pomodoro end, temp unblock expiry
+///
+/// Reads app selections from App Group shared UserDefaults.
 class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     private let store = ManagedSettingsStore()
     private let appGroupId = "group.app.vibeflow.shared"
@@ -15,10 +19,49 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     private let workAppsKey = "workAppsSelection"
     private let blockingReasonKey = "blockingReason"
     private let blockingReasonExtraKey = "blockingReasonExtra"
+    private let testScheduleLogKey = "testScheduleLog"
 
     // MARK: - DeviceActivityMonitor Callbacks
 
     override func intervalDidStart(for activity: DeviceActivityName) {
+        let activityName = activity.rawValue
+        appendLog("intervalDidStart: \(activityName)")
+
+        switch activityName {
+        case "sleepSchedule":
+            handleSleepStart()
+
+        case "testSchedule":
+            // Test schedule started — enable blocking to verify
+            appendLog("testSchedule: enabling blocking")
+            enableBlocking(reason: "test")
+
+        default:
+            appendLog("Unknown activity started: \(activityName)")
+        }
+    }
+
+    override func intervalDidEnd(for activity: DeviceActivityName) {
+        let activityName = activity.rawValue
+        appendLog("intervalDidEnd: \(activityName)")
+
+        switch activityName {
+        case "sleepSchedule":
+            handleSleepEnd()
+
+        case "testSchedule":
+            // Test schedule ended — disable blocking
+            appendLog("testSchedule: disabling blocking")
+            disableBlocking()
+
+        default:
+            appendLog("Unknown activity ended: \(activityName)")
+        }
+    }
+
+    // MARK: - Sleep Schedule Handlers
+
+    private func handleSleepStart() {
         guard let distractionSelection = loadSelection(key: selectionKey),
               !distractionSelection.applicationTokens.isEmpty || !distractionSelection.categoryTokens.isEmpty
         else {
@@ -26,6 +69,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             store.shield.applications = nil
             store.shield.applicationCategories = .all()
             writeBlockingReason("sleep")
+            appendLog("sleepSchedule: blocking ALL (no selection)")
             return
         }
 
@@ -43,10 +87,39 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             distractionSelection.categoryTokens,
             except: workApps
         )
+        appendLog("sleepSchedule: blocking enabled with selection")
     }
 
-    override func intervalDidEnd(for activity: DeviceActivityName) {
-        // Clear all shields
+    private func handleSleepEnd() {
+        disableBlocking()
+        appendLog("sleepSchedule: blocking disabled")
+    }
+
+    // MARK: - Blocking Helpers
+
+    private func enableBlocking(reason: String) {
+        guard let distractionSelection = loadSelection(key: selectionKey),
+              !distractionSelection.applicationTokens.isEmpty || !distractionSelection.categoryTokens.isEmpty
+        else {
+            // Fallback: block all categories
+            store.shield.applications = nil
+            store.shield.applicationCategories = .all()
+            writeBlockingReason(reason)
+            return
+        }
+
+        let workSelection = loadSelection(key: workAppsKey)
+        let workApps = workSelection?.applicationTokens ?? Set()
+
+        writeBlockingReason(reason)
+        store.shield.applications = distractionSelection.applicationTokens.subtracting(workApps)
+        store.shield.applicationCategories = .specific(
+            distractionSelection.categoryTokens,
+            except: workApps
+        )
+    }
+
+    private func disableBlocking() {
         store.shield.applications = nil
         store.shield.applicationCategories = nil
         clearBlockingReason()
@@ -69,5 +142,17 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         let defaults = UserDefaults(suiteName: appGroupId)
         defaults?.removeObject(forKey: blockingReasonKey)
         defaults?.removeObject(forKey: blockingReasonExtraKey)
+    }
+
+    /// Append log entry to App Group for debugging
+    private func appendLog(_ message: String) {
+        let defaults = UserDefaults(suiteName: appGroupId)
+        var logs = defaults?.stringArray(forKey: testScheduleLogKey) ?? []
+        let entry = "[\(ISO8601DateFormatter().string(from: Date()))] \(message)"
+        logs.append(entry)
+        if logs.count > 20 {
+            logs = Array(logs.suffix(20))
+        }
+        defaults?.set(logs, forKey: testScheduleLogKey)
     }
 }

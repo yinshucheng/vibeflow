@@ -110,6 +110,8 @@ const DEFAULT_CONFIG: ElectronMainConfig = {
   autoLaunch: false,
 };
 
+console.log('[Main] Server URL:', DEFAULT_CONFIG.serverUrl, '| IS_DEV:', IS_DEVELOPMENT, '| ENV:', process.env.VIBEFLOW_SERVER_URL || '(not set)');
+
 // Global references
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;

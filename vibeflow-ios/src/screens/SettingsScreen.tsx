@@ -249,6 +249,180 @@ function formatSelectionSummary(summary: SelectionSummary | null): string {
 }
 
 // =============================================================================
+// TEST SCHEDULE SECTION (Dev Only)
+// =============================================================================
+
+interface TestScheduleSectionProps {
+  authStatus: AuthorizationStatus;
+}
+
+function TestScheduleSection({ authStatus }: TestScheduleSectionProps): React.JSX.Element {
+  const theme = useTheme();
+  const [testDuration, setTestDuration] = useState(60); // seconds
+  const [testStatus, setTestStatus] = useState<'idle' | 'registered' | 'loading'>('idle');
+  const [testEndTime, setTestEndTime] = useState<number | null>(null);
+  const [activeSchedules, setActiveSchedules] = useState<string[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  const loadActiveSchedules = useCallback(async () => {
+    try {
+      const { getActiveSchedules } = await import('../../modules/screen-time');
+      const schedules = await getActiveSchedules();
+      setActiveSchedules(schedules);
+    } catch (error) {
+      console.error('Failed to load active schedules:', error);
+    }
+  }, []);
+
+  const loadLogs = useCallback(async () => {
+    try {
+      // Read logs from App Group via a native call (we'll add this)
+      // For now, just refresh schedules
+      await loadActiveSchedules();
+    } catch (error) {
+      console.error('Failed to load logs:', error);
+    }
+  }, [loadActiveSchedules]);
+
+  useEffect(() => {
+    if (authStatus === 'authorized') {
+      loadActiveSchedules();
+    }
+  }, [authStatus, loadActiveSchedules]);
+
+  const handleRegisterTest = useCallback(async () => {
+    setTestStatus('loading');
+    try {
+      const { registerTestSchedule } = await import('../../modules/screen-time');
+      const result = await registerTestSchedule(testDuration);
+      if (result.success) {
+        setTestStatus('registered');
+        setTestEndTime(result.endTime);
+        Alert.alert(
+          '测试 Schedule 已注册',
+          `将在 ${testDuration} 秒后触发 intervalDidEnd。\n\n` +
+          `结束时间: ${new Date(result.endTime).toLocaleTimeString()}\n\n` +
+          `可以退出 App 或锁屏，观察屏蔽是否自动解除。`,
+        );
+        await loadActiveSchedules();
+      }
+    } catch (error) {
+      Alert.alert('注册失败', String(error));
+      setTestStatus('idle');
+    }
+  }, [testDuration, loadActiveSchedules]);
+
+  const handleCancelTest = useCallback(async () => {
+    setTestStatus('loading');
+    try {
+      const { cancelTestSchedule } = await import('../../modules/screen-time');
+      await cancelTestSchedule();
+      setTestStatus('idle');
+      setTestEndTime(null);
+      await loadActiveSchedules();
+      Alert.alert('已取消', '测试 Schedule 已取消');
+    } catch (error) {
+      Alert.alert('取消失败', String(error));
+    }
+  }, [loadActiveSchedules]);
+
+  const isAuthorized = authStatus === 'authorized';
+
+  return (
+    <Section title="调试: DeviceActivity 测试">
+      <Row label="授权状态" value={isAuthorized ? '已授权' : '需授权'} />
+      <Row label="活跃 Schedules" value={activeSchedules.length > 0 ? activeSchedules.join(', ') : '无'} />
+
+      {testStatus === 'registered' && testEndTime && (
+        <Row label="测试结束时间" value={new Date(testEndTime).toLocaleTimeString()} />
+      )}
+
+      <View style={{ padding: 12, gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ color: theme.colors.text }}>持续时间:</Text>
+          {[30, 60, 120, 180].map((sec) => (
+            <TouchableOpacity
+              key={sec}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+                backgroundColor: testDuration === sec ? theme.colors.primary : theme.colors.background,
+                borderWidth: 1,
+                borderColor: testDuration === sec ? theme.colors.primary : theme.colors.border,
+              }}
+              onPress={() => setTestDuration(sec)}
+            >
+              <Text style={{ color: testDuration === sec ? '#FFF' : theme.colors.text, fontSize: 13 }}>
+                {sec}s
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 8,
+              backgroundColor: isAuthorized ? theme.colors.primary : theme.colors.textMuted,
+              alignItems: 'center',
+            }}
+            onPress={handleRegisterTest}
+            disabled={!isAuthorized || testStatus === 'loading'}
+          >
+            <Text style={{ color: '#FFF', fontWeight: '600' }}>
+              {testStatus === 'loading' ? '...' : '注册测试 Schedule'}
+            </Text>
+          </TouchableOpacity>
+
+          {testStatus === 'registered' && (
+            <TouchableOpacity
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 8,
+                backgroundColor: theme.colors.error,
+                alignItems: 'center',
+              }}
+              onPress={handleCancelTest}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '600' }}>取消</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={{
+            paddingVertical: 8,
+            borderRadius: 6,
+            backgroundColor: theme.colors.background,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            alignItems: 'center',
+          }}
+          onPress={loadActiveSchedules}
+        >
+          <Text style={{ color: theme.colors.text, fontSize: 13 }}>刷新状态</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ padding: 12, backgroundColor: theme.colors.background, borderRadius: 8, margin: 12 }}>
+        <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontFamily: 'monospace' }}>
+          测试流程:{'\n'}
+          1. 点击"注册测试 Schedule"{'\n'}
+          2. Schedule 会立即触发 intervalDidStart (启动屏蔽){'\n'}
+          3. 退出 App 或锁屏{'\n'}
+          4. 等待指定时间后，intervalDidEnd 应被触发 (解除屏蔽){'\n'}
+          5. 重新打开 App 检查屏蔽状态
+        </Text>
+      </View>
+    </Section>
+  );
+}
+
+// =============================================================================
 // SETTINGS SCREEN
 // =============================================================================
 
@@ -632,6 +806,9 @@ export function SettingsScreen(): React.JSX.Element {
           <Row label="环境" value={APP_VARIANT === 'dev' ? 'Dev' : 'Release'} />
           <Row label="Bundle ID" value={BUNDLE_ID} isLast />
         </Section>
+
+        {/* Debug: Test Schedule Section */}
+        <TestScheduleSection authStatus={authStatus} />
 
         {/* Bottom spacing */}
         <View style={{ height: 24 }} />

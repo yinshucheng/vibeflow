@@ -135,4 +135,56 @@ public final class AppGroupManager {
     func clearSleepSchedule() {
         defaults?.removeObject(forKey: sleepScheduleKey)
     }
+
+    // MARK: - Test Schedule (for verifying DeviceActivityMonitor callbacks)
+
+    private let testScheduleKey = "testScheduleInfo"
+    private let testScheduleLogKey = "testScheduleLog"
+
+    func saveTestScheduleInfo(endTime: Date) {
+        let info: [String: Any] = [
+            "endTime": endTime.timeIntervalSince1970,
+            "registeredAt": Date().timeIntervalSince1970
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: info) {
+            defaults?.set(data, forKey: testScheduleKey)
+        }
+    }
+
+    func readTestScheduleInfo() -> (endTime: Date, registeredAt: Date)? {
+        guard let data = defaults?.data(forKey: testScheduleKey),
+              let info = try? JSONSerialization.jsonObject(with: data) as? [String: Double],
+              let endTime = info["endTime"],
+              let registeredAt = info["registeredAt"]
+        else {
+            return nil
+        }
+        return (Date(timeIntervalSince1970: endTime), Date(timeIntervalSince1970: registeredAt))
+    }
+
+    func clearTestScheduleInfo() {
+        defaults?.removeObject(forKey: testScheduleKey)
+    }
+
+    /// Append a log entry for test schedule callbacks (used by extension)
+    func appendTestScheduleLog(_ message: String) {
+        var logs = readTestScheduleLogs()
+        let entry = "[\(ISO8601DateFormatter().string(from: Date()))] \(message)"
+        logs.append(entry)
+        // Keep only last 20 entries
+        if logs.count > 20 {
+            logs = Array(logs.suffix(20))
+        }
+        defaults?.set(logs, forKey: testScheduleLogKey)
+    }
+
+    /// Read all test schedule logs
+    func readTestScheduleLogs() -> [String] {
+        defaults?.stringArray(forKey: testScheduleLogKey) ?? []
+    }
+
+    /// Clear test schedule logs
+    func clearTestScheduleLogs() {
+        defaults?.removeObject(forKey: testScheduleLogKey)
+    }
 }

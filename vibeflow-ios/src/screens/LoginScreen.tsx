@@ -29,6 +29,12 @@ const SERVER_PRESETS = [
   { label: '本地', url: `http://${process.env.EXPO_PUBLIC_SERVER_HOST || '172.20.10.4'}:3000` },
 ] as const;
 
+// Dev quick login — only shown when connected to local server
+const DEV_TEST_ACCOUNT = {
+  email: 'ithinker1991@gmail.com',
+  password: 'test1234',
+};
+
 interface LoginScreenProps {
   onAuthSuccess: (user: { id: string; email: string }) => void;
 }
@@ -48,6 +54,9 @@ export function LoginScreen({ onAuthSuccess }: LoginScreenProps): React.JSX.Elem
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [customUrlText, setCustomUrlText] = useState('');
   const [editingCustomUrl, setEditingCustomUrl] = useState(false);
+
+  // Check if connected to local dev server (LAN IP or localhost)
+  const isLocalServer = /localhost|127\.0\.0\.1|192\.168\.|10\.\d|172\.(1[6-9]|2\d|3[01])\./.test(serverUrl);
 
   const handleServerPreset = useCallback(async (url: string) => {
     await serverConfigService.setServerUrl(url);
@@ -210,6 +219,23 @@ export function LoginScreen({ onAuthSuccess }: LoginScreenProps): React.JSX.Elem
                 </Text>
               )}
             </TouchableOpacity>
+
+            {/* Dev quick login — only shown on local server */}
+            {isLocalServer && mode === 'login' && (
+              <TouchableOpacity
+                style={[styles.devButton, { borderColor: colors.border }]}
+                onPress={() => {
+                  setEmail(DEV_TEST_ACCOUNT.email);
+                  setPassword(DEV_TEST_ACCOUNT.password);
+                }}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.devButtonText, { color: colors.textSecondary }]}>
+                  🧪 DEV 快速填入
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Toggle */}
@@ -384,6 +410,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  devButton: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  devButtonText: {
+    fontSize: 14,
   },
   toggleRow: {
     flexDirection: 'row',

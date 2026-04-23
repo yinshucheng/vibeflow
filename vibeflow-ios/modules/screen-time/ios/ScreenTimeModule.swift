@@ -316,6 +316,80 @@ public class ScreenTimeModule: Module {
         promise.resolve(nil)
       }
     }
+
+    // MARK: - Test: One-shot Schedule at Exact Time
+
+    /// Register a one-shot schedule that triggers intervalDidStart immediately and
+    /// intervalDidEnd after the specified number of seconds.
+    /// Used for testing DeviceActivityMonitor extension callback reliability.
+    AsyncFunction("registerTestSchedule") { (durationSeconds: Int, promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let center = DeviceActivityCenter()
+        let activityName = DeviceActivityName("testSchedule")
+
+        // Stop any existing test schedule
+        center.stopMonitoring([activityName])
+
+        // Calculate end time
+        let now = Date()
+        let endTime = now.addingTimeInterval(Double(durationSeconds))
+
+        // Create schedule: starts now, ends after durationSeconds
+        // Using calendar components for the specific date/time
+        let calendar = Calendar.current
+        let startComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: now)
+        let endComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: endTime)
+
+        let schedule = DeviceActivitySchedule(
+          intervalStart: startComponents,
+          intervalEnd: endComponents,
+          repeats: false
+        )
+
+        // Save test info to App Group for extension to read
+        AppGroupManager.shared.saveTestScheduleInfo(endTime: endTime)
+
+        do {
+          try center.startMonitoring(activityName, during: schedule)
+          self.logger.info("Test schedule registered: duration=\(durationSeconds)s, endTime=\(endTime)")
+          promise.resolve([
+            "success": true,
+            "endTime": endTime.timeIntervalSince1970 * 1000,
+            "durationSeconds": durationSeconds
+          ])
+        } catch {
+          self.logger.error("Failed to register test schedule: \(error.localizedDescription)")
+          promise.reject("SCHEDULE_ERROR", "Failed to register test schedule: \(error.localizedDescription)")
+        }
+      } else {
+        promise.reject("UNSUPPORTED", "Requires iOS 16.0+")
+      }
+    }
+
+    /// Cancel the test schedule
+    AsyncFunction("cancelTestSchedule") { (promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([DeviceActivityName("testSchedule")])
+        AppGroupManager.shared.clearTestScheduleInfo()
+        self.logger.info("Test schedule cancelled")
+        promise.resolve(nil)
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    /// Get currently active schedules (for debugging)
+    AsyncFunction("getActiveSchedules") { (promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let center = DeviceActivityCenter()
+        let activities = center.activities
+        let names = activities.map { $0.rawValue }
+        promise.resolve(names)
+      } else {
+        promise.resolve([])
+      }
+    }
   }
 
   // MARK: - Helpers

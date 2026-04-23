@@ -101,7 +101,7 @@ TAR_EXCLUDES=(
     --exclude='./dist'
     --exclude='.env' --exclude='.env.local' --exclude='.env.dev' --exclude='.env.test' --exclude='.env.e2e' --exclude='.envs'
     --exclude='.git'
-    --exclude='vibeflow-desktop' --exclude='vibeflow-extension' --exclude='vibeflow-ios' --exclude='vibeflow-app'
+    --exclude='vibeflow-shi' --exclude='vibeflow-extension' --exclude='vibeflow-ios' --exclude='vibeflow-app'
     --exclude='e2e' --exclude='tests' --exclude='coverage' --exclude='playwright-report' --exclude='test-results'
     --exclude='.DS_Store' --exclude='.debug'
     --exclude='.kiro' --exclude='.claude' --exclude='.claude-trace' --exclude='.serena' --exclude='.impeccable.md'
