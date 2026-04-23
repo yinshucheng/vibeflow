@@ -22,7 +22,7 @@ deploy/
   deploy.sh                   # One-command deploy: tar → scp → build → db push → restart
   nginx-vibeflow.conf         # Nginx config with WebSocket/Socket.io support
 scripts/
-  start-remote.sh             # Launch desktop/iOS clients connected to remote server
+  dev.sh                      # Unified dev environment control (local/remote, all clients)
 ```
 
 ## Deploy Workflow
@@ -98,30 +98,60 @@ All clients share the same backend (Next.js + Socket.io + PostgreSQL). The serve
 
 ## Client Connection
 
+### Development script
+
+统一使用 `./scripts/dev.sh` 管理本地/远程开发环境：
+
+```bash
+./scripts/dev.sh --help      # 查看完整帮助
+./scripts/dev.sh status      # 查看当前配置
+```
+
 ### Local development (default)
-All clients connect to `localhost:3000`, using local PostgreSQL. No special config needed.
+
+```bash
+# Web 后端 (Next.js + Socket.io + tRPC)
+./scripts/dev.sh                     # → npm run dev (端口 3000)
+
+# iOS 开发
+./scripts/dev.sh ios                 # → npm run dev + npx expo start --ios
+./scripts/dev.sh ios --build         # → 重新编译原生代码 (修改 Swift/ObjC 后需要)
+./scripts/dev.sh ios --only          # → 只启动 iOS Metro (后端已在运行时)
+
+# Desktop 开发
+./scripts/dev.sh desktop             # → npm run dev + Electron dev
+
+# Extension 开发
+./scripts/dev.sh ext                 # → 编译扩展 (然后在 Chrome 加载)
+./scripts/dev.sh ext --watch         # → 持续监听文件变化
+
+# 组合启动
+./scripts/dev.sh desktop ios         # → Web + Desktop + iOS
+./scripts/dev.sh all                 # → 全部本地
+```
+
+日志位置: `/tmp/vibeflow-dev/{web,desktop,ios,ext}.log`
 
 ### Remote server (current production)
 
 ```bash
-# Desktop (release build — double-click .app, auto-connects to remote)
-open vibeflow-desktop/release/mac-arm64/VibeFlow.app
-# Desktop (rebuild first if code changed)
-cd vibeflow-desktop && npm run build:mac && open release/mac-arm64/VibeFlow.app
-# Desktop (dev mode with remote server — for debugging)
-./scripts/start-remote.sh desktop
-# or: VIBEFLOW_SERVER_URL=http://39.105.213.147:4000 npm run dev (in vibeflow-desktop/)
+# Desktop 连远程
+./scripts/dev.sh desktop --remote    # → Electron 连 39.105.213.147:4000
 
-# iOS (dev server only — Dev Client must already be installed on device)
-./scripts/start-remote.sh ios
-# iOS (full native build + deploy — use when native code changed)
-./scripts/start-remote.sh ios --build
+# iOS 连远程
+./scripts/dev.sh ios --remote        # → Expo 连远程服务器
+./scripts/dev.sh ios --release       # → 编译 Release 包 (独立运行，不需要 Metro)
+
+# Desktop + iOS 连远程
+./scripts/dev.sh all --remote
+
+# Desktop release build (双击 .app 自动连远程)
+open vibeflow-desktop/release/mac-arm64/VibeFlow.app
+# 重新编译 release
+cd vibeflow-desktop && npm run build:mac
 
 # Browser Extension
-# Open popup → Server URL input → enter http://39.105.213.147:4000 → Connect
-
-# Both desktop + iOS
-./scripts/start-remote.sh all
+# 在 popup 中输入服务器地址: http://39.105.213.147:4000
 ```
 
 ### Client server URL configuration summary

@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { focusSessionService } from './focus-session.service';
+import { timeWindowService } from './time-window.service';
 import { isWithinWorkHours, parseTimeToMinutes } from './idle.service';
 import type { WorkTimeSlot } from './user.service';
 
@@ -227,18 +228,16 @@ export const overRestService = {
       const gracePeriod = (settingsAny?.overRestGracePeriod as number) ?? 5;
       const workTimeSlots = (settingsAny?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
 
-      // Check if within work hours
-      const withinWorkHours = isWithinWorkHours(workTimeSlots);
+      // Use TimeWindowService to check if OVER_REST is allowed
+      const timeContextResult = await timeWindowService.getCurrentContext(userId);
+      const overRestAllowed = timeContextResult.success && timeContextResult.data.overRestAllowed;
+      const inFocusSession = timeContextResult.success && timeContextResult.data.checks.inFocusSession;
 
-      // Check if in ad-hoc focus session
-      const focusSessionResult = await focusSessionService.getActiveSession(userId);
-      const inFocusSession = focusSessionResult.success && focusSessionResult.data !== null;
+      console.log(`[OverRestService] checkOverRestStatus inputs: userId=${userId}, shortRestDuration=${shortRestDuration}min, gracePeriod=${gracePeriod}min, overRestAllowed=${overRestAllowed}, inFocusSession=${inFocusSession}, now=${new Date().toISOString()}`);
 
-      console.log(`[OverRestService] checkOverRestStatus inputs: userId=${userId}, shortRestDuration=${shortRestDuration}min, gracePeriod=${gracePeriod}min, withinWorkHours=${withinWorkHours}, inFocusSession=${inFocusSession}, now=${new Date().toISOString()}`);
-
-      // If not in work hours and not in focus session, not over rest
-      if (!withinWorkHours && !inFocusSession) {
-        console.log(`[OverRestService] checkOverRestStatus → not over rest (outside work hours and no focus session)`);
+      // If OVER_REST is not allowed in current time window, return not over rest
+      if (!overRestAllowed) {
+        console.log(`[OverRestService] checkOverRestStatus → not over rest (time window does not allow OVER_REST)`);
         return {
           success: true,
           data: {
@@ -252,6 +251,9 @@ export const overRestService = {
           },
         };
       }
+
+      // For focus session details, get from TimeWindowContext or focusSessionService
+      const focusSessionResult = await focusSessionService.getActiveSession(userId);
 
       // Check if there's an active pomodoro
       const activePomodoro = await prisma.pomodoro.findFirst({

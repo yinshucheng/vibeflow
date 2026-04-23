@@ -70,6 +70,25 @@ vi.mock('./focus-session.service', () => ({
   },
 }));
 
+// ── Mock time-window.service ────────────────────────────────────────────
+
+const mockIsOverRestAllowed = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, data: true }));
+
+vi.mock('./time-window.service', () => ({
+  timeWindowService: {
+    isOverRestAllowed: mockIsOverRestAllowed,
+    getCurrentContext: vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        period: 'work_time',
+        expectedBehavior: 'pomodoro_cycle',
+        overRestAllowed: true,
+        checks: { inFocusSession: false, inSleepTime: false, inWorkTime: true },
+      },
+    }),
+  },
+}));
+
 // ── Import after mocks ────────────────────────────────────────────────
 
 import { stateEngineService, type TransitionResult } from './state-engine.service';
@@ -780,6 +799,11 @@ describe('StateEngineService', () => {
     }) {
       const { withinWorkHours, inFocusSession, shortRestDuration = 5, overRestGracePeriod = 5 } = opts;
 
+      // Now using timeWindowService mock
+      const overRestAllowed = inFocusSession || withinWorkHours;
+      mockIsOverRestAllowed.mockResolvedValue({ success: true, data: overRestAllowed });
+
+      // Keep legacy mocks for any code paths that might still use them
       mockIsWithinWorkHours.mockReturnValue(withinWorkHours);
       mockIsInFocusSession.mockResolvedValue({ success: true, data: inFocusSession });
 

@@ -8,7 +8,7 @@
 
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { focusSessionService } from './focus-session.service';
+import { timeWindowService, type TimePeriod } from './time-window.service';
 import { sleepTimeService, parseTimeToMinutes, getCurrentTimeMinutes } from './sleep-time.service';
 import { isWithinWorkHours, parseTimeToMinutes as parseIdleTimeToMinutes } from './idle.service';
 import { calculateEstimatedPomodoros } from './task.service';
@@ -251,37 +251,34 @@ export const progressCalculationService = {
    */
   async getCurrentStatus(userId: string): Promise<ServiceResult<CurrentStatus>> {
     try {
-      // Get user settings for work time slots and rest duration
+      // Get user settings for rest duration and work time slots
       const settings = await prisma.userSettings.findUnique({
         where: { userId },
       });
-      
+
       const workTimeSlots = (settings?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
       const shortRestDuration = settings?.shortRestDuration ?? 5;
       const overRestGracePeriod = settings?.overRestGracePeriod ?? 5;
-      
-      // Check if in ad-hoc focus session
-      const focusSessionResult = await focusSessionService.getActiveSession(userId);
-      const activeFocusSession = focusSessionResult.success ? focusSessionResult.data : null;
-      
-      // Check if in sleep time
-      const sleepTimeResult = await sleepTimeService.isInSleepTime(userId);
-      const isInSleepTime = sleepTimeResult.success && sleepTimeResult.data === true;
-      
-      // Check if within work hours
-      const withinWorkHours = isWithinWorkHours(workTimeSlots);
-      
-      // Determine time context (Requirements: 15.4)
-      let timeContext: TimeContext;
-      if (activeFocusSession) {
-        timeContext = 'adhoc_focus';
-      } else if (isInSleepTime) {
-        timeContext = 'sleep_time';
-      } else if (withinWorkHours) {
-        timeContext = 'work_time';
-      } else {
-        timeContext = 'free_time';
+
+      // Get time context from TimeWindowService
+      const timeWindowResult = await timeWindowService.getCurrentContext(userId);
+      if (!timeWindowResult.success) {
+        return {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to get time context' },
+        };
       }
+
+      const { period, focusSession: focusSessionContext, checks: { inSleepTime: isInSleepTime } } = timeWindowResult.data;
+
+      // Map TimePeriod to legacy TimeContext for backwards compatibility
+      const periodToTimeContext: Record<TimePeriod, TimeContext> = {
+        focus_session: 'adhoc_focus',
+        sleep_time: 'sleep_time',
+        work_time: 'work_time',
+        free_time: 'free_time',
+      };
+      const timeContext: TimeContext = periodToTimeContext[period];
       
       // Get current pomodoro state
       const currentPomodoro = await prisma.pomodoro.findFirst({
@@ -339,8 +336,10 @@ export const progressCalculationService = {
           }
           
           // For ad-hoc focus session, use session start time
-          if (timeContext === 'adhoc_focus' && activeFocusSession) {
-            const sessionStartMs = activeFocusSession.startTime.getTime();
+          // startTime = endTime - (elapsed time + remaining time)
+          if (timeContext === 'adhoc_focus' && focusSessionContext) {
+            const elapsedMs = focusSessionContext.endTime.getTime() - Date.now() - focusSessionContext.remainingMinutes * 60 * 1000;
+            const sessionStartMs = Date.now() - Math.abs(elapsedMs);
             const sessionStartDate = new Date(sessionStartMs);
             workStartMinutes = sessionStartDate.getHours() * 60 + sessionStartDate.getMinutes();
           }
@@ -364,29 +363,9 @@ export const progressCalculationService = {
         expectedState = 'normal_rest';
       }
       
-      // Calculate remaining times
-      let focusSessionRemaining: number | undefined;
-      let sleepTimeRemaining: number | undefined;
-      
-      if (activeFocusSession) {
-        const remainingMs = activeFocusSession.plannedEndTime.getTime() - Date.now();
-        focusSessionRemaining = Math.max(0, Math.floor(remainingMs / 1000 / 60));
-      }
-      
-      if (isInSleepTime) {
-        const sleepConfig = await sleepTimeService.getConfig(userId);
-        if (sleepConfig.success && sleepConfig.data) {
-          const endMinutes = parseTimeToMinutes(sleepConfig.data.endTime);
-          const currentMinutes = getCurrentTimeMinutes();
-          
-          if (currentMinutes < endMinutes) {
-            sleepTimeRemaining = endMinutes - currentMinutes;
-          } else {
-            // Overnight - calculate remaining until end time tomorrow
-            sleepTimeRemaining = (24 * 60 - currentMinutes) + endMinutes;
-          }
-        }
-      }
+      // Calculate remaining times (use data from TimeWindowContext)
+      const focusSessionRemaining = focusSessionContext?.remainingMinutes;
+      const sleepTimeRemaining = timeWindowResult.data.sleepTime?.remainingMinutes;
       
       return {
         success: true,

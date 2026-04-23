@@ -256,6 +256,14 @@ export {
   getNightStartTime,
 } from './sleep-time.service';
 
+export { timeWindowService } from './time-window.service';
+export type {
+  TimePeriod as TimeWindowPeriod,
+  ExpectedBehavior,
+  TimeWindowContext,
+  ServiceResult as TimeWindowServiceResult,
+} from './time-window.service';
+
 export { progressCalculationService } from './progress-calculation.service';
 export type {
   TimeContext,

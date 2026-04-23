@@ -20,10 +20,7 @@ import {
 } from '@/machines/vibeflow.machine';
 import { mcpEventService } from './mcp-event.service';
 import { dailyStateService } from './daily-state.service';
-import { isWithinWorkHours } from './idle.service';
-import { focusSessionService } from './focus-session.service';
-import { sleepTimeService } from './sleep-time.service';
-import type { WorkTimeSlot } from './user.service';
+import { timeWindowService } from './time-window.service';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -169,21 +166,9 @@ function scheduleOverRestTimer(
   // Read shortRestDuration + gracePeriod from DB asynchronously
   (async () => {
     try {
-      const settings = await prisma.userSettings.findFirst({ where: { userId } });
-      const settingsAny = settings as Record<string, unknown> | null;
-
-      // Check work hours and focus session — only schedule when within work hours OR in focus session
-      const workTimeSlots = (settingsAny?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
-      const withinWorkHours = isWithinWorkHours(workTimeSlots);
-      const focusSessionResult = await focusSessionService.isInFocusSession(userId);
-      const inFocusSession = focusSessionResult.success && focusSessionResult.data === true;
-
-      // OVER_REST allowed: focus session always qualifies; work hours only if not in sleep time
-      const sleepResult = await sleepTimeService.isInSleepTime(userId);
-      const inSleepTime = sleepResult.success && sleepResult.data === true;
-      const overRestAllowed = inFocusSession || (withinWorkHours && !inSleepTime);
-
-      if (!overRestAllowed) {
+      // Check if OVER_REST is allowed in current time window
+      const timeContextResult = await timeWindowService.isOverRestAllowed(userId);
+      if (!timeContextResult.success || !timeContextResult.data) {
         // Not in a qualifying time window: clear lastPomodoroEndTime to prevent
         // stale timestamp from triggering OVER_REST when work hours resume
         const dsResult = await dailyStateService.getOrCreateToday(userId);
@@ -202,6 +187,9 @@ function scheduleOverRestTimer(
         return; // State changed during async queries, abort scheduling
       }
 
+      // Read settings for timing configuration
+      const settings = await prisma.userSettings.findFirst({ where: { userId } });
+      const settingsAny = settings as Record<string, unknown> | null;
       const shortRestDuration = (settingsAny?.shortRestDuration as number) ?? 5;
       const gracePeriod = (settingsAny?.overRestGracePeriod as number) ?? 5;
       const delayMs = (shortRestDuration + gracePeriod) * 60 * 1000;
@@ -220,19 +208,8 @@ function scheduleOverRestTimer(
         overRestTimers.delete(userId);
         try {
           // Re-check: must still be in a qualifying time window
-          const currentSettings = await prisma.userSettings.findFirst({ where: { userId } });
-          const currentSettingsAny = currentSettings as Record<string, unknown> | null;
-          const currentSlots = (currentSettingsAny?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
-          const stillWithinWorkHours = isWithinWorkHours(currentSlots);
-          const focusResult = await focusSessionService.isInFocusSession(userId);
-          const stillInFocusSession = focusResult.success && focusResult.data === true;
-          const sleepCheck = await sleepTimeService.isInSleepTime(userId);
-          const nowInSleepTime = sleepCheck.success && sleepCheck.data === true;
-
-          // Focus session always qualifies; work hours only if not in sleep time
-          const stillAllowed = stillInFocusSession || (stillWithinWorkHours && !nowInSleepTime);
-
-          if (!stillAllowed) {
+          const stillAllowedResult = await timeWindowService.isOverRestAllowed(userId);
+          if (!stillAllowedResult.success || !stillAllowedResult.data) {
             // Time window changed — clear lastPomodoroEndTime and skip
             const dsResult = await dailyStateService.getOrCreateToday(userId);
             if (dsResult.success && dsResult.data?.lastPomodoroEndTime) {

@@ -28,6 +28,7 @@ import { dailyStateService, getTodayDate } from '@/services/daily-state.service'
 import { stateEngineService } from '@/services/state-engine.service';
 import { chatService } from '@/services/chat.service';
 import { sleepTimeService } from '@/services/sleep-time.service';
+import { timeWindowService } from '@/services/time-window.service';
 import { isWithinWorkHours } from '@/services/idle.service';
 import { handleToolConfirmation } from '@/services/chat-tools.service';
 import { focusSessionService } from '@/services/focus-session.service';
@@ -293,32 +294,23 @@ export class VibeFlowSocketServer {
         for (const userId of connectedUserIds) {
           try {
             const currentState = await stateEngineService.getState(userId);
-            // isWithinWorkHours and focusSessionService imported at top of file
-            const settings = await prisma.userSettings.findFirst({ where: { userId } });
-            const workTimeSlots = (settings?.workTimeSlots as unknown as { id: string; startTime: string; endTime: string; enabled: boolean }[]) || [];
-            const withinWorkHours = isWithinWorkHours(workTimeSlots);
 
-            // Check focus session status (used for both entry and exit conditions)
-            const focusSessionResult = await focusSessionService.isInFocusSession(userId);
-            if (!focusSessionResult.success) {
-              // DB error — skip this user to avoid wrong state transitions
-              continue;
+            // Get unified time window context
+            const timeContextResult = await timeWindowService.getCurrentContext(userId);
+            if (!timeContextResult.success) {
+              continue; // Skip on error
             }
-            const inFocusSession = focusSessionResult.data === true;
-
-            // Check sleep time
-            const sleepResult = await sleepTimeService.isInSleepTime(userId);
-            const inSleepTime = sleepResult.success && sleepResult.data === true;
-
-            // OVER_REST allowed: focus session always qualifies; work hours only if not in sleep time
-            const overRestAllowed = inFocusSession || (withinWorkHours && !inSleepTime);
+            const { overRestAllowed, checks: { inWorkTime: withinWorkHours } } = timeContextResult.data;
 
             // Detect work-time-started transition → send notification
             const wasInWorkHours = this.userWorkTimeState.get(userId) ?? false;
             this.userWorkTimeState.set(userId, withinWorkHours);
 
             if (!wasInWorkHours && withinWorkHours && currentState === 'idle') {
-              const dailyStateForNotif = await dailyStateService.getOrCreateToday(userId);
+              const [dailyStateForNotif, settings] = await Promise.all([
+                dailyStateService.getOrCreateToday(userId),
+                prisma.userSettings.findFirst({ where: { userId } }),
+              ]);
               const hasLastPomodoro = dailyStateForNotif.success && dailyStateForNotif.data?.lastPomodoroEndTime;
               const shortRestDur = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
               const gracePer = (settings as Record<string, unknown> | null)?.overRestGracePeriod as number ?? 5;
@@ -334,7 +326,10 @@ export class VibeFlowSocketServer {
             }
 
             if (currentState === 'idle') {
-              const dailyState = await dailyStateService.getOrCreateToday(userId);
+              const [dailyState, settings] = await Promise.all([
+                dailyStateService.getOrCreateToday(userId),
+                prisma.userSettings.findFirst({ where: { userId } }),
+              ]);
               if (dailyState.success && dailyState.data?.lastPomodoroEndTime) {
                 if (overRestAllowed) {
                   // Attempt ENTER_OVER_REST in qualifying time window
@@ -1828,18 +1823,20 @@ export class VibeFlowSocketServer {
       // Use DB state directly — OVER_REST is now a real DB state written by StateEngine
       const systemState: SystemState = dailyState ? parseSystemState(dailyState.systemState) : 'idle';
 
-      // Compute timeContext for extension (sleep_time / work_time / free_time)
-      const workTimeSlots = (settings?.workTimeSlots ?? []) as Array<{ id: string; startTime: string; endTime: string; enabled: boolean }>;
-      const withinWorkHours = isWithinWorkHours(workTimeSlots);
-      const sleepResult = await sleepTimeService.isInSleepTime(userId);
-      const isInSleepTime = sleepResult.success && sleepResult.data === true;
+      // Compute timeContext for extension using TimeWindowService
+      const timeWindowResult = await timeWindowService.getCurrentContext(userId);
       let timeContext: string;
-      if (isInSleepTime) {
-        timeContext = 'sleep_time';
-      } else if (withinWorkHours) {
-        timeContext = 'work_time';
+      if (timeWindowResult.success) {
+        // Map TimePeriod to legacy timeContext string for extension compatibility
+        const periodToContext: Record<string, string> = {
+          focus_session: 'work_time', // focus_session treated as work_time for extension
+          sleep_time: 'sleep_time',
+          work_time: 'work_time',
+          free_time: 'free_time',
+        };
+        timeContext = periodToContext[timeWindowResult.data.period] ?? 'free_time';
       } else {
-        timeContext = 'free_time';
+        timeContext = 'free_time'; // fallback on error
       }
 
       // Get top 3 tasks from IDs if available, otherwise fall back to today's planned tasks
