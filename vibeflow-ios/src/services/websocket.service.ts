@@ -241,6 +241,17 @@ class WebSocketService {
   }
 
   /**
+   * Low-level emit — send any event to the server.
+   * Used by remote-logger to send CLIENT_LOG events.
+   */
+  emit(event: string, data: unknown): void {
+    if (!this.socket?.connected) {
+      return; // Silently ignore if not connected
+    }
+    this.socket.emit(event, data);
+  }
+
+  /**
    * Send an event to the server.
    * Note: iOS client only sends heartbeat events.
    */
@@ -260,10 +271,10 @@ class WebSocketService {
     actionType: UserActionType,
     data: Record<string, unknown>,
     optimisticId: string
-  ): void {
+  ): boolean {
     if (!this.socket?.connected) {
-      console.warn('[WebSocket] Cannot send action: not connected');
-      return;
+      console.warn('[WebSocket] Cannot send action: not connected, socket.connected=', this.socket?.connected, 'status=', this.connectionStatus);
+      return false;
     }
 
     // Generate a UUID v4 for eventId (Zod schema requires UUID format)
@@ -286,6 +297,7 @@ class WebSocketService {
 
     console.log('[WebSocket] Sending USER_ACTION:', actionType);
     this.socket.emit('OCTOPUS_EVENT', event);
+    return true;
   }
 
   // ===========================================================================
@@ -390,7 +402,7 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('[WebSocket] Connected successfully!');
+      console.log('[WebSocket] Connected successfully! socket.connected=', this.socket?.connected);
       this.clearConnectWatchdog();
       const wasReconnect = this.reconnectAttempt > 0;
       this.reconnectAttempt = 0;
