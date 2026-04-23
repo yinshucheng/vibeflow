@@ -9,6 +9,7 @@
 
 import { io, Socket } from 'socket.io-client';
 import type { OctopusCommand } from '@vibeflow/octopus-protocol';
+import { commandHandler } from '@/stores/realtime.store';
 
 export interface ActivityLogEntry {
   url: string;
@@ -94,6 +95,9 @@ export function initializeSocket(options?: {
   // Unified Octopus protocol handler
   socket.on('OCTOPUS_COMMAND', (command) => {
     console.log('[Socket.io Client] OCTOPUS_COMMAND:', command.commandType);
+    // Directly call the command handler (no registration needed)
+    commandHandler(command);
+    // Also notify any additional listeners (for backwards compatibility)
     octopusCommandListeners.forEach((listener) => listener(command));
   });
 
@@ -137,8 +141,13 @@ export function isConnected(): boolean {
  * Subscribe to OCTOPUS_COMMAND events (primary listener)
  */
 export function onOctopusCommand(listener: OctopusCommandListener): () => void {
+  console.log('[Socket.io Client] onOctopusCommand: adding listener, current count:', octopusCommandListeners.size);
   octopusCommandListeners.add(listener);
-  return () => octopusCommandListeners.delete(listener);
+  console.log('[Socket.io Client] onOctopusCommand: after add, count:', octopusCommandListeners.size);
+  return () => {
+    console.log('[Socket.io Client] onOctopusCommand: removing listener');
+    octopusCommandListeners.delete(listener);
+  };
 }
 
 /**

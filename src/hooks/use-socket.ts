@@ -75,12 +75,16 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     useRealtimeStore.getState()._setConnected(false);
   }, []);
 
+  // One-time setup for event listeners
   useEffect(() => {
+    console.log('[useSocket] Event listener setup effect, initialized:', initialized.current);
     if (initialized.current) return;
     initialized.current = true;
 
+    console.log('[useSocket] Registering OCTOPUS_COMMAND handler');
     // Route OCTOPUS_COMMAND events through SDK command handler → realtime store
     const unsubCommand = onOctopusCommand((command) => {
+      console.log('[useSocket] OCTOPUS_COMMAND received in handler:', command.commandType);
       commandHandler(command);
     });
 
@@ -95,18 +99,47 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       }
     });
 
-    if (autoConnect) {
-      connect();
-    }
-
-    useRealtimeStore.getState()._setConnected(checkIsConnected());
-
     return () => {
       unsubCommand();
       unsubError();
       unsubConnection();
     };
-  }, [autoConnect, connect]);
+  }, []);
+
+  // Track previous session state to detect login/logout transitions
+  const prevSessionRef = useRef<string | null | undefined>(undefined);
+
+  // Reconnect socket when session changes (login/logout)
+  useEffect(() => {
+    const currentEmail = session?.user?.email;
+    const prevEmail = prevSessionRef.current;
+
+    // Skip initial render (prevEmail is undefined)
+    if (prevEmail === undefined) {
+      prevSessionRef.current = currentEmail ?? null;
+      if (autoConnect && currentEmail) {
+        connect();
+      }
+      useRealtimeStore.getState()._setConnected(checkIsConnected());
+      return;
+    }
+
+    // Session changed
+    if (currentEmail !== prevEmail) {
+      prevSessionRef.current = currentEmail ?? null;
+
+      if (!currentEmail) {
+        // Logged out — disconnect socket
+        console.log('[useSocket] Session ended, disconnecting socket');
+        disconnect();
+      } else {
+        // Logged in (or switched user) — reconnect socket
+        console.log('[useSocket] Session changed, reconnecting socket');
+        disconnect();
+        setTimeout(() => connect(), 100); // Small delay to ensure clean disconnect
+      }
+    }
+  }, [session?.user?.email, autoConnect, connect, disconnect]);
 
   return {
     connected,

@@ -20,31 +20,39 @@ export function TraySyncProvider({ children }: { children: React.ReactNode }) {
   // Ensure WebSocket is connected
   useSocket();
 
-  // Invalidate React Query cache when DATA_CHANGE arrives from server
+  // Refetch React Query cache when DATA_CHANGE arrives from server
+  // Use refetch() instead of invalidate() to immediately update UI
   const utils = trpc.useUtils();
   useEffect(() => {
     return onDataChange((payload) => {
       console.log('[TraySyncProvider] DATA_CHANGE:', payload.entity, payload.action, payload.ids);
       switch (payload.entity) {
         case 'task':
-          utils.task.getTodayTasks.invalidate();
-          utils.task.getOverdue.invalidate();
-          utils.task.getBacklog.invalidate();
+          console.log('[TraySyncProvider] Refetching task queries...');
+          // refetch() immediately re-fetches, invalidate() only marks as stale
+          utils.task.getTodayTasks.refetch();
+          utils.task.getTodayTasksAll.refetch();
+          utils.task.getOverdue.refetch();
+          utils.task.getBacklog.refetch();
+          // For parameterized queries, invalidate with refetchType to trigger immediate refetch
+          utils.task.getByProject.invalidate(undefined, { refetchType: 'all' });
+          utils.task.getById.invalidate(undefined, { refetchType: 'all' });
           break;
         case 'project':
-          utils.project.invalidate();
+          // Router-level invalidate, then specific queries refetch
+          utils.project.list.refetch();
           break;
         case 'goal':
-          utils.goal.invalidate();
+          utils.goal.list.refetch();
           break;
         case 'settings':
-          utils.settings.get.invalidate();
+          utils.settings.get.refetch();
           break;
         case 'dailyState':
-          utils.dailyState.getToday.invalidate();
+          utils.dailyState.getToday.refetch();
           break;
         case 'habit':
-          utils.habit.invalidate();
+          utils.habit.list.refetch();
           break;
       }
     });

@@ -11,9 +11,12 @@ import { create } from 'zustand';
 import {
   createStateManager,
   createCommandHandler,
-  type StateSnapshot,
+  type StateSnapshot as _StateSnapshot,
   type CommandHandlers,
 } from '@vibeflow/octopus-protocol';
+
+// Re-export StateSnapshot type for consumers
+export type StateSnapshot = _StateSnapshot;
 import type {
   ExecuteActionPayload,
   ShowUIPayload,
@@ -74,11 +77,14 @@ export const useRealtimeStore = create<RealtimeState & RealtimeActions>()((set) 
   lastShowUI: null,
   error: null,
 
-  _applySnapshot: (snapshot, _changedKeys) => {
+  _applySnapshot: (snapshot, changedKeys) => {
+    console.log('[RealtimeStore] _applySnapshot called, changedKeys:', changedKeys);
     set({
       snapshot,
       systemState: normalizeState(snapshot.systemState.state) as SystemState,
     });
+    // Notify listeners so React Query can invalidate affected queries
+    notifyStateSyncListeners(changedKeys);
   },
 
   _setConnected: (connected) => {
@@ -130,6 +136,7 @@ export const commandHandler = createCommandHandler({
   },
   onDataChange: (payload) => {
     // Notify subscribers that a data entity changed
+    console.log('[RealtimeStore] onDataChange:', payload.entity, payload.action, 'listeners:', dataChangeListeners.size);
     dataChangeListeners.forEach((listener) => listener(payload));
   },
 });
@@ -148,6 +155,27 @@ const dataChangeListeners = new Set<DataChangeListener>();
 export function onDataChange(listener: DataChangeListener): () => void {
   dataChangeListeners.add(listener);
   return () => dataChangeListeners.delete(listener);
+}
+
+// =============================================================================
+// STATE_SYNC EVENT BUS (for SYNC_STATE → React Query invalidation)
+// =============================================================================
+
+type StateSyncListener = (changedKeys: (keyof StateSnapshot)[]) => void;
+const stateSyncListeners = new Set<StateSyncListener>();
+
+/**
+ * Subscribe to SYNC_STATE events. Returns unsubscribe function.
+ * Web components use this to invalidate React Query cache when state changes via WebSocket.
+ */
+export function onStateSync(listener: StateSyncListener): () => void {
+  stateSyncListeners.add(listener);
+  return () => stateSyncListeners.delete(listener);
+}
+
+/** Internal: notify state sync listeners */
+function notifyStateSyncListeners(changedKeys: (keyof StateSnapshot)[]): void {
+  stateSyncListeners.forEach((listener) => listener(changedKeys));
 }
 
 // =============================================================================
