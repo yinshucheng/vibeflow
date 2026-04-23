@@ -18,7 +18,6 @@ export type AuthResult = AuthSuccess | AuthFailure;
  *
  * - Validates Bearer vf_ token via authService
  * - Checks required scope (read/write/admin)
- * - In DEV_MODE, also accepts x-dev-user-email header
  *
  * Returns AuthResult distinguishing unauthorized (401) from forbidden (403).
  */
@@ -26,23 +25,6 @@ export async function authenticateRequest(
   req: NextRequest,
   requiredScope: 'read' | 'write' | 'admin' = 'read'
 ): Promise<AuthResult> {
-  // DEV_MODE: accept x-dev-user-email header
-  const isDevMode = process.env.DEV_MODE === 'true';
-  if (isDevMode) {
-    const devEmail = req.headers.get('x-dev-user-email');
-    if (devEmail) {
-      // In dev mode with email header, grant full access (no scope check)
-      const { userService } = await import('@/services/user.service');
-      const result = await userService.getCurrentUser({
-        headers: { 'x-dev-user-email': devEmail },
-        session: null,
-      });
-      if (result.success && result.data) {
-        return { status: 'ok', user: result.data };
-      }
-    }
-  }
-
   // Bearer vf_ token authentication
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer vf_')) return { status: 'unauthorized' };

@@ -85,7 +85,6 @@ export default defineConfig({
       NEXTAUTH_SECRET: 'e2e-test-secret-not-for-production',
       DEV_MODE: 'true',
       NEXT_PUBLIC_DEV_MODE: 'true',
-      DEV_USER_EMAIL: 'e2e@vibeflow.local',
     },
   },
 

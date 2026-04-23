@@ -58,7 +58,7 @@ export async function authenticateToken(token?: string): Promise<AuthResult> {
   // No token provided
   if (!token) {
     if (isDevMode()) {
-      const email = process.env.MCP_USER_EMAIL || process.env.DEV_USER_EMAIL;
+      const email = process.env.MCP_USER_EMAIL;
       if (email) return authenticateViaRemote(email);
     }
     return { success: false, error: 'API key required. Set VIBEFLOW_API_KEY environment variable.' };

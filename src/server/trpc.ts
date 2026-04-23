@@ -8,8 +8,8 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
-import { getToken } from 'next-auth/jwt';
 import { userService, type UserContext } from '@/services/user.service';
+import { decodeSessionFromCookies } from '@/lib/session-token';
 
 /**
  * Context type for tRPC procedures
@@ -31,39 +31,12 @@ export async function createContext(opts: {
     headers[key] = value;
   });
 
-  // Parse NextAuth JWT token from cookies (production mode)
+  // Parse NextAuth JWT token from cookies (always, regardless of DEV_MODE)
+  // getCurrentUser() handles priority: DEV_MODE header → session → token → fallback
   let session: { user: { id: string; email: string } } | null = null;
-  if (!userService.isDevModeEnabled()) {
-    try {
-      // Parse session cookie and decode JWT manually
-      // getToken with raw Headers doesn't work reliably in custom server context
-      const { decode } = await import('next-auth/jwt');
-      const cookieHeader = opts.headers.get('cookie') || '';
-      const sessionToken = cookieHeader
-        .split(';')
-        .map(c => c.trim())
-        .find(c => c.startsWith('next-auth.session-token='))
-        ?.split('=')
-        .slice(1)
-        .join('=');
-
-      const token = sessionToken
-        ? await decode({
-            token: sessionToken,
-            secret: process.env.NEXTAUTH_SECRET!,
-          })
-        : null;
-      if (token?.id && token?.email) {
-        session = {
-          user: {
-            id: token.id as string,
-            email: token.email as string,
-          },
-        };
-      }
-    } catch {
-      // Token parsing failed, continue without session
-    }
+  const sessionUser = await decodeSessionFromCookies(opts.headers.get('cookie') || '');
+  if (sessionUser) {
+    session = { user: sessionUser };
   }
 
   // Get user from dev mode, session, or API token

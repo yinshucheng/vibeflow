@@ -8,7 +8,7 @@
       "env": {
         "NODE_ENV": "development",
         "DEV_MODE": "true",
-        "DEV_USER_EMAIL": "your-email@example.com",
+        "MCP_USER_EMAIL": "your-email@example.com",
         "DATABASE_URL": "postgresql://user:password@localhost:5432/vibeflow"
       }
     }

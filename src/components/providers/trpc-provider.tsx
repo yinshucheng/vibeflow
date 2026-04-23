@@ -9,7 +9,7 @@
  * Requirements: 8.3
  */
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { httpBatchLink } from '@trpc/client';
@@ -43,9 +43,8 @@ function getBaseUrl() {
 }
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
-  const sessionEmailRef = useRef<string | undefined>(undefined);
-  sessionEmailRef.current = session?.user?.email ?? undefined;
+  // useSession() keeps the NextAuth session provider active
+  useSession();
 
   const [queryClient] = useState(
     () =>
@@ -83,16 +82,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
           transformer: superjson,
-          headers() {
-            const headers: Record<string, string> = {};
-
-            // Send session email as dev-user header for server-side auth
-            if (process.env.NEXT_PUBLIC_DEV_MODE === 'true' && sessionEmailRef.current) {
-              headers['x-dev-user-email'] = sessionEmailRef.current;
-            }
-
-            return headers;
-          },
+          // Auth is handled via NextAuth session cookie (sent automatically by browser)
         }),
       ],
     })

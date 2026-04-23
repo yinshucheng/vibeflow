@@ -131,7 +131,7 @@ app.prepare().then(() => {
     log('INFO', `   🔌 Socket.io:  Enabled`);
     log('INFO', `   🔄 Hot Reload: ${dev ? 'Enabled (tsx watch)' : 'Disabled'}`);
     log('INFO', `   🗄️  Database:   PostgreSQL`);
-    log('INFO', `   🔐 Auth Mode:  ${process.env.DEV_MODE === 'true' ? 'Development (X-Dev-User-Email)' : 'Production'}`);
+    log('INFO', `   🔐 Auth Mode:  ${process.env.DEV_MODE === 'true' ? 'Development (auto-create users)' : 'Production'}`);
     log('INFO', '═══════════════════════════════════════════════════════════');
     console.log('\n');
   });

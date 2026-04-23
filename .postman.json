@@ -14,12 +14,6 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Set dev auth header for all requests",
-          "pm.request.headers.add({",
-          "  key: 'X-Dev-User-Email',",
-          "  value: pm.environment.get('DEV_USER_EMAIL') || 'test@example.com'",
-          "});",
-          "",
           "// Set content type for POST/PUT/PATCH requests",
           "if (['POST', 'PUT', 'PATCH'].includes(pm.request.method)) {",
           "  pm.request.headers.add({",
@@ -35,11 +29,6 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:3000",
-      "type": "string"
-    },
-    {
-      "key": "DEV_USER_EMAIL",
-      "value": "test@example.com",
       "type": "string"
     }
   ],

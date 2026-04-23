@@ -95,7 +95,6 @@ NEXTAUTH_URL="http://localhost:$port"
 NEXTAUTH_SECRET="feat-${name}-secret-not-for-production"
 DEV_MODE="true"
 NEXT_PUBLIC_DEV_MODE="true"
-DEV_USER_EMAIL="feat-${name}@vibeflow.local"
 EOF
 
   log "Feature environment '$name' created:"

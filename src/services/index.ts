@@ -2,7 +2,6 @@
 export { userService } from './user.service';
 export type {
   UpdateSettingsInput,
-  DevModeConfig,
   UserContext,
   ServiceResult,
 } from './user.service';

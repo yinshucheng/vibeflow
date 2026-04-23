@@ -11,9 +11,8 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { z } from 'zod';
-import { getToken } from 'next-auth/jwt';
 import prisma from '@/lib/prisma';
-import { userService } from '@/services/user.service';
+import { decodeSessionFromCookies } from '@/lib/session-token';
 import { authService } from '@/services/auth.service';
 import { parseSystemState } from '@/machines/vibeflow.machine';
 import type { SystemState } from '@/lib/state-utils';
@@ -196,6 +195,8 @@ export class VibeFlowSocketServer {
   private commandCleanupInterval: ReturnType<typeof setInterval> | null = null;
   private overRestCheckInterval: ReturnType<typeof setInterval> | null = null;
   private habitReminderInterval: ReturnType<typeof setInterval> | null = null;
+  /** Track per-user work-time state for detecting transitions */
+  private userWorkTimeState = new Map<string, boolean>();
 
   /**
    * Initialize the Socket.io server
@@ -305,11 +306,38 @@ export class VibeFlowSocketServer {
             }
             const inFocusSession = focusSessionResult.data === true;
 
+            // Check sleep time
+            const sleepResult = await sleepTimeService.isInSleepTime(userId);
+            const inSleepTime = sleepResult.success && sleepResult.data === true;
+
+            // OVER_REST allowed: focus session always qualifies; work hours only if not in sleep time
+            const overRestAllowed = inFocusSession || (withinWorkHours && !inSleepTime);
+
+            // Detect work-time-started transition → send notification
+            const wasInWorkHours = this.userWorkTimeState.get(userId) ?? false;
+            this.userWorkTimeState.set(userId, withinWorkHours);
+
+            if (!wasInWorkHours && withinWorkHours && currentState === 'idle') {
+              const dailyStateForNotif = await dailyStateService.getOrCreateToday(userId);
+              const hasLastPomodoro = dailyStateForNotif.success && dailyStateForNotif.data?.lastPomodoroEndTime;
+              const shortRestDur = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
+              const gracePer = (settings as Record<string, unknown> | null)?.overRestGracePeriod as number ?? 5;
+
+              this.showUI(userId, 'notification', {
+                type: 'work_time_started',
+                title: '工作时间开始',
+                message: hasLastPomodoro
+                  ? `休息超过 ${shortRestDur + gracePer} 分钟将进入专注提醒模式`
+                  : '开始新的工作时段吧！',
+                level: 'info',
+              }, { duration: 10000, dismissible: true });
+            }
+
             if (currentState === 'idle') {
               const dailyState = await dailyStateService.getOrCreateToday(userId);
               if (dailyState.success && dailyState.data?.lastPomodoroEndTime) {
-                if (withinWorkHours || inFocusSession) {
-                  // Attempt ENTER_OVER_REST during work hours OR when in focus session
+                if (overRestAllowed) {
+                  // Attempt ENTER_OVER_REST in qualifying time window
                   const shortRestDuration = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
                   const gracePeriod = (settings as Record<string, unknown> | null)?.overRestGracePeriod as number ?? 5;
                   const elapsed = (Date.now() - dailyState.data!.lastPomodoroEndTime!.getTime()) / 60000;
@@ -317,16 +345,17 @@ export class VibeFlowSocketServer {
                     await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
                   }
                 } else {
-                  // Non-work time without focus session: clear stale lastPomodoroEndTime
-                  // to prevent it from triggering OVER_REST when work hours resume
+                  // Not in qualifying time window: clear stale lastPomodoroEndTime
+                  // to prevent it from triggering OVER_REST when conditions change
                   await prisma.dailyState.update({
                     where: { id: dailyState.data.id },
                     data: { lastPomodoroEndTime: null },
                   });
                 }
               }
-            } else if (currentState === 'over_rest' && !withinWorkHours && !inFocusSession) {
-              // Work hours ended AND no focus session — exit OVER_REST
+            } else if (currentState === 'over_rest' && !overRestAllowed) {
+              // Time window no longer qualifies — exit OVER_REST
+              // Covers: work hours ended, entered sleep time (without focus session), etc.
               await stateEngineService.send(userId, { type: 'WORK_TIME_ENDED' });
             }
             // Always broadcast policy update for iOS UPDATE_POLICY channel
@@ -371,6 +400,7 @@ export class VibeFlowSocketServer {
       clearInterval(this.habitReminderInterval);
       this.habitReminderInterval = null;
     }
+    this.userWorkTimeState.clear();
   }
 
   /**
@@ -383,66 +413,32 @@ export class VibeFlowSocketServer {
     data?: SocketData;
     error?: { code: string; message: string };
   }> {
-    const { token, email, clientType, clientVersion, platform, capabilities } = socket.handshake.auth;
-    const devEmail = socket.handshake.headers['x-dev-user-email'] as string | undefined;
+    const { token, clientType, clientVersion, platform, capabilities } = socket.handshake.auth;
 
-    // Dev mode: accept email-based auth (from auth payload or header)
-    if (userService.isDevModeEnabled()) {
-      const userEmail = email || devEmail;
-      if (userEmail) {
-        const result = await userService.getOrCreateDevUser(userEmail);
-        if (result.success && result.data) {
-          return {
-            success: true,
-            data: {
-              userId: result.data.id,
-              email: result.data.email,
-              isDevMode: true,
-              connectedAt: Date.now(),
-              clientType: clientType as ClientType || 'web',
-              clientVersion: clientVersion || '1.0.0',
-              platform: platform || 'unknown',
-              capabilities: capabilities || [],
-            },
-          };
-        }
-      }
-      // Dev mode continues to formal auth paths below (allows testing production flow)
-    }
-
-    // NextAuth cookie authentication (for Web and Browser Extension)
+    // Path 1: NextAuth cookie authentication (for Web and Browser Extension)
     // Extension sends empty auth payload — relies on handshake headers cookie
-    try {
-      const cookies = socket.request.headers.cookie;
-      const jwtToken = await getToken({
-        req: socket.request as Parameters<typeof getToken>[0]['req'],
-        secret: process.env.NEXTAUTH_SECRET,
-      });
-      if (jwtToken?.id && jwtToken?.email) {
-        console.log(`[Socket.io] Authenticated via NextAuth cookie: ${jwtToken.email}`);
-        return {
-          success: true,
-          data: {
-            userId: jwtToken.id as string,
-            email: jwtToken.email as string,
-            isDevMode: false,
-            connectedAt: Date.now(),
-            clientType: clientType as ClientType || 'web',
-            clientVersion: clientVersion || '1.0.0',
-            platform: platform || 'unknown',
-            capabilities: capabilities || [],
-          },
-        };
-      }
-      if (!jwtToken) {
-        console.log(`[Socket.io] NextAuth cookie auth failed: no JWT token (cookies present: ${!!cookies}, cookie keys: ${cookies ? cookies.split(';').map(c => c.trim().split('=')[0]).join(',') : 'none'})`);
-      }
-    } catch (err) {
-      console.log(`[Socket.io] NextAuth cookie auth error: ${err instanceof Error ? err.message : err}`);
-      // Cookie parsing failed, fall through to API token auth
+    // Note: socket.request is raw IncomingMessage without req.cookies,
+    // so we use decodeSessionFromCookies() instead of next-auth's getToken()
+    const cookieHeader = socket.request.headers.cookie || '';
+    const sessionUser = await decodeSessionFromCookies(cookieHeader);
+    if (sessionUser) {
+      console.log(`[Socket.io] Authenticated via NextAuth cookie: ${sessionUser.email}`);
+      return {
+        success: true,
+        data: {
+          userId: sessionUser.id,
+          email: sessionUser.email,
+          isDevMode: false,
+          connectedAt: Date.now(),
+          clientType: clientType as ClientType || 'web',
+          clientVersion: clientVersion || '1.0.0',
+          platform: platform || 'unknown',
+          capabilities: capabilities || [],
+        },
+      };
     }
 
-    // API token authentication (for Desktop, Mobile, MCP, Skill)
+    // Path 2: API token authentication (for Desktop, Mobile, MCP, Skill)
     if (token && token.startsWith('vf_')) {
       const validationResult = await authService.validateToken(token);
 
@@ -467,26 +463,6 @@ export class VibeFlowSocketServer {
             },
           };
         }
-      }
-    }
-
-    // Dev mode fallback: use default dev user when no auth info provided
-    if (userService.isDevModeEnabled()) {
-      const result = await userService.getOrCreateDevUser(userService.getDevModeConfig().defaultUserEmail);
-      if (result.success && result.data) {
-        return {
-          success: true,
-          data: {
-            userId: result.data.id,
-            email: result.data.email,
-            isDevMode: true,
-            connectedAt: Date.now(),
-            clientType: clientType as ClientType || 'web',
-            clientVersion: clientVersion || '1.0.0',
-            platform: platform || 'unknown',
-            capabilities: capabilities || [],
-          },
-        };
       }
     }
 

@@ -15,7 +15,7 @@ console.error('[MCP] Environment:', {
   NODE_ENV: process.env.NODE_ENV,
   DEV_MODE: process.env.DEV_MODE,
   DATABASE_URL: process.env.DATABASE_URL ? '***' : 'NOT SET',
-  DEV_USER_EMAIL: process.env.DEV_USER_EMAIL,
+  MCP_USER_EMAIL: process.env.MCP_USER_EMAIL,
 });
 
 // Start the server

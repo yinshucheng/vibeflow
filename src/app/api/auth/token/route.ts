@@ -54,44 +54,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Method 2: Authenticate via email + password in body
-    if (!userId && parsed.email) {
+    if (!userId && parsed.email && parsed.password) {
       const user = await prisma.user.findUnique({
         where: { email: parsed.email },
       });
 
       if (user) {
-        if (process.env.DEV_MODE === 'true' && user.password === 'dev_mode_no_password') {
-          // DEV_MODE only: allow passwordless login for dev users
-          userId = user.id;
-          userEmail = user.email;
-        } else if (user.password === 'dev_mode_no_password') {
-          // Production: reject dev-mode users who haven't set a real password
+        // Reject dev-mode users who haven't set a real password
+        if (user.password === 'dev_mode_no_password') {
           return NextResponse.json(
             { success: false, error: { code: 'AUTH_ERROR', message: 'Invalid credentials' } },
             { status: 401 }
           );
-        } else if (parsed.password) {
-          const valid = await verifyPassword(parsed.password, user.password);
-          if (valid) {
-            userId = user.id;
-            userEmail = user.email;
-          }
         }
-      }
 
-      // Auto-create user in DEV_MODE only
-      if (!userId && process.env.DEV_MODE === 'true' && parsed.email) {
-        const newUser = await prisma.user.upsert({
-          where: { email: parsed.email },
-          update: {},
-          create: {
-            email: parsed.email,
-            password: 'dev_mode_no_password',
-            settings: { create: {} },
-          },
-        });
-        userId = newUser.id;
-        userEmail = newUser.email;
+        const valid = await verifyPassword(parsed.password, user.password);
+        if (valid) {
+          userId = user.id;
+          userEmail = user.email;
+        }
       }
 
       if (!userId) {

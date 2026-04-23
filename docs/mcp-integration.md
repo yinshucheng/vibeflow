@@ -62,8 +62,9 @@ Edit the configuration file with your actual paths and credentials:
       "env": {
         "NODE_ENV": "development",
         "DEV_MODE": "true",
-        "DEV_USER_EMAIL": "your-email@example.com",
-        "DATABASE_URL": "postgresql://user:password@localhost:5432/vibeflow"
+        "MCP_USER_EMAIL": "your-email@example.com",
+        "DATABASE_URL": "postgresql://user:password@localhost:5432/vibeflow",
+        "VIBEFLOW_API_KEY": "vf_your_api_token_here"
       }
     }
   }
@@ -179,19 +180,17 @@ Get detailed context about a specific task.
 
 ## Authentication
 
-### Development Mode
+### API Token Authentication
 
-In development mode, authentication is simplified:
-- Set `DEV_MODE=true` in environment
-- Set `DEV_USER_EMAIL` to your email
-- No token required for requests
+All MCP connections require explicit authentication:
+- Set `VIBEFLOW_API_KEY` to your `vf_` API token
+- Or use `dev_<email>` format with `MCP_USER_EMAIL` in development mode
 
-### Production Mode
+### Getting an API Token
 
-For production, use API tokens:
-- Token format: `vibeflow_<userId>_<secret>`
-- Pass token in the `_token` field of tool arguments
-- Or use `dev_<email>` format in development
+1. Log in to VibeFlow with email + password
+2. Issue a token via `POST /api/auth/token` with `{ email, password }`
+3. Use the returned `vf_xxx` token as `VIBEFLOW_API_KEY`
 
 ## Troubleshooting
 
@@ -209,8 +208,8 @@ For production, use API tokens:
 
 ### Authentication Errors
 
-1. In dev mode, ensure `DEV_MODE=true` is set
-2. Verify `DEV_USER_EMAIL` matches an existing user or will be auto-created
+1. Ensure `VIBEFLOW_API_KEY` is set to a valid `vf_` token
+2. Or in dev mode, set `MCP_USER_EMAIL` and use `dev_<email>` token format
 3. Check database connectivity
 
 ## Running Manually

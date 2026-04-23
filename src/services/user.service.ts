@@ -116,13 +116,6 @@ export const UpdateSettingsSchema = z.object({
 
 export type UpdateSettingsInput = z.infer<typeof UpdateSettingsSchema>;
 
-// Dev mode configuration
-export interface DevModeConfig {
-  enabled: boolean;
-  defaultUserEmail: string;
-  skipAuth: boolean;
-}
-
 // User context interface
 export interface UserContext {
   userId: string;
@@ -142,82 +135,22 @@ export interface ServiceResult<T> {
   };
 }
 
-// Default dev mode config
-const devModeConfig: DevModeConfig = {
-  enabled: process.env.DEV_MODE === 'true',
-  defaultUserEmail: process.env.DEV_USER_EMAIL || '',
-  skipAuth: true,
-};
-
 export const userService = {
-  /**
-   * Get or create a development user by email
-   * Used in dev mode to bypass authentication
-   */
-  async getOrCreateDevUser(email: string): Promise<ServiceResult<User>> {
-    try {
-      let user = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            email,
-            password: 'dev_mode_no_password',
-          },
-        });
-      }
-
-      return { success: true, data: user };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get or create dev user',
-        },
-      };
-    }
-  },
-
   /**
    * Get current user from context
    *
-   * Auth chain (4 paths):
-   * 1. DEV_MODE header (only when DEV_MODE=true)
-   * 2. NextAuth session (JWT cookie)
-   * 3. Bearer vf_ API token
-   * 4. DEV_MODE fallback (only when DEV_MODE=true, no auth info at all)
+   * Auth chain (2 paths):
+   * 1. NextAuth session (JWT cookie)
+   * 2. Bearer vf_ API token (iOS/Desktop/MCP/Skill)
    *
-   * In dev mode, paths 1 and 4 are active. Dev mode still tries formal auth paths
-   * (2 and 3) so production flows can be tested locally.
+   * No fallback — all requests must be explicitly authenticated.
    */
   async getCurrentUser(ctx: {
     headers?: Record<string, string | undefined>;
     session?: { user: { id: string; email: string } } | null;
   }): Promise<ServiceResult<UserContext>> {
     try {
-      // Path 1: DEV_MODE header (only when dev mode enabled)
-      if (devModeConfig.enabled) {
-        const devEmail = ctx.headers?.['x-dev-user-email'];
-        if (devEmail) {
-          const result = await this.getOrCreateDevUser(devEmail);
-          if (result.success && result.data) {
-            return {
-              success: true,
-              data: {
-                userId: result.data.id,
-                email: result.data.email,
-                isDevMode: true,
-              },
-            };
-          }
-        }
-        // Dev mode still continues to try formal auth paths below
-      }
-
-      // Path 2: NextAuth session (from JWT cookie)
+      // Path 1: NextAuth session (from JWT cookie)
       if (ctx.session?.user) {
         return {
           success: true,
@@ -229,7 +162,7 @@ export const userService = {
         };
       }
 
-      // Path 3: Bearer vf_ API token (iOS/Desktop/MCP/Skill)
+      // Path 2: Bearer vf_ API token (iOS/Desktop/MCP/Skill)
       const authHeader = ctx.headers?.['authorization'];
       if (authHeader?.startsWith('Bearer vf_')) {
         const token = authHeader.slice(7); // "Bearer ".length = 7
@@ -251,21 +184,6 @@ export const userService = {
               },
             };
           }
-        }
-      }
-
-      // Path 4: DEV_MODE fallback (only when dev mode enabled + DEV_USER_EMAIL configured)
-      if (devModeConfig.enabled && devModeConfig.defaultUserEmail) {
-        const result = await this.getOrCreateDevUser(devModeConfig.defaultUserEmail);
-        if (result.success && result.data) {
-          return {
-            success: true,
-            data: {
-              userId: result.data.id,
-              email: result.data.email,
-              isDevMode: true,
-            },
-          };
         }
       }
 
@@ -402,20 +320,6 @@ export const userService = {
         },
       };
     }
-  },
-
-  /**
-   * Check if dev mode is enabled
-   */
-  isDevModeEnabled(): boolean {
-    return devModeConfig.enabled;
-  },
-
-  /**
-   * Get dev mode configuration
-   */
-  getDevModeConfig(): DevModeConfig {
-    return { ...devModeConfig };
   },
 
   // ============================================
