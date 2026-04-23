@@ -22,6 +22,7 @@ import { mcpEventService } from './mcp-event.service';
 import { dailyStateService } from './daily-state.service';
 import { isWithinWorkHours } from './idle.service';
 import { focusSessionService } from './focus-session.service';
+import { sleepTimeService } from './sleep-time.service';
 import type { WorkTimeSlot } from './user.service';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -177,8 +178,13 @@ function scheduleOverRestTimer(
       const focusSessionResult = await focusSessionService.isInFocusSession(userId);
       const inFocusSession = focusSessionResult.success && focusSessionResult.data === true;
 
-      if (!withinWorkHours && !inFocusSession) {
-        // Non-work time without focus session: clear lastPomodoroEndTime to prevent
+      // OVER_REST allowed: focus session always qualifies; work hours only if not in sleep time
+      const sleepResult = await sleepTimeService.isInSleepTime(userId);
+      const inSleepTime = sleepResult.success && sleepResult.data === true;
+      const overRestAllowed = inFocusSession || (withinWorkHours && !inSleepTime);
+
+      if (!overRestAllowed) {
+        // Not in a qualifying time window: clear lastPomodoroEndTime to prevent
         // stale timestamp from triggering OVER_REST when work hours resume
         const dsResult = await dailyStateService.getOrCreateToday(userId);
         if (dsResult.success && dsResult.data?.lastPomodoroEndTime) {
@@ -213,7 +219,30 @@ function scheduleOverRestTimer(
       const timer = setTimeout(async () => {
         overRestTimers.delete(userId);
         try {
-          // Engine will validate: must be IDLE + guard checks work hours
+          // Re-check: must still be in a qualifying time window
+          const currentSettings = await prisma.userSettings.findFirst({ where: { userId } });
+          const currentSettingsAny = currentSettings as Record<string, unknown> | null;
+          const currentSlots = (currentSettingsAny?.workTimeSlots as unknown as WorkTimeSlot[]) || [];
+          const stillWithinWorkHours = isWithinWorkHours(currentSlots);
+          const focusResult = await focusSessionService.isInFocusSession(userId);
+          const stillInFocusSession = focusResult.success && focusResult.data === true;
+          const sleepCheck = await sleepTimeService.isInSleepTime(userId);
+          const nowInSleepTime = sleepCheck.success && sleepCheck.data === true;
+
+          // Focus session always qualifies; work hours only if not in sleep time
+          const stillAllowed = stillInFocusSession || (stillWithinWorkHours && !nowInSleepTime);
+
+          if (!stillAllowed) {
+            // Time window changed — clear lastPomodoroEndTime and skip
+            const dsResult = await dailyStateService.getOrCreateToday(userId);
+            if (dsResult.success && dsResult.data?.lastPomodoroEndTime) {
+              await prisma.dailyState.update({
+                where: { id: dsResult.data.id },
+                data: { lastPomodoroEndTime: null },
+              });
+            }
+            return;
+          }
           await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
         } catch (err) {
           console.error(`[StateEngine] ENTER_OVER_REST timer error for ${userId}:`, err);

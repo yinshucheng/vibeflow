@@ -190,7 +190,10 @@ const wsHandlers: WebSocketEventHandler = {
     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
     chrome.storage.local.set({ isConnected: true });
     // Socket.IO CONNECT ACK means auth passed — mark authenticated immediately
-    await policyCache.updatePolicy({ isAuthenticated: true });
+    // Also set dashboardUrl to the connected server (not hardcoded localhost)
+    const stored = await chrome.storage.local.get(['serverUrl']);
+    const connectedServerUrl = stored.serverUrl || DEFAULT_SERVER_URL;
+    await policyCache.updatePolicy({ isAuthenticated: true, dashboardUrl: connectedServerUrl });
     broadcastToPopup({ type: 'CONNECTION_STATUS', payload: { connected: true } });
 
     // Fetch user email for display — try token auth first, then session cookie
@@ -251,11 +254,16 @@ const wsHandlers: WebSocketEventHandler = {
     switch (command.commandType) {
       case 'SYNC_STATE': {
         const payload = command.payload as Record<string, unknown>;
-        const sysState = (payload?.systemState as Record<string, unknown>)?.state as string | undefined;
+        // payload structure: { syncType, version, state: { systemState: { state: '...' }, ... } }
+        const stateObj = payload?.state as Record<string, unknown> | undefined;
+        const systemStateObj = stateObj?.systemState as Record<string, unknown> | undefined;
+        const sysState = systemStateObj?.state as string | undefined;
         if (sysState) {
           const normalizedState = normalizeSystemState(sysState as SystemState);
-          console.log('[ServiceWorker] SYNC_STATE received, state:', normalizedState);
+          const timeContext = (systemStateObj?.timeContext as string) || 'free_time';
+          console.log('[ServiceWorker] SYNC_STATE received, state:', normalizedState, ', timeContext:', timeContext);
           await policyCache.updateState(normalizedState);
+          await policyCache.updateTimeContext(timeContext as TimeContext);
 
           const workStartTracker = getWorkStartTracker();
           await workStartTracker.handleStateChange(normalizedState);
@@ -279,14 +287,14 @@ const wsHandlers: WebSocketEventHandler = {
         if (payload?.policy) {
           console.log('[ServiceWorker] UPDATE_POLICY received via OCTOPUS_COMMAND');
           // Convert Octopus Policy to legacy PolicyCache for compatibility with existing policy-cache module
+          // NOTE: Do NOT set globalState here — state is managed exclusively by SYNC_STATE commands.
+          // Setting it here caused a race condition where stale OVER_REST overwrote fresh state.
           const policy = payload.policy;
-          const currentState = policyCache.getState();
           await policyCache.updatePolicy({
-            globalState: currentState,
             blacklist: policy.config?.blacklist ?? [],
             whitelist: policy.config?.whitelist ?? [],
             isAuthenticated: true,
-          } as PolicyCache);
+          } as Partial<PolicyCache>);
           await updateBlockingRules();
           broadcastToPopup({ type: 'POLICY_UPDATED', payload: policyCache.getPolicy() });
         }
@@ -556,23 +564,28 @@ function disconnect(): void {
  */
 async function syncEntertainmentQuotaFromServer(): Promise<void> {
   try {
-    // Get server URL from storage
-    const result = await chrome.storage.local.get(['serverUrl']);
+    // Get server URL and API token from storage
+    const result = await chrome.storage.local.get(['serverUrl', 'apiToken']);
     const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
 
-    // Fetch entertainment status from server via HTTP API
-    // Auth is handled via browser cookie (NextAuth session)
+    // Build auth headers: prefer API token, fall back to cookie
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (result.apiToken) {
+      headers['Authorization'] = `Bearer ${result.apiToken}`;
+    }
+
     const response = await fetch(`${serverUrl}/api/trpc/entertainment.getStatus`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
+      // Include cookies as fallback for local dev (same-origin)
       credentials: 'include',
     });
 
     if (response.status === 401) {
-      console.warn('[ServiceWorker] Authentication expired, please log in on the web');
-      broadcastToPopup({ type: 'AUTH_EXPIRED', payload: { message: '会话已过期，请在网页端重新登录' } });
+      console.warn('[ServiceWorker] Authentication expired, please log in again');
+      broadcastToPopup({ type: 'AUTH_EXPIRED', payload: { message: '会话已过期，请重新登录' } });
       return;
     }
 
@@ -583,9 +596,9 @@ async function syncEntertainmentQuotaFromServer(): Promise<void> {
     
     const data = await response.json();
     
-    if (data.result?.data) {
-      const serverStatus = data.result.data;
-      
+    // tRPC v11 response: { result: { data: { json: ... } } }
+    const serverStatus = data.result?.data?.json ?? data.result?.data;
+    if (serverStatus) {
       // Initialize entertainment manager and sync from server
       await entertainmentManager.initialize();
       await entertainmentManager.syncQuotaFromServer({
@@ -606,6 +619,8 @@ async function syncEntertainmentQuotaFromServer(): Promise<void> {
         type: 'ENTERTAINMENT_STATUS_CHANGED', 
         payload: entertainmentManager.getStatus() 
       });
+    } else {
+      console.warn('[ServiceWorker] Entertainment status response has no data:', JSON.stringify(data).slice(0, 200));
     }
   } catch (error) {
     console.error('[ServiceWorker] Error syncing entertainment quota from server:', error);
@@ -620,19 +635,23 @@ async function syncEntertainmentQuotaFromServer(): Promise<void> {
  */
 async function syncEntertainmentQuotaToServer(): Promise<void> {
   try {
-    // Get server URL from storage
-    const result = await chrome.storage.local.get(['serverUrl']);
+    // Get server URL and API token from storage
+    const result = await chrome.storage.local.get(['serverUrl', 'apiToken']);
     const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
 
     const usedMinutes = entertainmentManager.getQuotaUsageForSync();
 
-    // Update quota usage on server via HTTP API
-    // Auth is handled via browser cookie (NextAuth session)
+    // Build auth headers: prefer API token, fall back to cookie
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (result.apiToken) {
+      headers['Authorization'] = `Bearer ${result.apiToken}`;
+    }
+
     const response = await fetch(`${serverUrl}/api/trpc/entertainment.updateQuotaUsage`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       credentials: 'include',
       body: JSON.stringify({
         json: { usedMinutes },
@@ -640,8 +659,8 @@ async function syncEntertainmentQuotaToServer(): Promise<void> {
     });
 
     if (response.status === 401) {
-      console.warn('[ServiceWorker] Authentication expired, please log in on the web');
-      broadcastToPopup({ type: 'AUTH_EXPIRED', payload: { message: '会话已过期，请在网页端重新登录' } });
+      console.warn('[ServiceWorker] Authentication expired, please log in again');
+      broadcastToPopup({ type: 'AUTH_EXPIRED', payload: { message: '会话已过期，请重新登录' } });
       return;
     }
 

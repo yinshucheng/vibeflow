@@ -135,24 +135,12 @@
       <p>适度休息有助于恢复精力，但过长的休息会打断工作节奏。开始一个新的番茄钟，重新找回专注状态。</p>
     </div>
     <div class="actions">
-      <button class="btn btn-primary" onclick="startPomodoro()">🍅 开始番茄钟</button>
-      <button class="btn btn-secondary" onclick="openDashboard()">打开 VibeFlow</button>
+      <button class="btn btn-primary" id="btn-start-pomodoro">🍅 开始番茄钟</button>
+      <button class="btn btn-secondary" id="btn-open-dashboard">打开 VibeFlow</button>
     </div>
     <p class="quote">"专注是成功的关键，分心是失败的根源。" — 罗宾·夏尔马</p>
   </div>
 
-  <script>
-    async function openDashboard() {
-      const result = await chrome.storage.local.get(['serverUrl']);
-      const url = result.serverUrl || 'http://localhost:3000';
-      window.location.href = url;
-    }
-    
-    async function startPomodoro() {
-      const result = await chrome.storage.local.get(['serverUrl']);
-      const url = result.serverUrl || 'http://localhost:3000';
-      window.location.href = url + '/pomodoro';
-    }
-  </script>
+  <script src="over-rest-screensaver.js"></script>
 </body>
 </html>

@@ -16,7 +16,7 @@ import {
   KEEPALIVE_TIMEOUT_MS,
   CONNECT_WATCHDOG_TIMEOUT_MS,
 } from '@/config';
-import { getSocketAuthPayload, getCachedEmail } from '@/config/auth';
+import { getSocketAuthPayload } from '@/config/auth';
 import { serverConfigService } from './server-config.service';
 import { useAppStore } from '@/store/app.store';
 import {
@@ -196,18 +196,9 @@ class WebSocketService {
 
     console.log('[WebSocket] Connecting to:', this.config.url);
 
-    // Include x-dev-user-email in extraHeaders so DEV_MODE server
-    // resolves the correct user identity (not the default dev@vibeflow.local).
-    const email = getCachedEmail();
-    const extraHeaders: Record<string, string> = {};
-    if (email) {
-      extraHeaders['x-dev-user-email'] = email;
-    }
-
     this.socket = io(this.config.url, {
       transports: ['websocket'],
       auth: getSocketAuthPayload(),
-      extraHeaders,
       reconnection: false, // We handle reconnection manually
       timeout: 10000,
     });

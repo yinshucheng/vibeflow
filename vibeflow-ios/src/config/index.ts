@@ -2,8 +2,10 @@
 //   config/index.ts -> config/auth.ts -> server-config.service.ts -> config/index.ts
 // Import auth functions directly from '@/config/auth' instead.
 
-/** App version for heartbeat events */
-export const APP_VERSION = '1.0.0';
+import Constants from 'expo-constants';
+
+/** App version for heartbeat events (read from app.config.ts) */
+export const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 /** Platform identifier for heartbeat events */
 export const PLATFORM = 'ios';

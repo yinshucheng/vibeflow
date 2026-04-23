@@ -5,15 +5,17 @@
   "type": "module",
   "scripts": {
     "build": "npm run build:ts && npm run build:assets",
-    "build:ts": "tsc",
+    "build:ts": "node build.mjs",
     "build:assets": "mkdir -p dist/content && cp src/content/overlay.css dist/content/overlay.css",
     "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "dev": "npm run clean && npm run build",
     "prebuild": "mkdir -p dist/background dist/content dist/popup dist/lib"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.260",
+    "esbuild": "^0.24.0",
     "typescript": "^5.7.0"
   }
 }

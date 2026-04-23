@@ -31,6 +31,7 @@ import { screenTimeService } from '@/services/screen-time.service';
 import { notificationTriggerService } from '@/services/notification-trigger.service';
 import { serverConfigService } from '@/services/server-config.service';
 import { websocketService } from '@/services/websocket.service';
+import Constants from 'expo-constants';
 import { useTheme } from '@/theme';
 import type { AuthorizationStatus, BlockingReason, SelectionSummary } from '@/types';
 
@@ -38,7 +39,10 @@ import type { AuthorizationStatus, BlockingReason, SelectionSummary } from '@/ty
 // CONSTANTS
 // =============================================================================
 
-const APP_VERSION = '1.0.0';
+const expoConfig = Constants.expoConfig;
+const APP_VERSION = expoConfig?.version ?? '1.0.0';
+const APP_VARIANT = (expoConfig?.extra?.appVariant as string) ?? 'release';
+const BUNDLE_ID = expoConfig?.ios?.bundleIdentifier ?? 'unknown';
 
 const BLOCKING_REASON_LABELS: Record<BlockingReason, string> = {
   focus: '专注模式',
@@ -624,7 +628,9 @@ export function SettingsScreen(): React.JSX.Element {
 
         {/* App Info Section */}
         <Section title="应用信息">
-          <Row label="版本" value={APP_VERSION} isLast />
+          <Row label="版本" value={APP_VERSION} />
+          <Row label="环境" value={APP_VARIANT === 'dev' ? 'Dev' : 'Release'} />
+          <Row label="Bundle ID" value={BUNDLE_ID} isLast />
         </Section>
 
         {/* Bottom spacing */}

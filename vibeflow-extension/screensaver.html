@@ -58,9 +58,9 @@
       <p>Begin a focus session to access this site.</p>
     </div>
     <div class="actions">
-      <button class="btn btn-success" onclick="startPomodoro()">🍅 Start Pomodoro</button>
-      <button class="btn btn-primary" onclick="openDashboard()">Open VibeFlow</button>
-      <button class="btn btn-secondary" onclick="goBack()">Go Back</button>
+      <button class="btn btn-success" id="btn-start-pomodoro">🍅 Start Pomodoro</button>
+      <button class="btn btn-primary" id="btn-open-dashboard">Open VibeFlow</button>
+      <button class="btn btn-secondary" id="btn-go-back">Go Back</button>
     </div>
     <p class="quote">"The successful warrior is the average man, with laser-like focus." — Bruce Lee</p>
   </div>
@@ -112,40 +112,4 @@
     .status-info .label { color: #a1a1aa; }
     .status-info .value { color: #6366f1; font-weight: 500; }
   </style>
-  <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const blockedUrl = urlParams.get('blocked');
-    if (blockedUrl) {
-      document.getElementById('blocked-site-info').classList.remove('hidden');
-      document.getElementById('blocked-url').textContent = blockedUrl;
-    }
-    async function loadStatus() {
-      try {
-        const policy = await chrome.runtime.sendMessage({ type: 'GET_POLICY' });
-        const modeEl = document.getElementById('enforcement-mode');
-        if (policy && policy.enforcementMode) {
-          modeEl.textContent = policy.enforcementMode === 'strict' ? 'Strict 🔒' : 'Gentle 🌿';
-        } else {
-          modeEl.textContent = 'Focus Mode';
-        }
-      } catch (error) {
-        console.error('Failed to load status:', error);
-      }
-    }
-    function goBack() {
-      if (history.length > 1) { history.back(); } else { window.close(); }
-    }
-    async function openDashboard() {
-      const result = await chrome.storage.local.get(['serverUrl']);
-      const url = result.serverUrl || 'http://localhost:3000';
-      const policy = await chrome.runtime.sendMessage({ type: 'GET_POLICY' });
-      const shouldReplace = policy?.browserRedirectReplace !== false;
-      if (shouldReplace) { window.location.href = url; } else { chrome.tabs.create({ url }); }
-    }
-    async function startPomodoro() {
-      const result = await chrome.storage.local.get(['serverUrl']);
-      const url = result.serverUrl || 'http://localhost:3000';
-      window.location.href = url + '/pomodoro';
-    }
-    loadStatus();
-  </script>
+  <script src="screensaver.js"></script>
