@@ -202,6 +202,8 @@ export class VibeFlowSocketServer {
   private habitReminderInterval: ReturnType<typeof setInterval> | null = null;
   /** Track per-user work-time state for detecting transitions */
   private userWorkTimeState = new Map<string, boolean>();
+  /** Track when each user entered work time (for work-start OVER_REST) */
+  private userWorkTimeEnteredAt = new Map<string, number>();
 
   /**
    * Initialize the Socket.io server
@@ -319,15 +321,31 @@ export class VibeFlowSocketServer {
               const hasLastPomodoro = dailyStateForNotif.success && dailyStateForNotif.data?.lastPomodoroEndTime;
               const shortRestDur = (settings as Record<string, unknown> | null)?.shortRestDuration as number ?? 5;
               const gracePer = (settings as Record<string, unknown> | null)?.overRestGracePeriod as number ?? 5;
+              const workStartGrace = (settings as Record<string, unknown> | null)?.workStartGracePeriod as number ?? 5;
+
+              // Track work time entry for users who haven't started a pomodoro
+              if (!hasLastPomodoro) {
+                this.userWorkTimeEnteredAt.set(userId, Date.now());
+              }
 
               this.showUI(userId, 'notification', {
                 type: 'work_time_started',
                 title: '工作时间开始',
                 message: hasLastPomodoro
                   ? `休息超过 ${shortRestDur + gracePer} 分钟将进入专注提醒模式`
-                  : '开始新的工作时段吧！',
+                  : `${workStartGrace} 分钟内未开始番茄将进入专注提醒模式`,
                 level: 'info',
               }, { duration: 10000, dismissible: true });
+            }
+
+            // Clear work-time-entered tracking when leaving work time
+            if (wasInWorkHours && !withinWorkHours) {
+              this.userWorkTimeEnteredAt.delete(userId);
+            }
+
+            // Clear work-start tracking once user starts a pomodoro (focus/rest/etc.)
+            if (currentState !== 'idle' && currentState !== 'over_rest') {
+              this.userWorkTimeEnteredAt.delete(userId);
             }
 
             if (currentState === 'idle') {
@@ -351,6 +369,26 @@ export class VibeFlowSocketServer {
                     where: { id: dailyState.data.id },
                     data: { lastPomodoroEndTime: null },
                   });
+                }
+              } else if (dailyState.success && !dailyState.data?.lastPomodoroEndTime && overRestAllowed) {
+                // No completed pomodoro — check work-start grace period
+                // Re-arm tracking if not set (e.g. after abort which clears tracking)
+                if (!this.userWorkTimeEnteredAt.has(userId) && withinWorkHours) {
+                  this.userWorkTimeEnteredAt.set(userId, Date.now());
+                }
+                const enteredAt = this.userWorkTimeEnteredAt.get(userId);
+                if (enteredAt) {
+                  const workStartGrace = (settings as Record<string, unknown> | null)?.workStartGracePeriod as number ?? 5;
+                  const elapsedMin = (Date.now() - enteredAt) / 60000;
+                  if (elapsedMin >= workStartGrace) {
+                    // Set lastPomodoroEndTime to satisfy XState guard, then trigger OVER_REST
+                    await prisma.dailyState.update({
+                      where: { id: dailyState.data!.id },
+                      data: { lastPomodoroEndTime: new Date(enteredAt) },
+                    });
+                    await stateEngineService.send(userId, { type: 'ENTER_OVER_REST' });
+                    this.userWorkTimeEnteredAt.delete(userId);
+                  }
                 }
               }
             } else if (currentState === 'over_rest' && !overRestAllowed) {
@@ -401,6 +439,7 @@ export class VibeFlowSocketServer {
       this.habitReminderInterval = null;
     }
     this.userWorkTimeState.clear();
+    this.userWorkTimeEnteredAt.clear();
   }
 
   /**
