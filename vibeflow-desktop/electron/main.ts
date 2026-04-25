@@ -1471,10 +1471,18 @@ app.whenReady().then(async () => {
     if (mappedState) {
       console.log('[Main] Updating tray menu with state:', mappedState);
 
-      // Stop main process countdown when leaving FOCUS state
-      if (mappedState !== 'FOCUS' && pomodoroCountdown?.active) {
-        console.log('[Main] Stopping main process countdown due to state change to:', mappedState);
-        stopPomodoroCountdown();
+      // When leaving FOCUS state, ensure pomodoro state is fully cleared.
+      // stopPomodoroCountdown handles countdown+tray reset; the fallback
+      // covers the case where the countdown already expired on its own
+      // but pomodoroActive is still true in the tray state.
+      if (mappedState !== 'FOCUS') {
+        if (pomodoroCountdown?.active) {
+          console.log('[Main] Stopping main process countdown due to state change to:', mappedState);
+          stopPomodoroCountdown();
+        } else if (getTrayState()?.pomodoroActive) {
+          console.log('[Main] Clearing stale pomodoroActive (countdown already stopped), state:', mappedState);
+          updateTrayMenu({ pomodoroActive: false, pomodoroTimeRemaining: undefined, currentTask: undefined });
+        }
       }
 
       // Auto-start main process countdown when entering FOCUS (in case renderer doesn't trigger it,
