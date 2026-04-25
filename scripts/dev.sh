@@ -244,6 +244,14 @@ start_desktop() {
         echo -e "${BLUE}[Desktop]${NC} tsc 编译中..."
         npx tsc 2>&1 | tee -a "$log_file"
 
+        # tsc output path depends on tsconfig paths — may be dist/electron/ or
+        # dist/vibeflow-desktop/electron/ (when paths maps outside the project).
+        # Normalize: ensure dist/electron/ exists for package.json "main" field.
+        if [ -d "dist/vibeflow-desktop/electron" ] && [ ! -f "dist/electron/main.js" ]; then
+            echo -e "${BLUE}[Desktop]${NC} 修正输出路径: dist/vibeflow-desktop/ → dist/"
+            rsync -a dist/vibeflow-desktop/ dist/ 2>&1 | tee -a "$log_file"
+        fi
+
         # Sync compiled JS to release app
         echo -e "${BLUE}[Desktop]${NC} 同步 dist/ → release app..."
         rsync -a --delete dist/ "$app_dir/dist/" 2>&1 | tee -a "$log_file"
