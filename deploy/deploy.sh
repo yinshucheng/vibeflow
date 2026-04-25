@@ -3,14 +3,14 @@
 # VibeFlow Deploy Script
 #
 # Usage:
-#   ./deploy/deploy.sh              # Full deploy (no-cache build)
-#   ./deploy/deploy.sh --cached     # Use Docker layer cache (faster, but risky)
+#   ./deploy/deploy.sh              # Deploy with Docker layer cache (default)
+#   ./deploy/deploy.sh --no-cache   # Force full rebuild (slow, use when cache is stale)
 #   ./deploy/deploy.sh --skip-build # Skip Docker build (only sync + restart)
 #
 # What it does:
 #   1. Pre-flight checks (sankuai npm source, uncommitted changes)
-#   2. tar + scp project to server
-#   3. Docker build (--no-cache by default)
+#   2. rsync project to server (incremental)
+#   3. Docker build (cached by default)
 #   4. Prisma db push + restart container
 #   5. Nginx config update
 #   6. Health check with retry
@@ -26,15 +26,16 @@ HEALTH_RETRIES=6
 HEALTH_INTERVAL=5
 
 # ===== Parse args =====
-USE_CACHE=false
+USE_CACHE=true
 SKIP_BUILD=false
 for arg in "$@"; do
   case "$arg" in
+    --no-cache)  USE_CACHE=false ;;
     --cached)    USE_CACHE=true ;;
     --skip-build) SKIP_BUILD=true ;;
     --help|-h)
-      echo "Usage: $0 [--cached] [--skip-build]"
-      echo "  --cached      Use Docker layer cache (faster, risky after tsc changes)"
+      echo "Usage: $0 [--no-cache] [--skip-build]"
+      echo "  --no-cache    Force full Docker rebuild (slow)"
       echo "  --skip-build  Skip Docker build, only sync files + restart"
       exit 0
       ;;
@@ -58,7 +59,7 @@ echo "  VibeFlow Deploy"
 echo "=========================================="
 echo "  Local:  $LOCAL_DIR"
 echo "  Remote: $REMOTE:$REMOTE_DIR"
-echo "  Cache:  $([ "$USE_CACHE" = true ] && echo 'enabled (--cached)' || echo 'disabled (--no-cache)')"
+echo "  Cache:  $([ "$USE_CACHE" = true ] && echo 'enabled (default)' || echo 'disabled (--no-cache)')"
 echo "  Build:  $([ "$SKIP_BUILD" = true ] && echo 'skipped (--skip-build)' || echo 'enabled')"
 echo ""
 
@@ -92,37 +93,22 @@ ok "Workspace package exists"
 # 1. Sync files to server
 # =============================================================================
 log "[1/6] Syncing files to server..."
-TMPFILE=$(mktemp /tmp/vibeflow-deploy-XXXXXX.tar.gz)
+ssh "$REMOTE" "mkdir -p $REMOTE_DIR"
 
-# Common exclude list
-TAR_EXCLUDES=(
-    --exclude='node_modules'
-    --exclude='.next'
-    --exclude='./dist'
-    --exclude='.env' --exclude='.env.local' --exclude='.env.dev' --exclude='.env.test' --exclude='.env.e2e' --exclude='.envs'
-    --exclude='.git'
-    --exclude='vibeflow-shi' --exclude='vibeflow-extension' --exclude='vibeflow-ios' --exclude='vibeflow-app'
-    --exclude='e2e' --exclude='tests' --exclude='coverage' --exclude='playwright-report' --exclude='test-results'
-    --exclude='.DS_Store' --exclude='.debug'
-    --exclude='.kiro' --exclude='.claude' --exclude='.claude-trace' --exclude='.serena' --exclude='.impeccable.md'
-    --exclude='logs' --exclude='scripts/logs'
-    --exclude='.idea' --exclude='.vscode'
-    --exclude='docs' --exclude='image' --exclude='temp-next'
-)
-
-# Try with --no-mac-metadata (suppresses xattr warnings), fallback without it
-tar czf "$TMPFILE" -C "$LOCAL_DIR" --no-mac-metadata "${TAR_EXCLUDES[@]}" . 2>/dev/null || \
-tar czf "$TMPFILE" -C "$LOCAL_DIR" "${TAR_EXCLUDES[@]}" .
-
-ok "Archive: $(du -h "$TMPFILE" | cut -f1)"
-scp -q "$TMPFILE" "$REMOTE:/tmp/vibeflow-deploy.tar.gz"
-ssh "$REMOTE" "
-    mkdir -p $REMOTE_DIR
-    cd $REMOTE_DIR
-    tar xzf /tmp/vibeflow-deploy.tar.gz 2>/dev/null
-    rm /tmp/vibeflow-deploy.tar.gz
-"
-rm "$TMPFILE"
+rsync -az --delete \
+    --exclude='node_modules' \
+    --exclude='.next' \
+    --exclude='dist' \
+    --exclude='.env' --exclude='.env.local' --exclude='.env.dev' --exclude='.env.test' --exclude='.env.e2e' --exclude='.env.production' --exclude='.envs' \
+    --exclude='.git' \
+    --exclude='vibeflow-shi' --exclude='vibeflow-extension' --exclude='vibeflow-ios' --exclude='vibeflow-app' \
+    --exclude='e2e' --exclude='tests' --exclude='coverage' --exclude='playwright-report' --exclude='test-results' \
+    --exclude='.DS_Store' --exclude='.debug' \
+    --exclude='.kiro' --exclude='.claude' --exclude='.claude-trace' --exclude='.serena' --exclude='.impeccable.md' \
+    --exclude='logs' --exclude='scripts/logs' \
+    --exclude='.idea' --exclude='.vscode' \
+    --exclude='docs' --exclude='image' --exclude='temp-next' \
+    "$LOCAL_DIR/" "$REMOTE:$REMOTE_DIR/"
 ok "Files synced"
 
 # =============================================================================
@@ -153,13 +139,24 @@ else
     BUILD_FLAGS="--no-cache"
   fi
 
-  # Capture build time
   BUILD_START=$(date +%s)
+  BUILD_LOG=$(mktemp /tmp/vibeflow-build-XXXXXX.log)
+  set +e
   ssh "$REMOTE" "
       cd $REMOTE_DIR
-      DOCKER_BUILDKIT=1 docker compose build $BUILD_FLAGS 2>&1 | tail -5
-  "
+      DOCKER_BUILDKIT=1 docker compose build $BUILD_FLAGS 2>&1
+  " > "$BUILD_LOG" 2>&1
+  BUILD_EXIT=$?
+  set -e
   BUILD_END=$(date +%s)
+
+  tail -5 "$BUILD_LOG"
+  if [ $BUILD_EXIT -ne 0 ]; then
+    fail "Docker build failed (exit $BUILD_EXIT) after $((BUILD_END - BUILD_START))s"
+    echo "  Full log: $BUILD_LOG"
+    exit 1
+  fi
+  rm "$BUILD_LOG"
   ok "Built in $((BUILD_END - BUILD_START))s"
 fi
 
@@ -171,16 +168,10 @@ ssh "$REMOTE" "
     cd $REMOTE_DIR
     docker compose up -d
 
-    # Wait for container to be running
     sleep 3
 
-    # Run Prisma db push
     echo '  Running prisma db push...'
     docker exec vibeflow npx prisma db push --skip-generate 2>&1 | tail -3
-
-    # Restart to pick up any schema changes
-    echo '  Restarting container...'
-    docker compose restart
 "
 ok "Container deployed"
 
