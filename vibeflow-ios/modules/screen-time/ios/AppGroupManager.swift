@@ -187,4 +187,89 @@ public final class AppGroupManager {
     func clearTestScheduleLogs() {
         defaults?.removeObject(forKey: testScheduleLogKey)
     }
+
+    // MARK: - Blocking Context (shared state for Extension decision-making)
+
+    private let blockingContextKey = "blockingContext"
+    private let reasonBeforeTempUnblockKey = "reasonBeforeTempUnblock"
+    private let pomodoroScheduleInfoKey = "pomodoroScheduleInfo"
+    private let tempUnblockScheduleInfoKey = "tempUnblockScheduleInfo"
+
+    /// Full blocking context for Extension to make smart decisions
+    struct BlockingContext: Codable {
+        let currentBlockingReason: String?   // "focus"|"over_rest"|"sleep"|nil
+        let sleepScheduleActive: Bool
+        let sleepStartHour: Int?
+        let sleepStartMinute: Int?
+        let sleepEndHour: Int?
+        let sleepEndMinute: Int?
+        let overRestActive: Bool
+    }
+
+    func saveBlockingContext(_ context: BlockingContext) {
+        guard let data = try? JSONEncoder().encode(context) else {
+            logger.error("Failed to encode blocking context")
+            return
+        }
+        defaults?.set(data, forKey: blockingContextKey)
+        // C1: Force flush for cross-process consistency (Extension reads this)
+        defaults?.synchronize()
+    }
+
+    func readBlockingContext() -> BlockingContext? {
+        guard let data = defaults?.data(forKey: blockingContextKey) else { return nil }
+        return try? JSONDecoder().decode(BlockingContext.self, from: data)
+    }
+
+    func clearBlockingContext() {
+        defaults?.removeObject(forKey: blockingContextKey)
+    }
+
+    // MARK: - Reason Before Temp Unblock
+
+    func saveReasonBeforeTempUnblock(_ reason: String) {
+        defaults?.set(reason, forKey: reasonBeforeTempUnblockKey)
+        defaults?.synchronize()
+    }
+
+    func readReasonBeforeTempUnblock() -> String? {
+        defaults?.string(forKey: reasonBeforeTempUnblockKey)
+    }
+
+    func clearReasonBeforeTempUnblock() {
+        defaults?.removeObject(forKey: reasonBeforeTempUnblockKey)
+    }
+
+    // MARK: - Pomodoro Schedule Info
+
+    func savePomodoroScheduleInfo(endTime: Date) {
+        let info: [String: Any] = [
+            "endTime": endTime.timeIntervalSince1970,
+            "registeredAt": Date().timeIntervalSince1970
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: info) {
+            defaults?.set(data, forKey: pomodoroScheduleInfoKey)
+        }
+    }
+
+    func clearPomodoroScheduleInfo() {
+        defaults?.removeObject(forKey: pomodoroScheduleInfoKey)
+    }
+
+    // MARK: - Temp Unblock Schedule Info
+
+    func saveTempUnblockScheduleInfo(endTime: Date, restoreReason: String) {
+        let info: [String: Any] = [
+            "endTime": endTime.timeIntervalSince1970,
+            "restoreReason": restoreReason,
+            "registeredAt": Date().timeIntervalSince1970
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: info) {
+            defaults?.set(data, forKey: tempUnblockScheduleInfoKey)
+        }
+    }
+
+    func clearTempUnblockScheduleInfo() {
+        defaults?.removeObject(forKey: tempUnblockScheduleInfoKey)
+    }
 }

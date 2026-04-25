@@ -6,7 +6,7 @@
  * Task 11.3: SelectionSummary handling logic (hasSelection true/false → useSelection)
  */
 
-import { evaluateBlockingReason } from '../src/utils/blocking-reason';
+import { evaluateBlockingReason, evaluateBlockingReasonIgnoringTempUnblock } from '../src/utils/blocking-reason';
 import type { BlockingReasonInput } from '../src/utils/blocking-reason';
 import type {
   ActivePomodoroData,
@@ -572,6 +572,129 @@ describe('Task 11.3: SelectionSummary handling logic', () => {
       const needsMigration = 'blockedApps' in parsed && !('selectionSummary' in parsed);
 
       expect(needsMigration).toBe(false);
+    });
+  });
+});
+
+// =============================================================================
+// evaluateBlockingReasonIgnoringTempUnblock
+// =============================================================================
+
+describe('evaluateBlockingReasonIgnoringTempUnblock', () => {
+  describe('ignores temporary unblock entirely', () => {
+    it('should return focus even when temporaryUnblock is active', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: makePomodoro({ status: 'active' }),
+        policy: makePolicy({
+          temporaryUnblock: { active: true, endTime: Date.now() + 60_000 },
+        }),
+      };
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBe('focus');
+    });
+
+    it('should return over_rest even when temporaryUnblock is active', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: null,
+        policy: makePolicy({
+          temporaryUnblock: { active: true, endTime: Date.now() + 60_000 },
+          overRest: makeOverRest({ isOverRest: true }),
+        }),
+      };
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBe('over_rest');
+    });
+
+    it('should return sleep even when temporaryUnblock is active', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: null,
+        policy: makePolicy({
+          temporaryUnblock: { active: true, endTime: Date.now() + 60_000 },
+          sleepTime: makeSleepTime({
+            enabled: true,
+            isCurrentlyActive: true,
+            isSnoozed: false,
+          }),
+        }),
+      };
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBe('sleep');
+    });
+
+    it('should return null when no blocking reason and temporaryUnblock is active', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: null,
+        policy: makePolicy({
+          temporaryUnblock: { active: true, endTime: Date.now() + 60_000 },
+        }),
+      };
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBeNull();
+    });
+  });
+
+  describe('maintains same priority as evaluateBlockingReason (minus temp unblock)', () => {
+    it('should return focus > over_rest > sleep', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: makePomodoro({ status: 'active' }),
+        policy: makePolicy({
+          overRest: makeOverRest({ isOverRest: true }),
+          sleepTime: makeSleepTime({
+            enabled: true,
+            isCurrentlyActive: true,
+            isSnoozed: false,
+          }),
+        }),
+      };
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBe('focus');
+    });
+
+    it('should return over_rest > sleep when no pomodoro', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: null,
+        policy: makePolicy({
+          overRest: makeOverRest({ isOverRest: true }),
+          sleepTime: makeSleepTime({
+            enabled: true,
+            isCurrentlyActive: true,
+            isSnoozed: false,
+          }),
+        }),
+      };
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBe('over_rest');
+    });
+
+    it('should return null when no conditions met', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: null,
+        policy: makePolicy(),
+      };
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBeNull();
+    });
+
+    it('should return over_rest from dailyState fallback', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: null,
+        policy: makePolicy(),
+        dailyState: { state: 'OVER_REST' } as any,
+      };
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBe('over_rest');
+    });
+  });
+
+  describe('contrast with evaluateBlockingReason', () => {
+    it('evaluateBlockingReason returns null but IgnoringTempUnblock returns the reason', () => {
+      const input: BlockingReasonInput = {
+        activePomodoro: null,
+        policy: makePolicy({
+          temporaryUnblock: { active: true, endTime: Date.now() + 60_000 },
+          sleepTime: makeSleepTime({
+            enabled: true,
+            isCurrentlyActive: true,
+            isSnoozed: false,
+          }),
+        }),
+      };
+      // Original returns null (temp unblock overrides)
+      expect(evaluateBlockingReason(input)).toBeNull();
+      // IgnoringTempUnblock returns the underlying reason
+      expect(evaluateBlockingReasonIgnoringTempUnblock(input)).toBe('sleep');
     });
   });
 });

@@ -40,6 +40,15 @@ interface ScreenTimeNativeModule {
   registerTestSchedule(durationSeconds: number): Promise<TestScheduleResult>;
   cancelTestSchedule(): Promise<void>;
   getActiveSchedules(): Promise<string[]>;
+  getExtensionLogs(): Promise<string[]>;
+  clearExtensionLogs(): Promise<void>;
+  forceDisableBlocking(): Promise<void>;
+  // Offline automation
+  registerPomodoroEndSchedule(endTimeMs: number): Promise<void>;
+  cancelPomodoroEndSchedule(): Promise<void>;
+  registerTempUnblockExpirySchedule(endTimeMs: number, restoreReason: string): Promise<void>;
+  cancelTempUnblockExpirySchedule(): Promise<void>;
+  updateBlockingContext(contextJson: string): Promise<void>;
 }
 
 let nativeModule: ScreenTimeNativeModule | null = null;
@@ -175,4 +184,125 @@ export async function getActiveSchedules(): Promise<string[]> {
     return [];
   }
   return nativeModule.getActiveSchedules();
+}
+
+/**
+ * Get extension logs from App Group (for debugging).
+ * Shows when intervalDidStart/intervalDidEnd were called.
+ */
+export async function getExtensionLogs(): Promise<string[]> {
+  if (!nativeModule) {
+    return [];
+  }
+  return nativeModule.getExtensionLogs();
+}
+
+/**
+ * Clear extension logs.
+ */
+export async function clearExtensionLogs(): Promise<void> {
+  if (!nativeModule) {
+    return;
+  }
+  return nativeModule.clearExtensionLogs();
+}
+
+/**
+ * Force disable all blocking (for testing/recovery).
+ */
+export async function forceDisableBlocking(): Promise<void> {
+  if (!nativeModule) {
+    return;
+  }
+  return nativeModule.forceDisableBlocking();
+}
+
+// =============================================================================
+// OFFLINE AUTOMATION: Pomodoro End Schedule
+// =============================================================================
+
+/**
+ * Register a one-shot schedule that fires when the pomodoro is expected to end.
+ * The Extension reads BlockingContext to decide whether to disable or switch blocking.
+ *
+ * @param endTimeMs - Unix timestamp (ms) when the pomodoro ends
+ * @throws INTERVAL_TOO_SHORT if remaining time < 15 minutes
+ */
+export async function registerPomodoroEndSchedule(endTimeMs: number): Promise<void> {
+  if (!nativeModule) {
+    console.log(`[ScreenTime] Mock: registerPomodoroEndSchedule(${endTimeMs}) called`);
+    return;
+  }
+  return nativeModule.registerPomodoroEndSchedule(endTimeMs);
+}
+
+/**
+ * Cancel a previously registered pomodoro end schedule.
+ */
+export async function cancelPomodoroEndSchedule(): Promise<void> {
+  if (!nativeModule) {
+    console.log('[ScreenTime] Mock: cancelPomodoroEndSchedule called');
+    return;
+  }
+  return nativeModule.cancelPomodoroEndSchedule();
+}
+
+// =============================================================================
+// OFFLINE AUTOMATION: Temp Unblock Expiry Schedule
+// =============================================================================
+
+/**
+ * Register a one-shot schedule that fires when the temporary unblock expires.
+ * The Extension will restore blocking with the specified reason.
+ *
+ * @param endTimeMs - Unix timestamp (ms) when the unblock expires
+ * @param restoreReason - The blocking reason to restore (e.g., "focus", "sleep")
+ * @throws INTERVAL_TOO_SHORT if remaining time < 15 minutes
+ */
+export async function registerTempUnblockExpirySchedule(
+  endTimeMs: number,
+  restoreReason: string
+): Promise<void> {
+  if (!nativeModule) {
+    console.log(`[ScreenTime] Mock: registerTempUnblockExpirySchedule(${endTimeMs}, ${restoreReason}) called`);
+    return;
+  }
+  return nativeModule.registerTempUnblockExpirySchedule(endTimeMs, restoreReason);
+}
+
+/**
+ * Cancel a previously registered temp unblock expiry schedule.
+ */
+export async function cancelTempUnblockExpirySchedule(): Promise<void> {
+  if (!nativeModule) {
+    console.log('[ScreenTime] Mock: cancelTempUnblockExpirySchedule called');
+    return;
+  }
+  return nativeModule.cancelTempUnblockExpirySchedule();
+}
+
+// =============================================================================
+// OFFLINE AUTOMATION: Blocking Context
+// =============================================================================
+
+export interface BlockingContext {
+  currentBlockingReason: string | null;
+  sleepScheduleActive: boolean;
+  sleepStartHour: number | null;
+  sleepStartMinute: number | null;
+  sleepEndHour: number | null;
+  sleepEndMinute: number | null;
+  overRestActive: boolean;
+}
+
+/**
+ * Update the shared BlockingContext in App Group for the Extension to read.
+ * Call this whenever blocking state is re-evaluated.
+ */
+export async function updateBlockingContext(context: BlockingContext): Promise<void> {
+  if (!nativeModule) {
+    console.log('[ScreenTime] Mock: updateBlockingContext called', context);
+    return;
+  }
+  return nativeModule.updateBlockingContext(JSON.stringify(context));
 }

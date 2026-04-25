@@ -20,6 +20,8 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     private let blockingReasonKey = "blockingReason"
     private let blockingReasonExtraKey = "blockingReasonExtra"
     private let testScheduleLogKey = "testScheduleLog"
+    private let blockingContextKey = "blockingContext"
+    private let reasonBeforeTempUnblockKey = "reasonBeforeTempUnblock"
 
     // MARK: - DeviceActivityMonitor Callbacks
 
@@ -35,6 +37,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // Test schedule started — enable blocking to verify
             appendLog("testSchedule: enabling blocking")
             enableBlocking(reason: "test")
+
+        case "pomodoroEnd", "tempUnblockExpiry":
+            // No-op on start — main app already handles the immediate state
+            appendLog("\(activityName): intervalDidStart (no-op, main app handles)")
 
         default:
             appendLog("Unknown activity started: \(activityName)")
@@ -53,6 +59,12 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // Test schedule ended — disable blocking
             appendLog("testSchedule: disabling blocking")
             disableBlocking()
+
+        case "pomodoroEnd":
+            handlePomodoroEnd()
+
+        case "tempUnblockExpiry":
+            handleTempUnblockExpiry()
 
         default:
             appendLog("Unknown activity ended: \(activityName)")
@@ -93,6 +105,77 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     private func handleSleepEnd() {
         disableBlocking()
         appendLog("sleepSchedule: blocking disabled")
+    }
+
+    // MARK: - Pomodoro End Handler
+
+    /// When pomodoro ends offline, decide what to do based on BlockingContext.
+    /// If sleep is active → switch to sleep blocking
+    /// If over_rest → switch to over_rest blocking
+    /// Otherwise → disable blocking
+    private func handlePomodoroEnd() {
+        appendLog("pomodoroEnd: reading BlockingContext for decision")
+
+        if let context = readBlockingContext() {
+            appendLog("pomodoroEnd: context found — sleep=\(context.sleepScheduleActive), overRest=\(context.overRestActive)")
+
+            if context.sleepScheduleActive {
+                appendLog("pomodoroEnd: sleep active → enabling sleep blocking")
+                enableBlocking(reason: "sleep")
+                return
+            }
+
+            if context.overRestActive {
+                appendLog("pomodoroEnd: over_rest active → enabling over_rest blocking")
+                enableBlocking(reason: "over_rest")
+                return
+            }
+        } else {
+            appendLog("pomodoroEnd: no BlockingContext found")
+        }
+
+        appendLog("pomodoroEnd: no other blocking reason → disabling blocking")
+        disableBlocking()
+    }
+
+    // MARK: - Temp Unblock Expiry Handler
+
+    /// When temporary unblock expires offline, restore the previous blocking reason.
+    /// Reads from reasonBeforeTempUnblock first, then falls back to BlockingContext.
+    private func handleTempUnblockExpiry() {
+        appendLog("tempUnblockExpiry: reading restore reason")
+
+        // First check saved reason from before temp unblock
+        if let savedReason = readReasonBeforeTempUnblock() {
+            appendLog("tempUnblockExpiry: restoring saved reason '\(savedReason)'")
+            enableBlocking(reason: savedReason)
+            clearReasonBeforeTempUnblock()
+            return
+        }
+
+        // Fallback: read BlockingContext
+        if let context = readBlockingContext() {
+            if let reason = context.currentBlockingReason {
+                appendLog("tempUnblockExpiry: restoring from context '\(reason)'")
+                enableBlocking(reason: reason)
+                return
+            }
+
+            // Context exists but no reason — check sleep/overRest flags
+            if context.sleepScheduleActive {
+                appendLog("tempUnblockExpiry: sleep active → enabling sleep blocking")
+                enableBlocking(reason: "sleep")
+                return
+            }
+            if context.overRestActive {
+                appendLog("tempUnblockExpiry: over_rest active → enabling over_rest blocking")
+                enableBlocking(reason: "over_rest")
+                return
+            }
+        }
+
+        appendLog("tempUnblockExpiry: no reason to restore → disabling blocking")
+        disableBlocking()
     }
 
     // MARK: - Blocking Helpers
@@ -142,6 +225,38 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         let defaults = UserDefaults(suiteName: appGroupId)
         defaults?.removeObject(forKey: blockingReasonKey)
         defaults?.removeObject(forKey: blockingReasonExtraKey)
+    }
+
+    // MARK: - BlockingContext Helpers
+
+    /// Codable struct matching AppGroupManager.BlockingContext
+    private struct BlockingContext: Codable {
+        let currentBlockingReason: String?
+        let sleepScheduleActive: Bool
+        let sleepStartHour: Int?
+        let sleepStartMinute: Int?
+        let sleepEndHour: Int?
+        let sleepEndMinute: Int?
+        let overRestActive: Bool
+    }
+
+    private func readBlockingContext() -> BlockingContext? {
+        let defaults = UserDefaults(suiteName: appGroupId)
+        // C1: Force sync from disk before reading (cross-process data from main App)
+        defaults?.synchronize()
+        guard let data = defaults?.data(forKey: blockingContextKey) else { return nil }
+        return try? JSONDecoder().decode(BlockingContext.self, from: data)
+    }
+
+    private func readReasonBeforeTempUnblock() -> String? {
+        let defaults = UserDefaults(suiteName: appGroupId)
+        defaults?.synchronize()
+        return defaults?.string(forKey: reasonBeforeTempUnblockKey)
+    }
+
+    private func clearReasonBeforeTempUnblock() {
+        let defaults = UserDefaults(suiteName: appGroupId)
+        defaults?.removeObject(forKey: reasonBeforeTempUnblockKey)
     }
 
     /// Append log entry to App Group for debugging

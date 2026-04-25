@@ -14,8 +14,9 @@
 
 import { useAppStore } from '@/store/app.store';
 import { screenTimeService } from './screen-time.service';
-import { evaluateBlockingReason } from '@/utils/blocking-reason';
+import { evaluateBlockingReason, evaluateBlockingReasonIgnoringTempUnblock } from '@/utils/blocking-reason';
 import type { BlockingReason, AuthorizationStatus } from '@/types';
+import type { BlockingContext } from '../../modules/screen-time';
 
 // =============================================================================
 // BLOCKING SERVICE INTERFACE
@@ -38,6 +39,10 @@ export interface BlockingService {
 function createBlockingService(): BlockingService {
   let unsubscribe: (() => void) | null = null;
   let tempUnblockExpiryTimer: ReturnType<typeof setTimeout> | null = null;
+  let pomodoroFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  // Serialization chain: prevents concurrent evaluateBlockingState() from causing
+  // UI/actual state inconsistency (A2 review finding)
+  let evaluateChain: Promise<void> = Promise.resolve();
 
   /**
    * Evaluate blocking reason from current store state.
@@ -107,6 +112,43 @@ function createBlockingService(): BlockingService {
         console.log('[BlockingService] Blocking disabled');
       }
     }
+
+    // Sync BlockingContext to App Group for Extension decision-making
+    syncBlockingContext();
+  }
+
+  /**
+   * Write current blocking context to App Group so the Extension
+   * can make smart decisions when schedules fire offline.
+   */
+  function syncBlockingContext(): void {
+    const { policy } = useAppStore.getState();
+    const reason = getBlockingReason();
+
+    const context: BlockingContext = {
+      currentBlockingReason: reason,
+      sleepScheduleActive: !!(policy?.sleepTime?.enabled && policy.sleepTime.isCurrentlyActive && !policy.sleepTime.isSnoozed),
+      sleepStartHour: policy?.sleepTime?.startTime ? parseInt(policy.sleepTime.startTime.split(':')[0], 10) : null,
+      sleepStartMinute: policy?.sleepTime?.startTime ? parseInt(policy.sleepTime.startTime.split(':')[1], 10) : null,
+      sleepEndHour: policy?.sleepTime?.endTime ? parseInt(policy.sleepTime.endTime.split(':')[0], 10) : null,
+      sleepEndMinute: policy?.sleepTime?.endTime ? parseInt(policy.sleepTime.endTime.split(':')[1], 10) : null,
+      overRestActive: !!(policy?.overRest?.isOverRest),
+    };
+
+    screenTimeService.updateBlockingContext(context).catch((error) => {
+      console.warn('[BlockingService] Failed to sync BlockingContext:', error);
+    });
+  }
+
+  /**
+   * Serialized evaluate: ensures only one evaluateBlockingState runs at a time.
+   * Prevents race conditions where two rapid state changes cause conflicting
+   * enable/disable operations with inconsistent UI state.
+   */
+  function queueEvaluate(): void {
+    evaluateChain = evaluateChain.then(() => evaluateBlockingState()).catch((error) => {
+      console.warn('[BlockingService] evaluateBlockingState error:', error);
+    });
   }
 
   return {
@@ -123,6 +165,14 @@ function createBlockingService(): BlockingService {
       }
 
       console.log('[BlockingService] Initialized, blocking active:', isBlocking);
+
+      // B2: Clean up stale one-shot schedules from previous sessions.
+      // If App was killed before pomodoroEnd/tempUnblockExpiry schedule fired,
+      // the schedule may have already triggered (Extension handled it) but the
+      // schedule info in App Group was never cleaned up. Cancel any lingering
+      // schedules and let the current evaluateBlockingState() set the correct state.
+      screenTimeService.cancelPomodoroEndSchedule().catch(() => {});
+      screenTimeService.cancelTempUnblockExpirySchedule().catch(() => {});
     },
 
     startListening(): () => void {
@@ -175,7 +225,7 @@ function createBlockingService(): BlockingService {
           prevSleepStart = curSleepStart;
           prevSleepEnd = curSleepEnd;
 
-          if (curSleepEnabled && curSleepStart && curSleepEnd && !curSleepActive) {
+          if (curSleepEnabled && curSleepStart && curSleepEnd) {
             // Register sleep schedule for offline enforcement
             screenTimeService.registerSleepSchedule(curSleepStart, curSleepEnd).catch((error) => {
               console.warn('[BlockingService] Failed to register sleep schedule:', error);
@@ -205,8 +255,75 @@ function createBlockingService(): BlockingService {
             tempUnblockExpiryTimer = setTimeout(() => {
               tempUnblockExpiryTimer = null;
               console.log('[BlockingService] Temporary unblock expired, re-evaluating');
-              evaluateBlockingState();
+              queueEvaluate();
             }, delay);
+          }
+        }
+
+        // Sync BlockingContext to App Group BEFORE registering schedules,
+        // so Extension has up-to-date data if schedule fires (A1 review finding)
+        if (pomodoroChanged || tempUnblockChanged) {
+          syncBlockingContext();
+        }
+
+        // Pomodoro schedule management for offline automation
+        if (pomodoroChanged) {
+          const wasActive = prevPomodoroId !== null && prevPomodoroStatus === 'active';
+          const isActive = curPomodoroId !== null && curPomodoroStatus === 'active';
+
+          if (!wasActive && isActive) {
+            // Pomodoro started → register end schedule
+            const pomodoro = state.activePomodoro;
+            if (pomodoro) {
+              // Defensive: ensure startTime is in milliseconds (D2 review finding)
+              const startTimeMs = pomodoro.startTime > 1e12 ? pomodoro.startTime : pomodoro.startTime * 1000;
+              const endTimeMs = startTimeMs + pomodoro.duration * 60 * 1000;
+              screenTimeService.registerPomodoroEndSchedule(endTimeMs).then((registered) => {
+                if (!registered) {
+                  // < 15 min: use JS setTimeout as foreground fallback.
+                  // KNOWN LIMITATION (G2): React Native setTimeout does NOT fire
+                  // when App is suspended by iOS (~30s after backgrounding).
+                  // For <15min pomodoros, blocking persists until App returns to foreground.
+                  const delay = endTimeMs - Date.now() + 500;
+                  if (delay > 0) {
+                    pomodoroFallbackTimer = setTimeout(() => {
+                      pomodoroFallbackTimer = null;
+                      console.log('[BlockingService] Pomodoro fallback timer fired, re-evaluating');
+                      queueEvaluate();
+                    }, delay);
+                    console.log(`[BlockingService] Pomodoro < 15min, using JS fallback timer (${Math.round(delay / 1000)}s)`);
+                  }
+                }
+              });
+            }
+          } else if (wasActive && !isActive) {
+            // Pomodoro ended → cancel schedule + clear fallback
+            screenTimeService.cancelPomodoroEndSchedule();
+            if (pomodoroFallbackTimer) {
+              clearTimeout(pomodoroFallbackTimer);
+              pomodoroFallbackTimer = null;
+            }
+          }
+        }
+
+        // Temp unblock schedule management for offline automation
+        if (tempUnblockChanged) {
+          if (curTempUnblockActive && curTempUnblockEndTime > Date.now()) {
+            // Temp unblock started → register expiry schedule
+            const reasonToRestore = evaluateBlockingReasonIgnoringTempUnblock({
+              activePomodoro: state.activePomodoro,
+              policy: state.policy,
+              dailyState: state.dailyState,
+            });
+            if (reasonToRestore) {
+              screenTimeService.registerTempUnblockExpirySchedule(
+                curTempUnblockEndTime,
+                reasonToRestore
+              );
+            }
+          } else if (!curTempUnblockActive && prevTempUnblockActive) {
+            // Temp unblock ended → cancel schedule
+            screenTimeService.cancelTempUnblockExpirySchedule();
           }
         }
 
@@ -216,12 +333,12 @@ function createBlockingService(): BlockingService {
           prevPolicyVersion = curPolicyVersion;
           prevSleepActive = curSleepActive;
           prevOverRest = curOverRest;
-          evaluateBlockingState();
+          queueEvaluate();
         }
       });
 
       // Initial evaluation
-      evaluateBlockingState();
+      queueEvaluate();
 
       return () => {
         if (unsubscribe) {
@@ -231,6 +348,10 @@ function createBlockingService(): BlockingService {
         if (tempUnblockExpiryTimer) {
           clearTimeout(tempUnblockExpiryTimer);
           tempUnblockExpiryTimer = null;
+        }
+        if (pomodoroFallbackTimer) {
+          clearTimeout(pomodoroFallbackTimer);
+          pomodoroFallbackTimer = null;
         }
       };
     },

@@ -317,11 +317,16 @@ public class ScreenTimeModule: Module {
       }
     }
 
-    // MARK: - Test: One-shot Schedule at Exact Time
+    // MARK: - Test: Schedule using time-of-day components (same as sleepSchedule)
 
-    /// Register a one-shot schedule that triggers intervalDidStart immediately and
-    /// intervalDidEnd after the specified number of seconds.
-    /// Used for testing DeviceActivityMonitor extension callback reliability.
+    /// Register a test schedule that creates a monitoring window from now to (now + durationMinutes).
+    /// Uses hour:minute DateComponents (same approach as sleepSchedule) which is how
+    /// DeviceActivitySchedule is designed to work.
+    ///
+    /// - intervalDidStart fires when the start time arrives (should be ~immediate)
+    /// - intervalDidEnd fires when the end time arrives (after durationMinutes)
+    ///
+    /// Also immediately enables blocking from the main app as a fallback.
     AsyncFunction("registerTestSchedule") { (durationSeconds: Int, promise: Promise) in
       if #available(iOS 16.0, *) {
         let center = DeviceActivityCenter()
@@ -330,15 +335,19 @@ public class ScreenTimeModule: Module {
         // Stop any existing test schedule
         center.stopMonitoring([activityName])
 
-        // Calculate end time
+        // Calculate start (1 min ago to ensure we're "inside" the interval)
+        // and end (now + durationMinutes)
+        let calendar = Calendar.current
         let now = Date()
+        let startTime = now.addingTimeInterval(-60) // 1 min in the past
         let endTime = now.addingTimeInterval(Double(durationSeconds))
 
-        // Create schedule: starts now, ends after durationSeconds
-        // Using calendar components for the specific date/time
-        let calendar = Calendar.current
-        let startComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: now)
-        let endComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: endTime)
+        // Use ONLY hour and minute — this is how DeviceActivitySchedule works
+        // (like sleepSchedule: "from 23:00 to 07:00")
+        let startComponents = calendar.dateComponents([.hour, .minute], from: startTime)
+        let endComponents = calendar.dateComponents([.hour, .minute], from: endTime)
+
+        self.logger.info("Test schedule: start=\(startComponents.hour!):\(startComponents.minute!) end=\(endComponents.hour!):\(endComponents.minute!)")
 
         let schedule = DeviceActivitySchedule(
           intervalStart: startComponents,
@@ -346,20 +355,47 @@ public class ScreenTimeModule: Module {
           repeats: false
         )
 
-        // Save test info to App Group for extension to read
+        // Step 1: Immediately enable blocking from main app
+        if let selection = AppGroupManager.shared.loadDistractionSelection(),
+           !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty {
+          let workSelection = AppGroupManager.shared.loadWorkAppsSelection()
+          let workApps = workSelection?.applicationTokens ?? Set()
+          self.store.shield.applications = selection.applicationTokens.subtracting(workApps)
+          self.store.shield.applicationCategories = .specific(selection.categoryTokens, except: workApps)
+          AppGroupManager.shared.saveBlockingReason("test")
+          self.logger.info("Test blocking enabled with selection")
+        } else {
+          self.store.shield.applications = nil
+          self.store.shield.applicationCategories = .all()
+          AppGroupManager.shared.saveBlockingReason("test")
+          self.logger.info("Test blocking enabled (all categories)")
+        }
+
+        // Step 2: Register the schedule
         AppGroupManager.shared.saveTestScheduleInfo(endTime: endTime)
 
         do {
           try center.startMonitoring(activityName, during: schedule)
-          self.logger.info("Test schedule registered: duration=\(durationSeconds)s, endTime=\(endTime)")
+          let activities = center.activities.map { $0.rawValue }
+          self.logger.info("Test schedule registered OK. Active: \(activities)")
           promise.resolve([
             "success": true,
             "endTime": endTime.timeIntervalSince1970 * 1000,
-            "durationSeconds": durationSeconds
+            "durationSeconds": durationSeconds,
+            "blockingEnabled": true,
+            "startTime": "\(startComponents.hour!):\(startComponents.minute!)",
+            "endTimeStr": "\(endComponents.hour!):\(endComponents.minute!)",
+            "activeSchedules": activities
           ])
         } catch {
           self.logger.error("Failed to register test schedule: \(error.localizedDescription)")
-          promise.reject("SCHEDULE_ERROR", "Failed to register test schedule: \(error.localizedDescription)")
+          promise.resolve([
+            "success": true,
+            "endTime": endTime.timeIntervalSince1970 * 1000,
+            "durationSeconds": durationSeconds,
+            "blockingEnabled": true,
+            "scheduleError": error.localizedDescription
+          ])
         }
       } else {
         promise.reject("UNSUPPORTED", "Requires iOS 16.0+")
@@ -388,6 +424,191 @@ public class ScreenTimeModule: Module {
         promise.resolve(names)
       } else {
         promise.resolve([])
+      }
+    }
+
+    /// Get extension logs from App Group (for debugging)
+    AsyncFunction("getExtensionLogs") { (promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let logs = AppGroupManager.shared.readTestScheduleLogs()
+        promise.resolve(logs)
+      } else {
+        promise.resolve([])
+      }
+    }
+
+    /// Clear extension logs
+    AsyncFunction("clearExtensionLogs") { (promise: Promise) in
+      if #available(iOS 16.0, *) {
+        AppGroupManager.shared.clearTestScheduleLogs()
+        promise.resolve(nil)
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    /// Manually disable blocking (for testing)
+    AsyncFunction("forceDisableBlocking") { (promise: Promise) in
+      if #available(iOS 16.0, *) {
+        self.store.shield.applications = nil
+        self.store.shield.applicationCategories = nil
+        AppGroupManager.shared.clearBlockingReason()
+        self.logger.info("Force disabled blocking")
+        promise.resolve(nil)
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    // MARK: - Offline Automation: Pomodoro End Schedule
+
+    /// Register a one-shot schedule that fires when the pomodoro is expected to end.
+    /// The Extension's intervalDidEnd will read BlockingContext to decide what to do.
+    /// Rejects with INTERVAL_TOO_SHORT if remaining time < 15 minutes.
+    AsyncFunction("registerPomodoroEndSchedule") { (endTimeMs: Double, promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let endDate = Date(timeIntervalSince1970: endTimeMs / 1000.0)
+        let remaining = endDate.timeIntervalSince(Date())
+
+        if remaining < 15 * 60 {
+          promise.reject("INTERVAL_TOO_SHORT", "Remaining time (\(Int(remaining))s) is less than 15 minutes")
+          return
+        }
+
+        let center = DeviceActivityCenter()
+        let activityName = DeviceActivityName("pomodoroEnd")
+
+        center.stopMonitoring([activityName])
+
+        let calendar = Calendar.current
+        let startTime = Date().addingTimeInterval(-60) // 1 min in the past
+        let startComponents = calendar.dateComponents([.hour, .minute], from: startTime)
+        let endComponents = calendar.dateComponents([.hour, .minute], from: endDate)
+
+        // Cross-midnight detection: if start.hour > end.hour, this is a cross-midnight
+        // interval. DeviceActivitySchedule handles this the same way as sleepSchedule
+        // (e.g., 23:00→07:00), which has been verified to work correctly.
+        let crossesMidnight = startComponents.hour! > endComponents.hour!
+        if crossesMidnight {
+          self.logger.info("Pomodoro end schedule crosses midnight: \(startComponents.hour!):\(startComponents.minute!) → \(endComponents.hour!):\(endComponents.minute!)")
+        }
+
+        let schedule = DeviceActivitySchedule(
+          intervalStart: startComponents,
+          intervalEnd: endComponents,
+          repeats: false
+        )
+
+        AppGroupManager.shared.savePomodoroScheduleInfo(endTime: endDate)
+
+        do {
+          try center.startMonitoring(activityName, during: schedule)
+          self.logger.info("Pomodoro end schedule registered: \(endComponents.hour!):\(endComponents.minute!) (crossesMidnight=\(crossesMidnight))")
+          promise.resolve(nil)
+        } catch {
+          self.logger.error("Failed to register pomodoro end schedule: \(error.localizedDescription)")
+          AppGroupManager.shared.clearPomodoroScheduleInfo()
+          promise.reject("SCHEDULE_ERROR", "Failed to register pomodoro end schedule: \(error.localizedDescription)")
+        }
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    /// Cancel the pomodoro end schedule
+    AsyncFunction("cancelPomodoroEndSchedule") { (promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([DeviceActivityName("pomodoroEnd")])
+        AppGroupManager.shared.clearPomodoroScheduleInfo()
+        self.logger.info("Pomodoro end schedule cancelled")
+        promise.resolve(nil)
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    // MARK: - Offline Automation: Temp Unblock Expiry Schedule
+
+    /// Register a one-shot schedule that fires when the temp unblock expires.
+    /// Saves the restore reason so the Extension knows what blocking to re-enable.
+    /// Rejects with INTERVAL_TOO_SHORT if remaining time < 15 minutes.
+    AsyncFunction("registerTempUnblockExpirySchedule") { (endTimeMs: Double, restoreReason: String, promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let endDate = Date(timeIntervalSince1970: endTimeMs / 1000.0)
+        let remaining = endDate.timeIntervalSince(Date())
+
+        if remaining < 15 * 60 {
+          promise.reject("INTERVAL_TOO_SHORT", "Remaining time (\(Int(remaining))s) is less than 15 minutes")
+          return
+        }
+
+        let center = DeviceActivityCenter()
+        let activityName = DeviceActivityName("tempUnblockExpiry")
+
+        center.stopMonitoring([activityName])
+
+        let calendar = Calendar.current
+        let startTime = Date().addingTimeInterval(-60) // 1 min in the past
+        let startComponents = calendar.dateComponents([.hour, .minute], from: startTime)
+        let endComponents = calendar.dateComponents([.hour, .minute], from: endDate)
+
+        let crossesMidnight = startComponents.hour! > endComponents.hour!
+
+        let schedule = DeviceActivitySchedule(
+          intervalStart: startComponents,
+          intervalEnd: endComponents,
+          repeats: false
+        )
+
+        AppGroupManager.shared.saveReasonBeforeTempUnblock(restoreReason)
+        AppGroupManager.shared.saveTempUnblockScheduleInfo(endTime: endDate, restoreReason: restoreReason)
+
+        do {
+          try center.startMonitoring(activityName, during: schedule)
+          self.logger.info("Temp unblock expiry schedule registered: \(endComponents.hour!):\(endComponents.minute!), restore=\(restoreReason), crossesMidnight=\(crossesMidnight)")
+          promise.resolve(nil)
+        } catch {
+          self.logger.error("Failed to register temp unblock expiry schedule: \(error.localizedDescription)")
+          AppGroupManager.shared.clearTempUnblockScheduleInfo()
+          AppGroupManager.shared.clearReasonBeforeTempUnblock()
+          promise.reject("SCHEDULE_ERROR", "Failed to register temp unblock expiry schedule: \(error.localizedDescription)")
+        }
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    /// Cancel the temp unblock expiry schedule
+    AsyncFunction("cancelTempUnblockExpirySchedule") { (promise: Promise) in
+      if #available(iOS 16.0, *) {
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([DeviceActivityName("tempUnblockExpiry")])
+        AppGroupManager.shared.clearTempUnblockScheduleInfo()
+        AppGroupManager.shared.clearReasonBeforeTempUnblock()
+        self.logger.info("Temp unblock expiry schedule cancelled")
+        promise.resolve(nil)
+      } else {
+        promise.resolve(nil)
+      }
+    }
+
+    // MARK: - Offline Automation: Blocking Context
+
+    /// Update the shared BlockingContext in App Group for Extension to read.
+    /// Called from JS whenever blocking state is re-evaluated.
+    AsyncFunction("updateBlockingContext") { (contextJson: String, promise: Promise) in
+      if #available(iOS 16.0, *) {
+        guard let data = contextJson.data(using: .utf8),
+              let context = try? JSONDecoder().decode(AppGroupManager.BlockingContext.self, from: data) else {
+          promise.reject("INVALID_JSON", "Failed to parse BlockingContext JSON")
+          return
+        }
+        AppGroupManager.shared.saveBlockingContext(context)
+        self.logger.info("BlockingContext updated: reason=\(context.currentBlockingReason ?? "nil"), sleep=\(context.sleepScheduleActive), overRest=\(context.overRestActive)")
+        promise.resolve(nil)
+      } else {
+        promise.resolve(nil)
       }
     }
   }

@@ -9,7 +9,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ScreenTimeNative from '../../modules/screen-time';
-import type { SelectionSummary } from '../../modules/screen-time';
+import type { SelectionSummary, BlockingContext } from '../../modules/screen-time';
 import type { BlockingState, BlockingReason, AuthorizationStatus } from '@/types';
 
 // =============================================================================
@@ -105,6 +105,12 @@ export interface ScreenTimeService {
   persistBlockingState(state: BlockingState): Promise<void>;
   loadBlockingState(): Promise<BlockingState | null>;
   clearBlockingState(): Promise<void>;
+  // Offline automation
+  registerPomodoroEndSchedule(endTimeMs: number): Promise<boolean>;
+  cancelPomodoroEndSchedule(): Promise<void>;
+  registerTempUnblockExpirySchedule(endTimeMs: number, restoreReason: string): Promise<boolean>;
+  cancelTempUnblockExpirySchedule(): Promise<void>;
+  updateBlockingContext(context: BlockingContext): Promise<void>;
 }
 
 // =============================================================================
@@ -327,6 +333,86 @@ function createScreenTimeService(): ScreenTimeService {
         await AsyncStorage.removeItem(BLOCKING_STATE_KEY);
       } catch (error) {
         console.error('[ScreenTimeService] Failed to clear blocking state:', error);
+      }
+    },
+
+    // Offline automation
+
+    async registerPomodoroEndSchedule(endTimeMs: number): Promise<boolean> {
+      const remaining = endTimeMs - Date.now();
+      // D1: Use 15.5min threshold (30s margin) to avoid TOCTOU with Swift's 15min check
+      if (remaining < 15.5 * 60 * 1000) {
+        console.log(`[ScreenTimeService] Pomodoro end too soon (${Math.round(remaining / 1000)}s < 15.5min), skipping schedule`);
+        return false;
+      }
+      try {
+        if (useNative) {
+          await ScreenTimeNative.registerPomodoroEndSchedule(endTimeMs);
+        } else {
+          console.log(`[ScreenTimeService] Mock: registerPomodoroEndSchedule(${endTimeMs})`);
+        }
+        console.log(`[ScreenTimeService] Pomodoro end schedule registered, fires in ${Math.round(remaining / 1000)}s`);
+        return true;
+      } catch (error) {
+        console.warn('[ScreenTimeService] Failed to register pomodoro end schedule:', error);
+        return false;
+      }
+    },
+
+    async cancelPomodoroEndSchedule(): Promise<void> {
+      try {
+        if (useNative) {
+          await ScreenTimeNative.cancelPomodoroEndSchedule();
+        } else {
+          console.log('[ScreenTimeService] Mock: cancelPomodoroEndSchedule');
+        }
+      } catch (error) {
+        console.warn('[ScreenTimeService] Failed to cancel pomodoro end schedule:', error);
+      }
+    },
+
+    async registerTempUnblockExpirySchedule(endTimeMs: number, restoreReason: string): Promise<boolean> {
+      const remaining = endTimeMs - Date.now();
+      // D1: Use 15.5min threshold (30s margin) to avoid TOCTOU with Swift's 15min check
+      if (remaining < 15.5 * 60 * 1000) {
+        console.log(`[ScreenTimeService] Temp unblock expiry too soon (${Math.round(remaining / 1000)}s < 15.5min), skipping schedule`);
+        return false;
+      }
+      try {
+        if (useNative) {
+          await ScreenTimeNative.registerTempUnblockExpirySchedule(endTimeMs, restoreReason);
+        } else {
+          console.log(`[ScreenTimeService] Mock: registerTempUnblockExpirySchedule(${endTimeMs}, ${restoreReason})`);
+        }
+        console.log(`[ScreenTimeService] Temp unblock expiry schedule registered, fires in ${Math.round(remaining / 1000)}s, restore=${restoreReason}`);
+        return true;
+      } catch (error) {
+        console.warn('[ScreenTimeService] Failed to register temp unblock expiry schedule:', error);
+        return false;
+      }
+    },
+
+    async cancelTempUnblockExpirySchedule(): Promise<void> {
+      try {
+        if (useNative) {
+          await ScreenTimeNative.cancelTempUnblockExpirySchedule();
+        } else {
+          console.log('[ScreenTimeService] Mock: cancelTempUnblockExpirySchedule');
+        }
+      } catch (error) {
+        console.warn('[ScreenTimeService] Failed to cancel temp unblock expiry schedule:', error);
+      }
+    },
+
+    async updateBlockingContext(context: BlockingContext): Promise<void> {
+      try {
+        if (useNative) {
+          await ScreenTimeNative.updateBlockingContext(context);
+        } else {
+          console.log('[ScreenTimeService] Mock: updateBlockingContext', context);
+        }
+      } catch (error) {
+        console.warn('[ScreenTimeService] Failed to update blocking context:', error);
       }
     },
   };
