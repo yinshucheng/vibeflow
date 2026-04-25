@@ -80,13 +80,16 @@ const DEFAULT_RETRY_STRATEGY: RetryStrategy = {
 
 // Detect if running in development mode (consistent with main.ts logic)
 const isDevelopment = process.env.NODE_ENV === 'development' || (!app.isPackaged && process.env.NODE_ENV !== 'production');
+// If the server URL is explicitly HTTP, don't force HTTPS even in production.
+// This allows release builds to connect to HTTP dev/staging servers.
+const serverIsHttp = process.env.VIBEFLOW_SERVER_URL?.startsWith('http://') ?? false;
+const skipSecure = isDevelopment || serverIsHttp;
 
 // Default security configuration (Requirements: 9.4, 9.5, 9.6)
-// In development, disable secure connection to allow HTTP
 const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
-  useSecureConnection: !isDevelopment,
-  verifyCertificate: !isDevelopment,
-  rejectUnauthorized: !isDevelopment,
+  useSecureConnection: !skipSecure,
+  verifyCertificate: !skipSecure,
+  rejectUnauthorized: !skipSecure,
   minTLSVersion: 'TLSv1.2',
 };
 
