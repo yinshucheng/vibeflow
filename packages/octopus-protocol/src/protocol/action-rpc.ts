@@ -11,8 +11,8 @@ import type { UserActionType, ActionResultPayload } from '../types';
 export interface ActionRPCConfig {
   /** Timeout in ms (default 10000) */
   timeout?: number;
-  /** Send event function — provided by each client's transport layer */
-  sendEvent: (event: { eventType: 'USER_ACTION'; payload: { actionType: UserActionType; optimisticId: string; data: Record<string, unknown> } }) => void;
+  /** Send event function — provided by each client's transport layer. Return false if send failed (e.g., not connected) */
+  sendEvent: (event: { eventType: 'USER_ACTION'; payload: { actionType: UserActionType; optimisticId: string; data: Record<string, unknown> } }) => boolean | void;
 }
 
 function generateId(): string {
@@ -41,10 +41,17 @@ export function createActionRPC(config: ActionRPCConfig) {
 
         pending.set(optimisticId, { resolve, reject, timer });
 
-        config.sendEvent({
+        const sent = config.sendEvent({
           eventType: 'USER_ACTION',
           payload: { actionType, optimisticId, data },
         });
+
+        // If sendEvent returns false, fail immediately instead of waiting for timeout
+        if (sent === false) {
+          clearTimeout(timer);
+          pending.delete(optimisticId);
+          reject(new Error(`Not connected`));
+        }
       });
     },
 

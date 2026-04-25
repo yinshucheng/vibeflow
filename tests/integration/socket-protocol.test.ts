@@ -145,20 +145,22 @@ describe('Phase B2: Socket Protocol Compliance', () => {
   });
 
   // -----------------------------------------------------------------------
-  // broadcastHabitUpdate uses SYNC_STATE
+  // broadcastHabitUpdate uses DATA_CHANGE (not legacy habit:* events)
   // -----------------------------------------------------------------------
 
   describe('broadcastHabitUpdate', () => {
-    it('should use broadcastFullStateToUser instead of direct habit:* emits', () => {
+    it('should use broadcastDataChange instead of direct habit:* emits', () => {
       // Find the broadcastHabitUpdate method
       const methodMatch = socketSource.match(/async broadcastHabitUpdate[\s\S]*?console\.log[\s\S]*?\n\s*\}/);
       expect(methodMatch).toBeTruthy();
       const methodBody = methodMatch![0];
 
-      expect(methodBody).toContain('broadcastFullStateToUser');
-      expect(methodBody).not.toContain("'habit:created'");
-      expect(methodBody).not.toContain("'habit:updated'");
-      expect(methodBody).not.toContain("'habit:deleted'");
+      // Should use DATA_CHANGE via socketBroadcastService
+      expect(methodBody).toContain('socketBroadcastService.broadcastDataChange');
+      // Should NOT emit legacy habit:* events directly
+      expect(methodBody).not.toContain(".emit('habit:created'");
+      expect(methodBody).not.toContain(".emit('habit:updated'");
+      expect(methodBody).not.toContain(".emit('habit:deleted'");
     });
   });
 

@@ -36,6 +36,7 @@ import { focusSessionService } from '@/services/focus-session.service';
 import { habitReminderService } from '@/services/habit-reminder.service';
 import { habitService } from '@/services/habit.service';
 import { taskService } from '@/services/task.service';
+import { socketBroadcastService } from '@/services/socket-broadcast.service';
 import { socketRateLimiter } from '@/middleware/rate-limit.middleware';
 import {
   // Types
@@ -1777,9 +1778,13 @@ export class VibeFlowSocketServer {
    * Broadcast a full state snapshot to all of a user's connected clients
    */
   private async broadcastFullStateToUser(userId: string): Promise<void> {
-    if (!this.io) return;
+    if (!this.io) {
+      console.log(`[Socket.io] broadcastFullStateToUser: io not initialized for user ${userId}`);
+      return;
+    }
     const userRoom = `user:${userId}`;
     const sockets = await this.io.in(userRoom).fetchSockets();
+    console.log(`[Socket.io] broadcastFullStateToUser: ${sockets.length} sockets in room for user ${userId}`);
     for (const socket of sockets) {
       await this.sendStateSnapshotToSocket(socket as unknown as Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>);
     }
@@ -1988,6 +1993,7 @@ export class VibeFlowSocketServer {
       };
 
       socket.emit('OCTOPUS_COMMAND', syncStateCommand);
+      console.log(`[Socket.io] SYNC_STATE sent to ${socket.id}, systemState=${systemState}, activePomodoro=${activePomodoro?.id ?? 'null'}`);
     } catch (error) {
       console.error('[Socket.io] Error sending state snapshot:', error);
     }
@@ -2101,15 +2107,45 @@ export class VibeFlowSocketServer {
 
   /**
    * Broadcast habit update to all of a user's connected clients.
-   * Uses SYNC_STATE full sync via OCTOPUS_COMMAND (no legacy habit:* events).
+   * Uses DATA_CHANGE notification so clients can refetch habit data.
    */
   async broadcastHabitUpdate(userId: string, payload: HabitBroadcastPayload): Promise<void> {
     if (!this.io) return;
 
-    // Trigger full state sync — clients refresh habit data via their own data layer
-    await this.broadcastFullStateToUser(userId);
+    // Map payload type to DATA_CHANGE action and extract IDs
+    let action: 'create' | 'update' | 'delete';
+    let ids: string[] = [];
 
-    console.log(`[Socket.io] Broadcast habit update via SYNC_STATE to user ${userId}: ${payload.type}`);
+    switch (payload.type) {
+      case 'habit:created':
+        action = 'create';
+        ids = payload.habit?.id ? [payload.habit.id as string] : [];
+        break;
+      case 'habit:updated':
+        action = 'update';
+        ids = payload.habit?.id ? [payload.habit.id as string] : [];
+        break;
+      case 'habit:deleted':
+        action = 'delete';
+        ids = payload.habitId ? [payload.habitId] : [];
+        break;
+      case 'habit:entry_updated':
+        action = 'update';
+        // Handle both entry_updated variants: { entry: {...} } or { habitId, date }
+        if ('entry' in payload && payload.entry) {
+          ids = payload.entry.habitId ? [payload.entry.habitId as string] : [];
+        } else if ('habitId' in payload && payload.habitId) {
+          ids = [payload.habitId];
+        }
+        break;
+      default:
+        action = 'update';
+    }
+
+    // Broadcast DATA_CHANGE for habit entity
+    socketBroadcastService.broadcastDataChange(userId, 'habit', action, ids);
+
+    console.log(`[Socket.io] Broadcast habit DATA_CHANGE to user ${userId}: ${payload.type}, ids=${ids.join(',')}`);
   }
 
   /**

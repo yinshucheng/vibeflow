@@ -69,6 +69,7 @@ export function createStateManager(config: StateManagerConfig) {
 
     /** Handle SYNC_STATE command — full sync overwrites local state */
     handleSync(payload: SyncStatePayload): void {
+      console.log('[StateManager] handleSync called, payload.state:', !!payload.state);
       if (!payload.state) return;
 
       const changedKeys: (keyof StateSnapshot)[] = [];
@@ -89,11 +90,15 @@ export function createStateManager(config: StateManagerConfig) {
       if (newState.top3Tasks !== state.top3Tasks) changedKeys.push('top3Tasks');
       if (newState.settings !== state.settings) changedKeys.push('settings');
 
+      console.log('[StateManager] handleSync changedKeys:', changedKeys, 'old activePomodoro:', state.activePomodoro?.id, 'new:', newState.activePomodoro?.id);
+
       state = newState;
       fullSyncReceived = true;
 
       if (changedKeys.length > 0) {
         config.onStateChange(state, changedKeys);
+      } else {
+        console.log('[StateManager] handleSync: no changes detected, skipping onStateChange');
       }
       config.saveToStorage?.(state);
     },

@@ -38,9 +38,10 @@ export function registerStateEnginePolicyBroadcaster(broadcaster: PolicyUpdateBr
 export async function broadcastFullState(userId: string): Promise<void> {
   const { fullState } = getState();
   if (fullState) {
+    console.log(`[StateEngine] broadcastFullState called for user ${userId}`);
     await fullState(userId);
   } else {
-    console.log(`[StateEngine] broadcastFullState queued (server not ready): ${userId}`);
+    console.log(`[StateEngine] broadcastFullState: broadcaster NOT registered! user=${userId}`);
   }
 }
 
