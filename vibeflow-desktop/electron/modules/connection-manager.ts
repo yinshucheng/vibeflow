@@ -118,8 +118,8 @@ interface ConnectionState {
   policyVersion: number | null;
   /** Event sequence number */
   sequenceNumber: number;
-  /** Auth token for API token authentication */
-  authToken: string | null;
+  /** Session cookie header for cookie-based authentication */
+  sessionCookie: string | null;
 }
 
 // Certificate information (Requirements: 9.5, 9.6)
@@ -207,6 +207,7 @@ class ConnectionManager {
   private executeCommandHandlers: Set<ExecuteCommandHandler> = new Set();
   private socket: Socket | null = null;
   private startTime: number = Date.now();
+  private cookieProvider: (() => Promise<string | null>) | null = null;
 
   // SDK state manager — tracks local state snapshot for main process consumers
   private stateManager = createStateManager({
@@ -272,7 +273,7 @@ class ConnectionManager {
       userId: null,
       policyVersion: null,
       sequenceNumber: 0,
-      authToken: null,
+      sessionCookie: null,
     };
   }
 
@@ -417,11 +418,11 @@ class ConnectionManager {
   }
 
   /**
-   * Set auth token for API token authentication.
-   * When set, Socket.io auth payload uses token instead of email.
+   * Set a cookie provider that returns the latest session cookie header.
+   * Called before each socket connection to get fresh cookies.
    */
-  setAuthToken(token: string): void {
-    this.state.authToken = token;
+  setCookieProvider(provider: () => Promise<string | null>): void {
+    this.cookieProvider = provider;
   }
 
   /**
@@ -621,26 +622,33 @@ class ConnectionManager {
     try {
       const serverUrl = this.getSecureUrl(this.config.serverUrl);
 
-      // Build auth payload — use token when available, fall back to email for dev mode
+      // Re-read cookie from provider on each connection attempt (may have been refreshed)
+      if (this.cookieProvider) {
+        this.state.sessionCookie = await this.cookieProvider();
+      }
+
       const auth: Record<string, string | undefined> = {
         clientType: 'desktop',
         userId: this.state.userId ?? undefined,
       };
 
-      if (this.state.authToken) {
-        auth.token = this.state.authToken;
+      // Build socket options — pass session cookie via extraHeaders
+      // so the server authenticates via the same cookie path as Web clients
+      const socketOptions: Parameters<typeof io>[1] = {
+        transports: ['websocket', 'polling'],
+        reconnection: false,
+        timeout: 10000,
+        autoConnect: false,
+        auth,
+      };
+
+      if (this.state.sessionCookie) {
+        socketOptions.extraHeaders = { Cookie: this.state.sessionCookie };
       } else {
-        console.warn('[ConnectionManager] No auth token available — connection may fail');
+        console.warn('[ConnectionManager] No session cookie — connection may fail');
       }
 
-      // Create Socket.io connection with autoConnect: false to avoid race condition
-      this.socket = io(serverUrl, {
-        transports: ['websocket', 'polling'],
-        reconnection: false, // We handle reconnection ourselves
-        timeout: 10000,
-        autoConnect: false, // Don't connect until handlers are set up
-        auth,
-      });
+      this.socket = io(serverUrl, socketOptions);
 
       // Set up socket event handlers BEFORE connecting
       this.setupSocketHandlers();

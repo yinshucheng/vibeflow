@@ -1043,7 +1043,7 @@ function setupIpcHandlers(): void {
     try {
       return getAuthManager().getState();
     } catch {
-      return { isAuthenticated: false, token: null, userId: null, email: null };
+      return { isAuthenticated: false, userId: null, email: null };
     }
   });
 
@@ -1126,35 +1126,33 @@ app.whenReady().then(async () => {
     connectionManager.setMainWindow(mainWindow);
   }
 
-  // Initialize auth manager and authenticate before connecting
+  // Initialize auth manager and authenticate before connecting (cookie-based)
   const authManager = initializeAuthManager({ serverUrl: config.serverUrl, isRemoteMode });
   let isAuthenticated = false;
 
-  if (authManager.getToken()) {
-    // Validate the stored token
-    console.log('[Main] Validating stored auth token…');
-    isAuthenticated = await authManager.validateToken();
+  const hasCookie = await authManager.getSessionCookieHeader();
+  if (hasCookie) {
+    console.log('[Main] Found session cookie, validating session…');
+    isAuthenticated = await authManager.validateSession();
   }
 
   if (!isAuthenticated) {
-    // Production: open login window to get a proper API token
-    console.log('[Main] No valid token, opening login window…');
+    console.log('[Main] No valid session, opening login window…');
     isAuthenticated = await authManager.openLoginWindow();
   }
 
   if (isAuthenticated) {
-    // Provide token and userId to connection manager
     const authState = authManager.getState();
     if (authState.userId) {
       connectionManager.setUserId(authState.userId);
     }
-    if (authState.token) {
-      connectionManager.setAuthToken(authState.token);
-    }
     console.log('[Main] Authenticated as:', authState.email);
   } else {
-    console.log('[Main] No auth token — socket will use email fallback');
+    console.log('[Main] No valid session — socket connection may fail');
   }
+
+  // Cookie provider: ConnectionManager re-reads the latest cookie on each connect/reconnect
+  connectionManager.setCookieProvider(() => authManager.getSessionCookieHeader());
 
   // Start connection monitoring
   connectionManager.connect();

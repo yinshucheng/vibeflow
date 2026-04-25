@@ -1,7 +1,7 @@
 /**
  * Unit tests for AuthManager
  *
- * Tests the auth lifecycle: token storage, validation, login window,
+ * Tests the auth lifecycle: session cookie validation, login window,
  * and logout. Uses a mock class to avoid Electron/network dependencies.
  */
 
@@ -13,7 +13,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 interface AuthState {
   isAuthenticated: boolean;
-  token: string | null;
   userId: string | null;
   email: string | null;
 }
@@ -29,23 +28,18 @@ class MockAuthManager {
   private store: Map<string, string | null> = new Map();
   private listeners = new Set<AuthChangeHandler>();
 
-  /** Configurable validation result for testing */
-  public mockValidationResult: { valid: boolean; user?: { id: string; email: string } } | null =
-    null;
+  /** Configurable session validation result for testing */
+  public mockSessionResult: { user?: { id?: string; email?: string } } | null = null;
 
   /** Configurable login result for testing */
   public mockLoginResult = true;
 
-  /** Configurable token acquisition result for testing */
-  public mockTokenAcquisitionResult: {
-    token: string;
-    user?: { id: string; email: string };
-  } | null = null;
+  /** Simulated session cookie header */
+  public mockCookieHeader: string | null = null;
 
   constructor() {
     this.state = {
       isAuthenticated: false,
-      token: this.store.get('authToken') ?? null,
       userId: this.store.get('authUserId') ?? null,
       email: this.store.get('authEmail') ?? null,
     };
@@ -55,8 +49,8 @@ class MockAuthManager {
     return { ...this.state };
   }
 
-  getToken(): string | null {
-    return this.state.token;
+  async getSessionCookieHeader(): Promise<string | null> {
+    return this.mockCookieHeader;
   }
 
   onAuthChange(handler: AuthChangeHandler): () => void {
@@ -64,37 +58,31 @@ class MockAuthManager {
     return () => this.listeners.delete(handler);
   }
 
-  async validateToken(): Promise<boolean> {
-    if (!this.state.token) {
+  async validateSession(): Promise<boolean> {
+    if (!this.mockCookieHeader) {
       this.updateState({ isAuthenticated: false });
       return false;
     }
 
-    if (this.mockValidationResult) {
-      if (this.mockValidationResult.valid && this.mockValidationResult.user) {
-        this.updateState({
-          isAuthenticated: true,
-          userId: this.mockValidationResult.user.id,
-          email: this.mockValidationResult.user.email,
-        });
-        return true;
-      }
-      this.clearAuth();
-      return false;
+    if (this.mockSessionResult?.user?.email) {
+      this.updateState({
+        isAuthenticated: true,
+        userId: this.mockSessionResult.user.id ?? null,
+        email: this.mockSessionResult.user.email,
+      });
+      return true;
     }
 
-    // Default: token is valid
-    this.updateState({ isAuthenticated: true });
-    return true;
+    this.clearAuth();
+    return false;
   }
 
   async openLoginWindow(): Promise<boolean> {
-    if (this.mockLoginResult && this.mockTokenAcquisitionResult) {
+    if (this.mockLoginResult && this.mockSessionResult?.user?.email) {
       this.updateState({
         isAuthenticated: true,
-        token: this.mockTokenAcquisitionResult.token,
-        userId: this.mockTokenAcquisitionResult.user?.id ?? null,
-        email: this.mockTokenAcquisitionResult.user?.email ?? null,
+        userId: this.mockSessionResult.user.id ?? null,
+        email: this.mockSessionResult.user.email,
       });
       return true;
     }
@@ -102,6 +90,7 @@ class MockAuthManager {
   }
 
   async logout(): Promise<void> {
+    this.mockCookieHeader = null;
     this.clearAuth();
   }
 
@@ -111,12 +100,11 @@ class MockAuthManager {
 
   // --- helpers ---
 
-  /** Simulate setting a stored token (as if restored from electron-store) */
-  setStoredToken(token: string, userId?: string, email?: string): void {
-    this.state.token = token;
+  /** Simulate a valid session cookie being present */
+  setSessionCookie(cookie: string, userId?: string, email?: string): void {
+    this.mockCookieHeader = cookie;
     this.state.userId = userId ?? null;
     this.state.email = email ?? null;
-    this.store.set('authToken', token);
     this.store.set('authUserId', userId ?? null);
     this.store.set('authEmail', email ?? null);
   }
@@ -124,7 +112,6 @@ class MockAuthManager {
   private clearAuth(): void {
     this.updateState({
       isAuthenticated: false,
-      token: null,
       userId: null,
       email: null,
     });
@@ -132,7 +119,6 @@ class MockAuthManager {
 
   private updateState(partial: Partial<AuthState>): void {
     this.state = { ...this.state, ...partial };
-    this.store.set('authToken', this.state.token);
     this.store.set('authUserId', this.state.userId);
     this.store.set('authEmail', this.state.email);
 
@@ -140,7 +126,7 @@ class MockAuthManager {
     this.listeners.forEach((handler) => {
       try {
         handler(snapshot);
-      } catch (error) {
+      } catch {
         // silently ignore
       }
     });
@@ -159,34 +145,32 @@ describe('AuthManager', () => {
   });
 
   describe('initial state', () => {
-    it('starts unauthenticated with no token', () => {
+    it('starts unauthenticated', () => {
       const state = authManager.getState();
       expect(state.isAuthenticated).toBe(false);
-      expect(state.token).toBeNull();
       expect(state.userId).toBeNull();
       expect(state.email).toBeNull();
     });
 
-    it('getToken returns null when no token stored', () => {
-      expect(authManager.getToken()).toBeNull();
+    it('getSessionCookieHeader returns null when no cookie', async () => {
+      expect(await authManager.getSessionCookieHeader()).toBeNull();
     });
   });
 
-  describe('validateToken', () => {
-    it('returns false when no token is stored', async () => {
-      const valid = await authManager.validateToken();
+  describe('validateSession', () => {
+    it('returns false when no session cookie exists', async () => {
+      const valid = await authManager.validateSession();
       expect(valid).toBe(false);
       expect(authManager.getState().isAuthenticated).toBe(false);
     });
 
-    it('returns true and marks authenticated when token is valid', async () => {
-      authManager.setStoredToken('vf_test_token_123');
-      authManager.mockValidationResult = {
-        valid: true,
+    it('returns true and marks authenticated when session is valid', async () => {
+      authManager.setSessionCookie('next-auth.session-token=abc123');
+      authManager.mockSessionResult = {
         user: { id: 'user-1', email: 'test@example.com' },
       };
 
-      const valid = await authManager.validateToken();
+      const valid = await authManager.validateSession();
       expect(valid).toBe(true);
 
       const state = authManager.getState();
@@ -195,24 +179,22 @@ describe('AuthManager', () => {
       expect(state.email).toBe('test@example.com');
     });
 
-    it('clears auth and returns false when token is invalid', async () => {
-      authManager.setStoredToken('vf_expired_token');
-      authManager.mockValidationResult = { valid: false };
+    it('clears auth and returns false when session is expired', async () => {
+      authManager.setSessionCookie('next-auth.session-token=expired');
+      authManager.mockSessionResult = { user: {} };
 
-      const valid = await authManager.validateToken();
+      const valid = await authManager.validateSession();
       expect(valid).toBe(false);
 
       const state = authManager.getState();
       expect(state.isAuthenticated).toBe(false);
-      expect(state.token).toBeNull();
     });
   });
 
   describe('openLoginWindow', () => {
     it('returns true and sets state when login succeeds', async () => {
       authManager.mockLoginResult = true;
-      authManager.mockTokenAcquisitionResult = {
-        token: 'vf_new_token',
+      authManager.mockSessionResult = {
         user: { id: 'user-2', email: 'new@example.com' },
       };
 
@@ -221,7 +203,6 @@ describe('AuthManager', () => {
 
       const state = authManager.getState();
       expect(state.isAuthenticated).toBe(true);
-      expect(state.token).toBe('vf_new_token');
       expect(state.userId).toBe('user-2');
       expect(state.email).toBe('new@example.com');
     });
@@ -236,22 +217,21 @@ describe('AuthManager', () => {
   });
 
   describe('logout', () => {
-    it('clears auth state', async () => {
-      authManager.setStoredToken('vf_token');
-      authManager.mockValidationResult = {
-        valid: true,
+    it('clears auth state and cookie', async () => {
+      authManager.setSessionCookie('next-auth.session-token=abc');
+      authManager.mockSessionResult = {
         user: { id: 'user-1', email: 'test@example.com' },
       };
-      await authManager.validateToken();
+      await authManager.validateSession();
       expect(authManager.getState().isAuthenticated).toBe(true);
 
       await authManager.logout();
 
       const state = authManager.getState();
       expect(state.isAuthenticated).toBe(false);
-      expect(state.token).toBeNull();
       expect(state.userId).toBeNull();
       expect(state.email).toBeNull();
+      expect(await authManager.getSessionCookieHeader()).toBeNull();
     });
   });
 
@@ -260,12 +240,11 @@ describe('AuthManager', () => {
       const handler = vi.fn();
       authManager.onAuthChange(handler);
 
-      authManager.setStoredToken('vf_token');
-      authManager.mockValidationResult = {
-        valid: true,
+      authManager.setSessionCookie('next-auth.session-token=abc');
+      authManager.mockSessionResult = {
         user: { id: 'user-1', email: 'test@example.com' },
       };
-      await authManager.validateToken();
+      await authManager.validateSession();
 
       expect(handler).toHaveBeenCalled();
       const lastCall = handler.mock.calls[handler.mock.calls.length - 1][0] as AuthState;
@@ -279,11 +258,12 @@ describe('AuthManager', () => {
 
       unsubscribe();
 
-      authManager.setStoredToken('vf_token');
-      await authManager.validateToken();
+      authManager.setSessionCookie('next-auth.session-token=abc');
+      authManager.mockSessionResult = {
+        user: { id: 'user-1', email: 'test@example.com' },
+      };
+      await authManager.validateSession();
 
-      // Handler should not have been called (the validateToken call
-      // triggers updateState, but we unsubscribed before)
       expect(handler).not.toHaveBeenCalled();
     });
 
@@ -296,10 +276,12 @@ describe('AuthManager', () => {
       authManager.onAuthChange(badHandler);
       authManager.onAuthChange(goodHandler);
 
-      authManager.setStoredToken('vf_token');
-      await authManager.validateToken();
+      authManager.setSessionCookie('next-auth.session-token=abc');
+      authManager.mockSessionResult = {
+        user: { id: 'user-1', email: 'test@example.com' },
+      };
+      await authManager.validateSession();
 
-      // Both handlers called; error from badHandler did not prevent goodHandler
       expect(badHandler).toHaveBeenCalled();
       expect(goodHandler).toHaveBeenCalled();
     });
@@ -311,51 +293,49 @@ describe('AuthManager', () => {
       authManager.onAuthChange(handler);
       authManager.destroy();
 
-      authManager.setStoredToken('vf_token');
-      await authManager.validateToken();
+      authManager.setSessionCookie('next-auth.session-token=abc');
+      authManager.mockSessionResult = {
+        user: { id: 'user-1', email: 'test@example.com' },
+      };
+      await authManager.validateSession();
 
       expect(handler).not.toHaveBeenCalled();
     });
   });
 });
 
-describe('ConnectionManager auth token integration', () => {
-  it('uses token in socket auth when authToken is set', () => {
-    // Simulate the auth payload construction logic from connection-manager.ts
-    const state = { userId: 'user-1', authToken: 'vf_test_token' };
+describe('ConnectionManager cookie auth integration', () => {
+  it('passes cookie via extraHeaders when session cookie is set', () => {
+    const state = { userId: 'user-1', sessionCookie: 'next-auth.session-token=abc123' };
 
     const auth: Record<string, string | undefined> = {
       clientType: 'desktop',
       userId: state.userId,
     };
 
-    if (state.authToken) {
-      auth.token = state.authToken;
-    } else {
-      auth.email = 'dev@vibeflow.local';
+    const extraHeaders: Record<string, string> = {};
+    if (state.sessionCookie) {
+      extraHeaders['Cookie'] = state.sessionCookie;
     }
 
-    expect(auth.token).toBe('vf_test_token');
-    expect(auth.email).toBeUndefined();
+    expect(extraHeaders['Cookie']).toBe('next-auth.session-token=abc123');
     expect(auth.clientType).toBe('desktop');
     expect(auth.userId).toBe('user-1');
   });
 
-  it('falls back to email when no authToken is set', () => {
-    const state = { userId: null, authToken: null };
+  it('has no Cookie header when no session cookie is set', () => {
+    const state = { userId: null, sessionCookie: null };
 
     const auth: Record<string, string | null | undefined> = {
       clientType: 'desktop',
       userId: state.userId ?? undefined,
     };
 
-    if (state.authToken) {
-      auth.token = state.authToken;
-    } else {
-      auth.email = 'dev@vibeflow.local';
+    const extraHeaders: Record<string, string> = {};
+    if (state.sessionCookie) {
+      extraHeaders['Cookie'] = state.sessionCookie;
     }
 
-    expect(auth.token).toBeUndefined();
-    expect(auth.email).toBe('dev@vibeflow.local');
+    expect(extraHeaders['Cookie']).toBeUndefined();
   });
 });

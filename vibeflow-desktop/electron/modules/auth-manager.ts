@@ -2,15 +2,15 @@
  * Auth Manager Module
  *
  * Manages authentication state for the VibeFlow desktop client:
- * - Token storage/retrieval via electron-store
- * - Token validation against the server
+ * - Session cookie management via Electron's session store
+ * - Session validation against the server
  * - Login window management (loads Web /login page in a BrowserWindow)
- * - Token acquisition after login via POST /api/auth/token
  *
  * Design: Desktop reuses the Web login page inside a BrowserWindow.
- * After successful login, it calls POST /api/auth/token (with the
- * session cookie set by NextAuth) to obtain a long-lived API token,
- * which is persisted locally for subsequent launches.
+ * After successful login, NextAuth sets a session cookie in the
+ * BrowserWindow's session. The main process reads this cookie and
+ * passes it to the ConnectionManager via extraHeaders for WebSocket auth.
+ * This is the same auth path as the Web client — no API token needed.
  */
 
 import { BrowserWindow, session } from 'electron';
@@ -23,8 +23,6 @@ import Store from 'electron-store';
 export interface AuthState {
   /** Whether the user is authenticated */
   isAuthenticated: boolean;
-  /** The API token (vf_xxx format) */
-  token: string | null;
   /** User ID from the server */
   userId: string | null;
   /** User email from the server */
@@ -41,7 +39,6 @@ export interface AuthManagerConfig {
 }
 
 interface AuthStoreSchema {
-  authToken: string | null;
   authUserId: string | null;
   authEmail: string | null;
 }
@@ -63,16 +60,14 @@ class AuthManager {
     this.store = new Store<AuthStoreSchema>({
       name: 'vibeflow-auth',
       defaults: {
-        authToken: null,
         authUserId: null,
         authEmail: null,
       },
     });
 
-    // Restore persisted auth state
+    // Restore persisted auth state (userId/email for display; actual credential is the session cookie)
     this.state = {
       isAuthenticated: false,
-      token: this.store.get('authToken') ?? null,
       userId: this.store.get('authUserId') ?? null,
       email: this.store.get('authEmail') ?? null,
     };
@@ -82,80 +77,83 @@ class AuthManager {
   // Public API
   // -----------------------------------------------------------------------
 
-  /**
-   * Get the current auth state (snapshot).
-   */
   getState(): AuthState {
     return { ...this.state };
   }
 
   /**
-   * Get the stored token (for use by ConnectionManager).
+   * Read the NextAuth session cookie from Electron's session store.
+   * Returns the full cookie header string, or null if no session cookie exists.
    */
-  getToken(): string | null {
-    return this.state.token;
+  async getSessionCookieHeader(): Promise<string | null> {
+    try {
+      const cookies = await session.defaultSession.cookies.get({
+        url: this.config.serverUrl,
+      });
+
+      const hasSessionToken = cookies.some(
+        (c) => c.name === 'next-auth.session-token' || c.name === '__Secure-next-auth.session-token'
+      );
+
+      if (!hasSessionToken) return null;
+
+      return cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+    } catch {
+      return null;
+    }
   }
 
-  /**
-   * Subscribe to auth state changes. Returns an unsubscribe function.
-   */
   onAuthChange(handler: AuthChangeHandler): () => void {
     this.listeners.add(handler);
     return () => this.listeners.delete(handler);
   }
 
   /**
-   * Validate the stored token against the server.
-   * If valid, marks as authenticated. Otherwise clears stored token.
-   *
-   * Returns `true` if the token is valid.
+   * Validate the session cookie against the server.
+   * Calls GET /api/auth/session with the cookie to check if the session is valid.
    */
-  async validateToken(): Promise<boolean> {
-    const token = this.state.token;
-    if (!token) {
+  async validateSession(): Promise<boolean> {
+    const cookieHeader = await this.getSessionCookieHeader();
+    if (!cookieHeader) {
       this.updateState({ isAuthenticated: false });
       return false;
     }
 
     try {
-      const response = await fetch(`${this.config.serverUrl}/api/auth/token`, {
+      const response = await fetch(`${this.config.serverUrl}/api/auth/session`, {
         method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Cookie: cookieHeader },
       });
 
       if (response.ok) {
         const data = (await response.json()) as {
-          valid: boolean;
-          user?: { id: string; email: string };
+          user?: { id?: string; name?: string; email?: string; image?: string };
         };
 
-        if (data.valid && data.user) {
+        if (data?.user?.email) {
           this.updateState({
             isAuthenticated: true,
-            token,
-            userId: data.user.id,
+            userId: data.user.id ?? null,
             email: data.user.email,
           });
           return true;
         }
       }
 
-      // Token invalid — clear it
       this.clearAuth();
       return false;
     } catch {
-      // Network error — keep the token but don't mark authenticated yet.
-      // The connection manager's retry logic will handle reconnection.
-      console.warn('[AuthManager] Token validation failed (network error), keeping token');
+      // Network error — cookie exists in Electron session, try to connect anyway.
+      // The server will validate the cookie on WebSocket handshake.
+      console.warn('[AuthManager] Session validation failed (network error), will try socket connect');
       return false;
     }
   }
 
   /**
    * Open a BrowserWindow with the web login page.
-   *
-   * Resolves with `true` when the user successfully logs in and we
-   * acquire an API token, or `false` if the window is closed without login.
+   * After login, NextAuth sets the session cookie in the BrowserWindow's session.
+   * We then validate the session to capture user info.
    */
   openLoginWindow(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -184,19 +182,17 @@ class AuthManager {
       const loginUrl = `${this.config.serverUrl}/login`;
       this.loginWindow.loadURL(loginUrl);
 
-      // Watch for navigation to the main page (indicates successful login)
+      // Watch for navigation away from /login (indicates successful login)
       this.loginWindow.webContents.on('did-navigate', async (_event, url) => {
         const parsed = new URL(url);
-        // After login the page redirects to "/" (or the callbackUrl).
-        // If we're no longer on /login or /register, login succeeded.
         if (
           parsed.pathname !== '/login' &&
           parsed.pathname !== '/register' &&
           !parsed.pathname.startsWith('/api/auth')
         ) {
-          console.log('[AuthManager] Login succeeded, acquiring API token…');
-          const tokenAcquired = await this.acquireTokenFromSession();
-          if (tokenAcquired) {
+          console.log('[AuthManager] Login succeeded, validating session…');
+          const sessionValid = await this.validateSession();
+          if (sessionValid) {
             this.closeLoginWindow();
             resolve(true);
           }
@@ -205,7 +201,6 @@ class AuthManager {
 
       this.loginWindow.on('closed', () => {
         this.loginWindow = null;
-        // If we still don't have a token, resolve as failure
         if (!this.state.isAuthenticated) {
           resolve(false);
         }
@@ -214,28 +209,20 @@ class AuthManager {
   }
 
   /**
-   * Log out: revoke the token on the server, clear local storage.
+   * Log out: clear the session cookies from Electron's session store.
    */
   async logout(): Promise<void> {
-    const token = this.state.token;
-
-    if (token) {
-      try {
-        await fetch(`${this.config.serverUrl}/api/auth/token`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch {
-        // Best-effort revocation — ignore network errors
-      }
+    try {
+      const serverUrl = this.config.serverUrl;
+      await session.defaultSession.cookies.remove(serverUrl, 'next-auth.session-token');
+      await session.defaultSession.cookies.remove(serverUrl, '__Secure-next-auth.session-token');
+    } catch {
+      // Best-effort
     }
 
     this.clearAuth();
   }
 
-  /**
-   * Clean up resources.
-   */
   destroy(): void {
     this.closeLoginWindow();
     this.listeners.clear();
@@ -244,53 +231,6 @@ class AuthManager {
   // -----------------------------------------------------------------------
   // Internals
   // -----------------------------------------------------------------------
-
-  /**
-   * After Web login succeeds (NextAuth cookie is set in the BrowserWindow
-   * session), call POST /api/auth/token with that cookie to get an API token.
-   */
-  private async acquireTokenFromSession(): Promise<boolean> {
-    try {
-      // Read cookies from the login window's session
-      const cookies = await session.defaultSession.cookies.get({
-        url: this.config.serverUrl,
-      });
-
-      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
-
-      const response = await fetch(`${this.config.serverUrl}/api/auth/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Cookie: cookieHeader,
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (response.ok) {
-        const data = (await response.json()) as {
-          token: string;
-          expiresAt: string;
-          user?: { id: string; email: string };
-        };
-
-        this.updateState({
-          isAuthenticated: true,
-          token: data.token,
-          userId: data.user?.id ?? null,
-          email: data.user?.email ?? null,
-        });
-
-        return true;
-      }
-
-      console.error('[AuthManager] Failed to acquire token, status:', response.status);
-      return false;
-    } catch (error) {
-      console.error('[AuthManager] Failed to acquire token:', error);
-      return false;
-    }
-  }
 
   private closeLoginWindow(): void {
     if (this.loginWindow && !this.loginWindow.isDestroyed()) {
@@ -302,7 +242,6 @@ class AuthManager {
   private clearAuth(): void {
     this.updateState({
       isAuthenticated: false,
-      token: null,
       userId: null,
       email: null,
     });
@@ -311,12 +250,9 @@ class AuthManager {
   private updateState(partial: Partial<AuthState>): void {
     this.state = { ...this.state, ...partial };
 
-    // Persist token data
-    this.store.set('authToken', this.state.token);
     this.store.set('authUserId', this.state.userId);
     this.store.set('authEmail', this.state.email);
 
-    // Notify listeners
     const snapshot = { ...this.state };
     this.listeners.forEach((handler) => {
       try {
@@ -334,9 +270,6 @@ class AuthManager {
 
 let authManager: AuthManager | null = null;
 
-/**
- * Initialize the AuthManager singleton. Must be called before getAuthManager.
- */
 export function initializeAuthManager(config: AuthManagerConfig): AuthManager {
   if (authManager) {
     authManager.destroy();
@@ -345,9 +278,6 @@ export function initializeAuthManager(config: AuthManagerConfig): AuthManager {
   return authManager;
 }
 
-/**
- * Get the AuthManager singleton.
- */
 export function getAuthManager(): AuthManager {
   if (!authManager) {
     throw new Error('[AuthManager] Not initialized. Call initializeAuthManager() first.');
@@ -355,9 +285,6 @@ export function getAuthManager(): AuthManager {
   return authManager;
 }
 
-/**
- * Reset (for testing).
- */
 export function resetAuthManager(): void {
   if (authManager) {
     authManager.destroy();
