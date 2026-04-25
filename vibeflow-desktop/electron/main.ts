@@ -407,6 +407,11 @@ function stopPomodoroCountdown(): void {
     clearInterval(pomodoroCountdown.timerId);
   }
   pomodoroCountdown = null;
+  updateTrayMenu({
+    pomodoroActive: false,
+    pomodoroTimeRemaining: undefined,
+    currentTask: undefined,
+  });
   console.log('[Main] Pomodoro countdown stopped');
 }
 
