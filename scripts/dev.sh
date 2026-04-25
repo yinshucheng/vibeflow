@@ -222,18 +222,52 @@ start_web() {
 start_desktop() {
     local server_url="$1"
     local bg="${2:-}"
+    local mode="${3:-dev}"  # dev | release
     local log_file="$LOG_DIR/desktop.log"
-
-    echo -e "${BLUE}[Desktop]${NC} → $server_url → $log_file"
-    echo "=== Desktop started at $(date) ===" > "$log_file"
 
     cd "$ROOT_DIR/vibeflow-desktop"
 
-    if [ "$bg" = "bg" ]; then
-        VIBEFLOW_SERVER_URL="$server_url" npm run dev >> "$log_file" 2>&1 &
-        echo $!
+    if [ "$mode" = "release" ]; then
+        local release_app="release/mac-arm64/VibeFlow.app"
+        local app_dir="$release_app/Contents/Resources/app"
+
+        if [ ! -d "$release_app" ]; then
+            echo -e "${RED}[Desktop] Release app not found: $release_app${NC}"
+            echo -e "${YELLOW}  Run 'cd vibeflow-desktop && npm run build' first${NC}"
+            return 1
+        fi
+
+        echo -e "${BLUE}[Desktop Release]${NC} 编译 + 同步到 release app → $log_file"
+        echo "=== Desktop Release started at $(date) ===" > "$log_file"
+
+        # Compile TypeScript
+        echo -e "${BLUE}[Desktop]${NC} tsc 编译中..."
+        npx tsc 2>&1 | tee -a "$log_file"
+
+        # Sync compiled JS to release app
+        echo -e "${BLUE}[Desktop]${NC} 同步 dist/ → release app..."
+        rsync -a --delete dist/ "$app_dir/dist/" 2>&1 | tee -a "$log_file"
+        echo -e "${GREEN}✓ 同步完成${NC}"
+
+        # Launch release app via its binary directly (so env vars are passed)
+        local electron_bin="$ROOT_DIR/vibeflow-desktop/$release_app/Contents/MacOS/VibeFlow"
+        echo -e "${BLUE}[Desktop]${NC} 启动 Release app: $electron_bin"
+        if [ "$bg" = "bg" ]; then
+            VIBEFLOW_SERVER_URL="$server_url" "$electron_bin" >> "$log_file" 2>&1 &
+            echo $!
+        else
+            VIBEFLOW_SERVER_URL="$server_url" "$electron_bin" 2>&1 | tee -a "$log_file"
+        fi
     else
-        VIBEFLOW_SERVER_URL="$server_url" npm run dev 2>&1 | tee -a "$log_file"
+        echo -e "${BLUE}[Desktop Dev]${NC} → $server_url → $log_file"
+        echo "=== Desktop Dev started at $(date) ===" > "$log_file"
+
+        if [ "$bg" = "bg" ]; then
+            VIBEFLOW_SERVER_URL="$server_url" npm run dev >> "$log_file" 2>&1 &
+            echo $!
+        else
+            VIBEFLOW_SERVER_URL="$server_url" npm run dev 2>&1 | tee -a "$log_file"
+        fi
     fi
 }
 
@@ -372,7 +406,7 @@ VibeFlow 开发环境控制脚本
 选项:
   --remote, -r    连接远程服务器 (默认本地)
   --build, -b     iOS: 重新编译原生代码 (Debug)
-  --release       iOS: 编译 Release 包 (独立运行)
+  --release       iOS: Release 编译 / Desktop: 编译并同步到 release app
   --clean, -c     iOS: 强制 prebuild --clean (删除 ios/ 目录重建)
   --simulator, --sim, -s  iOS: 部署到模拟器 (默认真机)
   --only, -o      单独启动指定客户端，不启动 Web 后端
@@ -401,6 +435,7 @@ VibeFlow 开发环境控制脚本
   # Desktop 开发
   ./scripts/dev.sh desktop             # → npm run dev + cd vibeflow-desktop && npm run dev
   ./scripts/dev.sh desktop --remote    # → cd vibeflow-desktop && VIBEFLOW_SERVER_URL=http://远程 npm run dev
+  ./scripts/dev.sh desktop --remote --release  # → tsc + rsync → 启动 release app 连远程
   ./scripts/dev.sh desktop --only      # → cd vibeflow-desktop && npm run dev (不启动本地后端)
 
   # Extension 开发
@@ -521,8 +556,10 @@ fi
 
 # iOS 构建模式
 IOS_MODE="dev"
+DESKTOP_MODE="dev"
 if [ -n "$RELEASE_FLAG" ]; then
     IOS_MODE="release"
+    DESKTOP_MODE="release"
 elif [ -n "$BUILD_FLAG" ]; then
     IOS_MODE="build"
 fi
@@ -619,7 +656,7 @@ for client in "${CLIENTS[@]}"; do
             if [ -z "$FOREGROUND_CLIENT" ]; then
                 FOREGROUND_CLIENT="desktop"
             else
-                DESKTOP_PID=$(start_desktop "$SERVER_URL" "bg")
+                DESKTOP_PID=$(start_desktop "$SERVER_URL" "bg" "$DESKTOP_MODE")
                 PIDS+=($DESKTOP_PID)
             fi
             ;;
@@ -637,7 +674,7 @@ done
 # 前台启动最后一个客户端 (这样可以看到交互式输出)
 case "$FOREGROUND_CLIENT" in
     desktop)
-        start_desktop "$SERVER_URL"
+        start_desktop "$SERVER_URL" "" "$DESKTOP_MODE"
         ;;
     ios)
         start_ios "$SERVER_HOST" "$SERVER_PORT" "$IOS_MODE" "" "$IOS_CLEAN" "$IOS_TARGET"
