@@ -80,16 +80,13 @@ const DEFAULT_RETRY_STRATEGY: RetryStrategy = {
 
 // Detect if running in development mode (consistent with main.ts logic)
 const isDevelopment = process.env.NODE_ENV === 'development' || (!app.isPackaged && process.env.NODE_ENV !== 'production');
-// If the server URL is explicitly HTTP, don't force HTTPS even in production.
-// This allows release builds to connect to HTTP dev/staging servers.
-const serverIsHttp = process.env.VIBEFLOW_SERVER_URL?.startsWith('http://') ?? false;
-const skipSecure = isDevelopment || serverIsHttp;
 
-// Default security configuration (Requirements: 9.4, 9.5, 9.6)
+// Security config is determined at construction time based on the actual serverUrl.
+// Default here is conservative; overridden in constructor if server is HTTP.
 const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
-  useSecureConnection: !skipSecure,
-  verifyCertificate: !skipSecure,
-  rejectUnauthorized: !skipSecure,
+  useSecureConnection: !isDevelopment,
+  verifyCertificate: !isDevelopment,
+  rejectUnauthorized: !isDevelopment,
   minTLSVersion: 'TLSv1.2',
 };
 
@@ -258,11 +255,19 @@ class ConnectionManager {
   });
 
   constructor(config: Partial<ConnectionManagerConfig> = {}) {
-    this.config = { 
-      ...DEFAULT_CONFIG, 
+    // If the resolved server URL is HTTP, disable HTTPS upgrade regardless of environment
+    const resolvedUrl = config.serverUrl || DEFAULT_CONFIG.serverUrl;
+    const serverIsHttp = resolvedUrl.startsWith('http://');
+    const securityBase = serverIsHttp
+      ? { useSecureConnection: false, verifyCertificate: false, rejectUnauthorized: false, minTLSVersion: 'TLSv1.2' as const }
+      : DEFAULT_SECURITY_CONFIG;
+
+    this.config = {
+      ...DEFAULT_CONFIG,
       ...config,
-      security: { ...DEFAULT_SECURITY_CONFIG, ...config.security },
+      security: { ...securityBase, ...config.security },
     };
+    console.log('[ConnectionManager] Security resolved:', { serverUrl: resolvedUrl, serverIsHttp, useSecureConnection: this.config.security.useSecureConnection });
     this.state = {
       status: 'disconnected',
       lastConnectedAt: null,

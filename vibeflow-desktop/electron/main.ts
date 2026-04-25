@@ -1108,17 +1108,14 @@ app.whenReady().then(async () => {
 
   // Set up connection manager with main window reference (Requirements: 1.7, 9.4, 9.5, 9.6)
   const config = getConfig();
+  // Only use HTTPS/WSS when server URL is actually HTTPS. Don't force upgrade HTTP→HTTPS.
+  const requireSecure = !config.isDevelopment && config.serverUrl.startsWith('https://');
   const connectionManager = initializeConnectionManager({
     serverUrl: config.serverUrl,
-    // Security configuration for WSS connections
     security: {
-      // Use secure connection in production, allow insecure in development
-      useSecureConnection: !config.isDevelopment,
-      // Verify certificates in production
-      verifyCertificate: !config.isDevelopment,
-      // Reject unauthorized certificates in production
-      rejectUnauthorized: !config.isDevelopment,
-      // Minimum TLS version for security
+      useSecureConnection: requireSecure,
+      verifyCertificate: requireSecure,
+      rejectUnauthorized: requireSecure,
       minTLSVersion: 'TLSv1.2',
     },
   });
