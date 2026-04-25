@@ -182,8 +182,11 @@ class AuthManager {
       const loginUrl = `${this.config.serverUrl}/login`;
       this.loginWindow.loadURL(loginUrl);
 
-      // Watch for navigation away from /login (indicates successful login)
-      this.loginWindow.webContents.on('did-navigate', async (_event, url) => {
+      // Watch for navigation away from /login (indicates successful login).
+      // Use both did-navigate (same-page) and did-navigate-in-page (SPA routing)
+      // to handle all redirect patterns.
+      const handleNavigation = async (url: string) => {
+        console.log('[AuthManager] Navigation detected:', url);
         const parsed = new URL(url);
         if (
           parsed.pathname !== '/login' &&
@@ -192,12 +195,16 @@ class AuthManager {
         ) {
           console.log('[AuthManager] Login succeeded, validating session…');
           const sessionValid = await this.validateSession();
+          console.log('[AuthManager] Session valid:', sessionValid);
           if (sessionValid) {
             this.closeLoginWindow();
             resolve(true);
           }
         }
-      });
+      };
+
+      this.loginWindow.webContents.on('did-navigate', (_event, url) => handleNavigation(url));
+      this.loginWindow.webContents.on('did-navigate-in-page', (_event, url) => handleNavigation(url));
 
       this.loginWindow.on('closed', () => {
         this.loginWindow = null;
