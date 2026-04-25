@@ -182,6 +182,13 @@ class AuthManager {
       const loginUrl = `${this.config.serverUrl}/login`;
       this.loginWindow.loadURL(loginUrl);
 
+      // Clear password auto-fill after page loads
+      this.loginWindow.webContents.on('did-finish-load', () => {
+        this.loginWindow?.webContents.executeJavaScript(`
+          document.querySelectorAll('input[type="password"]').forEach(el => { el.value = ''; });
+        `).catch(() => {});
+      });
+
       // Watch for navigation away from /login (indicates successful login).
       // Use both did-navigate (same-page) and did-navigate-in-page (SPA routing)
       // to handle all redirect patterns.
@@ -223,6 +230,12 @@ class AuthManager {
       const serverUrl = this.config.serverUrl;
       await session.defaultSession.cookies.remove(serverUrl, 'next-auth.session-token');
       await session.defaultSession.cookies.remove(serverUrl, '__Secure-next-auth.session-token');
+      // Clear saved form data and auth cache so login window doesn't auto-fill
+      await session.defaultSession.clearAuthCache();
+      await session.defaultSession.clearStorageData({
+        origin: serverUrl,
+        storages: ['localstorage'],
+      });
     } catch {
       // Best-effort
     }
