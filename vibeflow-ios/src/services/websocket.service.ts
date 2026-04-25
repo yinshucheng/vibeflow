@@ -19,6 +19,7 @@ import {
 import { getSocketAuthPayload } from '@/config/auth';
 import { serverConfigService } from './server-config.service';
 import { useAppStore } from '@/store/app.store';
+import { useHabitStore } from '@/store/habit.store';
 import {
   createCommandHandler,
   type CommandHandlers,
@@ -153,6 +154,11 @@ class WebSocketService {
         case 'dailyState':
           fetchTodayTasks();
           fetchOverdueTasks();
+          break;
+        case 'habit':
+          // Refetch habits when any habit data changes
+          useHabitStore.getState().fetchTodayHabits();
+          useHabitStore.getState().fetchHabits();
           break;
         // project/goal/settings — iOS reads these from server via full sync, no action needed
       }

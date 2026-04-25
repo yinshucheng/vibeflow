@@ -258,7 +258,7 @@ interface TestScheduleSectionProps {
 
 function TestScheduleSection({ authStatus }: TestScheduleSectionProps): React.JSX.Element {
   const theme = useTheme();
-  const [testDuration, setTestDuration] = useState(60); // seconds
+  const [testDuration, setTestDuration] = useState(15 * 60); // 15 minutes (minimum for DeviceActivitySchedule)
   const [testStatus, setTestStatus] = useState<'idle' | 'registered' | 'loading'>('idle');
   const [testEndTime, setTestEndTime] = useState<number | null>(null);
   const [activeSchedules, setActiveSchedules] = useState<string[]>([]);
@@ -293,19 +293,24 @@ function TestScheduleSection({ authStatus }: TestScheduleSectionProps): React.JS
   const handleRegisterTest = useCallback(async () => {
     setTestStatus('loading');
     try {
-      const { registerTestSchedule } = await import('../../modules/screen-time');
+      const { registerTestSchedule, getActiveSchedules } = await import('../../modules/screen-time');
       const result = await registerTestSchedule(testDuration);
-      if (result.success) {
-        setTestStatus('registered');
-        setTestEndTime(result.endTime);
-        Alert.alert(
-          '测试 Schedule 已注册',
-          `将在 ${testDuration} 秒后触发 intervalDidEnd。\n\n` +
-          `结束时间: ${new Date(result.endTime).toLocaleTimeString()}\n\n` +
-          `可以退出 App 或锁屏，观察屏蔽是否自动解除。`,
-        );
-        await loadActiveSchedules();
-      }
+      const schedules = await getActiveSchedules();
+      setActiveSchedules(schedules);
+
+      const r = result as Record<string, unknown>;
+      const scheduleError = r.scheduleError as string | undefined;
+      setTestStatus('registered');
+      setTestEndTime(result.endTime);
+      Alert.alert(
+        '测试结果',
+        `屏蔽: ${r.blockingEnabled ? '已启动' : '未启动'}\n` +
+        `Schedule: ${scheduleError ? '失败 — ' + scheduleError : '已注册'}\n` +
+        `时间窗口: ${r.startTime || '?'} → ${r.endTimeStr || '?'}\n` +
+        `活跃: ${schedules.join(', ') || '无'}\n` +
+        `intervalDidEnd 预计: ${new Date(result.endTime).toLocaleTimeString()}\n\n` +
+        `退出 App，等 ${Math.round(testDuration / 60)} 分钟后检查日志`,
+      );
     } catch (error) {
       Alert.alert('注册失败', String(error));
       setTestStatus('idle');
@@ -338,9 +343,9 @@ function TestScheduleSection({ authStatus }: TestScheduleSectionProps): React.JS
       )}
 
       <View style={{ padding: 12, gap: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Text style={{ color: theme.colors.text }}>持续时间:</Text>
-          {[30, 60, 120, 180].map((sec) => (
+          {[15 * 60, 20 * 60, 30 * 60].map((sec) => (
             <TouchableOpacity
               key={sec}
               style={{
@@ -354,7 +359,7 @@ function TestScheduleSection({ authStatus }: TestScheduleSectionProps): React.JS
               onPress={() => setTestDuration(sec)}
             >
               <Text style={{ color: testDuration === sec ? '#FFF' : theme.colors.text, fontSize: 13 }}>
-                {sec}s
+                {sec >= 60 ? `${Math.floor(sec / 60)}分钟` : `${sec}秒`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -408,14 +413,65 @@ function TestScheduleSection({ authStatus }: TestScheduleSectionProps): React.JS
         </TouchableOpacity>
       </View>
 
+      {/* Extension Logs */}
+      <View style={{ padding: 12, gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: 6,
+              backgroundColor: theme.colors.background,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              alignItems: 'center',
+            }}
+            onPress={async () => {
+              const { getExtensionLogs } = await import('../../modules/screen-time');
+              const extLogs = await getExtensionLogs();
+              setLogs(extLogs);
+              if (extLogs.length === 0) {
+                Alert.alert('日志为空', 'Extension 还没有记录任何日志');
+              }
+            }}
+          >
+            <Text style={{ color: theme.colors.text, fontSize: 13 }}>查看 Extension 日志</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 6,
+              backgroundColor: theme.colors.error,
+              alignItems: 'center',
+            }}
+            onPress={async () => {
+              const { forceDisableBlocking } = await import('../../modules/screen-time');
+              await forceDisableBlocking();
+              Alert.alert('已解除', '屏蔽已强制解除');
+            }}
+          >
+            <Text style={{ color: '#FFF', fontSize: 13 }}>强制解除</Text>
+          </TouchableOpacity>
+        </View>
+
+        {logs.length > 0 && (
+          <View style={{ backgroundColor: theme.colors.background, borderRadius: 8, padding: 8 }}>
+            <Text style={{ color: theme.colors.text, fontSize: 11, fontFamily: 'monospace' }}>
+              {logs.join('\n')}
+            </Text>
+          </View>
+        )}
+      </View>
+
       <View style={{ padding: 12, backgroundColor: theme.colors.background, borderRadius: 8, margin: 12 }}>
         <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontFamily: 'monospace' }}>
           测试流程:{'\n'}
-          1. 点击"注册测试 Schedule"{'\n'}
-          2. Schedule 会立即触发 intervalDidStart (启动屏蔽){'\n'}
-          3. 退出 App 或锁屏{'\n'}
-          4. 等待指定时间后，intervalDidEnd 应被触发 (解除屏蔽){'\n'}
-          5. 重新打开 App 检查屏蔽状态
+          1. 点击"注册测试 Schedule" → 立即启动屏蔽{'\n'}
+          2. 退出 App 或锁屏{'\n'}
+          3. 等待指定时间后，Extension 的 intervalDidEnd 应被触发{'\n'}
+          4. 重新打开 App，点击"查看 Extension 日志"确认是否被调用{'\n'}
+          5. 如果 intervalDidEnd 被调用但屏蔽未解除，说明 Extension 逻辑有问题
         </Text>
       </View>
     </Section>

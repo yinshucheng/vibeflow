@@ -28,7 +28,7 @@ class ActionService {
   private rpc = createActionRPC({
     timeout: 10000,
     sendEvent: (event) => {
-      websocketService.sendUserAction(
+      return websocketService.sendUserAction(
         event.payload.actionType,
         event.payload.data,
         event.payload.optimisticId
@@ -166,9 +166,10 @@ class ActionService {
       const result = await this.rpc.send(actionType, data);
       return { success: result.success, error: result.error, data: result.data as T | undefined };
     } catch (err) {
-      // RPC rejects on timeout or connection loss
+      // RPC rejects on timeout, connection loss, or not connected
       const message = err instanceof Error ? err.message : 'Action failed';
-      return { success: false, error: { code: 'TIMEOUT', message } };
+      const code = message.includes('Not connected') ? 'NOT_CONNECTED' : 'TIMEOUT';
+      return { success: false, error: { code, message } };
     }
   }
 }

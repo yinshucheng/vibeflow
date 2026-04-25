@@ -236,9 +236,9 @@ function addExtensionTarget(project, ext) {
         s.TARGETED_DEVICE_FAMILY = `"1,2"`;
         s.GENERATE_INFOPLIST_FILE = 'NO';
         s.CURRENT_PROJECT_VERSION = '1';
-        s.MARKETING_VERSION = '1.0';
+        s.MARKETING_VERSION = '1.0.0';
         s.CODE_SIGN_STYLE = 'Automatic';
-        s.DEVELOPMENT_TEAM = 'B268N5S577';
+        s.DEVELOPMENT_TEAM = 'VCC347GP7V';
         s.SWIFT_EMIT_LOC_STRINGS = 'YES';
         s.PRODUCT_NAME = `"$(TARGET_NAME)"`;
         s.SKIP_INSTALL = 'YES';
