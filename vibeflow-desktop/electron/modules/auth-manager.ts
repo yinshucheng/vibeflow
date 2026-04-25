@@ -166,6 +166,10 @@ class AuthManager {
         ? `VibeFlow — Login (远程: ${new URL(this.config.serverUrl).host})`
         : 'VibeFlow — Login';
 
+      // Use an ephemeral partition so no saved passwords carry over between logins.
+      // The NextAuth cookie will be copied to defaultSession after successful login.
+      const loginPartition = `login-${Date.now()}`;
+
       this.loginWindow = new BrowserWindow({
         width: 480,
         height: 640,
@@ -176,18 +180,12 @@ class AuthManager {
         webPreferences: {
           nodeIntegration: false,
           contextIsolation: true,
+          partition: loginPartition,
         },
       });
 
       const loginUrl = `${this.config.serverUrl}/login`;
       this.loginWindow.loadURL(loginUrl);
-
-      // Clear password auto-fill after page loads
-      this.loginWindow.webContents.on('did-finish-load', () => {
-        this.loginWindow?.webContents.executeJavaScript(`
-          document.querySelectorAll('input[type="password"]').forEach(el => { el.value = ''; });
-        `).catch(() => {});
-      });
 
       // Watch for navigation away from /login (indicates successful login).
       // Use both did-navigate (same-page) and did-navigate-in-page (SPA routing)
@@ -200,7 +198,9 @@ class AuthManager {
           parsed.pathname !== '/register' &&
           !parsed.pathname.startsWith('/api/auth')
         ) {
-          console.log('[AuthManager] Login succeeded, validating session…');
+          console.log('[AuthManager] Login succeeded, copying cookie to default session…');
+          // Copy session cookie from login partition to defaultSession
+          await this.copySessionCookieToDefault(loginPartition);
           const sessionValid = await this.validateSession();
           console.log('[AuthManager] Session valid:', sessionValid);
           if (sessionValid) {
@@ -251,6 +251,34 @@ class AuthManager {
   // -----------------------------------------------------------------------
   // Internals
   // -----------------------------------------------------------------------
+
+  /**
+   * Copy the NextAuth session cookie from a login partition to defaultSession.
+   */
+  private async copySessionCookieToDefault(partition: string): Promise<void> {
+    try {
+      const loginSession = session.fromPartition(partition);
+      const cookies = await loginSession.cookies.get({ url: this.config.serverUrl });
+
+      for (const cookie of cookies) {
+        if (cookie.name === 'next-auth.session-token' || cookie.name === '__Secure-next-auth.session-token') {
+          await session.defaultSession.cookies.set({
+            url: this.config.serverUrl,
+            name: cookie.name,
+            value: cookie.value,
+            path: cookie.path || '/',
+            httpOnly: cookie.httpOnly,
+            secure: cookie.secure,
+            expirationDate: cookie.expirationDate,
+            sameSite: cookie.sameSite || 'lax',
+          });
+          console.log('[AuthManager] Copied session cookie to defaultSession:', cookie.name);
+        }
+      }
+    } catch (error) {
+      console.error('[AuthManager] Failed to copy session cookie:', error);
+    }
+  }
 
   private closeLoginWindow(): void {
     if (this.loginWindow && !this.loginWindow.isDestroyed()) {
